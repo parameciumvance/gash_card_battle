@@ -1,0 +1,25 @@
+[project]
+name = "gash-card-battle"
+version = "0.1.0"
+description = "金色のガッシュベル!! THE CARD BATTLE — 規則全自動裁決的 TCG 對戰網頁"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "openpyxl>=3.1",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

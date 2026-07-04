@@ -4,7 +4,7 @@
 
 參考資料(唯讀):
 - `ref/raw/rule3.md` — 完整中文規則(含 ADV 規則)。
-- `ref/raw/Zatch Bell CCG List for TTS.xlsx` — 全卡資料庫;"The Table" 工作表含卡號(HYPERLINK 顯示文字,如 `M-001`、`S-019j`)、類型、費用、A/D、魔力、傷害、效果全文(英文)、卡圖 Google Drive 連結。Level 1 共 77 列 = 60 種卡 + e/j 雙版本重複列。
+- `ref/raw/Zatch Bell CCG List for TTS.xlsx` — 全卡資料庫;"The Table" 工作表含卡號(HYPERLINK 顯示文字,如 `M-001`、`S-019j`)、類型、費用、A/D、魔力、傷害、效果全文(英文)、卡圖 Google Drive 連結。Level 1 共 77 列 = 67 種卡 + e/j 雙版本重複列(10 卡有 e/j 兩版)。
 - `ref/raw/deck/level1.txt` — 預組魔本(賈修+蒂歐+康裘美,32 頁,已驗證合法,底牌為 P32 バオウ・ザケルガ 吃「最後一頁術費用 0」規則)。
 
 探索階段已定案的需求決策:全自動裁決、hotseat 起步預留線上、中文介面走 i18n、e/j 採日版 j、預組魔本雙方共用、含卡圖與行動 log、不含構築器。
@@ -67,7 +67,7 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 
 ### D4. 效果系統:共用原語 + 每卡 handler,不做 DSL
 
-- 60 張卡不值得發明 DSL。做法:
+- 67 張卡不值得發明 DSL。做法:
   - **效果原語**(引擎提供):`gain_mp`、`add_power(target, amount, duration)`、`turn_pages(player, n)`、`set_restriction(flag, scope, duration)`(禁術/禁防禦/禁庇護/夥伴失效)、`schedule_standby(trigger, effect)`、`flip_coin()`、`negate_attack()`、`modify_damage(delta, duration)`、`discard(card)`、`put_in_play(card)` 等。
   - **每卡 handler**:`cards/handlers/` 下按卡號註冊(`@card("M-001")`),宣告觸發時機(此卡在場上/宣告使用/MP減少N/將此卡棄掉/攻擊勝利時/造成傷害時…)+ 用原語組合效果。約 18 張香草術卡(「攻擊勝利→對魔本傷害 N」)完全由資料表達,不需 handler。
 - **持續效果與時效**:掛在 GameState 上的 modifier 列表,每個帶 `duration`(本場戰鬥/本回合/至下回合結束階段/至下回合開始階段)與來源卡;階段轉換時統一過期。魔力計算 = 基礎值 + Σ有效 modifier,永遠即算不快取。
@@ -98,8 +98,8 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 
 - [規則文本歧義:rule3.md 為翻譯稿,部分時序(如待命效果的精確解決順序)可能有模糊處] → 以規則書字面為準,歧義處在引擎測試中固定一種解釋並在測試註明出處,之後可改。
 - [卡圖 Google Drive 批次下載可能被擋(權限/限流)] → 文字卡面為第一公民,卡圖是加分項;下載腳本支援斷點續抓,失敗清單輸出供手動補。
-- [日→中翻譯 60 張卡由 AI 產生,術語音譯可能不合玩家習慣] → 翻譯獨立成檔、逐卡 key 對應,校對成本低;卡名保留日文原名附註中譯亦可在 UI 層切換。
-- [效果原語抽象一開始切不準,後面的卡逼出重構] → 實作順序刻意安排:先香草術卡與流程,再簡單常在效果,最後複雜卡(E-011、P-006、待命類);原語隨之演進,反正 v1 只有 60 張。
+- [日→中翻譯 67 張卡由 AI 產生,術語音譯可能不合玩家習慣] → 翻譯獨立成檔、逐卡 key 對應,校對成本低;卡名保留日文原名附註中譯亦可在 UI 層切換。
+- [效果原語抽象一開始切不準,後面的卡逼出重構] → 實作順序刻意安排:先香草術卡與流程,再簡單常在效果,最後複雜卡(E-011、P-006、待命類);原語隨之演進,反正 v1 只有 67 張。
 - [hotseat 指令帶 `player` 欄位、伺服器不驗身分,線上化時是安全洞] → 已知且刻意;線上化時以連線 session 取代,引擎介面不變。
 
 ## Migration Plan

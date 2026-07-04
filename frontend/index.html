@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>金色のガッシュベル!! THE CARD BATTLE</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header id="topbar">
+    <span id="title"></span>
+    <span id="turn-info"></span>
+    <span id="phase-info"></span>
+    <span id="acting-info"></span>
+    <button id="new-game"></button>
+  </header>
+
+  <main id="layout">
+    <section id="board">
+      <div id="player-1" class="player-zone top"></div>
+      <div id="battle-strip"></div>
+      <div id="player-0" class="player-zone bottom"></div>
+      <div id="action-bar"></div>
+    </section>
+    <aside id="log-panel">
+      <h3 id="log-title"></h3>
+      <div id="log"></div>
+    </aside>
+  </main>
+
+  <div id="dialog-overlay" class="hidden">
+    <div id="dialog">
+      <h3 id="dialog-title"></h3>
+      <div id="dialog-options"></div>
+    </div>
+  </div>
+
+  <div id="zoom-overlay" class="hidden">
+    <div id="zoom-card"></div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

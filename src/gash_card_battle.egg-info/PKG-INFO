@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: gash-card-battle
+Version: 0.1.0
+Summary: 金色のガッシュベル!! THE CARD BATTLE — 規則全自動裁決的 TCG 對戰網頁
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.29
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: openpyxl>=3.1; extra == "dev"

@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn>=0.29
+
+[dev]
+pytest>=8.0
+openpyxl>=3.1

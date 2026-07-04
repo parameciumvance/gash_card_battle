@@ -11,9 +11,9 @@
 - **WHEN** 抽取遇到 S-019e 與 S-019j 兩列
 - **THEN** cards.json 僅含一筆 S-019,其效果文為 j 版內容
 
-#### Scenario: 抽出 60 種卡
+#### Scenario: 抽出 67 種卡
 - **WHEN** 抽取腳本執行完成
-- **THEN** cards.json 恰含 60 種唯一卡號(M×15、S×28、P×9、E×15 減去版本重複後之集合)
+- **THEN** cards.json 恰含 67 種唯一卡號(M×15+S×28+P×9+E×15;官方「全60種」為稀有度合併算法,唯一卡號為 67)
 
 ### Requirement: 中文翻譯檔獨立
 中文文本 SHALL 存於獨立檔 `data/cards.zh-TW.json`,以卡號為 key,含:卡名中譯、卡名日文原名、效果名中譯、效果全文中譯、風味文中譯(可缺)。修改翻譯 MUST NOT 影響 cards.json 的數值與邏輯。結構 SHALL 允許並列新增其他語言檔。

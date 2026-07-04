@@ -1,0 +1,1093 @@
+[
+ {
+  "number": "E-001",
+  "type": "event",
+  "name_en": "The Will to Protect",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Add 3000 Power to 1 of your in-play MAMODO cards during the next turn. This effect is [STANDBY] until the START PHASE of the next turn, and [STAY] during the next turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1g6fL1TI2Qpo9csKvKEU4Kz9lWtOsChQO/view?usp=sharing"
+ },
+ {
+  "number": "E-002",
+  "type": "event",
+  "name_en": "Tina",
+  "related_mamodo": null,
+  "cost": 2,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STAY] Both players cannot play any SPELL cards until the END PHASE of the next turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1SmMFXPmmqqDlIhC2iHI-sKQ1IdFLtKsa/view?usp=sharing"
+ },
+ {
+  "number": "E-003",
+  "type": "event",
+  "name_en": "Yellowtail",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Get 2 MP.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1FoYa0ybMHZKGRqQur--iCbuc_1B0bpWH/view?usp=sharing"
+ },
+ {
+  "number": "E-004",
+  "type": "event",
+  "name_en": "Friendship Curry",
+  "related_mamodo": null,
+  "cost": 5,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Reduce both players' MP to 0. ※ When either player has 1 or more MP, this effect is considered to be reducing a player's MP.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/10aFTiGhvZtVXStOTICYsZckDrtIhasmq/view?usp=sharing"
+ },
+ {
+  "number": "E-005",
+  "type": "event",
+  "name_en": "Suzy's Lucky Fruit",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin twice; • If you get heads twice, turn back 2 pages of your Spell Book. • If you get heads and tails, there is no effect. • If you get tails twice, turn 2 pages of your Spell Book.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1MhyB4JeFmGm6FTs0EEOEhxSNB5uyTkUF/view?usp=sharing"
+ },
+ {
+  "number": "E-006",
+  "type": "event",
+  "name_en": "Yuta Akiyama",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Select 1 of your in-play MAMODO cards and flip a coin; if it's heads, turn the selected MAMODO card to Normal Status. If it's tails, add 1000 Power to the selected MAMODO card during this turn ([STAY]).",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1zU8-m_j0-pdv_ljKu8oPDA0J8yvUVmQO/view?usp=sharing"
+ },
+ {
+  "number": "E-007",
+  "type": "event",
+  "name_en": "Ivy Kinoyama",
+  "related_mamodo": null,
+  "cost": 1,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Turn 1 of your Injured MAMODO cards to Normal Status.",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1GSQJOtXbwGB9v9uYp7tZIHGiJ7IdsZw3/view?usp=sharing"
+ },
+ {
+  "number": "E-008",
+  "type": "event",
+  "name_en": "Suzy Mizuno",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STAY] Both players cannot apply the effects of their in-play PARTNER cards during this turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1WYYe7-jda6CdXXHro6eDdRiTbfJ1A8wa/view?usp=sharing"
+ },
+ {
+  "number": "E-009",
+  "type": "event",
+  "name_en": "Kind King",
+  "related_mamodo": null,
+  "cost": 3,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STAY] Add 3000 Power to 1 of your in-play MAMODO cards during this turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1iE3UZlTv4HRZ5kl4rNa0Git5Oj9KgEWs/view?usp=sharing"
+ },
+ {
+  "number": "E-010",
+  "type": "event",
+  "name_en": "Kind Kiyo",
+  "related_mamodo": null,
+  "cost": 3,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STANDBY] Select 1 of your opponent's in-play PARTNER cards without [In Play]. You can apply the effects of the selected PARTNER card as your own once during this turn (any PARTNER cards used through this effect with [Send this card to the Discard Pile] remain in play after applying their effects).",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1yq9dZH50GOojjHSrKjDMx6ROmToyMEB5/view?usp=sharing"
+ },
+ {
+  "number": "E-011",
+  "type": "event",
+  "name_en": "Iron Man Folgore",
+  "related_mamodo": null,
+  "cost": 3,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin; if it's heads, move 1 PARTNER card from your Discard Pile into play. If it's tails, you may pay 2 MP to re-do the coin toss until you get heads.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1cQ2IvqJtEEBfPq7DKfvmxIT2TZ1IV8tT/view?usp=sharing"
+ },
+ {
+  "number": "E-012",
+  "type": "event",
+  "name_en": "Here Comes Zatch Bell!",
+  "related_mamodo": null,
+  "cost": 3,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Select 1 MAMODO card from any page of your Spell Book and put it in play.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1GfOtow31_GgBRPIgR6BtaOgUIRxaT2Hs/view?usp=sharing"
+ },
+ {
+  "number": "E-013",
+  "type": "event",
+  "name_en": "Naomi",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STANDBY] Your opponent can neither SACRIFICE nor PROTECT their Spell Book from Damage during the next Battle this turn.",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/110JZUt2z3qCtAl4LM7PhJJpfF8hAXu5Q/view?usp=sharing"
+ },
+ {
+  "number": "E-014",
+  "type": "event",
+  "name_en": "Ponygon",
+  "related_mamodo": null,
+  "cost": 2,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Turn 1 page of your opponent's Spell Book. Then, look at the currently open pages of your opponent's Spell Book.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/12qv6Pq9ZoULJ13ZdfC4f-jsa-WTYu60M/view?usp=sharing"
+ },
+ {
+  "number": "E-015",
+  "type": "event",
+  "name_en": "Volcan 300",
+  "related_mamodo": null,
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STAY] Add 2000 Power to 1 of your in-play MAMODO cards until the END PHASE of the next turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1gj5Jqjq3AvhDxmz0HEgUUbCCX4qMRDu1/view?usp=sharing"
+ },
+ {
+  "number": "M-001",
+  "type": "mamodo",
+  "name_en": "Zatch Bell",
+  "related_mamodo": "Zatch Bell",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Kind King",
+  "effect_en": "[1 MP] [STAY] Add 1000 Power to this MAMODO card during the Battle when it Attacks.",
+  "power": {
+   "base": 4000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1brC4BiOWwsUL_m6ek21J-enVA_ubW_sd/view?usp=drive_link"
+ },
+ {
+  "number": "M-002",
+  "type": "mamodo",
+  "name_en": "Zatch Bell",
+  "related_mamodo": "Zatch Bell",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Dropout Zatch",
+  "effect_en": "[IN PLAY] If you have 2 MP or less at your START PHASE, get 1 MP.",
+  "power": {
+   "base": 3000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1YABW5cXKQDas6Ovs-E_KsS1YmIt-C1XX/view?usp=drive_link"
+ },
+ {
+  "number": "M-003",
+  "type": "mamodo",
+  "name_en": "Zatch Bell",
+  "related_mamodo": "Zatch Bell",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Injured Hero",
+  "effect_en": "[IN PLAY] Add 1000 Power to this MAMODO card when it is in Injured Status.",
+  "power": {
+   "base": 4000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/12JlPOQLmm3E2mV6qnWhpKOtwz2SNpxo6/view?usp=drive_link"
+ },
+ {
+  "number": "M-004",
+  "type": "mamodo",
+  "name_en": "Reycom",
+  "related_mamodo": "Reycom",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Evil Tool",
+  "effect_en": "[IN PLAY] Add 1000 Power to this MAMODO card when it has a PARTNER card attached.",
+  "power": {
+   "base": 3000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/16d2FdwwGNVO7iAo-tYiFKiWEzv8VHZk2/view?usp=sharing"
+ },
+ {
+  "number": "M-005",
+  "type": "mamodo",
+  "name_en": "Brago",
+  "related_mamodo": "Brago",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Self-Possessed Warrior",
+  "effect_en": "[2 MP] [STAY] Increase the Damage of this MAMODO card's Attack by 1 during the Battle when it Attacks.",
+  "power": {
+   "base": 5000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1IQSi17esDqC3MD-1vXW1wvot-cRDZAw8/view?usp=sharing"
+ },
+ {
+  "number": "M-006",
+  "type": "mamodo",
+  "name_en": "Gofure",
+  "related_mamodo": "Gofure",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Imitated Friend",
+  "effect_en": "[IN PLAY] [STAY] Your opponent cannot play SPELL cards during the turn this MAMODO card is put in play.",
+  "power": {
+   "base": 2000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Rs4BnKqTmL9DeC4CVUYU5XVuny5YyCF7/view?usp=sharing"
+ },
+ {
+  "number": "M-007",
+  "type": "mamodo",
+  "name_en": "Gofure (Transformed)",
+  "related_mamodo": "Gofure",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Real Self",
+  "effect_en": "This card is placed on a regular Gofure MAMODO card. [IN PLAY] Turn 1 page of your opponent's Spell Book when this MAMODO card is put in play.",
+  "power": {
+   "base": 3000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1nRZjhg0Xtlr2UW3oqWa986lpq8m9B7Mv/view?usp=sharing"
+ },
+ {
+  "number": "M-008",
+  "type": "mamodo",
+  "name_en": "Sugino",
+  "related_mamodo": "Sugino",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Tactician",
+  "effect_en": "[DECLARE TO USE] [STANDBY] Reduce the MP cost of a SPELL card played for this MAMODO card by 1. In addition, reduce the Power of that SPELL card by 1000.",
+  "power": {
+   "base": 3500
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1GnnKuEe8UPSscQIKB_tFBSps0_ELLgCF/view?usp=sharing"
+ },
+ {
+  "number": "M-009",
+  "type": "mamodo",
+  "name_en": "Kolulu",
+  "related_mamodo": "Kolulu",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Kind Girl",
+  "effect_en": "[IN PLAY] When this MAMODO card is sent to the Discard Pile, get 4 MP.",
+  "power": {
+   "base": 1000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1tOpYZiCDJvr1pJ6o3CGvTAVXnow73mMl/view?usp=sharing"
+ },
+ {
+  "number": "M-010",
+  "type": "mamodo",
+  "name_en": "Kolulu (Transformed)",
+  "related_mamodo": "Kolulu",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Mad Warrior",
+  "effect_en": "This card is placed on a regular Kolulu MAMODO card. [1 MP] [STAY] Add 1000 Power to this MAMODO card during the Battle when it Defends.",
+  "power": {
+   "base": 4000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1stT-o3gKy6rjfm-Ju-CHW7Fc3W9TRztx/view?usp=sharing"
+ },
+ {
+  "number": "M-011",
+  "type": "mamodo",
+  "name_en": "Fein",
+  "related_mamodo": "Fein",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Tactical Enemy",
+  "effect_en": "[DECLARE TO USE] Look at your opponent's Spell Book. Select 1 MAMODO card from any of the pages and send it to the Discard Pile. This effect can be applied only once per game (per player).",
+  "power": {
+   "base": 3000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1JFLKYNdwut4mGexFgijtRrDAF0TkDodQ/view?usp=sharing"
+ },
+ {
+  "number": "M-012",
+  "type": "mamodo",
+  "name_en": "Kanchome",
+  "related_mamodo": "Kanchome",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Lucky Guy",
+  "effect_en": "[DECLARE TO USE] Re-do your coin toss.",
+  "power": {
+   "base": 1000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1I4LakZy-kyJBYlTCq9P57LU3_a_XqExc/view?usp=sharing"
+ },
+ {
+  "number": "M-013",
+  "type": "mamodo",
+  "name_en": "Kanchome",
+  "related_mamodo": "Kanchome",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Invincible Fellow",
+  "effect_en": "[2 MP] [STAY] This MAMODO card does not receive Damage or Injury during the Battle. This effect can be applied only when this MAMODO card is in Injured Status.",
+  "power": {
+   "base": 1000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/106vPPerZHvtfy7AvBHkNgV32_f72Vd9V/view?usp=sharing"
+ },
+ {
+  "number": "M-014",
+  "type": "mamodo",
+  "name_en": "Tia",
+  "related_mamodo": "Tia",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Reliable Partner",
+  "effect_en": "[IN PLAY] Add 1000 Power to all of your in-play MAMODO cards when you have 2 or more MAMODO cards (including this card) in play.",
+  "power": {
+   "base": 2000
+  },
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1zP34cqfIg-VUHDIFPWeo-fjSmckRhb5b/view?usp=drive_link"
+ },
+ {
+  "number": "M-015",
+  "type": "mamodo",
+  "name_en": "Tia",
+  "related_mamodo": "Tia",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": "Obstinacy",
+  "effect_en": "[5 MP] [STAY] This MAMODO card does not receive Damage or Injury during the Battle.",
+  "power": {
+   "base": 3000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1714i_GcccZK-1NSOan3O1plXEhMYakLZ/view?usp=sharing"
+ },
+ {
+  "number": "P-001",
+  "type": "partner",
+  "name_en": "Kiyo Takamine",
+  "related_mamodo": "Zatch Bell",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] The SPELL card your Zatch Bell MAMODO card Attacks with in the next Battle this turn cannot be Defended.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1avF4PbnlnmsjGlF6qAJXQDVOcX3uYYWL/view?usp=sharing"
+ },
+ {
+  "number": "P-002",
+  "type": "partner",
+  "name_en": "Hosokawa",
+  "related_mamodo": "Reycom",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Reduce your opponent's MP by 3 to get MP equal to the number they reduced their MP by from this effect.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1WR_9OvpxcQeoki74DkV6VuLwRqUeIDwi/view?usp=sharing"
+ },
+ {
+  "number": "P-003",
+  "type": "partner",
+  "name_en": "Sherry",
+  "related_mamodo": "Brago",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] Increase the Damage inflicted by your Brago MAMODO card's Attack during this Battle by 2 (this effect cannot be duplicated).",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/11C0zkD4PBoLBhXWhkD7-scVHij9PvgmM/view?usp=sharing"
+ },
+ {
+  "number": "P-004",
+  "type": "partner",
+  "name_en": "Renji",
+  "related_mamodo": "Gofure",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] The Damage inflicted by your Gofure MAMODO card during this Battle is doubled (this effect cannot be duplicated).",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1m12gca6KzSuLr_mEOQiXry6I99Hqkzou/view?usp=sharing"
+ },
+ {
+  "number": "P-005",
+  "type": "partner",
+  "name_en": "Haru",
+  "related_mamodo": "Sugino",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] The MP cost of all of your SPELL cards with Sugino as their MAMODO name is considered to be 0 during this turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1BCMW9JG1Td1VRSNzJ8Fct-LwRaKjFlow/view?usp=sharing"
+ },
+ {
+  "number": "P-006",
+  "type": "partner",
+  "name_en": "Lori",
+  "related_mamodo": "Kolulu",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] Negate an infliction of Damage or Injury done to your Kolulu (Transformed) MAMODO card during the Battle. Then, send your Kolulu (Transformed) MAMODO card to the Discard Pile (the regular Kolulu MAMODO card remains in play).",
+  "power": {},
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1v3nLh8VUgN7lqzU_jhqEeXLZ5asaenZV/view?usp=sharing"
+ },
+ {
+  "number": "P-007",
+  "type": "partner",
+  "name_en": "Sebe",
+  "related_mamodo": "Fein",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] Add 4000 Power to a SPELL card you play in the next Battle with Fein as its MAMODO name during this turn.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1F2kU_UYjyPvNMGt9aflA-c2rQPW1XL28/view?usp=sharing"
+ },
+ {
+  "number": "P-008",
+  "type": "partner",
+  "name_en": "Parco Folgore",
+  "related_mamodo": "Kanchome",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Send 1 of your opponent's in-play PARTNER cards to the Discard Pile.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/150an1e-T17ECPN6YkKkCi1onDFiRbUJr/view?usp=sharing"
+ },
+ {
+  "number": "P-009",
+  "type": "partner",
+  "name_en": "Megumi",
+  "related_mamodo": "Tia",
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Negate the SPELL card your opponent just played.",
+  "power": {},
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1U5ZXfIQJYoCbh33pVmzB0vpgDHwR_OKX/view?usp=sharing"
+ },
+ {
+  "number": "S-001",
+  "type": "spell",
+  "name_en": "Zaker",
+  "related_mamodo": "Zatch Bell",
+  "cost": 1,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Thunder",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1GSbiPFCKcZSExJmb5g4l-wBji1nPOO-D/view?usp=sharing"
+ },
+ {
+  "number": "S-002",
+  "type": "spell",
+  "name_en": "Zaker",
+  "related_mamodo": "Zatch Bell",
+  "cost": 2,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Thunder",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1zB_BAOeDv5mc5sd5bW1Ye6kw7gin2hNn/view?usp=sharing"
+ },
+ {
+  "number": "S-003",
+  "type": "spell",
+  "name_en": "Rashield",
+  "related_mamodo": "Zatch Bell",
+  "cost": 1,
+  "ad": "D",
+  "class": "none",
+  "attr_name": "Thunder",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as a Defender.",
+  "power": {
+   "bonus": 4000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1KDQolGR38Ab_mkFXixkb7Fqp5M_hhEvz/view?usp=sharing"
+ },
+ {
+  "number": "S-004",
+  "type": "spell",
+  "name_en": "Jikerdor",
+  "related_mamodo": "Zatch Bell",
+  "cost": 1,
+  "ad": "A",
+  "class": "none",
+  "attr_name": "Thunder",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, flip a coin; if it's heads, your opponent cannot play SPELL cards until the END PHASE of the next turn ([STAY]).",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1ONBBjpjkCYH761xA8CmMO9CpEzWPvXFp/view?usp=sharing"
+ },
+ {
+  "number": "S-005",
+  "type": "spell",
+  "name_en": "Bao Zakeruga",
+  "related_mamodo": "Zatch Bell",
+  "cost": 6,
+  "ad": "AD",
+  "class": "superior",
+  "attr_name": "Thunder",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 6000
+  },
+  "damage": 3,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1jNie-mpglEfHlZ_4FTWKI0DP1nSpnMgH/view?usp=sharing"
+ },
+ {
+  "number": "S-006",
+  "type": "spell",
+  "name_en": "Gikor",
+  "related_mamodo": "Reycom",
+  "cost": 1,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Ice",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/19HwgJYnQisfHg7golmn9C29IyU-tO_7_/view?usp=sharing"
+ },
+ {
+  "number": "S-007",
+  "type": "spell",
+  "name_en": "Freezudo",
+  "related_mamodo": "Reycom",
+  "cost": 2,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Ice",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot apply the effects of their PARTNER cards until the END PHASE of their next turn ([STAY]).",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1iquPXYHd1qkxC0fsvt_xOvVISz9EONID/view?usp=sharing"
+ },
+ {
+  "number": "S-008",
+  "type": "spell",
+  "name_en": "Reis",
+  "related_mamodo": "Brago",
+  "cost": 2,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Down Force",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1tKv_FLwOQK2rn7vONygb43vVNzGfrLBM/view?usp=sharing"
+ },
+ {
+  "number": "S-009",
+  "type": "spell",
+  "name_en": "Gravirei",
+  "related_mamodo": "Brago",
+  "cost": 2,
+  "ad": "A",
+  "class": "none",
+  "attr_name": "Down Force",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot play SPELL cards until the END PHASE of their next turn ([STAY]).",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1NQkME5G8qUDAGHemHP_1EOeqGaHEz9hd/view?usp=sharing"
+ },
+ {
+  "number": "S-010",
+  "type": "spell",
+  "name_en": "Giganoreis",
+  "related_mamodo": "Brago",
+  "cost": 3,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Down Force",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Nrb7EIsQ6FxEStCdVFaRyDdJIaHEcAiy/view?usp=sharing"
+ },
+ {
+  "number": "S-011",
+  "type": "spell",
+  "name_en": "Ion Gravirei",
+  "related_mamodo": "Brago",
+  "cost": 4,
+  "ad": "A",
+  "class": "intermediate",
+  "attr_name": "Down Force",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot play SPELL cards until the END PHASE of their next turn ([STAY]).",
+  "power": {
+   "bonus": 4000
+  },
+  "damage": 3,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Z3fTEH6g8VRBzjyFM-tBAvcGZ4n_yZLs/view?usp=sharing"
+ },
+ {
+  "number": "S-012",
+  "type": "spell",
+  "name_en": "Doruk",
+  "related_mamodo": "Gofure",
+  "cost": 1,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1L7B7GD1ag7p6fTMwwwEhQbspcPntPk5k/view?usp=sharing"
+ },
+ {
+  "number": "S-013",
+  "type": "spell",
+  "name_en": "Dorsen",
+  "related_mamodo": "Gofure",
+  "cost": 2,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Y1PENrnPhTLWThVjjeUzIG2XYYNs744d/view?usp=sharing"
+ },
+ {
+  "number": "S-014",
+  "type": "spell",
+  "name_en": "Juron",
+  "related_mamodo": "Sugino",
+  "cost": 2,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Wood",
+  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, flip a coin; if it's heads, your opponent cannot play SPELL cards until the END PHASE of the next turn ([STAY]).",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Lafn1c6IOo9kPw2aWzmAesEhdOPLS1B8/view?usp=sharing"
+ },
+ {
+  "number": "S-015",
+  "type": "spell",
+  "name_en": "Raja Jugaro",
+  "related_mamodo": "Sugino",
+  "cost": 4,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": "Wood",
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 4000
+  },
+  "damage": 3,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/14qHNAG_GbrVVXs-tu_Z0JQl9AA2DCvQ0/view?usp=sharing"
+ },
+ {
+  "number": "S-016",
+  "type": "spell",
+  "name_en": "Zeruk",
+  "related_mamodo": "Kolulu",
+  "cost": 1,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Defending, add 1000 Power to this SPELL card.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1-iQ9Npd0eksFCd-jiQjFfc3Orv7DA4dU/view?usp=sharing"
+ },
+ {
+  "number": "S-017",
+  "type": "spell",
+  "name_en": "Zerusen",
+  "related_mamodo": "Kolulu",
+  "cost": 4,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Defending, add 2000 Power to this SPELL card.",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1x4BJtwhwJd_eCw8run9jBjUPAab9QqKp/view?usp=sharing"
+ },
+ {
+  "number": "S-018",
+  "type": "spell",
+  "name_en": "Wigar",
+  "related_mamodo": "Fein",
+  "cost": 2,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": 2,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1Rs_jKsNsXR9etDzUsZjxNnL66nqW1BGc/view?usp=sharing"
+ },
+ {
+  "number": "S-019",
+  "type": "spell",
+  "name_en": "Yuruk",
+  "related_mamodo": "Fein",
+  "cost": 1,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "[STANDBY] When you win the Battle as an Attacker, the next Attack you declare this turn cannot be Defended.",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 0,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1yd-2316kB3XjydvbLzhkfYdb2kflvcEU/view?usp=sharing"
+ },
+ {
+  "number": "S-020",
+  "type": "spell",
+  "name_en": "Poruk",
+  "related_mamodo": "Kanchome",
+  "cost": 1,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Reduce your opponent’s MP by 3 when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 2000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1QbeRzxAa9YO4dGSsCPMFHm6-Wyme67D2/view?usp=sharing"
+ },
+ {
+  "number": "S-021",
+  "type": "spell",
+  "name_en": "Koporuk",
+  "related_mamodo": "Kanchome",
+  "cost": 2,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin twice; if you get heads at least once, negate your opponent's Attack regardless of their Power.",
+  "power": {
+   "special": true
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1TPqgxaDCzOdPvKuAa335FIr6toSkgg8b/view?usp=sharing"
+ },
+ {
+  "number": "S-022",
+  "type": "spell",
+  "name_en": "Seoshi",
+  "related_mamodo": "Tia",
+  "cost": 1,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "power": {
+   "bonus": 4000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1edYkUc51aCIsh3uIuc_KTp23VVgY21kj/view?usp=sharing"
+ },
+ {
+  "number": "S-023",
+  "type": "spell",
+  "name_en": "Saisu",
+  "related_mamodo": "Tia",
+  "cost": 1,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "power": {
+   "bonus": 1000
+  },
+  "damage": 1,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1jy6LPmm2huML_ZUvburhsD7wxynsabsf/view?usp=sharing"
+ },
+ {
+  "number": "S-024",
+  "type": "spell",
+  "name_en": "Ma Seshield",
+  "related_mamodo": "Tia",
+  "cost": 3,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "power": {
+   "bonus": 8000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/10OuEREgnUGQpnFCLzzTZ7mJ0tv4WwuFS/view?usp=sharing"
+ },
+ {
+  "number": "S-025",
+  "type": "spell",
+  "name_en": "Let's Get Out of Here!",
+  "related_mamodo": "Command: All",
+  "cost": 0,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin; if you get heads, negate your opponent’s Attack.",
+  "power": {
+   "special": true
+  },
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1OqjbsHJhO6SbzlOR1GX6W1i8XbSmyydR/view?usp=sharing"
+ },
+ {
+  "number": "S-026",
+  "type": "spell",
+  "name_en": "Ready!",
+  "related_mamodo": "Command: All",
+  "cost": 0,
+  "ad": "A",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin; if it's heads, apply the following effect: [STANDBY] Your opponent cannot Defend in the next Battle during this turn.",
+  "power": {
+   "special": true
+  },
+  "damage": null,
+  "text_version": "j",
+  "image_url": "https://drive.google.com/file/d/1dn-2LNZCU8cLC8jDrPOoIV2muV2viCP2/view?usp=sharing"
+ },
+ {
+  "number": "S-027",
+  "type": "spell",
+  "name_en": "Hold On!",
+  "related_mamodo": "Command: All",
+  "cost": 0,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Flip a coin twice; if you get heads at least once, reduce the Damage of your opponent's Attack by 1.",
+  "power": {
+   "special": true
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1_QkrRZpQiTlzytHloB3x72s1kfzGQvWE/view?usp=sharing"
+ },
+ {
+  "number": "S-028",
+  "type": "spell",
+  "name_en": "Watch Out!",
+  "related_mamodo": "Command: All",
+  "cost": 0,
+  "ad": "D",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "power": {
+   "bonus": 1000
+  },
+  "damage": null,
+  "text_version": null,
+  "image_url": "https://drive.google.com/file/d/1LiCPmwREbtk0rIgnEdQ5opNDQCrmwlv6/view?usp=sharing"
+ }
+]

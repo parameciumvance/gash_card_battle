@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/gash/__init__.py
+src/gash/api/__init__.py
+src/gash/engine/__init__.py
+src/gash/engine/effects/__init__.py
+src/gash_card_battle.egg-info/PKG-INFO
+src/gash_card_battle.egg-info/SOURCES.txt
+src/gash_card_battle.egg-info/dependency_links.txt
+src/gash_card_battle.egg-info/requires.txt
+src/gash_card_battle.egg-info/top_level.txt
