@@ -9,17 +9,51 @@
 <body>
   <header id="topbar">
     <span id="title"></span>
+    <span id="identity"></span>
     <span id="turn-info"></span>
     <span id="phase-info"></span>
     <span id="acting-info"></span>
-    <button id="new-game"></button>
+    <span id="countdown"></span>
+    <span id="conn-status"></span>
+    <button id="leave-room" class="hidden"></button>
   </header>
 
-  <main id="layout">
+  <!-- 入口頁 -->
+  <section id="landing" class="hidden">
+    <h1 id="landing-title"></h1>
+    <div id="landing-cards">
+      <div class="entry" id="entry-local">
+        <h2></h2><p></p><button class="primary"></button>
+      </div>
+      <div class="entry" id="entry-create">
+        <h2></h2><p></p>
+        <label id="timer-label"></label>
+        <select id="timer-select"></select>
+        <button class="primary"></button>
+      </div>
+      <div class="entry" id="entry-join">
+        <h2></h2><p></p>
+        <input id="join-code" maxlength="6" placeholder="ABC123">
+        <button class="primary"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 等待對手 -->
+  <section id="waiting" class="hidden">
+    <h2 id="waiting-title"></h2>
+    <div id="waiting-code" class="room-code"></div>
+    <div class="share-row"><span id="share-join-label"></span>
+      <input id="share-join" readonly><button data-copy="share-join"></button></div>
+    <div class="share-row"><span id="share-spec-label"></span>
+      <input id="share-spec" readonly><button data-copy="share-spec"></button></div>
+  </section>
+
+  <main id="layout" class="hidden">
     <section id="board">
-      <div id="player-1" class="player-zone top"></div>
+      <div id="zone-top" class="player-zone top"></div>
       <div id="battle-strip"></div>
-      <div id="player-0" class="player-zone bottom"></div>
+      <div id="zone-bottom" class="player-zone bottom"></div>
       <div id="action-bar"></div>
     </section>
     <aside id="log-panel">

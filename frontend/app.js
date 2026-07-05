@@ -1,15 +1,19 @@
-/* 金色のガッシュベル!! THE CARD BATTLE — hotseat 前端
- * 職責:渲染後端狀態快照、送出指令、以 i18n 模板渲染事件 log。
- * 規則裁決全在後端;前端只做合法操作的預過濾(後端仍是最終權威)。 */
+/* 金色のガッシュベル!! THE CARD BATTLE — 前端
+ * 模式:本機(local, 全視角雙 token)/ 線上(online, 單 token + WS)/ 觀戰(spectator)。
+ * 規則裁決與資訊過濾全在後端;前端渲染視角化快照、送指令、渲染事件 log。 */
 
 "use strict";
 
 let DICT = {};        // i18n 字典
-let CARDS = {};       // 卡片數值資料(卡號 → def)
-let ZH = {};          // 卡片中文文本(卡號 → {name, name_ja, attr, effect})
-let gameId = null;
-let S = null;         // 最新狀態快照
-let logSeq = 0;       // 已渲染事件序號
+let CARDS = {};       // 卡片數值資料
+let ZH = {};          // 卡片中文文本
+let S = null;         // 最新遊戲狀態快照(視角化)
+let R = null;         // 房間 meta {code, mode, you, deadline, ...}
+let SESSION = null;   // {code, mode, viewer, tokens:{playerIndex→token} 或 {me:token}}
+let ws = null;
+let wsWanted = false;
+let logSeq = 0;
+let clockDrift = 0;   // Date.now()/1000 - server_time
 
 // ---------------------------------------------------------------- i18n
 
@@ -27,42 +31,62 @@ function cname(num) {
   return z.attr && CARDS[num] && CARDS[num].type === "mamodo" ? `${z.name}《${z.attr}》` : z.name;
 }
 
+// ---------------------------------------------------------------- session / 身分
+
+function myViewer() { return SESSION ? SESSION.viewer : null; }   // 0|1|"all"|"spectator"
+function isLocal() { return SESSION && SESSION.mode === "local"; }
+function iControl(p) {
+  const v = myViewer();
+  return v === "all" || v === p;
+}
+
+function tokenFor(command) {
+  if (isLocal()) return SESSION.tokens[command.player];
+  return SESSION.tokens.me;
+}
+
+function saveSession() {
+  localStorage.setItem(`gash-room-${SESSION.code}`, JSON.stringify(SESSION));
+}
+
+function loadSession(code) {
+  const raw = localStorage.getItem(`gash-room-${code}`);
+  return raw ? JSON.parse(raw) : null;
+}
+
 // ---------------------------------------------------------------- API
 
-async function api(path, opts) {
+async function api(path, opts = {}) {
   const res = await fetch(path, opts);
   const body = await res.json();
   if (!res.ok) {
     const msg = body.detail && body.detail.message ? body.detail.message : JSON.stringify(body);
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.code = body.detail && body.detail.code;
+    throw err;
   }
   return body;
 }
 
-async function newGame() {
-  const body = await api("/api/games", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
-  });
-  gameId = body.game_id;
-  S = body.state;
-  logSeq = 0;
-  document.getElementById("log").innerHTML = "";
-  appendLog(body.events);
-  render();
-}
-
 async function send(command) {
   try {
-    const body = await api(`/api/games/${gameId}/commands`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+    const body = await api(`/api/rooms/${SESSION.code}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Player-Token": tokenFor(command) },
       body: JSON.stringify({ command }),
     });
-    S = body.state;
-    appendLog(body.events);
-    render();
+    applyPayload(body);
   } catch (err) {
     toast(t("ui.error", { msg: err.message }));
   }
+}
+
+function applyPayload(body) {
+  if (body.state) S = body.state;
+  if (body.room) { R = body.room; clockDrift = Date.now() / 1000 - R.server_time; }
+  if (body.events) appendLog(body.events);
+  if (R && R.started && SESSION && S) show("layout");  // 對手加入 → 離開等待畫面
+  render();
 }
 
 function toast(msg) {
@@ -70,6 +94,163 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
   setTimeout(() => el.classList.add("hidden"), 2600);
+}
+
+// ---------------------------------------------------------------- WebSocket
+
+function wsToken() {
+  return isLocal() ? Object.values(SESSION.tokens)[0] : SESSION.tokens.me;
+}
+
+function openWS() {
+  wsWanted = true;
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/api/rooms/${SESSION.code}/ws?token=${wsToken()}`);
+  ws.onopen = () => setConn(true);
+  ws.onmessage = (msg) => {
+    const body = JSON.parse(msg.data);
+    if (body.type === "welcome") {
+      applyPayload(body);       // 全量狀態;log 以 seq 去重補齊
+      fetchMissedEvents();
+    } else if (body.type === "update") {
+      applyPayload(body);
+    }
+  };
+  ws.onclose = () => {
+    setConn(false);
+    if (wsWanted) setTimeout(openWS, 1500);
+  };
+  ws.onerror = () => ws.close();
+}
+
+async function fetchMissedEvents() {
+  try {
+    const body = await api(`/api/rooms/${SESSION.code}/events?since=${logSeq}`,
+      { headers: { "X-Player-Token": wsToken() } });
+    appendLog(body.events);
+  } catch (_) { /* 房間可能未開局 */ }
+}
+
+function setConn(ok) {
+  const el = document.getElementById("conn-status");
+  if (!SESSION || SESSION.mode === "local") { el.textContent = ""; return; }
+  el.textContent = ok ? t("ui.conn.online") : t("ui.conn.reconnecting");
+  el.className = ok ? "ok" : "bad";
+}
+
+// ---------------------------------------------------------------- 入口流程
+
+function show(sectionId) {
+  for (const id of ["landing", "waiting", "layout"]) {
+    document.getElementById(id).classList.toggle("hidden", id !== sectionId);
+  }
+}
+
+async function startLocal() {
+  const body = await api("/api/rooms", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "local" }),
+  });
+  SESSION = { code: body.code, mode: "local", viewer: "all",
+              tokens: { 0: body.player_tokens[0], 1: body.player_tokens[1] } };
+  saveSession();
+  history.replaceState(null, "", `/?room=${body.code}`);
+  resetLog();
+  applyPayload(body);
+  show("layout");
+}
+
+async function createRoom() {
+  const timer = document.getElementById("timer-select").value;
+  const body = await api("/api/rooms", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null }),
+  });
+  SESSION = { code: body.code, mode: "online", viewer: 0,
+              tokens: { me: body.player_token } };
+  saveSession();
+  history.replaceState(null, "", `/?room=${body.code}`);
+  R = body.room;
+  showWaiting(body);
+  openWS();  // 對手加入時會收到 update → 進入對局
+}
+
+function showWaiting(body) {
+  show("waiting");
+  document.getElementById("waiting-title").textContent = t("ui.waiting_opponent");
+  document.getElementById("waiting-code").textContent = SESSION.code;
+  const joinUrl = `${location.origin}/?join=${SESSION.code}`;
+  const specUrl = `${location.origin}${body.spectate_url || R.spectate_url || ""}`;
+  document.getElementById("share-join").value = joinUrl;
+  document.getElementById("share-spec").value = specUrl;
+}
+
+async function joinRoom(code) {
+  try {
+    const body = await api(`/api/rooms/${code}/join`, { method: "POST" });
+    SESSION = { code: code.toUpperCase(), mode: "online", viewer: 1,
+                tokens: { me: body.player_token } };
+    saveSession();
+    history.replaceState(null, "", `/?room=${SESSION.code}`);
+    resetLog();
+    applyPayload(body);
+    show("layout");
+    openWS();
+  } catch (err) {
+    toast(t("ui.error", { msg: err.message }));
+    show("landing");
+  }
+}
+
+function enterSpectate(code, token) {
+  SESSION = { code: code.toUpperCase(), mode: "spectate", viewer: "spectator",
+              tokens: { me: token } };
+  history.replaceState(null, "", `/?room=${SESSION.code}`);
+  resetLog();
+  show("layout");
+  openWS();
+}
+
+async function resumeRoom(code) {
+  const saved = loadSession(code);
+  if (!saved) { show("landing"); return; }
+  SESSION = saved;
+  resetLog();
+  try {
+    const body = await api(`/api/rooms/${code}/state`,
+      { headers: { "X-Player-Token": wsToken() } });
+    R = body.room;
+    if (SESSION.mode === "local") {
+      applyPayload(body);
+      await fetchMissedEvents();
+      show("layout");
+    } else if (!R.started) {
+      showWaiting(body);
+      openWS();
+    } else {
+      show("layout");
+      openWS();
+    }
+  } catch (err) {
+    localStorage.removeItem(`gash-room-${code}`);
+    toast(t("ui.error.room_gone"));
+    history.replaceState(null, "", "/");
+    show("landing");
+  }
+}
+
+function leaveRoom() {
+  wsWanted = false;
+  if (ws) ws.close();
+  SESSION = null; S = null; R = null;
+  history.replaceState(null, "", "/");
+  show("landing");
+  renderTopbar();
+}
+
+function resetLog() {
+  logSeq = 0;
+  document.getElementById("log").innerHTML = "";
 }
 
 // ---------------------------------------------------------------- 卡片元件
@@ -84,7 +265,7 @@ function cardEl(num, opts = {}) {
   const art = document.createElement("img");
   art.className = "art";
   art.src = `/static/assets/cards/${num}.jpg`;
-  art.onerror = () => art.remove();      // 卡圖缺失 → 純文字卡面
+  art.onerror = () => art.remove();
   el.appendChild(art);
 
   const cn = document.createElement("div");
@@ -148,6 +329,16 @@ function cardEl(num, opts = {}) {
   return el;
 }
 
+function cardBackEl(page) {
+  const el = document.createElement("div");
+  el.className = "card back";
+  const label = document.createElement("div");
+  label.className = "backlabel";
+  label.textContent = t("ui.hidden_page", { n: page });
+  el.appendChild(label);
+  return el;
+}
+
 function zoom(num) {
   const overlay = document.getElementById("zoom-overlay");
   const holder = document.getElementById("zoom-card");
@@ -163,9 +354,10 @@ document.getElementById("zoom-overlay").onclick = () =>
 function inNonBattle() { return S.phase === "battle" && !S.battle && !S.battle_in && !S.pending; }
 
 function canActNow(p) {
+  if (!iControl(p)) return false;
   if (S.pending) return false;
-  if (S.battle_in) return p === 1 - S.battle_in.attacker;      // 確認中:防方可插入行動
-  if (S.battle) return false;                                   // 戰鬥中另行處理
+  if (S.battle_in) return p === 1 - S.battle_in.attacker;
+  if (S.battle) return false;
   return S.phase === "battle" && S.action_player === p;
 }
 
@@ -197,12 +389,42 @@ function pickSlotThen(p, isCommand, cb) {
 
 // ---------------------------------------------------------------- 渲染
 
+function topPlayerIndex() {
+  const v = myViewer();
+  if (v === 0) return 1;
+  if (v === 1) return 0;
+  return 1;  // 本機/觀戰:玩家2在上
+}
+
 function render() {
+  renderTopbar();
+  if (!S) return;
+  renderPlayerZone(document.getElementById("zone-top"), topPlayerIndex());
+  renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex());
+  renderBattleStrip();
+  renderActionBar();
+  renderPendingDialog();
+}
+
+function renderTopbar() {
   document.getElementById("title").textContent = t("app.title");
   document.getElementById("log-title").textContent = t("ui.log");
-  document.getElementById("new-game").textContent = t("ui.new_game");
-  document.getElementById("turn-info").textContent = t("ui.turn", { n: S.turn_no }) +
-    "|" + pname(S.turn_player);
+  const leave = document.getElementById("leave-room");
+  leave.textContent = t("ui.leave");
+  leave.classList.toggle("hidden", !SESSION);
+  const idEl = document.getElementById("identity");
+  const v = myViewer();
+  idEl.textContent = !SESSION ? "" :
+    v === "spectator" ? t("ui.spectating") :
+    v === "all" ? "" : t("ui.you_are", { player: pname(v) });
+  if (!S) {
+    document.getElementById("turn-info").textContent = "";
+    document.getElementById("phase-info").textContent = "";
+    document.getElementById("acting-info").textContent = "";
+    return;
+  }
+  document.getElementById("turn-info").textContent =
+    t("ui.turn", { n: S.turn_no }) + "|" + pname(S.turn_player);
   document.getElementById("phase-info").textContent =
     t(`ui.phase.${S.phase === "game_over" ? "game_over" : S.phase}`);
 
@@ -211,7 +433,9 @@ function render() {
     acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
       "(" + t(`ui.reason.${S.end_reason}`) + ")";
   } else if (S.pending) {
-    acting.textContent = t("ui.waiting_choice", { player: pname(S.pending.player) });
+    acting.textContent = iControl(S.pending.player)
+      ? t("ui.waiting_choice", { player: pname(S.pending.player) })
+      : t("ui.opponent_choosing");
   } else if (S.battle) {
     acting.textContent = S.battle.step === "defense"
       ? t("ui.battle_no_defense_yet")
@@ -223,16 +447,9 @@ function render() {
   } else {
     acting.textContent = S.action_player !== null ? t("ui.acting", { player: pname(S.action_player) }) : "";
   }
-
-  renderPlayer(1);
-  renderPlayer(0);
-  renderBattleStrip();
-  renderActionBar();
-  renderPendingDialog();
 }
 
-function renderPlayer(p) {
-  const zone = document.getElementById(`player-${p}`);
+function renderPlayerZone(zone, p) {
   zone.innerHTML = "";
   const ps = S.players[p];
   const active =
@@ -247,14 +464,13 @@ function renderPlayer(p) {
   const head = document.createElement("div");
   head.className = "pz-head";
   head.innerHTML =
-    `<span class="pname">${pname(p)}</span>` +
+    `<span class="pname">${pname(p)}${iControl(p) && myViewer() !== "all" ? "(你)" : ""}</span>` +
     `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
     `<span class="book-progress">${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}</span>` +
     `<span class="discard-btn">${t("ui.discard", { n: ps.discard.length })}</span>`;
   head.querySelector(".discard-btn").onclick = () => showDiscard(p);
   zone.appendChild(head);
 
-  // 場上魔物
   const fieldLabel = document.createElement("div");
   fieldLabel.className = "row-label";
   fieldLabel.textContent = t("ui.field");
@@ -267,21 +483,22 @@ function renderPlayer(p) {
   }
   zone.appendChild(field);
 
-  // 魔本翻開對頁
   const pagesLabel = document.createElement("div");
   pagesLabel.className = "row-label";
   pagesLabel.textContent = t("ui.open_pages");
   zone.appendChild(pagesLabel);
   const row = document.createElement("div");
   row.className = "card-row";
-  for (const entry of ps.open_pages) row.appendChild(openPageEl(p, entry));
+  for (const entry of ps.open_pages) {
+    row.appendChild(entry.card ? openPageEl(p, entry) : cardBackEl(entry.page));
+  }
   zone.appendChild(row);
 }
 
 function slotEl(p, slot) {
   const buttons = [];
   const ab = slot.ability;
-  if (ab) {
+  if (ab && iControl(p)) {
     const label = ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
     const usable = abilityUsableNow(p, ab);
     buttons.push({
@@ -301,7 +518,7 @@ function slotEl(p, slot) {
 function partnerEl(p, slot) {
   const buttons = [];
   const ab = slot.partner_ability;
-  if (ab) {
+  if (ab && iControl(p)) {
     const label = ab.mode === "discard" ? t("ui.ability_discard")
       : ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
     const usable = abilityUsableNow(p, ab);
@@ -362,8 +579,8 @@ function openPageEl(p, entry) {
     }
   }
 
-  // 戰鬥防禦宣告
-  if (!S.pending && S.battle && S.battle.step === "defense" && p === 1 - S.battle.attacker) {
+  if (!S.pending && S.battle && S.battle.step === "defense"
+      && p === 1 - S.battle.attacker && iControl(p)) {
     const u = spellUsable(p, entry, false);
     if (["D", "AD"].includes(def.ad) && def.type === "spell") {
       const blocked = S.battle.attack_undefendable ? t("ui.undefendable") : (u.ok ? null : u.reason);
@@ -411,7 +628,7 @@ function renderBattleStrip() {
 function renderActionBar() {
   const bar = document.getElementById("action-bar");
   bar.innerHTML = "";
-  if (S.phase === "game_over" || S.pending) return;
+  if (!S || S.phase === "game_over" || S.pending) return;
 
   const addBtn = (label, onclick, primary) => {
     const btn = document.createElement("button");
@@ -426,9 +643,11 @@ function renderActionBar() {
     el.textContent = msg;
     bar.appendChild(el);
   };
+  const waitHint = () => hint(t("ui.opponent_thinking"));
 
   if (S.phase === "start") {
     const tp = S.turn_player;
+    if (!iControl(tp)) { waitHint(); return; }
     hint(pname(tp) + "・" + t("ui.phase.start"));
     const maxFlip = Math.min(3, Math.floor((32 - S.players[tp].pos) / 2));
     for (let n = 0; n <= maxFlip; n++) {
@@ -440,6 +659,7 @@ function renderActionBar() {
 
   if (S.battle_in) {
     const dp = 1 - S.battle_in.attacker;
+    if (!iControl(dp)) { waitHint(); return; }
     hint(pname(dp));
     addBtn(t("ui.allow_battle"),
       () => send({ type: "battle_in_response", player: dp, allow: true }), true);
@@ -450,9 +670,11 @@ function renderActionBar() {
     const b = S.battle;
     if (b.step === "defense") {
       const dp = 1 - b.attacker;
+      if (!iControl(dp)) { waitHint(); return; }
       hint(pname(dp));
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: dp }));
     } else {
+      if (!iControl(b.effect_turn)) { waitHint(); return; }
       hint(pname(b.effect_turn));
       addBtn(t("ui.pass"), () => send({ type: "pass", player: b.effect_turn }));
     }
@@ -460,6 +682,7 @@ function renderActionBar() {
   }
 
   if (S.action_player !== null) {
+    if (!iControl(S.action_player)) { waitHint(); return; }
     hint(pname(S.action_player));
     addBtn(t("ui.pass"), () => send({ type: "pass", player: S.action_player }));
   }
@@ -489,7 +712,10 @@ function showDialog(title, options) {
 
 function renderPendingDialog() {
   const overlay = document.getElementById("dialog-overlay");
-  if (!S.pending) { overlay.classList.add("hidden"); return; }
+  if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) {
+    overlay.classList.add("hidden");
+    return;
+  }
   const pd = S.pending;
   const p = pd.player;
   const titleKey = `choice.title.${pd.kind}`;
@@ -583,8 +809,10 @@ function appendLog(events) {
   const holder = document.getElementById("log");
   for (const ev of events) {
     if (ev.seq < logSeq) continue;
-    const line = logLine(ev);
+    logSeq = ev.seq + 1;
+    let line = logLine(ev);
     if (!line) continue;
+    if (ev.timeout) line += t("ui.timeout_mark");
     const el = document.createElement("div");
     el.className = "ev";
     if (ev.type === "turn_started") el.classList.add("turn");
@@ -593,12 +821,70 @@ function appendLog(events) {
     }
     el.textContent = line;
     holder.appendChild(el);
-    logSeq = ev.seq + 1;
   }
   holder.scrollTop = holder.scrollHeight;
 }
 
-// ---------------------------------------------------------------- 啟動
+// ---------------------------------------------------------------- 倒數計時
+
+setInterval(() => {
+  const el = document.getElementById("countdown");
+  if (!R || !R.timer_seconds || !R.deadline || !S || S.phase === "game_over") {
+    el.textContent = "";
+    return;
+  }
+  const remain = Math.max(0, Math.round(R.deadline - (Date.now() / 1000 - clockDrift)));
+  el.textContent = t("ui.countdown", { n: remain });
+}, 500);
+
+// ---------------------------------------------------------------- 入口頁渲染與啟動
+
+function renderLanding() {
+  document.getElementById("landing-title").textContent = t("app.title");
+  const local = document.getElementById("entry-local");
+  local.querySelector("h2").textContent = t("ui.landing.local");
+  local.querySelector("p").textContent = t("ui.landing.local_desc");
+  local.querySelector("button").textContent = t("ui.landing.go");
+  local.querySelector("button").onclick = startLocal;
+
+  const create = document.getElementById("entry-create");
+  create.querySelector("h2").textContent = t("ui.landing.create");
+  create.querySelector("p").textContent = t("ui.landing.create_desc");
+  document.getElementById("timer-label").textContent = t("ui.landing.timer");
+  const sel = document.getElementById("timer-select");
+  sel.innerHTML = "";
+  for (const [value, label] of [["", t("ui.timer.off")],
+      ["30", t("ui.timer.n", { n: 30 })], ["60", t("ui.timer.n", { n: 60 })],
+      ["120", t("ui.timer.n", { n: 120 })]]) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  create.querySelector("button").textContent = t("ui.landing.go");
+  create.querySelector("button").onclick = createRoom;
+
+  const join = document.getElementById("entry-join");
+  join.querySelector("h2").textContent = t("ui.landing.join");
+  join.querySelector("p").textContent = t("ui.landing.join_desc");
+  join.querySelector("button").textContent = t("ui.landing.go");
+  join.querySelector("button").onclick = () => {
+    const code = document.getElementById("join-code").value.trim();
+    if (code) joinRoom(code);
+  };
+
+  document.getElementById("share-join-label").textContent = t("ui.share.join");
+  document.getElementById("share-spec-label").textContent = t("ui.share.spectate");
+  for (const btn of document.querySelectorAll("[data-copy]")) {
+    btn.textContent = t("ui.copy");
+    btn.onclick = () => {
+      navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).value);
+      btn.textContent = t("ui.copied");
+      setTimeout(() => { btn.textContent = t("ui.copy"); }, 1500);
+    };
+  }
+  document.getElementById("leave-room").onclick = leaveRoom;
+}
 
 async function boot() {
   [DICT, CARDS, ZH] = await Promise.all([
@@ -607,8 +893,19 @@ async function boot() {
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/data/cards.zh-TW.json").then((r) => r.json()),
   ]);
-  document.getElementById("new-game").onclick = newGame;
-  await newGame();
+  renderLanding();
+  renderTopbar();
+
+  const params = new URLSearchParams(location.search);
+  if (params.has("join")) {
+    await joinRoom(params.get("join"));
+  } else if (params.has("spectate")) {
+    enterSpectate(params.get("spectate"), params.get("token") || "");
+  } else if (params.has("room")) {
+    await resumeRoom(params.get("room"));
+  } else {
+    show("landing");
+  }
 }
 
 boot();

@@ -129,3 +129,48 @@ body {
   background: #8a2f2f; color: #fff; padding: 8px 18px; border-radius: 8px;
   font-size: 13px; z-index: 99;
 }
+
+/* ---------------- 入口頁與房間(online-battle) ---------------- */
+#landing { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 26px; }
+#landing h1 { color: #ffd166; font-size: 22px; }
+#landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.entry { background: #202a42; border: 1px solid #4a5a80; border-radius: 12px;
+  padding: 22px; width: 240px; display: flex; flex-direction: column; gap: 10px; }
+.entry h2 { font-size: 17px; color: #e8e8f0; }
+.entry p { font-size: 12px; color: #9aa5c0; flex: 1; }
+.entry button { padding: 8px; border-radius: 6px; border: 1px solid #3a4a6e;
+  background: #2a3958; color: #dfe6ff; cursor: pointer; font-size: 14px; }
+.entry button.primary { background: #a3541e; border-color: #d0793c; }
+.entry button:hover { filter: brightness(1.2); }
+.entry input, .entry select { padding: 7px; border-radius: 6px; font-size: 14px;
+  border: 1px solid #3a4a6e; background: #12182a; color: #e8e8f0;
+  text-transform: uppercase; }
+.entry select { text-transform: none; }
+.entry label { font-size: 12px; color: #9aa5c0; }
+
+#waiting { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; }
+#waiting h2 { color: #7ee0a3; }
+.room-code { font-size: 42px; letter-spacing: 10px; color: #ffd166; font-weight: bold; }
+.share-row { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.share-row input { width: 340px; padding: 6px; border-radius: 6px;
+  border: 1px solid #3a4a6e; background: #12182a; color: #9aa5c0; font-size: 12px; }
+.share-row button { padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #3a4a6e; background: #2a3958; color: #dfe6ff; }
+
+#identity { color: #6cc4ff; font-weight: bold; }
+#countdown { color: #ff9d6c; font-weight: bold; min-width: 84px; }
+#conn-status { font-size: 12px; }
+#conn-status.ok { color: #7ee0a3; }
+#conn-status.bad { color: #ff8f8f; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .4; } }
+#leave-room { margin-left: auto; padding: 4px 14px; border: 1px solid #4a5a80;
+  background: #23304d; color: #e8e8f0; border-radius: 6px; cursor: pointer; }
+
+.card.back { background: repeating-linear-gradient(135deg, #5b2323, #5b2323 8px, #6e2c2c 8px, #6e2c2c 16px);
+  border-color: #8a4040; color: #ffd9d9; display: flex; align-items: center;
+  justify-content: center; cursor: default; }
+.card.back:hover { transform: none; }
+.card.back .backlabel { font-size: 13px; font-weight: bold; text-align: center; }
+.ev .timeout-mark { color: #ff9d6c; }

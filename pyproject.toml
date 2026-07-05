@@ -5,7 +5,7 @@ description = "金色のガッシュベル!! THE CARD BATTLE — 規則全自動
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.110",
-    "uvicorn>=0.29",
+    "uvicorn[standard]>=0.29",
 ]
 
 [project.optional-dependencies]
