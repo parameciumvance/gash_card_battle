@@ -100,6 +100,7 @@ def extract() -> list[dict]:
             "effect_en": str(row[8]).strip(),
             "power": power,
             "damage": parse_int(row[10]),
+            "sets": [s.strip() for s in str(row[11]).split(",") if s.strip()],
             "text_version": suffix or None,
             "image_url": image_url,
         }

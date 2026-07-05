@@ -23,21 +23,66 @@
     <h1 id="landing-title"></h1>
     <div id="landing-cards">
       <div class="entry" id="entry-local">
-        <h2></h2><p></p><button class="primary"></button>
+        <h2></h2><p></p>
+        <label class="deck-label" id="deck-local-0-label"></label>
+        <select id="deck-local-0" class="deck-select"></select>
+        <label class="deck-label" id="deck-local-1-label"></label>
+        <select id="deck-local-1" class="deck-select"></select>
+        <button class="primary"></button>
       </div>
       <div class="entry" id="entry-create">
         <h2></h2><p></p>
         <label id="timer-label"></label>
         <select id="timer-select"></select>
+        <label class="deck-label" id="deck-create-label"></label>
+        <select id="deck-create" class="deck-select"></select>
         <button class="primary"></button>
       </div>
       <div class="entry" id="entry-join">
         <h2></h2><p></p>
         <input id="join-code" maxlength="6" placeholder="ABC123">
+        <label class="deck-label" id="deck-join-label"></label>
+        <select id="deck-join" class="deck-select"></select>
         <button class="primary"></button>
+      </div>
+      <div class="entry" id="entry-builder">
+        <h2></h2><p></p><button class="primary"></button>
       </div>
     </div>
   </section>
+
+  <!-- 牌組構築器 -->
+  <section id="builder" class="hidden">
+    <div id="builder-head">
+      <button id="builder-back"></button>
+      <select id="builder-deck-list"></select>
+      <select id="builder-new"></select>
+      <input id="builder-name" maxlength="24">
+      <button id="builder-save" class="primary"></button>
+      <button id="builder-export"></button>
+      <button id="builder-import"></button>
+      <button id="builder-delete"></button>
+    </div>
+    <div id="builder-main">
+      <div id="builder-pool">
+        <div id="pool-filters"></div>
+        <div id="pool-grid"></div>
+      </div>
+      <div id="builder-book">
+        <div id="book-hint"></div>
+        <div id="book-grid"></div>
+      </div>
+    </div>
+    <div id="builder-validation"></div>
+  </section>
+
+  <div id="io-overlay" class="hidden">
+    <div id="io-dialog">
+      <h3 id="io-title"></h3>
+      <textarea id="io-text" rows="4"></textarea>
+      <div id="io-actions"></div>
+    </div>
+  </div>
 
   <!-- 等待對手 -->
   <section id="waiting" class="hidden">
@@ -75,6 +120,7 @@
 
   <div id="toast" class="hidden"></div>
 
+  <script src="/static/decks.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

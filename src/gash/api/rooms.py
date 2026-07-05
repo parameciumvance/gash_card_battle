@@ -33,6 +33,7 @@ class Room:
     seed: int | None
     spectator_token: str
     player_tokens: dict[str, int] = field(default_factory=dict)   # token → player index
+    decks: list = field(default_factory=lambda: [None, None])     # 雙方牌組頁序(None=level1)
     game: Game | None = None
     sockets: list = field(default_factory=list)   # [(websocket, viewer)]
     deadline: float | None = None                 # 逾時時刻(epoch 秒)

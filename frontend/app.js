@@ -5,8 +5,9 @@
 "use strict";
 
 let DICT = {};        // i18n 字典
-let CARDS = {};       // 卡片數值資料
+let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let ZH = {};          // 卡片中文文本
+let LEVEL1 = [];      // level1 預組頁序(構築器複製起手用)
 let S = null;         // 最新遊戲狀態快照(視角化)
 let R = null;         // 房間 meta {code, mode, you, deadline, ...}
 let SESSION = null;   // {code, mode, viewer, tokens:{playerIndex→token} 或 {me:token}}
@@ -141,15 +142,40 @@ function setConn(ok) {
 // ---------------------------------------------------------------- 入口流程
 
 function show(sectionId) {
-  for (const id of ["landing", "waiting", "layout"]) {
+  for (const id of ["landing", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
+}
+
+// ---------------------------------------------------------------- 牌組選單與 payload
+
+function deckOptions(sel) {
+  sel.innerHTML = "";
+  const preset = document.createElement("option");
+  preset.value = "preset";
+  preset.textContent = t("ui.deck.preset_level1");
+  sel.appendChild(preset);
+  for (const d of DeckStore.list()) {
+    const opt = document.createElement("option");
+    opt.value = d.id;
+    opt.textContent = d.name + (d.valid ? "" : t("ui.deck.invalid_suffix"));
+    opt.disabled = !d.valid;  // 不合法牌組不可選入對戰
+    sel.appendChild(opt);
+  }
+}
+
+function deckPayload(selectId) {
+  const value = document.getElementById(selectId).value;
+  if (value === "preset") return { preset: "level1" };
+  const deck = DeckStore.get(value);
+  return deck ? { pages: deck.pages } : { preset: "level1" };
 }
 
 async function startLocal() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "local" }),
+    body: JSON.stringify({ mode: "local",
+      decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")] }),
   });
   SESSION = { code: body.code, mode: "local", viewer: "all",
               tokens: { 0: body.player_tokens[0], 1: body.player_tokens[1] } };
@@ -164,7 +190,8 @@ async function createRoom() {
   const timer = document.getElementById("timer-select").value;
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null }),
+    body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null,
+      deck: deckPayload("deck-create") }),
   });
   SESSION = { code: body.code, mode: "online", viewer: 0,
               tokens: { me: body.player_token } };
@@ -187,7 +214,10 @@ function showWaiting(body) {
 
 async function joinRoom(code) {
   try {
-    const body = await api(`/api/rooms/${code}/join`, { method: "POST" });
+    const body = await api(`/api/rooms/${code}/join`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deck: deckPayload("deck-join") }),
+    });
     SESSION = { code: code.toUpperCase(), mode: "online", viewer: 1,
                 tokens: { me: body.player_token } };
     saveSession();
@@ -837,6 +867,331 @@ setInterval(() => {
   el.textContent = t("ui.countdown", { n: remain });
 }, 500);
 
+// ---------------------------------------------------------------- 牌組構築器
+
+let B = null;  // {deck:{id,name,pages[32]}, selected: 頁index|null, ftype, fmamodo, fproduct}
+
+function showBuilder() {
+  const draft = DeckStore.loadDraft();
+  const deck = draft && Array.isArray(draft.pages) && draft.pages.length === 32
+    ? draft
+    : { id: null, name: t("builder.new"), pages: Array(32).fill(null) };
+  B = { deck, selected: null, ftype: "", fmamodo: "", fproduct: "" };
+  show("builder");
+  renderBuilderAll();
+}
+
+function builderMutated() {
+  DeckStore.saveDraft(B.deck);
+  renderBook();
+  renderValidation();
+}
+
+function loadDeckIntoBuilder(deck) {
+  B.deck = { id: deck.id, name: deck.name, pages: [...deck.pages] };
+  B.selected = null;
+  DeckStore.saveDraft(B.deck);
+  renderBuilderAll();
+}
+
+// --- 頁位互動:選中→點另一頁=移動/互換;點選中的有卡頁=移除 ---
+function togglePage(i) {
+  const pages = B.deck.pages;
+  if (B.selected === i) {
+    if (pages[i]) pages[i] = null;       // 再點選中的有卡頁 → 移除
+    else B.selected = null;
+  } else if (B.selected !== null && pages[B.selected]) {
+    [pages[B.selected], pages[i]] = [pages[i], pages[B.selected]];  // 移動/互換
+    B.selected = null;
+  } else {
+    B.selected = i;
+  }
+  builderMutated();
+}
+
+function placeCard(num) {
+  const pages = B.deck.pages;
+  let target = B.selected;
+  if (target === null) target = pages.indexOf(null);
+  if (target === -1 || target === null) return;
+  pages[target] = num;
+  if (B.selected === null || pages.indexOf(null) !== -1) {
+    B.selected = null;
+  }
+  builderMutated();
+}
+
+function swapPages(i, j) {
+  const pages = B.deck.pages;
+  [pages[i], pages[j]] = [pages[j], pages[i]];
+  B.selected = null;
+  builderMutated();
+}
+
+// --- 渲染 ---
+
+function renderBuilderAll() {
+  const head = document.getElementById("builder-head");
+  document.getElementById("builder-back").textContent = t("builder.back");
+  document.getElementById("builder-back").onclick = () => {
+    history.replaceState(null, "", "/");
+    renderLanding();  // 牌組清單可能已變,刷新選單
+    show("landing");
+  };
+  document.getElementById("builder-save").textContent = t("builder.save");
+  document.getElementById("builder-save").onclick = () => {
+    B.deck = DeckStore.save({ ...B.deck, pages: [...B.deck.pages] });
+    DeckStore.saveDraft(B.deck);
+    renderDeckList();
+    toast(t("builder.saved"));
+  };
+  document.getElementById("builder-delete").textContent = t("builder.delete");
+  document.getElementById("builder-delete").onclick = () => {
+    if (B.deck.id) DeckStore.remove(B.deck.id);
+    loadDeckIntoBuilder({ id: null, name: t("builder.new"), pages: Array(32).fill(null) });
+  };
+  document.getElementById("builder-export").textContent = t("builder.export");
+  document.getElementById("builder-export").onclick = () =>
+    showIO(t("builder.io_title.export"), exportDeckCode(B.deck.pages), true);
+  document.getElementById("builder-import").textContent = t("builder.import");
+  document.getElementById("builder-import").onclick = () =>
+    showIO(t("builder.io_title.import"), "", false, (text) => {
+      const result = importDeckCode(text);
+      if (result.error) {
+        toast(t(result.error.key, result.error.params));
+        return false;
+      }
+      const deck = DeckStore.create(t("builder.new"), result.pages);
+      loadDeckIntoBuilder(deck);
+      toast(t("builder.import_ok"));
+      return true;
+    });
+
+  const nameInput = document.getElementById("builder-name");
+  nameInput.placeholder = t("builder.deck_name");
+  nameInput.value = B.deck.name;
+  nameInput.onchange = () => {
+    B.deck.name = nameInput.value || t("builder.new");
+    DeckStore.saveDraft(B.deck);
+  };
+
+  renderDeckList();
+  renderNewSelect();
+  renderPoolFilters();
+  renderPool();
+  renderBook();
+  renderValidation();
+  document.getElementById("book-hint").textContent = t("builder.book");
+}
+
+function renderDeckList() {
+  const sel = document.getElementById("builder-deck-list");
+  sel.innerHTML = "";
+  const head = document.createElement("option");
+  head.value = "";
+  head.textContent = t("builder.my_decks");
+  sel.appendChild(head);
+  for (const d of DeckStore.list()) {
+    const opt = document.createElement("option");
+    opt.value = d.id;
+    opt.textContent = d.name + (d.valid ? "" : t("ui.deck.invalid_suffix"));
+    if (d.id === B.deck.id) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.onchange = () => {
+    const deck = DeckStore.get(sel.value);
+    if (deck) loadDeckIntoBuilder(deck);
+  };
+}
+
+function renderNewSelect() {
+  const sel = document.getElementById("builder-new");
+  sel.innerHTML = "";
+  const head = document.createElement("option");
+  head.value = "";
+  head.textContent = t("builder.new") + "…";
+  sel.appendChild(head);
+  const opts = [["blank", t("builder.new_blank")],
+                ["level1", t("builder.new_from_level1")]];
+  for (const d of DeckStore.list()) {
+    opts.push(["copy:" + d.id, t("builder.new_from_deck", { name: d.name })]);
+  }
+  for (const [value, label] of opts) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  sel.onchange = () => {
+    const v = sel.value;
+    sel.value = "";
+    if (!v) return;
+    let pages = Array(32).fill(null);
+    if (v === "level1") pages = [...LEVEL1];
+    if (v.startsWith("copy:")) {
+      const src = DeckStore.get(v.slice(5));
+      if (src) pages = [...src.pages];
+    }
+    loadDeckIntoBuilder({ id: null, name: t("builder.new"), pages });
+  };
+}
+
+function renderPoolFilters() {
+  const holder = document.getElementById("pool-filters");
+  holder.innerHTML = "";
+  const typeSel = document.createElement("select");
+  typeSel.innerHTML = `<option value="">${t("builder.filter.type")}:${t("builder.filter.all")}</option>`;
+  for (const ty of ["mamodo", "partner", "spell", "event"]) {
+    typeSel.innerHTML += `<option value="${ty}">${t("builder.type." + ty)}</option>`;
+  }
+  typeSel.value = B.ftype;
+  typeSel.onchange = () => { B.ftype = typeSel.value; renderPool(); };
+  holder.appendChild(typeSel);
+
+  const mamodoSel = document.createElement("select");
+  const names = [...new Set(Object.values(CARDS)
+    .map((c) => c.related_mamodo).filter((m) => m && m !== "Command: All"))].sort();
+  mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`;
+  for (const name of names) {
+    const numAny = Object.values(CARDS).find(
+      (c) => c.type === "mamodo" && c.related_mamodo === name);
+    const zh = numAny && ZH[numAny.number] ? ZH[numAny.number].name : name;
+    mamodoSel.innerHTML += `<option value="${name}">${zh}</option>`;
+  }
+  mamodoSel.value = B.fmamodo;
+  mamodoSel.onchange = () => { B.fmamodo = mamodoSel.value; renderPool(); };
+  holder.appendChild(mamodoSel);
+
+  // 產品(彈數)篩選:同一張卡可屬多個產品
+  const productSel = document.createElement("select");
+  const products = [...new Set(Object.values(CARDS).flatMap((c) => c.sets || []))].sort();
+  productSel.innerHTML = `<option value="">${t("builder.filter.product")}:${t("builder.filter.all")}</option>`;
+  for (const tag of products) {
+    productSel.innerHTML += `<option value="${tag}">${tag}</option>`;
+  }
+  productSel.value = B.fproduct;
+  productSel.onchange = () => { B.fproduct = productSel.value; renderPool(); };
+  holder.appendChild(productSel);
+}
+
+function renderPool() {
+  const grid = document.getElementById("pool-grid");
+  grid.innerHTML = "";
+  const numbers = Object.keys(CARDS).sort();
+  for (const num of numbers) {
+    const def = CARDS[num];
+    if (B.ftype && def.type !== B.ftype) continue;
+    if (B.fmamodo && def.related_mamodo !== B.fmamodo) continue;
+    if (B.fproduct && !(def.sets || []).includes(B.fproduct)) continue;
+    const el = cardEl(num, { small: true });
+    el.onclick = () => placeCard(num);
+    grid.appendChild(el);
+  }
+}
+
+function pageSlotEl(i) {
+  const slot = document.createElement("div");
+  slot.className = "page-slot" + (B.selected === i ? " selected" : "")
+    + (B.deck.pages[i] ? " filled" : "");
+  const pno = document.createElement("span");
+  pno.className = "pno";
+  pno.textContent = i === 0 ? t("builder.page_first")
+    : i === 31 ? t("builder.page_last") : `P${i + 1}`;
+  slot.appendChild(pno);
+  const num = B.deck.pages[i];
+  if (num) {
+    const card = cardEl(num, { small: true });
+    card.onclick = (ev) => { ev.stopPropagation(); togglePage(i); };
+    slot.appendChild(card);
+    slot.draggable = true;
+    slot.ondragstart = (ev) => ev.dataTransfer.setData("text/plain", String(i));
+  } else {
+    const label = document.createElement("span");
+    label.className = "empty-label";
+    label.textContent = t("builder.empty_page", { n: i + 1 });
+    slot.appendChild(label);
+  }
+  slot.onclick = () => togglePage(i);
+  slot.ondragover = (ev) => { ev.preventDefault(); slot.classList.add("dragover"); };
+  slot.ondragleave = () => slot.classList.remove("dragover");
+  slot.ondrop = (ev) => {
+    ev.preventDefault();
+    const from = Number(ev.dataTransfer.getData("text/plain"));
+    if (!Number.isNaN(from) && from !== i) swapPages(from, i);
+  };
+  return slot;
+}
+
+function renderBook() {
+  const grid = document.getElementById("book-grid");
+  grid.innerHTML = "";
+  const spread = (indices, single) => {
+    const el = document.createElement("div");
+    el.className = "spread" + (single ? " single" : "");
+    for (const i of indices) el.appendChild(pageSlotEl(i));
+    grid.appendChild(el);
+  };
+  spread([0], true);                       // P1 首頁
+  for (let i = 1; i < 31; i += 2) spread([i, i + 1], false);  // P2-3 ... P30-31
+  spread([31], true);                      // P32 末頁
+}
+
+function renderValidation() {
+  const bar = document.getElementById("builder-validation");
+  bar.innerHTML = "";
+  const errors = validateDeckPages(B.deck.pages);
+  if (errors.length === 0) {
+    const ok = document.createElement("span");
+    ok.className = "ok";
+    ok.textContent = t("builder.valid");
+    bar.appendChild(ok);
+  } else {
+    for (const e of errors) {
+      const el = document.createElement("span");
+      el.className = "err";
+      el.textContent = t(e.key, e.params);
+      bar.appendChild(el);
+    }
+  }
+  const mamodo = B.deck.pages.filter((c) => c && CARDS[c].type === "mamodo").length;
+  const stat = document.createElement("span");
+  stat.className = "stat";
+  stat.textContent = t("builder.mamodo_count", { n: mamodo });
+  bar.appendChild(stat);
+}
+
+function showIO(title, text, readonly, onConfirm) {
+  const overlay = document.getElementById("io-overlay");
+  document.getElementById("io-title").textContent = title;
+  const ta = document.getElementById("io-text");
+  ta.value = text;
+  ta.readOnly = readonly;
+  const actions = document.getElementById("io-actions");
+  actions.innerHTML = "";
+  if (readonly) {
+    const copy = document.createElement("button");
+    copy.textContent = t("ui.copy");
+    copy.onclick = () => {
+      navigator.clipboard.writeText(ta.value);
+      copy.textContent = t("ui.copied");
+    };
+    actions.appendChild(copy);
+  } else {
+    const confirm = document.createElement("button");
+    confirm.textContent = t("builder.confirm_import");
+    confirm.onclick = () => {
+      if (onConfirm(ta.value) !== false) overlay.classList.add("hidden");
+    };
+    actions.appendChild(confirm);
+    ta.placeholder = t("builder.import_placeholder");
+  }
+  const close = document.createElement("button");
+  close.textContent = t("ui.close");
+  close.onclick = () => overlay.classList.add("hidden");
+  actions.appendChild(close);
+  overlay.classList.remove("hidden");
+}
+
 // ---------------------------------------------------------------- 入口頁渲染與啟動
 
 function renderLanding() {
@@ -873,6 +1228,24 @@ function renderLanding() {
     if (code) joinRoom(code);
   };
 
+  const builderEntry = document.getElementById("entry-builder");
+  builderEntry.querySelector("h2").textContent = t("ui.landing.builder");
+  builderEntry.querySelector("p").textContent = t("ui.landing.builder_desc");
+  builderEntry.querySelector("button").textContent = t("ui.landing.go");
+  builderEntry.querySelector("button").onclick = () => {
+    history.replaceState(null, "", "/?builder=1");
+    showBuilder();
+  };
+
+  // 牌組選單(本機×2 / 建房 / 加入)
+  document.getElementById("deck-local-0-label").textContent = t("ui.deck.p1");
+  document.getElementById("deck-local-1-label").textContent = t("ui.deck.p2");
+  document.getElementById("deck-create-label").textContent = t("ui.deck.select");
+  document.getElementById("deck-join-label").textContent = t("ui.deck.select");
+  for (const id of ["deck-local-0", "deck-local-1", "deck-create", "deck-join"]) {
+    deckOptions(document.getElementById(id));
+  }
+
   document.getElementById("share-join-label").textContent = t("ui.share.join");
   document.getElementById("share-spec-label").textContent = t("ui.share.spectate");
   for (const btn of document.querySelectorAll("[data-copy]")) {
@@ -887,22 +1260,27 @@ function renderLanding() {
 }
 
 async function boot() {
-  [DICT, CARDS, ZH] = await Promise.all([
+  [DICT, CARDS, ZH, LEVEL1] = await Promise.all([
     fetch("/static/i18n/zh-TW.json").then((r) => r.json()),
     fetch("/data/cards.json").then((r) => r.json()).then((list) =>
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/data/cards.zh-TW.json").then((r) => r.json()),
+    fetch("/data/decks/level1.json").then((r) => r.json()).then((d) => d.pages),
   ]);
   renderLanding();
   renderTopbar();
 
   const params = new URLSearchParams(location.search);
   if (params.has("join")) {
-    await joinRoom(params.get("join"));
+    // 停在入口頁預填房號,讓加入者先選牌組再加入
+    document.getElementById("join-code").value = params.get("join").toUpperCase();
+    show("landing");
   } else if (params.has("spectate")) {
     enterSpectate(params.get("spectate"), params.get("token") || "");
   } else if (params.has("room")) {
     await resumeRoom(params.get("room"));
+  } else if (params.has("builder")) {
+    showBuilder();
   } else {
     show("landing");
   }

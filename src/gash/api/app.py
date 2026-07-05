@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ..engine.cards import DATA_DIR, card_db
-from ..engine.deck import load_deck
+from ..engine.deck import DeckError, load_deck, validate_deck
 from ..engine.engine import IllegalCommand, new_game, submit
 from .rooms import Room, RoomError, RoomStore, awaited_player, default_command
 from .views import filter_events, snapshot
@@ -46,7 +46,12 @@ class CreateRoom(BaseModel):
     mode: str = "online"
     timer_seconds: int | None = None
     seed: int | None = None
-    deck: str = "level1"
+    deck: dict | None = None          # 建房者牌組:{"preset":"level1"} 或 {"pages":[...]}
+    decks: list[dict] | None = None   # 本機房:雙方各一副([p0, p1])
+
+
+class JoinBody(BaseModel):
+    deck: dict | None = None
 
 
 class CommandBody(BaseModel):
@@ -88,9 +93,30 @@ def _state_payload(room: Room, viewer) -> dict:
     return payload
 
 
+def _default_deck() -> tuple[str, ...]:
+    return load_deck(DATA_DIR / "decks/level1.json", card_db()).pages
+
+
+def _resolve_deck(spec: dict | None) -> tuple[str, ...] | None:
+    """解析請求中的牌組欄位;自訂牌組以構築規則驗證,違規回 422。回傳 None = level1。"""
+    if spec is None or spec.get("preset") == "level1":
+        return None
+    pages = spec.get("pages")
+    if not isinstance(pages, list):
+        raise HTTPException(422, detail={"code": "deck.bad_request",
+                                         "message": "deck 須為 preset 或 pages"})
+    try:
+        validate_deck(pages, card_db())
+    except DeckError as exc:
+        raise HTTPException(422, detail={"code": exc.code, "message": str(exc)})
+    return tuple(pages)
+
+
 def _start_game(room: Room) -> None:
-    deck = load_deck(DATA_DIR / "decks/level1.json", card_db())
-    room.game = new_game(deck.pages, seed=room.seed)
+    default = _default_deck()
+    deck0 = room.decks[0] or default
+    deck1 = room.decks[1] or default
+    room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)))
     room.reset_deadline()
 
 
@@ -123,10 +149,19 @@ def _resolve(code: str, token: str | None) -> tuple[Room, int | str]:
 
 @app.post("/api/rooms")
 async def create_room(body: CreateRoom):
+    # 牌組先驗證再建房(非法牌組不建房)
+    if body.mode == "local" and body.decks is not None:
+        if len(body.decks) != 2:
+            raise HTTPException(422, detail={"code": "deck.bad_request",
+                                             "message": "本機房 decks 須為兩副"})
+        resolved = [_resolve_deck(body.decks[0]), _resolve_deck(body.decks[1])]
+    else:
+        resolved = [_resolve_deck(body.deck), None]
     try:
         room, token0 = store.create(body.mode, body.timer_seconds, body.seed)
     except RoomError as exc:
         raise _http_error(exc)
+    room.decks = resolved
     resp: dict = {
         "code": room.code,
         "mode": room.mode,
@@ -148,11 +183,13 @@ async def create_room(body: CreateRoom):
 
 
 @app.post("/api/rooms/{code}/join")
-async def join_room(code: str):
+async def join_room(code: str, body: JoinBody | None = None):
+    deck1 = _resolve_deck(body.deck if body else None)  # 非法牌組在佔位前就被拒
     try:
         room, token1 = store.join(code)
     except RoomError as exc:
         raise _http_error(exc)
+    room.decks[1] = deck1
     async with _lock(room.code):
         if room.game is None:
             _start_game(room)
