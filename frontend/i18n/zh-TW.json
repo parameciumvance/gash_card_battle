@@ -194,5 +194,11 @@
   "deck.err.max_mamodo": "魔物卡超過 8 張({n} 張)",
   "deck.err.unknown": "未知卡號:{cards}",
   "deck.err.bad_code": "牌組碼格式錯誤(須以 gash1: 開頭)",
-  "builder.filter.product": "產品"
+  "builder.filter.product": "產品",
+  "ui.slot.empty_mamodo": "魔物欄",
+  "ui.slot.empty_partner": "搭檔",
+  "anim.coin.heads": "正",
+  "anim.coin.tails": "反",
+  "anim.showdown.att": "攻",
+  "anim.showdown.def": "防"
 }

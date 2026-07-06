@@ -83,11 +83,13 @@ async function send(command) {
 }
 
 function applyPayload(body) {
+  const prevS = S;
   if (body.state) S = body.state;
   if (body.room) { R = body.room; clockDrift = Date.now() / 1000 - R.server_time; }
   if (body.events) appendLog(body.events);
   if (R && R.started && SESSION && S) show("layout");  // 對手加入 → 離開等待畫面
-  render();
+  // 統一動畫管線:量測 → 阻塞演出 → 重繪 → 疊加特效(reduced-motion 直接重繪)
+  Anim.apply(body.events || [], prevS, render);
 }
 
 function toast(msg) {
@@ -359,9 +361,9 @@ function cardEl(num, opts = {}) {
   return el;
 }
 
-function cardBackEl(page) {
+function cardBackEl(page, consumed = false) {
   const el = document.createElement("div");
-  el.className = "card back";
+  el.className = "card back" + (consumed ? " consumed" : "");
   const label = document.createElement("div");
   label.className = "backlabel";
   label.textContent = t("ui.hidden_page", { n: page });
@@ -429,9 +431,9 @@ function topPlayerIndex() {
 function render() {
   renderTopbar();
   if (!S) return;
-  renderPlayerZone(document.getElementById("zone-top"), topPlayerIndex());
-  renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex());
-  renderBattleStrip();
+  renderPlayerZone(document.getElementById("zone-top"), topPlayerIndex(), true);
+  renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex(), false);
+  renderBattleStage();
   renderActionBar();
   renderPendingDialog();
 }
@@ -479,8 +481,11 @@ function renderTopbar() {
   }
 }
 
-function renderPlayerZone(zone, p) {
+/* 鏡像牌桌:上方(對手)由上而下=魔本→搭檔→魔物;下方(我方)=魔物→搭檔→魔本。
+ * 搭檔槽固定在該魔物的魔本側(對手在上、我方在下),由 mamodo-column 內的排列方向實現。 */
+function renderPlayerZone(zone, p, isTop) {
   zone.innerHTML = "";
+  zone.dataset.player = p;
   const ps = S.players[p];
   const active =
     (S.phase === "start" && S.turn_player === p) ||
@@ -501,28 +506,142 @@ function renderPlayerZone(zone, p) {
   head.querySelector(".discard-btn").onclick = () => showDiscard(p);
   zone.appendChild(head);
 
-  const fieldLabel = document.createElement("div");
-  fieldLabel.className = "row-label";
-  fieldLabel.textContent = t("ui.field");
-  zone.appendChild(fieldLabel);
-  const field = document.createElement("div");
-  field.className = "card-row";
-  for (const slot of ps.slots) {
-    field.appendChild(slotEl(p, slot));
-    if (slot.partner) field.appendChild(partnerEl(p, slot));
-  }
-  zone.appendChild(field);
+  // 場區(魔物列+搭檔列)置中;魔本區靠外角:對手右上、我方左下(對角相對)
+  const body = document.createElement("div");
+  body.className = "zone-body";
+  const sideL = document.createElement("div");
+  sideL.className = "zone-side";
+  const sideR = document.createElement("div");
+  sideR.className = "zone-side";
+  const book = renderBookBlock(p, ps);
+  (isTop ? sideR : sideL).classList.add("book-side");
+  (isTop ? sideR : sideL).appendChild(book);
+  body.appendChild(sideL);
+  body.appendChild(renderFieldBlock(p, ps, isTop));
+  body.appendChild(sideR);
+  zone.appendChild(body);
+}
 
-  const pagesLabel = document.createElement("div");
-  pagesLabel.className = "row-label";
-  pagesLabel.textContent = t("ui.open_pages");
-  zone.appendChild(pagesLabel);
-  const row = document.createElement("div");
-  row.className = "card-row";
-  for (const entry of ps.open_pages) {
-    row.appendChild(entry.card ? openPageEl(p, entry) : cardBackEl(entry.page));
+const FIELD_COLUMNS = 3;
+
+// 魔物列與搭檔列:各固定 3 欄同寬,垂直配對靠同索引對齊;搭檔朝己方外側
+function renderFieldBlock(p, ps, isTop) {
+  const block = document.createElement("div");
+  block.className = "field-block";
+  const mamodoRow = document.createElement("div");
+  mamodoRow.className = "field-row mamodo-row";
+  const partnerRow = document.createElement("div");
+  partnerRow.className = "field-row partner-row";
+  for (let i = 0; i < Math.max(FIELD_COLUMNS, ps.slots.length); i++) {
+    const slot = ps.slots[i];
+    const mamodoCell = document.createElement("div");
+    mamodoCell.className = "mcell mamodo-cell";
+    const partnerCell = document.createElement("div");
+    partnerCell.className = "mcell partner-cell";
+    if (slot) {
+      const m = slotEl(p, slot);
+      m.dataset.slotUid = slot.uid;
+      m.dataset.zoneKind = "mamodo";
+      if (slot.stack && slot.stack.length > 1) {
+        const st = document.createElement("span");
+        st.className = "stack-badge";
+        st.textContent = `×${slot.stack.length}`;
+        m.appendChild(st);
+      }
+      mamodoCell.appendChild(m);
+      if (slot.partner) {
+        const pt = partnerEl(p, slot);
+        pt.dataset.slotUid = slot.uid;
+        pt.dataset.zoneKind = "partner";
+        partnerCell.appendChild(pt);
+      } else {
+        partnerCell.appendChild(emptyFrame(t("ui.slot.empty_partner"), true));
+      }
+    } else {
+      mamodoCell.appendChild(emptyFrame(t("ui.slot.empty_mamodo"), false));
+      partnerCell.appendChild(emptyFrame(t("ui.slot.empty_partner"), true));
+    }
+    mamodoRow.appendChild(mamodoCell);
+    partnerRow.appendChild(partnerCell);
   }
-  zone.appendChild(row);
+  if (isTop) { block.appendChild(partnerRow); block.appendChild(mamodoRow); }
+  else { block.appendChild(mamodoRow); block.appendChild(partnerRow); }
+  return block;
+}
+
+function emptyFrame(label, small) {
+  const el = document.createElement("div");
+  el.className = "empty-frame" + (small ? " small" : "");
+  el.textContent = label;
+  return el;
+}
+
+// 魔本區:對頁固定兩個頁位(pos, pos+1)。卡片仍在=卡面(對手視角=卡背+頁碼);
+// 卡片已離開頁面(上場/使用)=卡背圖;超出書末=空位,尺寸不變
+function renderBookBlock(p, ps) {
+  const block = document.createElement("div");
+  block.className = "book-block";
+  const cover = document.createElement("div");
+  cover.className = "book-cover";
+  cover.dataset.book = p;
+  const spine = document.createElement("div");
+  spine.className = "book-spine";
+  const pages = document.createElement("div");
+  pages.className = "book-pages";
+  const byPage = Object.fromEntries(ps.open_pages.map((e) => [e.page, e]));
+  for (const pg of [ps.pos, ps.pos + 1]) {
+    let el;
+    if (pg < 1 || pg > ps.book_size) {
+      el = document.createElement("div");
+      el.className = "page-void";
+    } else if (byPage[pg]) {
+      const entry = byPage[pg];
+      el = entry.card ? openPageEl(p, entry) : cardBackEl(entry.page);
+      el.dataset.page = entry.page;
+      if (entry.card) el.dataset.card = entry.card;
+    } else {
+      el = cardBackEl(pg, true);  // 卡片已被拿出的頁位
+      el.dataset.page = pg;
+    }
+    pages.appendChild(el);
+  }
+  cover.appendChild(spine);
+  cover.appendChild(pages);
+  block.appendChild(cover);
+  block.appendChild(mpTrayEl(p, ps.mp));
+  return block;
+}
+
+// MP token 托盤:1 顆=1 MP、每排 8 顆;超過 16 顆折疊為「●×N」;數字保底
+function mpTrayEl(p, mp) {
+  const tray = document.createElement("div");
+  tray.className = "mp-tray";
+  tray.dataset.mpTray = p;
+  tray.title = `${t("ui.mp")} ${mp}`;
+  const tokens = document.createElement("div");
+  tokens.className = "mp-tokens";
+  if (mp > 16) {
+    tray.classList.add("folded");
+    const big = document.createElement("span");
+    big.className = "mp-token big";
+    tokens.appendChild(big);
+    const n = document.createElement("span");
+    n.className = "mp-fold-count";
+    n.textContent = `×${mp}`;
+    tokens.appendChild(n);
+  } else {
+    for (let i = 0; i < mp; i++) {
+      const tk = document.createElement("span");
+      tk.className = "mp-token";
+      tokens.appendChild(tk);
+    }
+  }
+  const num = document.createElement("span");
+  num.className = "mp-count";
+  num.textContent = `${t("ui.mp")} ${mp}`;
+  tray.appendChild(tokens);
+  tray.appendChild(num);
+  return tray;
 }
 
 function slotEl(p, slot) {
@@ -629,30 +748,47 @@ function openPageEl(p, entry) {
   return cardEl(entry.card, { cost: entry.cost, badges: pageBadge, buttons });
 }
 
-function renderBattleStrip() {
-  const strip = document.getElementById("battle-strip");
-  strip.innerHTML = "";
+// 對決舞台:非戰鬥時收為發光細線,battle_in/battle 時展開承載攻防資訊與合計魔力
+function renderBattleStage() {
+  const stage = document.getElementById("battle-stage");
+  const content = document.getElementById("stage-content");
+  content.innerHTML = "";
+  const open = !!(S.battle || S.battle_in);
+  stage.classList.toggle("open", open);
+  if (!open) return;
   if (S.battle_in) {
-    strip.innerHTML = `<span>${t("ui.battle_in_hint", {
+    content.innerHTML = `<span class="stage-hint">${t("ui.battle_in_hint", {
       player: pname(S.battle_in.attacker), spell: cname(S.battle_in.spell) })}</span>`;
     return;
   }
-  if (!S.battle) return;
   const b = S.battle;
-  const parts = [];
-  parts.push(`<span class="vs">${t("ui.battle")}</span>`);
-  parts.push(`<span>${t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })}` +
+  const att = document.createElement("div");
+  att.className = "stage-side attack";
+  att.innerHTML =
+    `<span class="side-label">${t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })}` +
     (b.attack_negated ? `(${t("ui.negated")})` : "") +
-    (b.attack_undefendable ? `(${t("ui.undefendable")})` : "") + `</span>`);
-  if (b.defense_spell) {
-    parts.push(`<span>${t("ui.battle_defense", { player: pname(1 - b.attacker), spell: cname(b.defense_spell) })}` +
-      (b.defense_negated ? `(${t("ui.negated")})` : "") + `</span>`);
-  }
-  parts.push(`<span>${t("ui.battle_totals", { att: b.attacker_total, def: b.defender_total })}</span>`);
+    (b.attack_undefendable ? `(${t("ui.undefendable")})` : "") + `</span>` +
+    `<span class="side-total" id="stage-att-total">${b.attacker_total}</span>`;
+  const mid = document.createElement("div");
+  mid.className = "stage-vs";
+  mid.textContent = t("ui.battle");
+  const def = document.createElement("div");
+  def.className = "stage-side defense";
+  def.innerHTML =
+    (b.defense_spell
+      ? `<span class="side-label">${t("ui.battle_defense", { player: pname(1 - b.attacker), spell: cname(b.defense_spell) })}` +
+        (b.defense_negated ? `(${t("ui.negated")})` : "") + `</span>`
+      : `<span class="side-label">${t("ui.battle_no_defense_yet")}</span>`) +
+    `<span class="side-total" id="stage-def-total">${b.defender_total}</span>`;
+  content.appendChild(att);
+  content.appendChild(mid);
+  content.appendChild(def);
   if (b.step === "effects") {
-    parts.push(`<span>${t("ui.battle_effects_hint", { player: pname(b.effect_turn) })}</span>`);
+    const hint = document.createElement("div");
+    hint.className = "stage-hint";
+    hint.textContent = t("ui.battle_effects_hint", { player: pname(b.effect_turn) });
+    content.appendChild(hint);
   }
-  strip.innerHTML = parts.join(" ");
 }
 
 function renderActionBar() {

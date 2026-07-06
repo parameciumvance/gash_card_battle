@@ -97,7 +97,7 @@
   <main id="layout" class="hidden">
     <section id="board">
       <div id="zone-top" class="player-zone top"></div>
-      <div id="battle-strip"></div>
+      <div id="battle-stage"><div id="stage-content"></div></div>
       <div id="zone-bottom" class="player-zone bottom"></div>
       <div id="action-bar"></div>
     </section>
@@ -106,6 +106,8 @@
       <div id="log"></div>
     </aside>
   </main>
+
+  <div id="anim-overlay"></div>
 
   <div id="dialog-overlay" class="hidden">
     <div id="dialog">
@@ -121,6 +123,7 @@
   <div id="toast" class="hidden"></div>
 
   <script src="/static/decks.js"></script>
+  <script src="/static/anim.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
