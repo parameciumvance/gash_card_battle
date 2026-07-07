@@ -70,7 +70,7 @@ body {
 /* 盤面卡片固定大小、按鈕沉底、隱藏日文名/效果全文(點卡放大可看) */
 #board .card { width: 104px; height: 150px; min-height: 0; overflow: hidden; }
 #board .card.small { width: 104px; height: 150px; }  /* 搭檔卡與魔物同尺寸 */
-#board .card img.art { height: 40px; flex-shrink: 0; }
+#board .card img.art { height: 75px; flex-shrink: 0; }
 #board .card .ceffect, #board .card .cname-ja { display: none; }
 #board .card .btns { margin-top: auto; }
 .empty-frame {
@@ -95,7 +95,7 @@ body {
   background: linear-gradient(160deg, var(--book-red) 0%, var(--book-red-dark) 70%);
   border: 2px solid var(--gold);
   box-shadow: 0 3px 14px rgba(0,0,0,.5), inset 0 0 0 4px rgba(217,164,65,.18);
-  width: 240px; height: 168px; gap: 6px;
+  width: 240px; height: 186px; gap: 6px;
 }
 .book-spine {
   position: absolute; left: 50%; top: 6px; bottom: 6px; width: 3px;
@@ -104,6 +104,8 @@ body {
   pointer-events: none;
 }
 .book-pages { display: flex; gap: 8px; }
+.page-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.page-no { font-size: 10px; color: var(--gold-soft); }
 .page-void { width: 104px; height: 150px; border-radius: 8px;
   border: 2px dashed rgba(217,164,65,.18); }
 
@@ -145,7 +147,7 @@ body {
 }
 .card .cnum { position: absolute; right: 6px; top: 5px; font-size: 9px; color: #8d8371; }
 .card img.art {
-  width: 100%; height: 58px; object-fit: cover; border-radius: 4px;
+  width: 100%; height: 80px; object-fit: cover; object-position: top; border-radius: 4px;
 }
 .card.type-spell { background: #dceaf5; border-color: #3e556b; }
 .card.type-event { background: #e9dcf5; border-color: #563e6b; }
@@ -176,14 +178,9 @@ body {
 
 .card.back {
   background: url("/static/back.jpg") center / cover no-repeat, #5b2323;
-  border-color: #8a4040; color: #ffe9c9; display: flex; align-items: flex-end;
-  justify-content: center; cursor: default;
+  border-color: #8a4040; cursor: default;
 }
 .card.back:hover { transform: none; box-shadow: none; }
-.card.back .backlabel {
-  font-size: 11px; font-weight: bold; text-align: center;
-  background: rgba(20,10,8,.72); border-radius: 6px; padding: 1px 8px; margin-bottom: 2px;
-}
 /* 卡片已離開頁面的頁位:卡背壓暗 */
 .card.back.consumed { opacity: .55; filter: saturate(.55); }
 
@@ -253,7 +250,7 @@ body {
 #zoom-card .card .cname-ja { font-size: 12px; }
 #zoom-card .card .cmeta { font-size: 13px; }
 #zoom-card .card .ceffect { font-size: 13px; -webkit-line-clamp: unset; }
-#zoom-card .card img.art { height: 170px; }
+#zoom-card .card img.art { height: 250px; }
 
 #toast {
   position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);

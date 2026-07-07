@@ -302,7 +302,7 @@ function cardEl(num, opts = {}) {
 
   const cn = document.createElement("div");
   cn.className = "cname";
-  cn.textContent = z.name + (def.type === "mamodo" && z.attr ? `《${z.attr}》` : "");
+  cn.textContent = z.name;
   el.appendChild(cn);
 
   const ja = document.createElement("div");
@@ -364,10 +364,6 @@ function cardEl(num, opts = {}) {
 function cardBackEl(page, consumed = false) {
   const el = document.createElement("div");
   el.className = "card back" + (consumed ? " consumed" : "");
-  const label = document.createElement("div");
-  label.className = "backlabel";
-  label.textContent = t("ui.hidden_page", { n: page });
-  el.appendChild(label);
   return el;
 }
 
@@ -590,20 +586,29 @@ function renderBookBlock(p, ps) {
   pages.className = "book-pages";
   const byPage = Object.fromEntries(ps.open_pages.map((e) => [e.page, e]));
   for (const pg of [ps.pos, ps.pos + 1]) {
+    const col = document.createElement("div");
+    col.className = "page-col";
     let el;
     if (pg < 1 || pg > ps.book_size) {
       el = document.createElement("div");
       el.className = "page-void";
-    } else if (byPage[pg]) {
-      const entry = byPage[pg];
-      el = entry.card ? openPageEl(p, entry) : cardBackEl(entry.page);
-      el.dataset.page = entry.page;
-      if (entry.card) el.dataset.card = entry.card;
+      col.appendChild(el);
     } else {
-      el = cardBackEl(pg, true);  // 卡片已被拿出的頁位
+      if (byPage[pg]) {
+        const entry = byPage[pg];
+        el = entry.card ? openPageEl(p, entry) : cardBackEl(entry.page);
+        if (entry.card) el.dataset.card = entry.card;
+      } else {
+        el = cardBackEl(pg, true);  // 卡片已被拿出的頁位
+      }
       el.dataset.page = pg;
+      col.appendChild(el);
+      const no = document.createElement("span");  // 頁碼印在書皮上、卡片之外
+      no.className = "page-no";
+      no.textContent = t("ui.hidden_page", { n: pg });
+      col.appendChild(no);
     }
-    pages.appendChild(el);
+    pages.appendChild(col);
   }
   cover.appendChild(spine);
   cover.appendChild(pages);
@@ -658,8 +663,6 @@ function slotEl(p, slot) {
   return cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
-    badges: [{ cls: slot.injured ? "injured-mark" : "partner-mark",
-               text: slot.injured ? t("ui.injured") : t("ui.healthy") }],
     buttons,
   });
 }
@@ -695,7 +698,6 @@ function abilityUsableNow(p, ab) {
 function openPageEl(p, entry) {
   const def = CARDS[entry.card];
   const buttons = [];
-  const pageBadge = [{ cls: "partner-mark", text: t("ui.page_n", { n: entry.page }) }];
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
@@ -745,7 +747,7 @@ function openPageEl(p, entry) {
     }
   }
 
-  return cardEl(entry.card, { cost: entry.cost, badges: pageBadge, buttons });
+  return cardEl(entry.card, { cost: entry.cost, buttons });
 }
 
 // 對決舞台:非戰鬥時收為發光細線,battle_in/battle 時展開承載攻防資訊與合計魔力
