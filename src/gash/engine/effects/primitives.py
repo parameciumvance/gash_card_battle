@@ -77,6 +77,110 @@ def heal_slot(game, batch, player, slot, source):
         game.emit(batch, "mamodo_healed", player=player, slot=slot.uid, card=slot.top, source=source)
 
 
+# ---------------------------------------------------------------- 書內 / 墓地搜卡
+
+def book_page_options(game, player, pred=None, exclude_last=False):
+    """魔本中(尚未離開的)符合條件的頁位選項:[{'page': n, 'card': 卡號}]。"""
+    ps = game.state.players[player]
+    opts = []
+    for page in range(1, BOOK_SIZE + 1):
+        if page in ps.consumed_pages:
+            continue
+        if exclude_last and page == BOOK_SIZE:
+            continue
+        number = ps.card_at(page)
+        if pred is None or pred(page, game.db[number]):
+            opts.append({"page": page, "card": number, "value": page})
+    return opts
+
+
+def take_from_book(game, batch, player, page) -> str:
+    """卡片離開魔本(該頁標記空缺),回傳卡號;上場/棄置由呼叫端接續。"""
+    ps = game.state.players[player]
+    ps.consumed_pages.add(page)
+    return ps.card_at(page)
+
+
+def return_to_book(game, batch, player, number, page):
+    """自墓地等處把卡放回魔本的空缺頁(M-025)。"""
+    ps = game.state.players[player]
+    assert page in ps.consumed_pages, "只能放回空缺頁"
+    ps.book[page - 1] = number
+    ps.consumed_pages.discard(page)
+    game.emit(batch, "card_returned_to_book", player=player, card=number, page=page)
+
+
+def play_mamodo_from_book(game, batch, player, page):
+    """效果指示:自魔本任意頁放出魔物(受場上上限/同名上限約束,不合法時無效果)。"""
+    from ..engine import MAX_FIELD_MAMODO, same_name_copies
+    from ..state import MamodoSlot
+    ps = game.state.players[player]
+    number = ps.card_at(page)
+    card = game.db[number]
+    if len(ps.slots) >= MAX_FIELD_MAMODO:
+        return None
+    if same_name_copies(game, player, card) >= reg.MAX_COPIES.get(number, 1):
+        return None
+    take_from_book(game, batch, player, page)
+    slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
+    ps.slots.append(slot)
+    game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
+              zone="mamodo", from_book=True)
+    if number in reg.ON_PLAY:
+        reg.ON_PLAY[number](game, batch, player, slot)
+    return slot
+
+
+def attach_partner_from_book(game, batch, player, page, slot):
+    """效果指示:自魔本任意頁取夥伴卡裝備到指定魔物(已有夥伴時無效果)。"""
+    if slot.partner is not None:
+        return False
+    number = take_from_book(game, batch, player, page)
+    slot.partner = number
+    game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
+              zone="partner", from_book=True)
+    if number in reg.ON_PLAY:
+        reg.ON_PLAY[number](game, batch, player, slot)
+    return True
+
+
+def discard_from_book(game, batch, owner, page, source):
+    """把魔本中某頁的卡棄掉(E-016/E-017 對對手書)。"""
+    from ..engine import to_discard
+    ps = game.state.players[owner]
+    number = take_from_book(game, batch, owner, page)
+    to_discard(ps, number)
+    game.emit(batch, "card_discarded", player=owner, card=number, zone="book",
+              page=page, reason=source)
+    return number
+
+
+def discard_partner(game, batch, player, slot, source):
+    """把場上魔物所裝的夥伴卡棄掉。"""
+    from ..engine import to_discard
+    if not slot.partner:
+        return None
+    number = slot.partner
+    slot.partner = None
+    to_discard(game.state.players[player], number)
+    game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason=source)
+    return number
+
+
+# ---------------------------------------------------------------- 翻頁「效果」每回合一次(P-010/P-018 條款)
+
+def own_page_turn_effect(game, batch, player, leaves, source):
+    ps = game.state.players[player]
+    ps.page_effect_used = True
+    turn_pages(game, batch, player, leaves, source)
+
+
+def own_page_turnback_effect(game, batch, player, leaves, source):
+    ps = game.state.players[player]
+    ps.page_back_effect_used = True
+    turn_back_pages(game, batch, player, leaves, source)
+
+
 # ---------------------------------------------------------------- 選擇
 
 def choose_or_auto(game, batch, *, kind, player, options, data=None, source=None):
@@ -98,9 +202,22 @@ def _reflip_available(game, player) -> bool:
             and "mamodo:M-012" not in ps.used_abilities)
 
 
+def _opp_redo_available(game, opp) -> bool:
+    """M-019 康裘美《奇妙動物》:宣告使用→對手重擲(每回合一次)。"""
+    from ..engine import restricted, slot_restricted
+    from ..state import MAMODO_LOCKED, NO_MAMODO_EFFECTS
+    ps = game.state.players[opp]
+    slot = next((s for s in ps.slots if s.top == "M-019"), None)
+    if slot is None or "mamodo:M-019" in ps.used_abilities:
+        return False
+    if restricted(game, opp, NO_MAMODO_EFFECTS):
+        return False
+    return not slot_restricted(game, opp, MAMODO_LOCKED, slot.uid)
+
+
 def flip_coins(game, batch, player, count, source, callback, data=None):
     """擲 count 次硬幣;結果確定後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
-    玩家有可用的 M-012 時,先進入重擲確認 pending。"""
+    確認鏈:對手可用 M-019 時先問是否令整組重擲;玩家有可用 M-012 時再進重擲確認。"""
     results = []
     for _ in range(count):
         heads = game.rng.random() < 0.5
@@ -109,16 +226,50 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
                   result="heads" if heads else "tails", source=source)
     data = dict(data or {})
     data.update({"results": results, "callback": callback, "player": player, "source": source})
+    _coin_confirm_chain(game, batch, data)
+
+
+def _coin_confirm_chain(game, batch, data):
+    player = data["player"]
+    results = data["results"]
+    source = data["source"]
+    opp = 1 - player
+    if not data.get("m019_done") and _opp_redo_available(game, opp):
+        game.state.pending = PendingChoice(
+            kind="opp_coin_redo", player=opp, source="M-019",
+            options=[{"value": None, "label": "keep"}, {"value": True, "label": "pay_reflip"}],
+            data=data)
+        game.emit(batch, "choice_required", kind="opp_coin_redo", player=opp,
+                  results=["heads" if r else "tails" for r in results])
+        return
     if _reflip_available(game, player):
         game.state.pending = PendingChoice(
             kind="coin_confirm", player=player, source=source,
             options=[{"value": None, "label": "keep"}]
-            + [{"value": i, "label": "reflip"} for i in range(count)],
+            + [{"value": i, "label": "reflip"} for i in range(len(results))],
             data=data)
         game.emit(batch, "choice_required", kind="coin_confirm", player=player,
                   results=["heads" if r else "tails" for r in results])
         return
-    reg.CHOICE_RESOLVERS[callback](game, batch, results, data)
+    reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
+
+
+@reg.choice_resolver("opp_coin_redo")
+def _opp_coin_redo(game, batch, value, data):
+    opp = 1 - data["player"]
+    data["m019_done"] = True
+    game.state.pending = None
+    if value:
+        ps = game.state.players[opp]
+        ps.used_abilities.add("mamodo:M-019")
+        game.emit(batch, "ability_used", player=opp, card="M-019",
+                  slot=next(s.uid for s in ps.slots if s.top == "M-019"), zone="mamodo")
+        for i in range(len(data["results"])):
+            heads = game.rng.random() < 0.5
+            data["results"][i] = heads
+            game.emit(batch, "coin_flipped", player=data["player"],
+                      result="heads" if heads else "tails", source=data["source"], reflip=True)
+    _coin_confirm_chain(game, batch, data)
 
 
 @reg.choice_resolver("coin_confirm")

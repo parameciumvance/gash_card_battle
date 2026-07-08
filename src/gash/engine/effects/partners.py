@@ -132,3 +132,114 @@ def p009(game, batch, player, slot):
     else:
         b.defense_negated = True
         game.emit(batch, "defense_negated", source="P-009", player=player)
+
+
+# ======================================================================
+# Level 2 夥伴(P-010~P-019)
+# ======================================================================
+
+from ..state import (  # noqa: E402
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK_SPELL,
+)
+from .primitives import (  # noqa: E402
+    add_restriction, own_page_turn_effect, own_page_turnback_effect, turn_pages,
+)
+
+
+# P-010 高嶺清麿:[棄掉] 翻自己書 1 頁(翻自己書頁效果每回合一次)
+@reg.activated("P-010", mode="discard", timing="nonbattle",
+               condition=lambda g, p, s: not g.state.players[p].page_effect_used
+               and g.state.players[p].pos + 2 <= 32)
+def p010(game, batch, player, slot):
+    own_page_turn_effect(game, batch, player, 1, "P-010")
+
+
+# P-011 エイド:[棄掉][持續] 本回合對手 1 隻魔物魔力視為 0
+@reg.activated("P-011", mode="discard", timing="nonbattle",
+               condition=lambda g, p, s: bool(g.state.players[1 - p].slots))
+def p011(game, batch, player, slot):
+    opp = game.state.players[1 - player]
+    options = [{"value": s.uid, "card": s.top} for s in opp.slots]
+    choose_or_auto(game, batch, kind="p011_pick", player=player, options=options,
+                   data={"player": player}, source="P-011")
+
+
+@reg.choice_resolver("p011_pick")
+def p011_pick(game, batch, value, data):
+    from ..engine import IllegalCommand
+    player = data["player"]
+    slot = game.state.slot_by_uid(1 - player, value if isinstance(value, int) else -1)
+    if slot is None:
+        raise IllegalCommand("choose.invalid", "須選擇對手場上的魔物")
+    add_modifier(game, batch, kind="power_zero", source="P-011", owner=player,
+                 duration=DUR_TURN, target_player=1 - player, target_slot=slot.uid)
+
+
+# P-012 シェリー:[棄掉][持續] 本回合對布拉哥攻擊傷害庇護/犧牲的魔物一律入墓
+@reg.activated("P-012", mode="discard", timing="nonbattle")
+def p012(game, batch, player, slot):
+    add_modifier(game, batch, kind="protect_discard", source="P-012", owner=player,
+                 duration=DUR_TURN, target_player=player, data={"mamodo": "Brago"})
+
+
+# P-013 ココ:[此卡在場上] 對手魔物入墓→翻對手書 1 頁(觸發器)
+@reg.trigger("P-013", "mamodo_discarded")
+def p013(game, batch, owner, slot, ev):
+    if ev.get("player") == 1 - owner:  # 對手的魔物入墓
+        turn_pages(game, batch, 1 - owner, 1, "P-013")
+
+
+# P-014 ペリコ:[棄掉][持續] 本回合對手不能使用術卡攻擊
+@reg.activated("P-014", mode="discard", timing="nonbattle")
+def p014(game, batch, player, slot):
+    add_restriction(game, batch, source="P-014", owner=player,
+                    target_player=1 - player, flag=NO_ATTACK_SPELL, duration=DUR_TURN)
+
+
+# P-015 ルク:[棄掉][待命] 本回合一次,可自書任意頁使用 1 張比萊茲術
+@reg.activated("P-015", mode="discard", timing="nonbattle")
+def p015(game, batch, player, slot):
+    schedule_standby(game, batch, kind="spell_any_page", source="P-015", owner=player,
+                     data={"spell_name": "Biraitsu"})
+
+
+# P-016 レンブラント:[棄掉] 將對手該場戰鬥攻擊所用的術無效
+@reg.activated("P-016", mode="discard", timing="battle",
+               condition=lambda g, p, s: (g.state.battle is not None
+                                          and g.state.battle.defender == p
+                                          and g.state.battle.attack_spell is not None
+                                          and not g.state.battle.attack_negated))
+def p016(game, batch, player, slot):
+    b = game.state.battle
+    b.attack_negated = True
+    game.emit(batch, "attack_negated", source="P-016", player=player)
+
+
+# P-017 ステング:[棄掉] 將對手該場戰鬥防禦所用的術無效
+@reg.activated("P-017", mode="discard", timing="battle",
+               condition=lambda g, p, s: (g.state.battle is not None
+                                          and g.state.battle.attacker == p
+                                          and g.state.battle.defense_spell is not None
+                                          and not g.state.battle.defense_negated))
+def p017(game, batch, player, slot):
+    b = game.state.battle
+    b.defense_negated = True
+    game.emit(batch, "defense_negated", source="P-017", player=player)
+
+
+# P-018 ジェム:[棄掉] 回翻自己書 1 頁(回翻自己書頁效果每回合一次)
+@reg.activated("P-018", mode="discard", timing="nonbattle",
+               condition=lambda g, p, s: not g.state.players[p].page_back_effect_used
+               and g.state.players[p].pos > 2)
+def p018(game, batch, player, slot):
+    own_page_turnback_effect(game, batch, player, 1, "P-018")
+
+
+# P-019 英国紳士:[此卡在場上] 對手回翻自己書頁時對手 MP-2(觸發器)
+@reg.trigger("P-019", "pages_turned")
+def p019(game, batch, owner, slot, ev):
+    opp = 1 - owner
+    # 對手回翻自己的書(count<0 且 player==對手)
+    if ev.get("player") == opp and ev.get("count", 0) < 0:
+        from .primitives import reduce_mp
+        reduce_mp(game, batch, opp, 2, "P-019")

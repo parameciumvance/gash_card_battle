@@ -34,6 +34,9 @@ NO_SPELLS = "no_spells"                    # 不能使用術卡
 NO_PARTNER_EFFECTS = "no_partner_effects"  # 夥伴卡效果失效
 NO_PROTECT_BOOK = "no_protect_book"        # 不能庇護魔本傷害(戰鬥時效)
 NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
+NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用術卡攻擊(P-014)
+NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
+MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其術與效果(E-024,target_slot)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
@@ -86,7 +89,7 @@ class MamodoSlot:
 
 @dataclass
 class PlayerState:
-    book: tuple[str, ...]                      # 32 頁卡號
+    book: list[str]                            # 32 頁卡號(效果可換頁/回書,故為可變)
     pos: int = 1                               # 目前對頁的第一頁
     mp: int = 0
     slots: list[MamodoSlot] = field(default_factory=list)
@@ -96,6 +99,9 @@ class PlayerState:
     used_event_this_turn: bool = False
     used_abilities: set[str] = field(default_factory=set)   # 本回合已用啟動效果 key
     used_per_game: set[str] = field(default_factory=set)    # 一場遊戲限一次
+    discarded_this_turn: list[str] = field(default_factory=list)  # 本回合入墓的卡(E-022)
+    page_effect_used: bool = False        # 本回合已用「翻自己書頁」效果(P-010 條款)
+    page_back_effect_used: bool = False   # 本回合已用「回翻自己書頁」效果(P-018 條款)
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔本中的頁碼。"""
@@ -116,9 +122,9 @@ class PlayerState:
 class BattleState:
     attacker: int
     step: str                            # STEP_DEFENSE / STEP_EFFECTS
-    attack_page: int
-    attack_spell: str
-    attack_slot: int                     # 使用術的魔物槽 uid
+    attack_page: int | None              # 無術攻擊(M-027)時為 None
+    attack_spell: str | None             # 無術攻擊時為 None
+    attack_slot: int                     # 使用術(或直接攻擊)的魔物槽 uid
     attack_negated: bool = False
     attack_undefendable: bool = False
     defense_page: int | None = None
@@ -181,6 +187,9 @@ class GameState:
         return None
 
 
+MAX_TRIGGER_DEPTH = 4  # 被動觸發器遞迴上限(防止入墓/翻頁連鎖失控)
+
+
 @dataclass
 class Game:
     """引擎頂層:狀態 + RNG + 卡片資料庫。"""
@@ -188,9 +197,32 @@ class Game:
     rng: random.Random
     db: dict[str, CardDef]
     events: list[dict] = field(default_factory=list)   # 全部歷史事件(含序號)
+    _trigger_depth: int = 0
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}
         self.events.append(ev)
         batch.append(ev)
+        self._dispatch_triggers(batch, ev)
         return ev
+
+    def _dispatch_triggers(self, batch: list[dict], ev: dict) -> None:
+        """[IN PLAY] 事件型觸發器:場上有註冊此事件型別的卡時執行其 handler。"""
+        from .effects import registry as reg
+        regs = reg.TRIGGERS.get(ev["type"])
+        if not regs or self.state.phase == GAME_OVER:
+            return
+        if self._trigger_depth >= MAX_TRIGGER_DEPTH:
+            return  # 超出深度:安全丟棄(規則上不應發生的連鎖)
+        self._trigger_depth += 1
+        try:
+            for number, handler in regs:
+                for owner in (0, 1):
+                    for slot in list(self.state.players[owner].slots):
+                        if self.state.phase == GAME_OVER:
+                            return
+                        cards = [slot.top] + ([slot.partner] if slot.partner else [])
+                        if number in cards:
+                            handler(self, batch, owner, slot, ev)
+        finally:
+            self._trigger_depth -= 1

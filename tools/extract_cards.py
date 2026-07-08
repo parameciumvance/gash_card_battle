@@ -1,8 +1,10 @@
-"""從 ref/raw 的 xlsx 抽取 Series 1 Level 1 卡片資料,產出 data/cards.json。
+"""從 ref/raw 的 xlsx 抽取 Level 1 + Level 2 卡片資料,產出 data/cards.json。
 
-- 過濾「The Table」工作表中 Sets 含 "Level 1" 的列。
+- 過濾「The Table」工作表中 Sets 標籤含 "Level 1"、"Level 2" 或 "Series 1 Level 2"
+  (最後者為 1 張卡的資料例外標籤)的列;標籤以逗號拆分後精確比對。
 - 卡號取自 A 欄 HYPERLINK 公式的顯示文字(如 M-001、S-019j),卡圖連結取自 URL。
-- 同卡號存在 e(美版)/j(日版)兩版時,只保留 j 版,以基礎卡號入庫。
+- 同卡號存在 e(美版)/j(日版)兩版時,只保留 j 版,以基礎卡號入庫;
+  同卡號跨產品重複時只入庫一筆(sets 保留該列完整標籤)。
 
 用法: python tools/extract_cards.py
 """
@@ -19,7 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 XLSX = ROOT / "ref/raw/Zatch Bell CCG List for TTS.xlsx"
 OUT = ROOT / "data/cards.json"
 
-EXPECTED_COUNT = 67  # M×15 + S×28 + P×9 + E×15
+EXPECTED_COUNT = 134  # Level 1: M×15+S×28+P×9+E×15 = 67;Level 2 新增: M×16+S×29+P×10+E×12 = 67
+INCLUDE_SETS = {"Level 1", "Level 2", "Series 1 Level 2"}
 
 CARD_TYPES = {"Mamodo": "mamodo", "Partner": "partner", "Spell": "spell", "Event": "event"}
 CLASSES = {"None": "none", "Intermediate": "intermediate", "Superior": "superior"}
@@ -50,12 +53,15 @@ def parse_int(value, *, none_ok=True) -> int | None:
 
 
 def parse_power(value) -> dict:
-    """魔物: 4000.0 → {'base': 4000}; 術: '+2000' → {'bonus': 2000}; 'Special' → {'special': True}"""
+    """魔物: 4000.0 → {'base': 4000}; 術: '+2000' → {'bonus': 2000}; 'Special' → {'special': True};
+    'x2000'(S-040 擲幣倍乘)→ {'special': True, 'per_heads': 2000}"""
     s = str(value).strip()
     if s in ("-", "", "None"):
         return {}
     if s == "Special":
         return {"special": True}
+    if s.startswith("x"):
+        return {"special": True, "per_heads": int(float(s[1:]))}
     if s.startswith("+"):
         return {"bonus": int(float(s[1:]))}
     return {"base": int(float(s))}
@@ -73,7 +79,8 @@ def extract() -> list[dict]:
 
     for cells in all_rows[1:]:
         row = [c.value for c in cells]
-        if not row[11] or "Level 1" not in str(row[11]):
+        tags = {s.strip() for s in str(row[11] or "").split(",") if s.strip()}
+        if not tags & INCLUDE_SETS:
             continue
         image_url, raw_number = parse_card_cell(cells[0])
         m = re.fullmatch(r"([A-Z]+-\d+)([ej]?)", raw_number)

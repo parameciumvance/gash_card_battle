@@ -348,3 +348,251 @@ def e015_pick(game, batch, value, data):
         raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
     add_power(game, batch, source="E-015", owner=player, target_player=player,
               target_slot=slot.uid, amount=2000, duration=DUR_UNTIL_END_NEXT_TURN)
+
+
+# ======================================================================
+# Level 2 事件卡(E-016~E-027)
+# ======================================================================
+
+from ..state import MAMODO_LOCKED, NO_MAMODO_EFFECTS  # noqa: E402
+from .primitives import (  # noqa: E402
+    add_restriction, book_page_options, discard_from_book, play_mamodo_from_book,
+    reduce_mp,
+)
+
+
+# E-016 高嶺清太郎:檢視對手書,選 1 術卡(末頁除外)棄掉,MP -該卡費用
+# E-017 高嶺花:檢視對手書,選 1 事件卡棄掉,MP -該卡費用
+def _opp_book_options(game, player, card_type, exclude_last):
+    opp = game.state.players[1 - player]
+    opts = []
+    for p in range(1, 33):
+        if p in opp.consumed_pages:
+            continue
+        if exclude_last and p == 32:
+            continue
+        if game.db[opp.card_at(p)].type == card_type:
+            opts.append({"value": p, "card": opp.card_at(p), "page": p})
+    return opts
+
+
+def _reveal_opp_book(game, batch, player):
+    opp = game.state.players[1 - player]
+    game.emit(batch, "book_revealed", player=1 - player, viewer=player,
+              cards=[{"page": p, "card": opp.card_at(p)}
+                     for p in range(1, 33) if p not in opp.consumed_pages])
+
+
+@reg.event("E-016", condition=lambda g, p: bool(_opp_book_options(g, p, "spell", True)))
+def e016(game, batch, player, page):
+    _reveal_opp_book(game, batch, player)
+    choose_or_auto(game, batch, kind="e016_pick", player=player,
+                   options=_opp_book_options(game, player, "spell", True),
+                   data={"player": player, "type": "spell", "exclude_last": True},
+                   source="E-016")
+
+
+@reg.event("E-017", condition=lambda g, p: bool(_opp_book_options(g, p, "event", False)))
+def e017(game, batch, player, page):
+    _reveal_opp_book(game, batch, player)
+    choose_or_auto(game, batch, kind="e016_pick", player=player,
+                   options=_opp_book_options(game, player, "event", False),
+                   data={"player": player, "type": "event", "exclude_last": False},
+                   source="E-017")
+
+
+@reg.choice_resolver("e016_pick")
+def e016_pick(game, batch, value, data):
+    from ..engine import IllegalCommand
+    player = data["player"]
+    valid = {o["value"] for o in _opp_book_options(game, player, data["type"], data["exclude_last"])}
+    if value not in valid:
+        raise IllegalCommand("choose.invalid", "須選擇對手書中對應類型的卡")
+    cost = game.db[game.state.players[1 - player].card_at(value)].cost or 0
+    discard_from_book(game, batch, 1 - player, value, "E-016/017")
+    reduce_mp(game, batch, player, cost, "E-016/017")
+
+
+# E-018 フォルゴレのダンス:對手 MP-4(上一回合已減過對手 MP 則不減 — j 版)
+@reg.event("E-018")
+def e018(game, batch, player, page):
+    # 記錄本回合減 MP;若上一回合曾減則跳過
+    st = game.state
+    last = st.players[player].__dict__.get("_mp_reduce_turn")
+    if last == st.turn_no - 1:
+        game.emit(batch, "effect_applied", source="E-018", skipped=True)
+        return
+    reduce_mp(game, batch, 1 - player, 4, "E-018")
+    st.players[player].__dict__["_mp_reduce_turn"] = st.turn_no
+
+
+# E-019 清麿の怒り:將自己場上 1 張魔物卡棄掉
+@reg.event("E-019", condition=lambda g, p: bool(g.state.players[p].slots))
+def e019(game, batch, player, page):
+    options = [{"value": s.uid, "card": s.top} for s in game.state.players[player].slots]
+    choose_or_auto(game, batch, kind="e019_pick", player=player, options=options,
+                   data={"player": player}, source="E-019")
+
+
+@reg.choice_resolver("e019_pick")
+def e019_pick(game, batch, value, data):
+    from ..engine import IllegalCommand, _discard_slot
+    player = data["player"]
+    slot = game.state.slot_by_uid(player, value if isinstance(value, int) else -1)
+    if slot is None:
+        raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
+    _discard_slot(game, batch, player, slot, reason="E-019")
+
+
+# E-020 恵のコンサート:MP+3;對手擲幣正→對手 MP+3
+@reg.event("E-020")
+def e020(game, batch, player, page):
+    from ..engine import gain_mp
+    gain_mp(game, batch, player, 3, "E-020")
+    flip_coins(game, batch, 1 - player, 1, "E-020", "e020_resolve", {"player": player})
+
+
+@reg.choice_resolver("e020_resolve")
+def e020_resolve(game, batch, results, data):
+    from ..engine import gain_mp
+    if results[0]:
+        gain_mp(game, batch, 1 - data["player"], 3, "E-020")
+
+
+# E-021 ひと安心!:場上≥2魔物時,回復1隻負傷 和/或 MP+2(j 版)
+@reg.event("E-021", condition=lambda g, p: len(g.state.players[p].slots) >= 2)
+def e021(game, batch, player, page):
+    injured = [s for s in game.state.players[player].slots if s.injured]
+    if injured:
+        heal_slot(game, batch, player, injured[0], "E-021")
+    from ..engine import gain_mp
+    gain_mp(game, batch, player, 2, "E-021")
+
+
+# E-022 コリー:擲幣正→從棄牌區選本回合入墓的夥伴放到場上
+def _e022_targets(game, player):
+    ps = game.state.players[player]
+    out = []
+    for i, number in enumerate(ps.discard):
+        card = game.db[number]
+        if card.type != PARTNER or number not in ps.discarded_this_turn:
+            continue
+        slot = next((s for s in ps.slots
+                     if game.db[s.top].related_mamodo == card.related_mamodo
+                     and s.partner is None), None)
+        if slot is None:
+            continue
+        out.append({"value": i, "card": number, "slot_uid": slot.uid})
+    return out
+
+
+@reg.event("E-022", condition=lambda g, p: any(n in g.state.players[p].discarded_this_turn
+                                               and g.db[n].type == PARTNER
+                                               for n in g.state.players[p].discard))
+def e022(game, batch, player, page):
+    flip_coins(game, batch, player, 1, "E-022", "e022_resolve", {"player": player})
+
+
+@reg.choice_resolver("e022_resolve")
+def e022_resolve(game, batch, results, data):
+    player = data["player"]
+    if not results[0]:
+        return
+    targets = _e022_targets(game, player)
+    if not targets:
+        return
+    choose_or_auto(game, batch, kind="e022_pick", player=player, options=targets,
+                   data={"player": player}, source="E-022")
+
+
+@reg.choice_resolver("e022_pick")
+def e022_pick(game, batch, value, data):
+    from ..engine import IllegalCommand
+    player = data["player"]
+    ps = game.state.players[player]
+    targets = {t["value"]: t for t in _e022_targets(game, player)}
+    if value not in targets:
+        raise IllegalCommand("choose.invalid", "須選擇可放回的夥伴")
+    number = ps.discard.pop(value)
+    slot = game.state.slot_by_uid(player, targets[value]["slot_uid"])
+    slot.partner = number
+    game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
+              zone="partner", from_discard=True)
+
+
+# E-023 戦いの目的:[持續] 所有裝夥伴的魔物 +2000(至下回合結束階段)
+@reg.event("E-023")
+def e023(game, batch, player, page):
+    add_modifier(game, batch, kind="power_partnered", source="E-023", owner=player,
+                 duration=DUR_UNTIL_END_NEXT_TURN, target_player=player, amount=2000)
+
+
+# E-024 ダルタニャン教授:[持續] 本回合封鎖對手 1 隻魔物的術與效果
+@reg.event("E-024", condition=lambda g, p: bool(g.state.players[1 - p].slots))
+def e024(game, batch, player, page):
+    opp = game.state.players[1 - player]
+    options = [{"value": s.uid, "card": s.top} for s in opp.slots]
+    choose_or_auto(game, batch, kind="e024_pick", player=player, options=options,
+                   data={"player": player}, source="E-024")
+
+
+@reg.choice_resolver("e024_pick")
+def e024_pick(game, batch, value, data):
+    from ..engine import IllegalCommand
+    player = data["player"]
+    slot = game.state.slot_by_uid(1 - player, value if isinstance(value, int) else -1)
+    if slot is None:
+        raise IllegalCommand("choose.invalid", "須選擇對手場上的魔物")
+    add_restriction(game, batch, source="E-024", owner=player,
+                    target_player=1 - player, flag=MAMODO_LOCKED, duration=DUR_TURN)
+    game.state.modifiers[-1].target_slot = slot.uid
+
+
+# E-025 ヨポポのダンス:[持續] 本回合對手不能套用其魔物卡效果
+@reg.event("E-025")
+def e025(game, batch, player, page):
+    add_restriction(game, batch, source="E-025", owner=player,
+                    target_player=1 - player, flag=NO_MAMODO_EFFECTS, duration=DUR_TURN)
+
+
+# E-026 魚を頼んだのに!:擲2硬幣,MP = 正面數×2
+@reg.event("E-026")
+def e026(game, batch, player, page):
+    flip_coins(game, batch, player, 2, "E-026", "e026_resolve", {"player": player})
+
+
+@reg.choice_resolver("e026_resolve")
+def e026_resolve(game, batch, results, data):
+    from ..engine import gain_mp
+    gain_mp(game, batch, data["player"], sum(results) * 2, "E-026")
+
+
+# E-027 親友:雙方場上夥伴只留 1 張,無夥伴者自書取 1 張(先對手後自己)
+@reg.event("E-027")
+def e027(game, batch, player, page):
+    _e027_side(game, batch, 1 - player, "E-027")  # 先對手
+    _e027_side(game, batch, player, "E-027")       # 後自己
+
+
+def _e027_side(game, batch, side, source):
+    from .primitives import discard_partner, attach_partner_from_book
+    ps = game.state.players[side]
+    partnered = [s for s in ps.slots if s.partner]
+    if partnered:
+        # 保留第 1 張,其餘棄掉
+        for s in partnered[1:]:
+            discard_partner(game, batch, side, s, source)
+    else:
+        # 無夥伴:自書任意頁取 1 張裝到對應魔物(自動取第一個可裝的)
+        for p in range(1, 33):
+            if p in ps.consumed_pages:
+                continue
+            card = game.db[ps.card_at(p)]
+            if card.type != PARTNER:
+                continue
+            slot = next((s for s in ps.slots
+                         if game.db[s.top].related_mamodo == card.related_mamodo
+                         and s.partner is None), None)
+            if slot is not None:
+                attach_partner_from_book(game, batch, side, p, slot)
+                break

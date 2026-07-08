@@ -48,12 +48,36 @@ class SpellRider:
     on_damage: Callable | None = None     # 造成傷害後 fn(game, batch, player)
     counter: bool = False                 # 【反擊】防方獲勝時仍解決
     no_book_damage: bool = False          # 獲勝時不造成魔本傷害(改由 on_win 處理)
+    damage_cap: int | None = None         # 傷害上限(S-032/S-034)
+    injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔本傷害(S-058)
+    on_defense_damaged: Callable | None = None  # 以此術防禦卻被造成傷害後 fn(game, batch, defender, amount)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
 
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
+
+# 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾術)
+SPELL_ONLY_STACK: set[str] = set()
+
+# 疊放頂層單獨入墓、下層保留(M-027);分離時發出 stack_detached 事件供觸發器使用
+DETACH_KEEP_UNDER: set[str] = set()
+
+# 同名魔物同場上限(未註冊=1;M-024=2)
+MAX_COPIES: dict[str, int] = {}
+
+# [IN PLAY] 事件型觸發器: 事件型別 -> [(卡號, fn(game, batch, owner, slot, event))]
+TRIGGERS: dict[str, list[tuple[str, Callable]]] = {}
+
+# 查詢型 hook(驗證/結算時查詢場上卡)
+# 傷害/負傷免疫: 卡號 -> fn(game, player, slot, ctx) -> bool(True=免疫)
+DAMAGE_IMMUNITY: dict[str, Callable] = {}
+# 術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此術)
+SPELL_COMPAT: dict[str, Callable] = {}
+
+# 無術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
+MAMODO_ATTACK: dict[str, dict] = {}
 
 # pending choice 的解決器: key -> fn(game, batch, choice_value, data)
 CHOICE_RESOLVERS: dict[str, Callable] = {}
@@ -111,5 +135,27 @@ def spell_rider(number: str, **kwargs):
 def choice_resolver(key: str):
     def deco(fn):
         CHOICE_RESOLVERS[key] = fn
+        return fn
+    return deco
+
+
+def trigger(number: str, event_type: str):
+    """[IN PLAY] 事件型觸發器:該卡在場上且事件發生時執行。"""
+    def deco(fn):
+        TRIGGERS.setdefault(event_type, []).append((number, fn))
+        return fn
+    return deco
+
+
+def damage_immunity(number: str):
+    def deco(fn):
+        DAMAGE_IMMUNITY[number] = fn
+        return fn
+    return deco
+
+
+def spell_compat(number: str):
+    def deco(fn):
+        SPELL_COMPAT[number] = fn
         return fn
     return deco

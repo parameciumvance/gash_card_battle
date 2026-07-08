@@ -33,6 +33,7 @@ def _ability_view(number: str | None) -> dict | None:
 
 
 def _slot_view(game: Game, player: int, slot) -> dict:
+    from ..engine.effects import registry as reg
     return {
         "uid": slot.uid,
         "stack": list(slot.stack),
@@ -42,6 +43,7 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "power": slot_power(game, player, slot),
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
+        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無術攻擊規格(M-027)
     }
 
 

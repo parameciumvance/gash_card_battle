@@ -660,6 +660,16 @@ function slotEl(p, slot) {
       onclick: () => send({ type: "use_field_ability", player: p, zone: "mamodo", slot_uid: slot.uid }),
     });
   }
+  // 無術攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
+  if (slot.mamodo_attack && iControl(p) && p === S.turn_player && canActNow(p)) {
+    const spec = slot.mamodo_attack;
+    const blocked = S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null;
+    buttons.push({
+      label: t("ui.mamodo_attack", { power: spec.power, dam: spec.damage }),
+      primary: true, disabled: !!blocked, reason: blocked,
+      onclick: () => send({ type: "declare_attack", player: p, mode: "mamodo", slot_uid: slot.uid }),
+    });
+  }
   return cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
@@ -750,6 +760,12 @@ function openPageEl(p, entry) {
   return cardEl(entry.card, { cost: entry.cost, buttons });
 }
 
+// 以攻擊魔物槽 uid 取其卡名(無術攻擊顯示用)
+function attackerName(player, slotUid) {
+  const slot = S.players[player].slots.find((s) => s.uid === slotUid);
+  return slot ? cname(slot.top) : "";
+}
+
 // 對決舞台:非戰鬥時收為發光細線,battle_in/battle 時展開承載攻防資訊與合計魔力
 function renderBattleStage() {
   const stage = document.getElementById("battle-stage");
@@ -759,15 +775,24 @@ function renderBattleStage() {
   stage.classList.toggle("open", open);
   if (!open) return;
   if (S.battle_in) {
-    content.innerHTML = `<span class="stage-hint">${t("ui.battle_in_hint", {
-      player: pname(S.battle_in.attacker), spell: cname(S.battle_in.spell) })}</span>`;
+    const bi = S.battle_in;
+    const label = bi.spell
+      ? t("ui.battle_in_hint", { player: pname(bi.attacker), spell: cname(bi.spell) })
+      : t("ui.battle_in_hint_mamodo", { player: pname(bi.attacker),
+          mamodo: attackerName(bi.attacker, bi.slot) });
+    content.innerHTML = `<span class="stage-hint">${label}</span>`;
     return;
   }
   const b = S.battle;
+  // 無術攻擊:攻方以魔物名代替術名呈現
+  const attackLabel = b.attack_spell
+    ? t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })
+    : t("ui.battle_attack_mamodo", { player: pname(b.attacker),
+        mamodo: attackerName(b.attacker, b.attack_slot) });
   const att = document.createElement("div");
   att.className = "stage-side attack";
   att.innerHTML =
-    `<span class="side-label">${t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })}` +
+    `<span class="side-label">${attackLabel}` +
     (b.attack_negated ? `(${t("ui.negated")})` : "") +
     (b.attack_undefendable ? `(${t("ui.undefendable")})` : "") + `</span>` +
     `<span class="side-total" id="stage-att-total">${b.attacker_total}</span>`;
@@ -896,6 +921,8 @@ function renderPendingDialog() {
     if (opt.label === "reflip") return { label: t("choice.reflip", { n: opt.value + 1 }), onpick: () => choose(opt.value) };
     if (opt.label === "pay_reflip") return { label: t("choice.pay_reflip"), onpick: () => choose(true) };
     if (opt.label === "stop") return { label: t("choice.stop"), onpick: () => choose(false) };
+    if (opt.label === "s043_fuse") return { label: t("choice.s043_fuse"), onpick: () => choose("fuse") };
+    if (opt.label === "s043_split") return { label: t("choice.s043_split"), onpick: () => choose("split") };
     if (opt.card) {
       const value = opt.value !== undefined ? opt.value : opt.page;
       return { cardNum: opt.card, onpick: () => choose(value) };
@@ -938,9 +965,17 @@ function logLine(ev) {
     case "book_card_used": return t("log.book_card_used", { ...P, card: cname(ev.card) });
     case "ability_used": return t("log.ability_used", { ...P, card: cname(ev.card) });
     case "passed": return t("log.passed", P);
-    case "battle_in_check": return t("log.battle_in_check", { player: pname(ev.attacker), spell: cname(ev.spell) });
+    case "battle_in_check":
+      return ev.spell
+        ? t("log.battle_in_check", { player: pname(ev.attacker), spell: cname(ev.spell) })
+        : t("log.battle_in_check_mamodo", { player: pname(ev.attacker), mamodo: cname(ev.mamodo) });
     case "battle_in_voided": return t("log.battle_in_voided");
-    case "battle_started": return t("log.battle_started", { player: pname(ev.attacker), spell: cname(ev.spell) });
+    case "battle_started":
+      return ev.spell
+        ? t("log.battle_started", { player: pname(ev.attacker), spell: cname(ev.spell) })
+        : t("log.battle_started_mamodo", { player: pname(ev.attacker), mamodo: cname(ev.mamodo) });
+    case "card_returned_to_book": return t("log.card_returned_to_book", { ...P, card: cname(ev.card) });
+    case "stack_detached": return t("log.stack_detached", { ...P, card: cname(ev.detached) });
     case "defense_declared": return t("log.defense_declared", { ...P, spell: cname(ev.spell) });
     case "no_defense": return t("log.no_defense", P);
     case "battle_effects_step": return t("log.battle_effects_step");

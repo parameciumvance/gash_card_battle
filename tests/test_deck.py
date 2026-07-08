@@ -4,15 +4,19 @@ from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import DeckError, load_deck, validate_deck
 
 
-def test_card_db_has_67_cards():
+def test_card_db_has_134_cards():
     db = card_db()
-    assert len(db) == 67
+    assert len(db) == 134  # Level 1 67 + Level 2 67
     assert db["M-001"].power_base == 4000
     assert db["S-001"].power_bonus == 2000 and db["S-001"].damage == 1
     assert db["S-005"].klass == "superior" and db["S-005"].cost == 6
     # e/j 雙版本卡採 j 版:S-025 為擲 1 次硬幣版本
     assert "coin" in db["S-025"].effect_en.lower()
     assert "twice" not in db["S-025"].effect_en.lower()
+    # Level 2 的 e/j 差異卡採 j 版:E-018 含連續回合限制條款
+    assert "previous turn" in db["E-018"].effect_en.lower()
+    # E-022 j 版限本回合入墓
+    assert "on this turn" in db["E-022"].effect_en.lower()
 
 
 def test_level1_deck_is_valid():
