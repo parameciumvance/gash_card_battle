@@ -101,12 +101,20 @@ body {
 .mcell { display: flex; align-items: center; justify-content: center; width: 120px; }
 .mamodo-cell { height: 150px; }
 .partner-cell { height: 150px; }  /* 搭檔欄與魔物欄同高 */
-/* 盤面卡片固定大小、按鈕沉底、隱藏日文名/效果全文(點卡放大可看) */
+/* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視,確保按鈕不被裁切 */
 #board .card { width: 104px; height: 150px; min-height: 0; overflow: hidden; }
 #board .card.small { width: 104px; height: 150px; }  /* 搭檔卡與魔物同尺寸 */
 #board .card img.art { height: 75px; flex-shrink: 0; }
-#board .card .ceffect, #board .card .cname-ja { display: none; }
-#board .card .btns { margin-top: auto; }
+/* 盤面卡面只留卡名:隱藏費用/魔力/傷害(cmeta)、效果全文、日文名、卡號 */
+#board .card .cmeta,
+#board .card .ceffect,
+#board .card .cname-ja,
+#board .card .cnum { display: none; }
+#board .card .cname {         /* 卡名限 2 行省略,避免長名擠掉按鈕 */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#board .card .btns { margin-top: auto; flex-shrink: 0; }
 .empty-frame {
   border: 2px dashed rgba(217,164,65,.28); border-radius: 8px;
   color: rgba(217,164,65,.38); font-size: 11px;
