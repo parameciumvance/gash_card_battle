@@ -7,7 +7,8 @@
 let DICT = {};        // i18n 字典
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let ZH = {};          // 卡片中文文本
-let LEVEL1 = [];      // level1 預組頁序(構築器複製起手用)
+let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
+const DEFAULT_PRESET = "level1";  // 缺省預組 id(與後端一致)
 let S = null;         // 最新遊戲狀態快照(視角化)
 let R = null;         // 房間 meta {code, mode, you, deadline, ...}
 let SESSION = null;   // {code, mode, viewer, tokens:{playerIndex→token} 或 {me:token}}
@@ -153,10 +154,12 @@ function show(sectionId) {
 
 function deckOptions(sel) {
   sel.innerHTML = "";
-  const preset = document.createElement("option");
-  preset.value = "preset";
-  preset.textContent = t("ui.deck.preset_level1");
-  sel.appendChild(preset);
+  for (const p of PRESETS) {                 // 探索得到的預組(value 帶 preset: 前綴)
+    const opt = document.createElement("option");
+    opt.value = `preset:${p.id}`;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  }
   for (const d of DeckStore.list()) {
     const opt = document.createElement("option");
     opt.value = d.id;
@@ -168,9 +171,9 @@ function deckOptions(sel) {
 
 function deckPayload(selectId) {
   const value = document.getElementById(selectId).value;
-  if (value === "preset") return { preset: "level1" };
+  if (value.startsWith("preset:")) return { preset: value.slice(7) };
   const deck = DeckStore.get(value);
-  return deck ? { pages: deck.pages } : { preset: "level1" };
+  return deck ? { pages: deck.pages } : { preset: DEFAULT_PRESET };
 }
 
 async function startLocal() {
@@ -1184,8 +1187,10 @@ function renderNewSelect() {
   head.value = "";
   head.textContent = t("builder.new") + "…";
   sel.appendChild(head);
-  const opts = [["blank", t("builder.new_blank")],
-                ["level1", t("builder.new_from_level1")]];
+  const opts = [["blank", t("builder.new_blank")]];
+  for (const p of PRESETS) {                 // 從探索得到的每個預組複製起手
+    opts.push(["preset:" + p.id, t("builder.new_from_deck", { name: p.name })]);
+  }
   for (const d of DeckStore.list()) {
     opts.push(["copy:" + d.id, t("builder.new_from_deck", { name: d.name })]);
   }
@@ -1195,13 +1200,14 @@ function renderNewSelect() {
     opt.textContent = label;
     sel.appendChild(opt);
   }
-  sel.onchange = () => {
+  sel.onchange = async () => {
     const v = sel.value;
     sel.value = "";
     if (!v) return;
     let pages = Array(32).fill(null);
-    if (v === "level1") pages = [...LEVEL1];
-    if (v.startsWith("copy:")) {
+    if (v.startsWith("preset:")) {
+      pages = await fetchPresetPages(v.slice(7));
+    } else if (v.startsWith("copy:")) {
       const src = DeckStore.get(v.slice(5));
       if (src) pages = [...src.pages];
     }
@@ -1432,14 +1438,26 @@ function renderLanding() {
   document.getElementById("leave-room").onclick = leaveRoom;
 }
 
+// 構築器複製起手用:按需抓某預組的 32 頁(避免探索清單背全部 pages)
+async function fetchPresetPages(id) {
+  try {
+    const d = await fetch(`/data/decks/${encodeURIComponent(id)}.json`).then((r) => r.json());
+    return Array.isArray(d.pages) ? [...d.pages] : Array(32).fill(null);
+  } catch (_) {
+    return Array(32).fill(null);
+  }
+}
+
 async function boot() {
-  [DICT, CARDS, ZH, LEVEL1] = await Promise.all([
+  let presets;
+  [DICT, CARDS, ZH, presets] = await Promise.all([
     fetch("/static/i18n/zh-TW.json").then((r) => r.json()),
     fetch("/data/cards.json").then((r) => r.json()).then((list) =>
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/data/cards.zh-TW.json").then((r) => r.json()),
-    fetch("/data/decks/level1.json").then((r) => r.json()).then((d) => d.pages),
+    fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
   ]);
+  PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   renderLanding();
   renderTopbar();
 

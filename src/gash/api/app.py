@@ -93,14 +93,82 @@ def _state_payload(room: Room, viewer) -> dict:
     return payload
 
 
+DECKS_DIR = DATA_DIR / "decks"
+DEFAULT_PRESET = "level1"
+
+
+def _load_i18n() -> dict:
+    import json
+    path = FRONTEND_DIR / "i18n" / "zh-TW.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
+        return {}
+
+
+def _scan_presets() -> dict[str, dict]:
+    """掃描 data/decks/*.json 建 {id: {"path", "name"}} 對照表;壞檔排除記 log。
+
+    顯示名:name_key(經 i18n 字典解析)→ 內嵌 name → id。
+    """
+    import json
+    import logging
+
+    i18n = _load_i18n()
+    db = card_db()
+    presets: dict[str, dict] = {}
+    for path in sorted(DECKS_DIR.glob("*.json")):
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            deck_id = str(raw["id"])
+            load_deck(path, db)  # 確認為合法牌組;壞檔在此拋出
+        except (OSError, KeyError, DeckError, ValueError) as exc:
+            logging.getLogger(__name__).warning("跳過無效預組 %s: %s", path.name, exc)
+            continue
+        name = i18n.get(raw.get("name_key", ""), None) or raw.get("name") or deck_id
+        presets[deck_id] = {"path": path, "name": name}
+    return presets
+
+
+_PRESETS: dict[str, dict] | None = None
+
+
+def _presets() -> dict[str, dict]:
+    """快取的預組對照表(啟動掃描一次;部署期檔案不變)。"""
+    global _PRESETS
+    if _PRESETS is None:
+        _PRESETS = _scan_presets()
+    return _PRESETS
+
+
+def preset_list() -> list[dict]:
+    """對外清單:預設預組置頂,其餘依 id 排序。"""
+    items = [{"id": pid, "name": p["name"]} for pid, p in _presets().items()]
+    items.sort(key=lambda x: (x["id"] != DEFAULT_PRESET, x["id"]))
+    return items
+
+
 def _default_deck() -> tuple[str, ...]:
-    return load_deck(DATA_DIR / "decks/level1.json", card_db()).pages
+    return load_deck(_presets()[DEFAULT_PRESET]["path"], card_db()).pages
 
 
 def _resolve_deck(spec: dict | None) -> tuple[str, ...] | None:
-    """解析請求中的牌組欄位;自訂牌組以構築規則驗證,違規回 422。回傳 None = level1。"""
-    if spec is None or spec.get("preset") == "level1":
+    """解析牌組欄位。回傳 None = 用預設預組(level1)。
+
+    - {preset: id}:id 必須在掃描集合內(白名單,絕不轉為任意路徑);未知回 4xx。
+    - {pages:[...]}:自訂牌組以構築規則驗證,違規回 422。
+    """
+    if spec is None:
         return None
+    if "preset" in spec:
+        pid = spec.get("preset")
+        if pid == DEFAULT_PRESET:
+            return None
+        preset = _presets().get(pid)
+        if preset is None:
+            raise HTTPException(404, detail={"code": "deck.unknown_preset",
+                                             "message": f"未知的預組:{pid}"})
+        return load_deck(preset["path"], card_db()).pages
     pages = spec.get("pages")
     if not isinstance(pages, list):
         raise HTTPException(422, detail={"code": "deck.bad_request",
@@ -143,6 +211,14 @@ def _resolve(code: str, token: str | None) -> tuple[Room, int | str]:
     except RoomError as exc:
         raise _http_error(exc)
     return room, viewer
+
+
+# ---------------------------------------------------------------- 預組探索
+
+@app.get("/api/decks")
+async def list_decks():
+    """列出伺服器 data/decks/ 下所有預組魔本(丟檔即現)。"""
+    return {"decks": preset_list()}
 
 
 # ---------------------------------------------------------------- 房間端點
