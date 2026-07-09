@@ -119,9 +119,12 @@ def test_opponent_hand_hidden_over_http():
                      headers={"X-Player-Token": spec_token}).json()["state"]
     for p in ssp["players"]:
         assert all(set(e) == {"page"} for e in p["open_pages"])
-    # 未翻開頁內容(如 P32 S-005)不在任何回應
-    raw = json.dumps(s0)
-    assert "S-005" not in raw and "M-012" not in raw
+    # 己方完整魔本對本人可見;對手完整魔本 MUST NOT 在本人視角
+    assert "book" in s0["players"][0] and len(s0["players"][0]["book"]) == 32
+    assert "book" not in s0["players"][1]
+    # 觀戰視角:雙方 book 皆不含
+    for p in ssp["players"]:
+        assert "book" not in p
 
 
 def test_events_endpoint_filtered_and_incremental():

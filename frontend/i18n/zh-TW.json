@@ -226,5 +226,15 @@
   "choice.title.injure_instead_target": "選擇要使其負傷的對手魔物",
   "choice.title.opp_coin_redo": "是否用奇妙動物令對手重擲?",
   "choice.s043_fuse": "合體:2 隻二體 → 完全體",
-  "choice.s043_split": "分裂:完全體 → 2 隻二體"
+  "choice.s043_split": "分裂:完全體 → 2 隻二體",
+  "ui.name.p1": "玩家1 暱稱",
+  "ui.name.p2": "玩家2 暱稱",
+  "ui.name.self": "你的暱稱",
+  "ui.name.placeholder": "留白用預設",
+  "ui.review_book": "查閱魔本",
+  "ui.book_review_title": "我的魔本(全 32 頁)",
+  "ui.book_page_current": "翻開中",
+  "ui.book_page_used": "已使用",
+  "ui.book_page_left": "已上場",
+  "ui.book_spell_used": "本回合已用"
 }

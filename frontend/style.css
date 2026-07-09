@@ -51,6 +51,40 @@ body {
 .pz-head .mp { color: var(--accent-blue); font-weight: bold; }
 .pz-head .book-progress { color: var(--gold-soft); }
 .pz-head .discard-btn { cursor: pointer; color: var(--ink-dim); text-decoration: underline; }
+.pz-head-rest { display: inline-flex; gap: 14px; align-items: center; }
+.pz-head .review-btn { cursor: pointer; color: var(--gold-soft); text-decoration: underline; }
+.pz-head .review-btn:hover { color: var(--glow); }
+.name-input { text-transform: none !important; }
+
+/* 查閱魔本 overlay */
+#book-review-overlay {
+  position: fixed; inset: 0; background: rgba(8,10,18,.78);
+  display: flex; align-items: center; justify-content: center; z-index: 55;
+}
+#book-review {
+  background: var(--panel); border: 1px solid #4a5a80; border-radius: 12px;
+  padding: 16px; max-width: 92vw; max-height: 88vh; overflow-y: auto;
+}
+#book-review-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; margin-bottom: 12px; }
+#book-review-head h3 { color: var(--glow); font-size: 16px; }
+#book-review-close { padding: 5px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
+#book-review-grid { display: flex; flex-wrap: wrap; gap: 10px; max-width: 84vw; }
+.review-spread { display: flex; gap: 3px; padding: 5px; border-radius: 8px;
+  background: rgba(110,29,29,.35); border: 1px solid rgba(217,164,65,.3); }
+.review-spread.single { background: rgba(60,40,70,.35); }
+.review-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.review-cell.open { outline: 2px solid var(--glow); outline-offset: 1px; border-radius: 8px; }
+.review-cell .card { cursor: default; }
+.review-cell .card:hover { transform: none; box-shadow: none; }
+.review-foot { display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+  justify-content: center; font-size: 9px; }
+.review-pno { color: var(--gold-soft); }
+.review-tag { padding: 0 5px; border-radius: 6px; font-size: 9px; }
+.review-tag.cur { background: var(--glow); color: #3a2a08; }
+.review-tag.left { background: #5b6270; color: #d9dde5; }
+.review-tag.used { background: #8a2f2f; color: #ffd9d9; }
 
 /* 場區置中貼中線對峙、魔本區靠外角(對手右上、我方左下對角相對) */
 .zone-body { display: flex; gap: 12px; flex: 1; }

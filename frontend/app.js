@@ -25,7 +25,18 @@ function t(key, params = {}) {
   return s.replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? params[k] : `{${k}}`));
 }
 
-function pname(p) { return t("ui.player", { n: p + 1 }); }
+function pname(p) {
+  const custom = R && R.names && R.names[p];
+  return custom || t("ui.player", { n: p + 1 });
+}
+
+// 暱稱記憶(localStorage);清理與後端一致(去空白、限長 16)
+function loadNick() { return localStorage.getItem("gash-nick") || ""; }
+function saveNick(v) {
+  const clean = (v || "").trim().slice(0, 16);
+  if (clean) localStorage.setItem("gash-nick", clean);
+  return clean || null;
+}
 
 function cname(num) {
   const z = ZH[num];
@@ -176,11 +187,17 @@ function deckPayload(selectId) {
   return deck ? { pages: deck.pages } : { preset: DEFAULT_PRESET };
 }
 
+function nameVal(id) {
+  const v = document.getElementById(id).value.trim().slice(0, 16);
+  return v || null;
+}
+
 async function startLocal() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "local",
-      decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")] }),
+      decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")],
+      names: [nameVal("name-local-0"), nameVal("name-local-1")] }),
   });
   SESSION = { code: body.code, mode: "local", viewer: "all",
               tokens: { 0: body.player_tokens[0], 1: body.player_tokens[1] } };
@@ -196,7 +213,7 @@ async function createRoom() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null,
-      deck: deckPayload("deck-create") }),
+      deck: deckPayload("deck-create"), name: saveNick(document.getElementById("name-create").value) }),
   });
   SESSION = { code: body.code, mode: "online", viewer: 0,
               tokens: { me: body.player_token } };
@@ -221,7 +238,8 @@ async function joinRoom(code) {
   try {
     const body = await api(`/api/rooms/${code}/join`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deck: deckPayload("deck-join") }),
+      body: JSON.stringify({ deck: deckPayload("deck-join"),
+                             name: saveNick(document.getElementById("name-join").value) }),
     });
     SESSION = { code: code.toUpperCase(), mode: "online", viewer: 1,
                 tokens: { me: body.player_token } };
@@ -497,12 +515,20 @@ function renderPlayerZone(zone, p, isTop) {
 
   const head = document.createElement("div");
   head.className = "pz-head";
-  head.innerHTML =
-    `<span class="pname">${pname(p)}${iControl(p) && myViewer() !== "all" ? "(你)" : ""}</span>` +
+  const nameSpan = document.createElement("span");   // 暱稱以 textContent 呈現(防注入)
+  nameSpan.className = "pname";
+  nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? "(你)" : "");
+  head.appendChild(nameSpan);
+  const rest = document.createElement("span");
+  rest.className = "pz-head-rest";
+  rest.innerHTML =
     `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
     `<span class="book-progress">${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}</span>` +
+    (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "") +
     `<span class="discard-btn">${t("ui.discard", { n: ps.discard.length })}</span>`;
-  head.querySelector(".discard-btn").onclick = () => showDiscard(p);
+  rest.querySelector(".discard-btn").onclick = () => showDiscard(p);
+  if (ps.book) rest.querySelector(".review-btn").onclick = () => showBookReview(p);
+  head.appendChild(rest);
   zone.appendChild(head);
 
   // 場區(魔物列+搭檔列)置中;魔本區靠外角:對手右上、我方左下(對角相對)
@@ -944,6 +970,56 @@ function showDiscard(p) {
       ? ps.discard.map((num) => ({ cardNum: num, onpick: () => zoom(num) }))
       : [{ label: t("ui.close"), onpick: () => {} }]);
 }
+
+// 查閱己方全魔本:對頁網格呈現 32 頁,標示當前翻開/已離場/已用術頁(純唯讀)
+function showBookReview(p) {
+  const ps = S.players[p];
+  if (!ps.book) return;
+  const overlay = document.getElementById("book-review-overlay");
+  document.getElementById("book-review-title").textContent = t("ui.book_review_title");
+  const close = document.getElementById("book-review-close");
+  close.textContent = t("ui.close");
+  close.onclick = () => overlay.classList.add("hidden");
+  const grid = document.getElementById("book-review-grid");
+  grid.innerHTML = "";
+  const consumed = new Set(ps.consumed_pages || []);
+  const usedSpell = new Set(ps.used_spell_pages || []);
+  const isOpen = (pg) => pg === ps.pos || pg === ps.pos + 1;
+
+  const cell = (pg) => {
+    const num = ps.book[pg - 1];
+    const wrap = document.createElement("div");
+    wrap.className = "review-cell";
+    if (isOpen(pg) && !consumed.has(pg)) wrap.classList.add("open");
+    const tag = (cls, key) => `<span class="review-tag ${cls}">${t(key)}</span>`;
+    let marks = "";
+    if (isOpen(pg) && !consumed.has(pg)) marks += tag("cur", "ui.book_page_current");
+    if (consumed.has(pg)) marks += tag("left", "ui.book_page_left");
+    else if (usedSpell.has(pg)) marks += tag("used", "ui.book_spell_used");
+    const card = consumed.has(pg) ? cardBackEl(pg, true) : cardEl(num, { small: true });
+    wrap.appendChild(card);
+    const foot = document.createElement("div");
+    foot.className = "review-foot";
+    foot.innerHTML = `<span class="review-pno">${t("ui.page_n", { n: pg })}</span>${marks}`;
+    wrap.appendChild(foot);
+    return wrap;
+  };
+
+  const spread = (pages, single) => {
+    const el = document.createElement("div");
+    el.className = "review-spread" + (single ? " single" : "");
+    for (const pg of pages) el.appendChild(cell(pg));
+    grid.appendChild(el);
+  };
+  spread([1], true);
+  for (let i = 2; i <= 31; i += 2) spread([i, i + 1], false);
+  spread([32], true);
+  overlay.classList.remove("hidden");
+}
+document.getElementById("book-review-overlay").onclick = (e) => {
+  if (e.target.id === "book-review-overlay")
+    e.currentTarget.classList.add("hidden");
+};
 
 // ---------------------------------------------------------------- 行動記錄
 
@@ -1415,6 +1491,17 @@ function renderLanding() {
     history.replaceState(null, "", "/?builder=1");
     showBuilder();
   };
+
+  // 暱稱欄位(標籤/placeholder/預填上次)
+  document.getElementById("name-local-0-label").textContent = t("ui.name.p1");
+  document.getElementById("name-local-1-label").textContent = t("ui.name.p2");
+  document.getElementById("name-create-label").textContent = t("ui.name.self");
+  document.getElementById("name-join-label").textContent = t("ui.name.self");
+  for (const id of ["name-local-0", "name-local-1", "name-create", "name-join"]) {
+    document.getElementById(id).placeholder = t("ui.name.placeholder");
+  }
+  document.getElementById("name-create").value = loadNick();
+  document.getElementById("name-join").value = loadNick();
 
   // 牌組選單(本機×2 / 建房 / 加入)
   document.getElementById("deck-local-0-label").textContent = t("ui.deck.p1");

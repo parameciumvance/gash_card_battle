@@ -48,10 +48,13 @@ class CreateRoom(BaseModel):
     seed: int | None = None
     deck: dict | None = None          # 建房者牌組:{"preset":"level1"} 或 {"pages":[...]}
     decks: list[dict] | None = None   # 本機房:雙方各一副([p0, p1])
+    name: str | None = None           # 建房者暱稱
+    names: list[str | None] | None = None  # 本機房:雙方暱稱([n0, n1])
 
 
 class JoinBody(BaseModel):
     deck: dict | None = None
+    name: str | None = None           # 加入者暱稱
 
 
 class CommandBody(BaseModel):
@@ -71,6 +74,18 @@ def _effective_viewer(room: Room, viewer):
     return viewer
 
 
+NAME_MAX_LEN = 16
+
+
+def _clean_name(raw) -> str | None:
+    """暱稱清理:去頭尾空白、移除控制字元、限長;空字串視為未設(回退預設)。"""
+    if not isinstance(raw, str):
+        return None
+    cleaned = "".join(ch for ch in raw if ch.isprintable()).strip()
+    cleaned = cleaned[:NAME_MAX_LEN]
+    return cleaned or None
+
+
 def _room_meta(room: Room, viewer) -> dict:
     return {
         "code": room.code,
@@ -81,6 +96,7 @@ def _room_meta(room: Room, viewer) -> dict:
         "players_joined": room.player_count(),
         "started": room.game is not None,
         "you": viewer,
+        "names": [room.names[0], room.names[1]],   # 公開:雙方暱稱(None=用預設)
         "awaited_player": awaited_player(room.game) if room.game else None,
     }
 
@@ -233,8 +249,13 @@ async def create_room(body: CreateRoom):
         resolved = [_resolve_deck(body.decks[0]), _resolve_deck(body.decks[1])]
     else:
         resolved = [_resolve_deck(body.deck), None]
+    if body.mode == "local" and body.names is not None:
+        names = [_clean_name(body.names[0] if len(body.names) > 0 else None),
+                 _clean_name(body.names[1] if len(body.names) > 1 else None)]
+    else:
+        names = [_clean_name(body.name), None]
     try:
-        room, token0 = store.create(body.mode, body.timer_seconds, body.seed)
+        room, token0 = store.create(body.mode, body.timer_seconds, body.seed, names=names)
     except RoomError as exc:
         raise _http_error(exc)
     room.decks = resolved
@@ -262,7 +283,7 @@ async def create_room(body: CreateRoom):
 async def join_room(code: str, body: JoinBody | None = None):
     deck1 = _resolve_deck(body.deck if body else None)  # 非法牌組在佔位前就被拒
     try:
-        room, token1 = store.join(code)
+        room, token1 = store.join(code, name=_clean_name(body.name if body else None))
     except RoomError as exc:
         raise _http_error(exc)
     room.decks[1] = deck1

@@ -24,14 +24,20 @@
     <div id="landing-cards">
       <div class="entry" id="entry-local">
         <h2></h2><p></p>
+        <label class="deck-label" id="name-local-0-label"></label>
+        <input id="name-local-0" class="name-input" maxlength="16">
         <label class="deck-label" id="deck-local-0-label"></label>
         <select id="deck-local-0" class="deck-select"></select>
+        <label class="deck-label" id="name-local-1-label"></label>
+        <input id="name-local-1" class="name-input" maxlength="16">
         <label class="deck-label" id="deck-local-1-label"></label>
         <select id="deck-local-1" class="deck-select"></select>
         <button class="primary"></button>
       </div>
       <div class="entry" id="entry-create">
         <h2></h2><p></p>
+        <label class="deck-label" id="name-create-label"></label>
+        <input id="name-create" class="name-input" maxlength="16">
         <label id="timer-label"></label>
         <select id="timer-select"></select>
         <label class="deck-label" id="deck-create-label"></label>
@@ -41,6 +47,8 @@
       <div class="entry" id="entry-join">
         <h2></h2><p></p>
         <input id="join-code" maxlength="6" placeholder="ABC123">
+        <label class="deck-label" id="name-join-label"></label>
+        <input id="name-join" class="name-input" maxlength="16">
         <label class="deck-label" id="deck-join-label"></label>
         <select id="deck-join" class="deck-select"></select>
         <button class="primary"></button>
@@ -118,6 +126,16 @@
 
   <div id="zoom-overlay" class="hidden">
     <div id="zoom-card"></div>
+  </div>
+
+  <div id="book-review-overlay" class="hidden">
+    <div id="book-review">
+      <div id="book-review-head">
+        <h3 id="book-review-title"></h3>
+        <button id="book-review-close"></button>
+      </div>
+      <div id="book-review-grid"></div>
+    </div>
   </div>
 
   <div id="toast" class="hidden"></div>

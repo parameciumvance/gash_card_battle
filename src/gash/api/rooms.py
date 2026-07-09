@@ -33,6 +33,7 @@ class Room:
     seed: int | None
     spectator_token: str
     player_tokens: dict[str, int] = field(default_factory=dict)   # token → player index
+    names: list = field(default_factory=lambda: [None, None])     # 雙方暱稱(公開;None=用預設)
     decks: list = field(default_factory=lambda: [None, None])     # 雙方牌組頁序(None=level1)
     game: Game | None = None
     sockets: list = field(default_factory=list)   # [(websocket, viewer)]
@@ -72,7 +73,8 @@ class RoomStore:
                 return code
         raise RoomError(500, "room.code_exhausted")
 
-    def create(self, mode: str, timer_seconds: int | None, seed: int | None) -> tuple[Room, str]:
+    def create(self, mode: str, timer_seconds: int | None, seed: int | None,
+               names: list | None = None) -> tuple[Room, str]:
         if mode not in ("online", "local"):
             raise RoomError(422, "room.bad_mode", "mode 須為 online 或 local")
         if timer_seconds not in TIMER_CHOICES:
@@ -80,6 +82,10 @@ class RoomStore:
         self.cleanup_idle()
         room = Room(code=self._new_code(), mode=mode, timer_seconds=timer_seconds,
                     seed=seed, spectator_token=secrets.token_hex(12))
+        if names:
+            for i in (0, 1):
+                if i < len(names):
+                    room.names[i] = names[i]
         token0 = secrets.token_hex(12)
         room.player_tokens[token0] = 0
         self.rooms[room.code] = room
@@ -91,7 +97,7 @@ class RoomStore:
             raise RoomError(404, "room.not_found", "房間不存在")
         return room
 
-    def join(self, code: str) -> tuple[Room, str]:
+    def join(self, code: str, name: str | None = None) -> tuple[Room, str]:
         room = self.get(code)
         if room.mode != "online":
             raise RoomError(409, "room.not_joinable", "本機房不可加入")
@@ -99,6 +105,7 @@ class RoomStore:
             raise RoomError(409, "room.full", "房間已滿(仍可觀戰)")
         token1 = secrets.token_hex(12)
         room.player_tokens[token1] = 1
+        room.names[1] = name
         room.touch()
         return room, token1
 

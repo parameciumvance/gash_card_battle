@@ -60,7 +60,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         else:
             entry = {"page": page}  # 翻開頁內容對非持有者保密(頁碼公開)
         open_pages.append(entry)
-    return {
+    view = {
         "mp": ps.mp,
         "pos": min(ps.pos, BOOK_SIZE + 2),
         "book_size": BOOK_SIZE,
@@ -71,6 +71,10 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "used_spell_pages": sorted(ps.used_spell_pages),
         "used_event_this_turn": ps.used_event_this_turn,
     }
+    # 己方完整魔本只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
+    if can_see_player(viewer, p):
+        view["book"] = list(ps.book)
+    return view
 
 
 def snapshot(game: Game, viewer) -> dict:
