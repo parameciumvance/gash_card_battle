@@ -236,5 +236,7 @@
   "ui.book_page_current": "翻開中",
   "ui.book_page_used": "已使用",
   "ui.book_page_left": "已上場",
-  "ui.book_spell_used": "本回合已用"
+  "ui.book_spell_used": "本回合已用",
+  "ui.assets.missing": "卡圖未安裝:遊戲可正常進行(卡面以卡背佔位)。將卡圖 assets 資料夾放至 {dir} 後重新整理即可顯示卡圖。",
+  "ui.assets.partial": "卡圖不完整({count}/{expected} 張):部分卡片將以卡背佔位,更新卡圖包後重新整理即可。"
 }

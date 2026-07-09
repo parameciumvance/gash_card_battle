@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -18,11 +17,18 @@ from pydantic import BaseModel
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
 from ..engine.engine import IllegalCommand, new_game, submit
+from ..paths import frontend_dir, resolve_assets
 from .rooms import Room, RoomError, RoomStore, awaited_player, default_command
 from .views import filter_events, snapshot
 
-ROOT = Path(__file__).resolve().parents[3]
-FRONTEND_DIR = ROOT / "frontend"
+FRONTEND_DIR = frontend_dir()
+ASSETS = resolve_assets()
+if not ASSETS.installed:
+    try:  # 先建好安裝點:玩家放入卡圖後重新整理即生效,免重啟
+        ASSETS.dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+launch_info: dict = {"tunnel_url": None}  # launcher 啟動通道後填入
 
 store = RoomStore()
 _locks: dict[str, asyncio.Lock] = {}
@@ -237,6 +243,24 @@ async def list_decks():
     return {"decks": preset_list()}
 
 
+# ---------------------------------------------------------------- 執行環境
+
+@app.get("/api/meta")
+async def get_meta():
+    """執行環境資訊:公開通道網址與卡圖安裝狀態(供前端組邀請連結、顯示安裝提示)。"""
+    cards_dir = ASSETS.dir / "cards"
+    count = sum(1 for p in cards_dir.glob("*.jpg")) if cards_dir.is_dir() else 0
+    return {
+        "tunnel_url": launch_info.get("tunnel_url"),
+        "assets": {
+            "installed": cards_dir.is_dir(),  # 即時偵測:啟動後放入卡圖也能反映
+            "count": count,
+            "expected": len(card_db()),
+            "install_dir": str(ASSETS.install_dir),
+        },
+    }
+
+
 # ---------------------------------------------------------------- 房間端點
 
 @app.post("/api/rooms")
@@ -407,6 +431,8 @@ async def _timeout_loop() -> None:
 # ---------------------------------------------------------------- 靜態資源
 
 app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
+# 卡圖為外部資源,先於 /static 掛載;目錄可能不存在(未安裝 → 404,前端以卡背佔位)
+app.mount("/static/assets", StaticFiles(directory=ASSETS.dir, check_dir=False), name="assets")
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 

@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+from ..paths import data_dir
+
+DATA_DIR = data_dir()
 
 # 卡片類型
 MAMODO = "mamodo"

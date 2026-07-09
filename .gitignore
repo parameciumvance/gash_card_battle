@@ -1,3 +1,5 @@
 ref
-
 **/__pycache__
+build/
+dist/
+gash.spec

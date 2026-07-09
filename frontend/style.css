@@ -421,6 +421,10 @@ body {
 #landing { flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 26px; }
 #landing h1 { color: var(--glow); font-size: 22px; }
+#assets-hint { max-width: 720px; padding: 8px 14px; border-radius: 8px; font-size: 13px;
+  color: var(--gold-soft); background: rgba(217, 164, 65, 0.08);
+  border: 1px solid var(--gold); word-break: break-all; }
+.card img.art.placeholder { opacity: 0.45; }
 #landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
 .entry { background: #202a42; border: 1px solid #4a5a80; border-radius: 12px;
   padding: 22px; width: 240px; display: flex; flex-direction: column; gap: 10px; }

@@ -65,6 +65,39 @@ uvicorn gash.api.app:app --reload
 
 限制:對局存在伺服器記憶體,**伺服器重啟即失局**;房間閒置 2 小時自動回收;無帳號與配對。
 
+## 單機發行(給非開發者的玩家)
+
+### 玩家怎麼用(三步驟)
+
+1. **解壓** `gash-card-battle-vX-win64.zip` 到任意資料夾。
+2. **(選配)放卡圖**:把另行取得的 `assets` 資料夾(內含 `cards/*.jpg`)放到
+   `%LOCALAPPDATA%\gash-card-battle\assets`(首次啟動會自動建好這個資料夾;
+   之後更新版本不必重放,所有版本共用)。沒放也能玩,缺圖卡面以卡背佔位。
+3. **點兩下 `gash.exe`**:伺服器啟動、瀏覽器自動開啟。終端機會顯示
+   `邀請網址:https://xxx.trycloudflare.com` — 建立房間後把「加入連結」
+   貼給朋友(LINE/Discord),對方點連結、選牌組即開打,**什麼都不用裝**。
+
+注意:邀請網址**每次啟動都不同**(像一次性的房號),關掉視窗即失效;
+沒有網路或缺 `cloudflared.exe` 時自動降級為本機/區網模式,遊戲照常。
+
+### 維護者怎麼打包
+
+```bash
+pip install -e ".[dev]"                       # 內含 pyinstaller
+python tools/build_release.py                 # 於 Windows 上執行產出 win64 zip
+# 選項:--cloudflared <路徑>(指定 cloudflared 執行檔;缺省找 PATH)
+#       --skip-cloudflared(不附通道,發行物僅支援本機/區網)
+```
+
+產出 `dist/gash-card-battle-v{版本}-{平台}.zip`(~40MB,**不含卡圖**),
+每版獨立解壓即用。cloudflared 至官方
+[cloudflare/cloudflared releases](https://github.com/cloudflare/cloudflared/releases) 下載。
+卡圖包 = 把 `frontend/assets/` 資料夾單獨壓縮另行發佈(內容含版權素材,請自行斟酌散布範圍)。
+
+卡圖目錄的解析順序(第一個含 `cards/` 的目錄生效):
+`GASH_ASSETS_DIR` 環境變數 → 執行檔旁 `assets/` → 使用者資料夾(上述)→ repo `frontend/assets/`。
+開發環境可 `python -m gash.launcher` 走與發行版相同的啟動流程。
+
 ## 測試
 
 ```bash
@@ -75,6 +108,8 @@ python -m pytest        # 引擎規則、67 張卡逐卡效果、API 整合、�
 
 ```
 src/gash/
+  paths.py              資源目錄解析單點(開發/凍結佈局、卡圖搜尋順序)
+  launcher.py           單機啟動器(uvicorn + cloudflared 通道 + 開瀏覽器)
   engine/               純 Python 遊戲引擎(無 IO,指令進 → 事件出)
     state.py            狀態模型:魔本頁序、MP、魔物槽、modifier、待命、戰鬥子狀態
     engine.py           規則主體:階段流程、輪流行動權、戰鬥五步驟、傷害/庇護、勝敗
@@ -97,6 +132,7 @@ data/
 tools/
   extract_cards.py      xlsx → cards.json 抽取(開發工具,一次性)
   download_images.py    卡圖批次下載(Google Drive,支援續抓與失敗清單)
+  build_release.py      發行打包(PyInstaller onedir → 單一 zip,不含卡圖)
 ```
 
 ## 資料管線

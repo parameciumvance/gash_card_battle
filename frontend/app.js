@@ -8,6 +8,7 @@ let DICT = {};        // i18n 字典
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let ZH = {};          // 卡片中文文本
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
+let META = { tunnel_url: null, assets: null };  // /api/meta:通道網址與卡圖安裝狀態
 const DEFAULT_PRESET = "level1";  // 缺省預組 id(與後端一致)
 let S = null;         // 最新遊戲狀態快照(視角化)
 let R = null;         // 房間 meta {code, mode, you, deadline, ...}
@@ -228,8 +229,9 @@ function showWaiting(body) {
   show("waiting");
   document.getElementById("waiting-title").textContent = t("ui.waiting_opponent");
   document.getElementById("waiting-code").textContent = SESSION.code;
-  const joinUrl = `${location.origin}/?join=${SESSION.code}`;
-  const specUrl = `${location.origin}${body.spectate_url || R.spectate_url || ""}`;
+  const base = (META.tunnel_url || location.origin).replace(/\/$/, "");
+  const joinUrl = `${base}/?join=${SESSION.code}`;
+  const specUrl = `${base}${body.spectate_url || R.spectate_url || ""}`;
   document.getElementById("share-join").value = joinUrl;
   document.getElementById("share-spec").value = specUrl;
 }
@@ -318,7 +320,11 @@ function cardEl(num, opts = {}) {
   const art = document.createElement("img");
   art.className = "art";
   art.src = `/static/assets/cards/${num}.jpg`;
-  art.onerror = () => art.remove();
+  art.onerror = () => {  // 缺圖以卡背佔位(onerror 先清空避免佔位圖也缺時迴圈)
+    art.onerror = () => art.remove();
+    art.classList.add("placeholder");
+    art.src = "/static/back.jpg";
+  };
   el.appendChild(art);
 
   const cn = document.createElement("div");
@@ -1523,6 +1529,23 @@ function renderLanding() {
     };
   }
   document.getElementById("leave-room").onclick = leaveRoom;
+  renderAssetsHint();
+}
+
+// 卡圖未安裝/不完整的非阻斷提示(不擋任何流程,缺圖卡面以卡背佔位)
+function renderAssetsHint() {
+  const el = document.getElementById("assets-hint");
+  const a = META.assets;
+  if (!a) { el.classList.add("hidden"); return; }
+  if (!a.installed || a.count === 0) {
+    el.textContent = t("ui.assets.missing", { dir: a.install_dir });
+  } else if (a.count < a.expected) {
+    el.textContent = t("ui.assets.partial", { count: a.count, expected: a.expected });
+  } else {
+    el.classList.add("hidden");
+    return;
+  }
+  el.classList.remove("hidden");
 }
 
 // 構築器複製起手用:按需抓某預組的 32 頁(避免探索清單背全部 pages)
@@ -1537,12 +1560,13 @@ async function fetchPresetPages(id) {
 
 async function boot() {
   let presets;
-  [DICT, CARDS, ZH, presets] = await Promise.all([
+  [DICT, CARDS, ZH, presets, META] = await Promise.all([
     fetch("/static/i18n/zh-TW.json").then((r) => r.json()),
     fetch("/data/cards.json").then((r) => r.json()).then((list) =>
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/data/cards.zh-TW.json").then((r) => r.json()),
     fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
+    fetch("/api/meta").then((r) => r.json()).catch(() => META),
   ]);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   renderLanding();
