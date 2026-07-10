@@ -18,6 +18,13 @@
   --btn-line: #3a4a6e;
   --btn-primary: #a3541e;
   --btn-primary-line: #d0793c;
+  /* 盤面固定尺寸(桌面組):框格不因內容伸縮,窄螢幕整組切換為手機值 */
+  --card-w: 104px;
+  --card-h: 150px;
+  --art-h: 75px;
+  --cell-w: 120px;
+  --book-w: calc(var(--card-w) * 2 + 32px);   /* 兩頁 + 頁縫/內距/框線 */
+  --book-h: calc(var(--card-h) + 36px);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -98,28 +105,27 @@ body {
 .field-block { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
 .field-row { display: flex; gap: 10px; justify-content: center; }
 /* 框格固定尺寸:有無卡片、有無按鈕都不伸縮 */
-.mcell { display: flex; align-items: center; justify-content: center; width: 120px; }
-.mamodo-cell { height: 150px; }
-.partner-cell { height: 150px; }  /* 搭檔欄與魔物欄同高 */
-/* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視,確保按鈕不被裁切 */
-#board .card { width: 104px; height: 150px; min-height: 0; overflow: hidden; }
-#board .card.small { width: 104px; height: 150px; }  /* 搭檔卡與魔物同尺寸 */
-#board .card img.art { height: 75px; flex-shrink: 0; }
+.mcell { display: flex; align-items: center; justify-content: center; width: var(--cell-w); }
+.mamodo-cell { height: var(--card-h); }
+.partner-cell { height: var(--card-h); }  /* 搭檔欄與魔物欄同高 */
+/* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視 */
+#board .card { width: var(--card-w); height: var(--card-h); min-height: 0; overflow: hidden; }
+#board .card.small { width: var(--card-w); height: var(--card-h); }  /* 搭檔卡與魔物同尺寸 */
+#board .card img.art { height: var(--art-h); flex-shrink: 0; }
 /* 盤面卡面只留卡名:隱藏費用/魔力/傷害(cmeta)、效果全文、日文名、卡號 */
 #board .card .cmeta,
 #board .card .ceffect,
 #board .card .cname-ja,
 #board .card .cnum { display: none; }
-#board .card .cname {         /* 卡名限 2 行省略,避免長名擠掉按鈕 */
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+#board .card .cname {         /* 卡名限 2 行省略 */
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-#board .card .btns { margin-top: auto; flex-shrink: 0; }
 .empty-frame {
   border: 2px dashed rgba(217,164,65,.28); border-radius: 8px;
   color: rgba(217,164,65,.38); font-size: 11px;
   display: flex; align-items: center; justify-content: center;
-  width: 104px; height: 100%;
+  width: var(--card-w); height: 100%;
 }
 .empty-frame.small { font-size: 10px; }
 .stack-badge {
@@ -137,7 +143,7 @@ body {
   background: linear-gradient(160deg, var(--book-red) 0%, var(--book-red-dark) 70%);
   border: 2px solid var(--gold);
   box-shadow: 0 3px 14px rgba(0,0,0,.5), inset 0 0 0 4px rgba(217,164,65,.18);
-  width: 240px; height: 186px; gap: 6px;
+  width: var(--book-w); height: var(--book-h); gap: 6px;
 }
 .book-spine {
   position: absolute; left: 50%; top: 6px; bottom: 6px; width: 3px;
@@ -148,7 +154,7 @@ body {
 .book-pages { display: flex; gap: 8px; }
 .page-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .page-no { font-size: 10px; color: var(--gold-soft); }
-.page-void { width: 104px; height: 150px; border-radius: 8px;
+.page-void { width: var(--card-w); height: var(--card-h); border-radius: 8px;
   border: 2px dashed rgba(217,164,65,.18); }
 
 /* MP token 托盤:固定尺寸;每排 8 顆,>16 折疊為 ●×N */
@@ -198,21 +204,20 @@ body {
 .card.injured:hover { transform: rotate(90deg) scale(.85); }
 .card.small { width: 96px; min-height: 104px; }
 
-.card .btns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
-.card .btns button, #action-bar button, #dialog-options button {
+#zoom-actions button, #action-bar button, #dialog-options button {
   font-size: 10.5px; padding: 3px 8px; border-radius: 5px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff;
   transition: box-shadow .15s, background .15s;
 }
-.card .btns button:hover:not(:disabled), #action-bar button:hover:not(:disabled),
+#zoom-actions button:hover:not(:disabled), #action-bar button:hover:not(:disabled),
 #dialog-options button:hover:not(:disabled) {
   background: #3d5484; box-shadow: 0 0 8px rgba(255,209,102,.35);
 }
-.card .btns button:disabled, #action-bar button:disabled { opacity: .38; cursor: not-allowed; }
-.card .btns button.primary, #action-bar button.primary {
+#zoom-actions button:disabled, #action-bar button:disabled { opacity: .38; cursor: not-allowed; }
+#zoom-actions button.primary, #action-bar button.primary {
   background: var(--btn-primary); border-color: var(--btn-primary-line);
 }
-.card .btns button.primary:hover:not(:disabled) { background: #c76a2c; }
+#zoom-actions button.primary:hover:not(:disabled) { background: #c76a2c; }
 
 .badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; }
 .badge.injured-mark { background: #8a2f2f; color: #ffd9d9; }
@@ -274,6 +279,12 @@ body {
   position: fixed; inset: 0; background: rgba(8, 10, 18, .72);
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
+#zoom-overlay { flex-direction: column; gap: 12px; }
+/* 檢視內行動區:卡片實例的統一操作入口 */
+#zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
+.zoom-action { display: flex; align-items: center; gap: 8px; }
+#zoom-actions button { flex: 1; font-size: 14px; padding: 9px 14px; min-height: 38px; }
+.zoom-reason { font-size: 12px; color: var(--danger); flex-shrink: 0; max-width: 45%; }
 .hidden { display: none !important; }
 #dialog {
   background: #202a42; border: 1px solid #4a5a80; border-radius: 10px;
@@ -291,7 +302,7 @@ body {
 #zoom-card .card .cname { font-size: 19px; }
 #zoom-card .card .cname-ja { font-size: 12px; }
 #zoom-card .card .cmeta { font-size: 13px; }
-#zoom-card .card .ceffect { font-size: 13px; -webkit-line-clamp: unset; }
+#zoom-card .card .ceffect { font-size: 13px; -webkit-line-clamp: unset; line-clamp: none; }
 #zoom-card .card img.art { height: 250px; }
 
 #toast {
@@ -548,3 +559,71 @@ body {
   resize: vertical;
 }
 #io-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ================= 手機直向(≤700px):堆疊佈局,尺寸切手機組 =================
+   堆疊序(上→下):對手魔本(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
+                   我方魔物 → 我方搭檔 → 我方魔本(對頁+MP) */
+@media (max-width: 700px) {
+  :root { --card-w: 88px; --card-h: 127px; --art-h: 64px; --cell-w: 92px; }
+
+  #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
+  #topbar #title { display: none; }
+
+  #layout { flex-direction: column; }
+  #board { overflow-y: auto; }
+  .player-zone { padding: 4px 8px; }
+  .pz-head { font-size: 12px; gap: 8px; flex-wrap: wrap; }
+  .pz-head .pname { font-size: 13px; }
+  .pz-head-rest { gap: 8px; flex-wrap: wrap; }
+
+  /* 縱向堆疊:zone-body 轉直欄,魔本列以 order 移到外端(對手最上/我方最下) */
+  .zone-body { flex-direction: column; align-items: center; gap: 6px; }
+  .zone-side { flex: 0 0 auto; min-width: 0; }
+  .zone-side.book-side { min-width: 0; align-self: center; }
+  .player-zone.top .zone-side.book-side { order: -1; justify-content: center; }
+  .player-zone.bottom .field-block { order: -1; }
+  .player-zone.bottom .zone-side.book-side { justify-content: center; }
+
+  /* 魔本與 MP 托盤同列,壓低整列高度 */
+  .book-block, .player-zone.bottom .book-block { flex-direction: row; align-items: flex-end; gap: 6px; }
+  .mp-tray { width: 130px; height: 70px; padding: 6px; }
+  .mp-tokens { width: 116px; height: 30px; }
+  .mp-token { width: 12px; height: 12px; }
+  .mp-token.big { width: 18px; height: 18px; }
+
+  /* 行動記錄:底部抽屜(頁籤=標題列,點擊展開/收合) */
+  #log-panel {
+    width: auto; border-left: none; border-top: 1px solid var(--panel-line);
+    padding: 6px 10px; flex: 0 0 auto;
+  }
+  #log-panel:not(.open) #log { display: none; }
+  #log-panel.open { flex: 0 0 45vh; }
+  #log-panel h3 {
+    cursor: pointer; margin: 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #log-panel h3::before { content: "☰ "; color: var(--gold-soft); }
+
+  /* 觸控目標 */
+  #zoom-actions button { min-height: 44px; font-size: 15px; }
+  #dialog-options button { min-height: 44px; font-size: 14px; }
+  #action-bar button { min-height: 40px; font-size: 14px; padding: 8px 14px; }
+  #dialog { max-width: 94vw; }
+  #zoom-card .card { width: min(300px, 86vw); }
+  #zoom-actions { width: min(300px, 86vw); }
+  #zoom-card .card img.art { height: min(250px, 40vh); }
+
+  /* 構築器:上下分割(魔本上、卡池下),點選互動為準 */
+  #builder-head { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+  #builder-name { width: 120px; }
+  #builder-main { flex-direction: column; }
+  #builder-book { order: -1; flex: 0 0 46%; border-bottom: 1px solid var(--panel-line);
+    padding: 8px; }
+  #builder-pool { width: auto; flex: 1; border-right: none; min-height: 0; }
+  #book-grid { gap: 6px; justify-content: center; }
+  .page-slot { width: 76px; min-height: 88px; }
+  .page-slot .card { width: 72px; min-height: 84px; }
+  #pool-grid { justify-content: center; }
+  #pool-grid .card { width: 106px; }
+  #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
+}

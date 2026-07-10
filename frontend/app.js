@@ -9,6 +9,14 @@ let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let ZH = {};          // 卡片中文文本
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { tunnel_url: null, assets: null };  // /api/meta:通道網址與卡圖安裝狀態
+
+// 窄螢幕(手機直向)偵測:佈局由 CSS 切換,JS 僅供 log 抽屜等行為分支
+const NARROW_MQ = window.matchMedia("(max-width: 700px)");
+function isNarrow() { return NARROW_MQ.matches; }
+NARROW_MQ.addEventListener("change", () => {
+  document.getElementById("log-panel").classList.remove("open");
+  if (S) render();
+});
 const DEFAULT_PRESET = "level1";  // 缺省預組 id(與後端一致)
 let S = null;         // 最新遊戲狀態快照(視角化)
 let R = null;         // 房間 meta {code, mode, you, deadline, ...}
@@ -370,21 +378,7 @@ function cardEl(num, opts = {}) {
     }
   }
 
-  if (opts.buttons && opts.buttons.length) {
-    const btns = document.createElement("div");
-    btns.className = "btns";
-    for (const b of opts.buttons) {
-      const btn = document.createElement("button");
-      btn.textContent = b.label;
-      if (b.primary) btn.classList.add("primary");
-      if (b.disabled) { btn.disabled = true; if (b.reason) btn.title = b.reason; }
-      else btn.onclick = (ev) => { ev.stopPropagation(); b.onclick(); };
-      btns.appendChild(btn);
-    }
-    el.appendChild(btns);
-  }
-
-  el.onclick = () => zoom(num);
+  el.onclick = () => zoom(num, opts.zoomCtx);
   return el;
 }
 
@@ -394,15 +388,87 @@ function cardBackEl(page, consumed = false) {
   return el;
 }
 
-function zoom(num) {
+// 放大檢視 = 卡片實例面板:完整資訊 + 該實例此刻可用的行動按鈕(統一操作入口)
+let ZOOM = null;  // {num, ctx};ctx 無值 = 純展示(卡池/記錄/檢閱等)
+
+function zoom(num, ctx) {
+  ZOOM = { num, ctx: ctx || null };
+  renderZoom();
+}
+
+function closeZoom() {
+  ZOOM = null;
+  document.getElementById("zoom-overlay").classList.add("hidden");
+}
+
+// 依實例上下文自當前快照取行動按鈕;實例已不存在 → {gone: true}
+function zoomActions(ctx) {
+  const ps = S && S.players[ctx.p];
+  if (!ps) return { gone: true };
+  if (ctx.kind === "slot") {
+    const slot = ps.slots.find((s) => s.uid === ctx.uid);
+    return slot ? { buttons: slotButtons(ctx.p, slot) } : { gone: true };
+  }
+  if (ctx.kind === "partner") {
+    const slot = ps.slots.find((s) => s.uid === ctx.uid);
+    return slot && slot.partner ? { buttons: partnerButtons(ctx.p, slot) } : { gone: true };
+  }
+  if (ctx.kind === "page") {
+    const entry = ps.open_pages.find((e) => e.page === ctx.page && e.card);
+    return entry ? { buttons: pageButtons(ctx.p, entry) } : { gone: true };
+  }
+  return { buttons: [] };
+}
+
+function renderZoom() {
+  if (!ZOOM) return;
   const overlay = document.getElementById("zoom-overlay");
   const holder = document.getElementById("zoom-card");
+  const actions = document.getElementById("zoom-actions");
   holder.innerHTML = "";
-  holder.appendChild(cardEl(num, {}));
+  actions.innerHTML = "";
+
+  const opts = {};
+  let buttons = [];
+  if (ZOOM.ctx) {
+    const r = zoomActions(ZOOM.ctx);
+    if (r.gone) { closeZoom(); return; }  // 卡片已離場(狀態更新)→ 自動關閉
+    buttons = r.buttons;
+    if (ZOOM.ctx.kind === "page") {
+      const entry = S.players[ZOOM.ctx.p].open_pages.find((e) => e.page === ZOOM.ctx.page);
+      if (entry) opts.cost = entry.cost;
+    }
+  }
+
+  const card = cardEl(ZOOM.num, opts);
+  card.onclick = (ev) => ev.stopPropagation();  // 點卡面不關閉、不重開
+  holder.appendChild(card);
+
+  for (const b of buttons) {
+    const row = document.createElement("div");
+    row.className = "zoom-action";
+    row.onclick = (ev) => ev.stopPropagation();
+    const btn = document.createElement("button");
+    btn.textContent = b.label;
+    if (b.primary) btn.classList.add("primary");
+    if (b.disabled) {
+      btn.disabled = true;
+      if (b.reason) {  // 禁用原因直接呈現(觸控無 hover title)
+        const why = document.createElement("span");
+        why.className = "zoom-reason";
+        why.textContent = b.reason;
+        row.appendChild(why);
+      }
+    } else {
+      btn.onclick = (ev) => { ev.stopPropagation(); closeZoom(); b.onclick(); };
+    }
+    row.prepend(btn);
+    actions.appendChild(row);
+  }
   overlay.classList.remove("hidden");
 }
-document.getElementById("zoom-overlay").onclick = () =>
-  document.getElementById("zoom-overlay").classList.add("hidden");
+
+document.getElementById("zoom-overlay").onclick = closeZoom;
 
 // ---------------------------------------------------------------- 合法操作判斷
 
@@ -459,11 +525,34 @@ function render() {
   renderBattleStage();
   renderActionBar();
   renderPendingDialog();
+  if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
 }
+
+// log 抽屜頁籤(窄螢幕):標題列顯示最新一條,點擊展開/收合
+function updateLogTab() {
+  const title = document.getElementById("log-title");
+  const panel = document.getElementById("log-panel");
+  if (isNarrow() && !panel.classList.contains("open")) {
+    const last = document.querySelector("#log .ev:last-child");
+    title.textContent = t("ui.log") + (last ? "|" + last.textContent : "");
+  } else {
+    title.textContent = t("ui.log");
+  }
+}
+document.getElementById("log-title").onclick = () => {
+  if (!isNarrow()) return;
+  const panel = document.getElementById("log-panel");
+  panel.classList.toggle("open");
+  if (panel.classList.contains("open")) {
+    const holder = document.getElementById("log");
+    holder.scrollTop = holder.scrollHeight;
+  }
+  updateLogTab();
+};
 
 function renderTopbar() {
   document.getElementById("title").textContent = t("app.title");
-  document.getElementById("log-title").textContent = t("ui.log");
+  updateLogTab();
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
@@ -684,7 +773,8 @@ function mpTrayEl(p, mp) {
   return tray;
 }
 
-function slotEl(p, slot) {
+// 卡片實例的行動按鈕生成器:不再渲染於卡面,由放大檢視(zoom)依實例上下文即時取得
+function slotButtons(p, slot) {
   const buttons = [];
   const ab = slot.ability;
   if (ab && iControl(p)) {
@@ -705,14 +795,18 @@ function slotEl(p, slot) {
       onclick: () => send({ type: "declare_attack", player: p, mode: "mamodo", slot_uid: slot.uid }),
     });
   }
+  return buttons;
+}
+
+function slotEl(p, slot) {
   return cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
-    buttons,
+    zoomCtx: { kind: "slot", p, uid: slot.uid },
   });
 }
 
-function partnerEl(p, slot) {
+function partnerButtons(p, slot) {
   const buttons = [];
   const ab = slot.partner_ability;
   if (ab && iControl(p)) {
@@ -724,7 +818,11 @@ function partnerEl(p, slot) {
       onclick: () => send({ type: "use_field_ability", player: p, zone: "partner", slot_uid: slot.uid }),
     });
   }
-  return cardEl(slot.partner, { small: true, buttons });
+  return buttons;
+}
+
+function partnerEl(p, slot) {
+  return cardEl(slot.partner, { small: true, zoomCtx: { kind: "partner", p, uid: slot.uid } });
 }
 
 function abilityUsableNow(p, ab) {
@@ -740,7 +838,7 @@ function abilityUsableNow(p, ab) {
   return { ok: true };
 }
 
-function openPageEl(p, entry) {
+function pageButtons(p, entry) {
   const def = CARDS[entry.card];
   const buttons = [];
 
@@ -792,7 +890,11 @@ function openPageEl(p, entry) {
     }
   }
 
-  return cardEl(entry.card, { cost: entry.cost, buttons });
+  return buttons;
+}
+
+function openPageEl(p, entry) {
+  return cardEl(entry.card, { cost: entry.cost, zoomCtx: { kind: "page", p, page: entry.page } });
 }
 
 // 以攻擊魔物槽 uid 取其卡名(無術攻擊顯示用)
@@ -1111,6 +1213,7 @@ function appendLog(events) {
     holder.appendChild(el);
   }
   holder.scrollTop = holder.scrollHeight;
+  updateLogTab();
 }
 
 // ---------------------------------------------------------------- 倒數計時
