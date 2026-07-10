@@ -18,9 +18,10 @@
   --btn-line: #3a4a6e;
   --btn-primary: #a3541e;
   --btn-primary-line: #d0793c;
-  /* 盤面固定尺寸(桌面組):框格不因內容伸縮,窄螢幕整組切換為手機值 */
+  /* 盤面固定尺寸(桌面組):框格不因內容伸縮,窄螢幕整組切換為手機值
+     卡格高=卡圖+卡名兩行(行動按鈕已移入放大檢視,不再預留) */
   --card-w: 104px;
-  --card-h: 150px;
+  --card-h: 124px;
   --art-h: 75px;
   --cell-w: 120px;
   --book-w: calc(var(--card-w) * 2 + 32px);   /* 兩頁 + 頁縫/內距/框線 */
@@ -564,7 +565,7 @@ body {
    堆疊序(上→下):對手魔本(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
                    我方魔物 → 我方搭檔 → 我方魔本(對頁+MP) */
 @media (max-width: 700px) {
-  :root { --card-w: 88px; --card-h: 127px; --art-h: 64px; --cell-w: 92px; }
+  :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; }
 
   #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
   #topbar #title { display: none; }
