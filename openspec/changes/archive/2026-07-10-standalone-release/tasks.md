@@ -24,4 +24,4 @@
 - [x] 4.1 `tools/build_release.py` + PyInstaller spec:onedir、datas 含 frontend(排除 assets/cards)與 data、附 cloudflared(下載+雜湊校驗或取本機)、組 `gash-card-battle-v{version}-win64.zip`
 - [x] 4.2 pyproject 加 dev 依賴 pyinstaller;README 新增發行章節(維護者打包步驟、玩家 A 安裝三步驟與卡圖放置位置、每次連結不同的說明)
 - [x] 4.3 E2E:開發模式全流程回歸(既有測試綠);模擬發行佈局(空 assets 目錄)驗證卡背佔位與未安裝提示
-- [ ] 4.4 Windows 實機驗證(手動):打包、點兩下啟動、通道網址可從外網加入對戰
+- [x] 4.4 Windows 實機驗證(手動):打包、點兩下啟動、通道網址可從外網加入對戰
