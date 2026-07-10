@@ -33,7 +33,7 @@
 - **THEN** launcher 自動改用可用埠號並以該埠開啟瀏覽器
 
 ### Requirement: 公開通道
-launcher SHALL 在執行檔旁存在 cloudflared 時,以子行程建立 Quick Tunnel 並解析公開 https 網址(逾時上限 30 秒);取得的網址 SHALL 提供給前端作為邀請連結的基底。cloudflared 不存在或解析逾時,SHALL 降級為僅本機/區網模式:遊戲照常可用,通道網址回報為空。
+launcher SHALL 在執行檔旁存在 cloudflared 時,以子行程建立 Quick Tunnel 並解析公開 https 網址(每次嘗試逾時上限 30 秒);Quick Tunnel 申請為免費無 SLA 服務,偶發伺服器端錯誤(如 error 1101)時 SHALL 自動重試(至多 3 次)。取得的網址 SHALL 提供給前端作為邀請連結的基底。cloudflared 不存在或重試用盡,SHALL 降級為僅本機/區網模式:遊戲照常可用,通道網址回報為空。
 
 #### Scenario: 通道建立成功
 - **WHEN** cloudflared 存在且成功建立通道
@@ -43,9 +43,13 @@ launcher SHALL 在執行檔旁存在 cloudflared 時,以子行程建立 Quick Tu
 - **WHEN** 執行檔旁不存在 cloudflared
 - **THEN** launcher 正常啟動本機遊戲,通道網址為空,不阻擋任何本機/區網功能
 
+#### Scenario: 申請暫時失敗自動重試
+- **WHEN** cloudflared 申請 Quick Tunnel 遇伺服器端錯誤退出(如 error 1101),下一次嘗試成功
+- **THEN** launcher 自動重啟 cloudflared 取得網址,玩家無感
+
 #### Scenario: 通道解析逾時
-- **WHEN** cloudflared 啟動後 30 秒內未輸出可解析的公開網址
-- **THEN** launcher 放棄通道並降級,終端保留原始輸出供除錯
+- **WHEN** cloudflared 連續多次(達重試上限)未輸出可解析的公開網址
+- **THEN** launcher 放棄通道並降級,終端保留各次原始輸出供除錯
 
 ### Requirement: 發行打包
 打包 SHALL 產出單一 zip(PyInstaller onedir):含執行檔、Python runtime、前端與資料檔、cloudflared;MUST NOT 含卡圖(`assets/cards/`)。各版本 zip SHALL 獨立解壓即用,不依賴先前版本的檔案(卡圖除外,其為選配外部資源)。zip 命名 SHALL 含 `pyproject.toml` 的版本號。

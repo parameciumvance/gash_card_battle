@@ -51,6 +51,63 @@ def test_start_tunnel_degrades_without_cloudflared(monkeypatch):
     assert proc is None and url is None
 
 
+def test_start_tunnel_retries_on_failure(monkeypatch):
+    """申請失敗(如 Cloudflare 端 error 1101)→ 重試,第二次成功。"""
+    spawned = []
+
+    class FakeProc:
+        def __init__(self, out):
+            self.stdout = io.StringIO(out)
+            self.terminated = False
+
+        def terminate(self):
+            self.terminated = True
+
+    outputs = [
+        "ERR Error unmarshaling QuickTunnel response: error code: 1101\n"
+        "failed to unmarshal quick Tunnel\n",
+        "INF |  https://second-try.trycloudflare.com  |\n",
+    ]
+
+    def fake_popen(*a, **k):
+        p = FakeProc(outputs[len(spawned)])
+        spawned.append(p)
+        return p
+
+    monkeypatch.setattr(launcher, "find_cloudflared", lambda: "/fake/cloudflared")
+    monkeypatch.setattr(launcher.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(launcher, "RETRY_DELAY", 0)
+    proc, url = launcher.start_tunnel(8000)
+    assert url == "https://second-try.trycloudflare.com"
+    assert len(spawned) == 2
+    assert spawned[0].terminated and not spawned[1].terminated
+
+
+def test_start_tunnel_gives_up_after_max_attempts(monkeypatch):
+    spawned = []
+
+    class FakeProc:
+        stdout = None
+
+        def __init__(self):
+            self.stdout = io.StringIO("ERR error code: 1101\n")
+
+        def terminate(self):
+            pass
+
+    def fake_popen(*a, **k):
+        p = FakeProc()
+        spawned.append(p)
+        return p
+
+    monkeypatch.setattr(launcher, "find_cloudflared", lambda: "/fake/cloudflared")
+    monkeypatch.setattr(launcher.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(launcher, "RETRY_DELAY", 0)
+    proc, url = launcher.start_tunnel(8000)
+    assert proc is None and url is None
+    assert len(spawned) == launcher.TUNNEL_ATTEMPTS
+
+
 def test_find_cloudflared_frozen_requires_beside_exe(monkeypatch, tmp_path):
     monkeypatch.setattr(launcher, "is_frozen", lambda: True)
     monkeypatch.setattr(launcher, "exe_dir", lambda: tmp_path)

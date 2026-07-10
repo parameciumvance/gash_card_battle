@@ -38,7 +38,8 @@
 流程:`uvicorn.Server` 於執行緒內啟動(綁 `127.0.0.1`,port 自動探測避免占用)→ 若 exe 旁存在 `cloudflared(.exe)`,以子行程執行 `cloudflared tunnel --url http://127.0.0.1:<port>`,從 stderr 解析 `https://*.trycloudflare.com`(逾時 30 秒)→ `webbrowser.open` 開本機網址 → 終端顯示公開網址;結束時(Ctrl-C / 視窗關閉)一併終止子行程。
 
 - 公開網址寫入 app 狀態,由 meta API 提供給前端(D4)。
-- **降級**:cloudflared 不存在或解析逾時 → 僅本機模式照常進遊戲,meta 回報 `tunnel: null`,前端邀請區顯示區網網址並註明「外網邀請需 cloudflared」。
+- **重試**:Quick Tunnel 申請偶發 Cloudflare 端 5xx(實測 error 1101,cloudflared 直接退出)→ 至多重試 3 次(間隔 2 秒)再降級。
+- **降級**:cloudflared 不存在或重試用盡 → 僅本機模式照常進遊戲,meta 回報 `tunnel: null`,前端邀請區顯示區網網址並註明「外網邀請需 cloudflared」。
 - PyInstaller 進入點即 launcher(`gash.exe` = launcher);開發模式另可 `python -m gash.launcher` 測試。
 
 替代方案:要求 A 自行安裝 cloudflared(門檻過高,否決);ngrok(需帳號 token,否決);內嵌 tunnel 進 exe(更新包變大且授權/防毒面更差,採外置檔案)。

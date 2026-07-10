@@ -63,24 +63,33 @@ def read_tunnel_url(stream, timeout: float = TUNNEL_TIMEOUT) -> tuple[str | None
     return found[0], lines
 
 
+TUNNEL_ATTEMPTS = 3
+RETRY_DELAY = 2.0
+
+
 def start_tunnel(port: int) -> tuple[subprocess.Popen | None, str | None]:
+    """Quick Tunnel 免費無 SLA,申請偶發 5xx(如 error 1101)即退出 → 重試數次再降級。"""
     cf = find_cloudflared()
     if not cf:
         return None, None
-    proc = subprocess.Popen(
-        [cf, "tunnel", "--url", f"http://127.0.0.1:{port}"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-    )
-    url, lines = read_tunnel_url(proc.stdout)
-    if url is None:
-        print("[launcher] 通道網址解析逾時,降級為僅本機模式。cloudflared 輸出:", file=sys.stderr)
+    for attempt in range(1, TUNNEL_ATTEMPTS + 1):
+        proc = subprocess.Popen(
+            [cf, "tunnel", "--url", f"http://127.0.0.1:{port}"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        url, lines = read_tunnel_url(proc.stdout)
+        if url is not None:
+            # 網址到手後持續消化輸出,避免子行程因 pipe 滿而卡住
+            threading.Thread(target=lambda: [None for _ in proc.stdout], daemon=True).start()
+            return proc, url
+        proc.terminate()
+        print(f"[launcher] 通道申請失敗(第 {attempt}/{TUNNEL_ATTEMPTS} 次)。cloudflared 輸出:",
+              file=sys.stderr)
         for line in lines[-20:]:
             print("  " + line, file=sys.stderr)
-        proc.terminate()
-        return None, None
-    # 網址到手後持續消化輸出,避免子行程因 pipe 滿而卡住
-    threading.Thread(target=lambda: [None for _ in proc.stdout], daemon=True).start()
-    return proc, url
+        if attempt < TUNNEL_ATTEMPTS:
+            time.sleep(RETRY_DELAY)
+    return None, None
 
 
 def main() -> None:
