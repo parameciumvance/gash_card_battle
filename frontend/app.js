@@ -24,6 +24,7 @@ let SESSION = null;   // {code, mode, viewer, tokens:{playerIndex→token} 或 {
 let ws = null;
 let wsWanted = false;
 let logSeq = 0;
+let animSeq = 0;      // 動畫事件游標:HTTP 回應與 WS 推送重複投遞同批事件時只演一次
 let clockDrift = 0;   // Date.now()/1000 - server_time
 
 // ---------------------------------------------------------------- i18n
@@ -110,7 +111,10 @@ function applyPayload(body) {
   if (body.events) appendLog(body.events);
   if (R && R.started && SESSION && S) show("layout");  // 對手加入 → 離開等待畫面
   // 統一動畫管線:量測 → 阻塞演出 → 重繪 → 疊加特效(reduced-motion 直接重繪)
-  Anim.apply(body.events || [], prevS, render);
+  // 同批事件經 HTTP 回應與 WS 推送各到一次,以 seq 游標去重,只演第一次
+  const fresh = (body.events || []).filter((ev) => ev.seq >= animSeq);
+  for (const ev of fresh) animSeq = Math.max(animSeq, ev.seq + 1);
+  Anim.apply(fresh, prevS, render);
 }
 
 function toast(msg) {
@@ -313,6 +317,7 @@ function leaveRoom() {
 
 function resetLog() {
   logSeq = 0;
+  animSeq = 0;
   document.getElementById("log").innerHTML = "";
 }
 
