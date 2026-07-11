@@ -47,16 +47,36 @@ def _slot_view(game: Game, player: int, slot) -> dict:
     }
 
 
+def _in_use_pages(game: Game, p: int) -> set[int]:
+    """玩家 p 已宣告攻防術的「使用中頁」:宣告即公開,對所有視角揭露。"""
+    st = game.state
+    pages: set[int] = set()
+    if st.battle_in is not None and st.battle_in.get("attacker") == p:
+        page = st.battle_in.get("page")
+        if page is not None:  # 無術攻擊(M-027)無頁
+            pages.add(page)
+    if st.battle is not None:
+        b = st.battle
+        if b.attacker == p and b.attack_page is not None:
+            pages.add(b.attack_page)
+        if b.defender == p and b.defense_page is not None:
+            pages.add(b.defense_page)
+    return pages
+
+
 def _player_view(game: Game, p: int, viewer) -> dict:
     ps = game.state.players[p]
+    in_use = _in_use_pages(game, p)
     open_pages = []
     for page in ps.open_pages():
-        if can_see_player(viewer, p):
+        if can_see_player(viewer, p) or page in in_use:
             number = ps.card_at(page)
             card = game.db[number]
             entry = {"page": page, "card": number}
             if card.type == "spell":
                 entry["cost"] = spell_cost(game, p, page, card)
+            if page in in_use:
+                entry["in_use"] = True  # 持有者視角亦附標,供前端高亮
         else:
             entry = {"page": page}  # 翻開頁內容對非持有者保密(頁碼公開)
         open_pages.append(entry)

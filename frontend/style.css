@@ -628,3 +628,11 @@ body {
   #pool-grid .card { width: 106px; }
   #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
 }
+
+/* 使用中卡片(宣告中的攻防術)與可點卡名 */
+#board .card.in-use {
+  outline: 2px solid var(--glow);
+  box-shadow: 0 0 14px rgba(255, 209, 102, .65);
+}
+.card-ref { color: var(--glow); text-decoration: underline dotted; cursor: pointer; }
+.card-ref:hover { text-shadow: 0 0 6px rgba(255, 209, 102, .5); }

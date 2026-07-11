@@ -382,6 +382,39 @@ function cardEl(num, opts = {}) {
   return el;
 }
 
+// 把元素內文字中出現的卡名包成可點 span(開純展示檢視)。
+// 以 splitText 做 DOM 分割,不拼 HTML;找不到片段即跳過(退回純文字)。
+function linkCardNames(root, nums) {
+  for (const num of nums) {
+    const name = cname(num);
+    if (!name) continue;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement.closest(".card-ref")) continue;
+      const idx = node.data.indexOf(name);
+      if (idx < 0) continue;
+      const target = node.splitText(idx);
+      target.splitText(name.length);
+      const span = document.createElement("span");
+      span.className = "card-ref";
+      span.textContent = name;
+      span.onclick = (ev) => { ev.stopPropagation(); zoom(num); };
+      target.replaceWith(span);
+      break;  // 每卡只包首次出現
+    }
+  }
+}
+
+// 事件中引用的卡號(值符合卡號格式且存在於卡片庫者)
+function cardRefs(ev) {
+  const out = new Set();
+  for (const v of Object.values(ev)) {
+    if (typeof v === "string" && /^[EMPS]-\d{3}$/.test(v) && CARDS[v]) out.add(v);
+  }
+  return [...out];
+}
+
 function cardBackEl(page, consumed = false) {
   const el = document.createElement("div");
   el.className = "card back" + (consumed ? " consumed" : "");
@@ -894,7 +927,9 @@ function pageButtons(p, entry) {
 }
 
 function openPageEl(p, entry) {
-  return cardEl(entry.card, { cost: entry.cost, zoomCtx: { kind: "page", p, page: entry.page } });
+  const el = cardEl(entry.card, { cost: entry.cost, zoomCtx: { kind: "page", p, page: entry.page } });
+  if (entry.in_use) el.classList.add("in-use");  // 宣告中的攻防術:發光標示
+  return el;
 }
 
 // 以攻擊魔物槽 uid 取其卡名(無術攻擊顯示用)
@@ -911,13 +946,21 @@ function renderBattleStage() {
   const open = !!(S.battle || S.battle_in);
   stage.classList.toggle("open", open);
   if (!open) return;
+  // 標籤一律 DOM 建構(textContent + 卡名包可點 span):暱稱不進 innerHTML
+  const mkLabel = (cls, text, nums) => {
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = text;
+    linkCardNames(span, nums || []);
+    return span;
+  };
   if (S.battle_in) {
     const bi = S.battle_in;
     const label = bi.spell
       ? t("ui.battle_in_hint", { player: pname(bi.attacker), spell: cname(bi.spell) })
       : t("ui.battle_in_hint_mamodo", { player: pname(bi.attacker),
           mamodo: attackerName(bi.attacker, bi.slot) });
-    content.innerHTML = `<span class="stage-hint">${label}</span>`;
+    content.appendChild(mkLabel("stage-hint", label, bi.spell ? [bi.spell] : []));
     return;
   }
   const b = S.battle;
@@ -928,22 +971,32 @@ function renderBattleStage() {
         mamodo: attackerName(b.attacker, b.attack_slot) });
   const att = document.createElement("div");
   att.className = "stage-side attack";
-  att.innerHTML =
-    `<span class="side-label">${attackLabel}` +
+  att.appendChild(mkLabel("side-label",
+    attackLabel +
     (b.attack_negated ? `(${t("ui.negated")})` : "") +
-    (b.attack_undefendable ? `(${t("ui.undefendable")})` : "") + `</span>` +
-    `<span class="side-total" id="stage-att-total">${b.attacker_total}</span>`;
+    (b.attack_undefendable ? `(${t("ui.undefendable")})` : ""),
+    b.attack_spell ? [b.attack_spell] : []));
+  const attTotal = document.createElement("span");
+  attTotal.className = "side-total";
+  attTotal.id = "stage-att-total";
+  attTotal.textContent = b.attacker_total;
+  att.appendChild(attTotal);
   const mid = document.createElement("div");
   mid.className = "stage-vs";
   mid.textContent = t("ui.battle");
   const def = document.createElement("div");
   def.className = "stage-side defense";
-  def.innerHTML =
-    (b.defense_spell
-      ? `<span class="side-label">${t("ui.battle_defense", { player: pname(1 - b.attacker), spell: cname(b.defense_spell) })}` +
-        (b.defense_negated ? `(${t("ui.negated")})` : "") + `</span>`
-      : `<span class="side-label">${t("ui.battle_no_defense_yet")}</span>`) +
-    `<span class="side-total" id="stage-def-total">${b.defender_total}</span>`;
+  def.appendChild(b.defense_spell
+    ? mkLabel("side-label",
+        t("ui.battle_defense", { player: pname(1 - b.attacker), spell: cname(b.defense_spell) }) +
+        (b.defense_negated ? `(${t("ui.negated")})` : ""),
+        [b.defense_spell])
+    : mkLabel("side-label", t("ui.battle_no_defense_yet")));
+  const defTotal = document.createElement("span");
+  defTotal.className = "side-total";
+  defTotal.id = "stage-def-total";
+  defTotal.textContent = b.defender_total;
+  def.appendChild(defTotal);
   content.appendChild(att);
   content.appendChild(mid);
   content.appendChild(def);
@@ -1210,6 +1263,7 @@ function appendLog(events) {
       el.classList.add("important");
     }
     el.textContent = line;
+    linkCardNames(el, cardRefs(ev));  // 卡名可點開檢視
     holder.appendChild(el);
   }
   holder.scrollTop = holder.scrollHeight;
