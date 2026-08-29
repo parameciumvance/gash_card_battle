@@ -1,7 +1,0 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-
-[dev]
-pytest>=8.0
-openpyxl>=3.1
-pyinstaller>=6.10

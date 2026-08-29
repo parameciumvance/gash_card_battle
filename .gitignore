@@ -3,3 +3,4 @@ ref
 build/
 dist/
 gash.spec
+*.egg-info/
