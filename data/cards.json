@@ -1915,7 +1915,7 @@
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Defending, add 2000 Power to this SPELL card.",
+  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Attacking, add 2000 Power to this SPELL card.",
   "power": {
    "bonus": 3000
   },

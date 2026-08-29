@@ -60,7 +60,7 @@ def _s007_on_damage(game, batch, player):
 reg.spell_rider("S-007", on_damage=_s007_on_damage)
 
 
-# ---- S-016 / S-017 ゼルク / ゼルセン:以此術防禦時魔力加值
+# ---- S-016 ゼルク:以此術防禦時魔力加值
 def _defense_self_bonus(amount):
     def on_declare(game, batch, player, side):
         if side == "defense":
@@ -70,8 +70,18 @@ def _defense_self_bonus(amount):
     return on_declare
 
 
+# ---- S-017 ゼルセン:以此術攻擊時魔力加值(重用攻擊方通用的 attack_spell_bonus 累加欄位)
+def _attack_self_bonus(amount):
+    def on_declare(game, batch, player, side):
+        if side == "attack":
+            b = game.state.battle
+            b.data["attack_spell_bonus"] = b.data.get("attack_spell_bonus", 0) + amount
+            game.emit(batch, "effect_applied", source="attack_bonus", amount=amount)
+    return on_declare
+
+
 reg.spell_rider("S-016", on_declare=_defense_self_bonus(1000))
-reg.spell_rider("S-017", on_declare=_defense_self_bonus(2000))
+reg.spell_rider("S-017", on_declare=_attack_self_bonus(2000))
 
 
 # ---- S-019 ウルク:攻擊獲勝時,[待命] 本回合下一次攻擊不可被防禦(無魔本傷害)

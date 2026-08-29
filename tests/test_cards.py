@@ -743,7 +743,18 @@ def test_s007_partner_lock_after_damage():
     assert exc.value.code == "ability.partner_restricted"
 
 
-def test_s017_defense_bonus():
+def test_s017_attack_bonus():
+    g = game(book0=book(first="M-009", p2="S-017"))
+    g.state.players[0].mp = 5
+    tp, dp = start_attack(g, 2)
+    submit(g, {"type": "no_defense", "player": dp})
+    events = both_pass(g)
+    sd = showdown_of(events)
+    assert sd["attacker_total"] == 1000 + 3000 + 2000  # 可露露+術+攻擊加值 = 6000
+    assert sd["winner"] == "attacker"
+
+
+def test_s017_no_bonus_on_defense():
     g = game(book1=book(p2="S-017"))
     dp = 1
     give(g, dp, "M-009")
@@ -753,8 +764,7 @@ def test_s017_defense_bonus():
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     sd = showdown_of(events)
-    assert sd["defender_total"] == 1000 + 3000 + 2000  # 可露露+術+防禦加值 = 6000
-    assert sd["winner"] == "defender"  # 同值防方勝
+    assert sd["defender_total"] == 1000 + 3000  # 可露露+術,防禦時不再加值 = 4000
 
 
 def test_s019_next_attack_undefendable():
