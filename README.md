@@ -137,7 +137,8 @@ tools/
 
 ## 資料管線
 
-1. `ref/raw/Zatch Bell CCG List for TTS.xlsx` 為卡片資料來源(唯讀)。
+1. `openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 為卡片資料來源(唯讀);
+   與權威來源試算表(見 `openspec/specs/card-effects/Zatch Bell CCG List for TTS.gsheet` 捷徑)不符時以試算表為準重新匯出。
 2. `python tools/extract_cards.py` 過濾 Series 1 Level 1、e/j 去重(採日版 j)、
    自儲存格超連結取得卡圖網址,輸出 `data/cards.json`(67 種)。
 3. `python tools/download_images.py` 批次下載卡圖至 `frontend/assets/cards/{卡號}.jpg`;

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-由 `ref/raw/Zatch Bell CCG List for TTS.xlsx` 一次性抽取,產出 repo 內版本化的結構化資料;翻譯與卡圖為獨立層。
+由 `openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 一次性抽取,產出 repo 內版本化的結構化資料;翻譯與卡圖為獨立層。此 xlsx 與權威來源試算表(見 `openspec/specs/card-effects/Zatch Bell CCG List for TTS.gsheet` 捷徑)內容不符時,SHALL 以試算表為準,重新匯出 xlsx 並抽取。
 ## Requirements
 ### Requirement: 卡片資料抽取
 抽取腳本 SHALL 讀取 xlsx「The Table」工作表,過濾 Sets 含 "Level 1"、**"Level 2" 或 "Series 1 Level 2"(資料例外標籤)** 的卡,自 HYPERLINK 顯示文字取得卡號;同卡號存在 e/j 兩版時 MUST 只保留 j 版並以基礎卡號(去除尾碼)入庫;**同卡號同時符合多個過濾產品時 MUST 只入庫一筆,sets 取聯集**。產出 `data/cards.json`,每張卡含:卡號、類型(魔物/夥伴/術/事件)、卡名(英)、對應魔物、費用、A/D、級別(無/中級/上級)、屬性/效果名、效果原文、魔力、傷害、收錄產品清單(Sets 欄逗號拆分)、卡圖連結。

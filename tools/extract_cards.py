@@ -1,4 +1,4 @@
-"""從 ref/raw 的 xlsx 抽取 Level 1 + Level 2 卡片資料,產出 data/cards.json。
+"""從 openspec/specs/card-data 的 xlsx 抽取 Level 1 + Level 2 卡片資料,產出 data/cards.json。
 
 - 過濾「The Table」工作表中 Sets 標籤含 "Level 1"、"Level 2" 或 "Series 1 Level 2"
   (最後者為 1 張卡的資料例外標籤)的列;標籤以逗號拆分後精確比對。
@@ -18,7 +18,7 @@ from pathlib import Path
 import openpyxl
 
 ROOT = Path(__file__).resolve().parent.parent
-XLSX = ROOT / "ref/raw/Zatch Bell CCG List for TTS.xlsx"
+XLSX = ROOT / "openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx"
 OUT = ROOT / "data/cards.json"
 
 EXPECTED_COUNT = 134  # Level 1: M×15+S×28+P×9+E×15 = 67;Level 2 新增: M×16+S×29+P×10+E×12 = 67
