@@ -28,6 +28,17 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src"
       }
+    },
+    {
+      "name": "Pytest: run all tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v"],
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
     }
   ]
 }
