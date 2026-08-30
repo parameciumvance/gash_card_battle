@@ -48,8 +48,8 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 
 FIELDNAMES = [
-    "number", "type", "name_ja", "related_mamodo_ja", "cost", "ad", "class",
-    "attr_ja", "effect_icon_ja", "effect_ja", "power", "damage", "flavor_ja",
+    "number", "type", "name_ja", "related_mamodo_ja", "related_partner_ja", "cost", "ad",
+    "class", "attr_ja", "effect_icon_ja", "effect_ja", "power", "damage", "flavor_ja",
     "sets_ja", "url", "raw_header_lines",
 ]
 
@@ -59,11 +59,16 @@ ELEMENT_TOKENS = {"水", "火", "雷", "氷", "木", "風", "重力"}
 EFFECT_ICON_TOKENS = {"バトル", "非バトル", "ジャマー"}
 AD_TOKENS = {"バトル攻撃": "A", "バトル防御": "D", "自分のターン": "A", "相手のターン": "D"}
 REQUIRED_FIELDS = {"event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set()}
+# related_mamodo_ja/related_partner_ja 由效果文尾行(而非資料頭 token)解析而來,檢查時機與
+# REQUIRED_FIELDS 不同,故另外獨立成集合,由 parse_card_page 在尾行解析後檢查。
+REQUIRE_RELATED_MAMODO = {"spell", "partner"}
+REQUIRE_RELATED_PARTNER = {"mamodo"}
 
 # 已知官方頁面本身漏刊必填欄位的卡:{卡號: {欄位: 值}}。人工核對過缺漏(對照英文資料確認)
 # 才登記於此,不是用來繞過解析錯誤,而是記錄「這張卡的 wiki 頁面漏刊」這個事實。
 KNOWN_DATA_GAPS: dict[str, dict] = {
     "S-021": {"power": "特殊"},  # 效果為「無視魔力」的特殊防禦術,頁面漏刊 power token
+    "P-018": {"related_mamodo_ja": "ヨポポ"},  # 頁面尾行寫成「パートナー＝ヨポポ」而非「魔物＝X」
 }
 
 POWER_X_RE = re.compile(r"^\d+[x×]$", re.I)  # 擲幣倍率型,如 S-040 的 "2000×"(乘號,非字母 x)
@@ -108,9 +113,21 @@ def parse_product_page(html: str, base_url: str) -> list[tuple[str, str, str, st
 
 # ---------------------------------------------------------------- 個別卡頁:官方資料區塊
 
-BLOCK_RE = re.compile(r"<blockquote>\s*<div>(.*?)</div>\s*<hr\s*/?>\s*<div>(.*?)</div>\s*</blockquote>",
-                     re.S)
-SPELL_TAIL_RE = re.compile(r'<a[^>]*>([^<]+)</a>\s*第(\d+)の?術')
+BLOCKQUOTE_RE = re.compile(r"<blockquote>(.*?)</blockquote>", re.S)
+DIV_RE = re.compile(r"<div>(.*?)</div>", re.S)
+# 部分魔物卡(變身/合體形態、術相容性等)在卡面上多印一段「框線規則」,wiki 因此多拆出一段
+# <div>,結構變成 4 段(數值列/框線提示「以上、枠囲み」/框線內容/風味文)而非標準的 2 段
+# (效果文/風味文)。一律取第一段當數值列來源、最後一段當風味文,中間不論幾段都併入效果文,
+# 只濾掉純排版提示「以上、枠囲み」。
+FRAME_NOTE = "以上、枠囲み"
+# 對象魔物名不一定包在連結裡(比對前先 strip_tags),也不一定自成一行——可能跟前一句效果文
+# 黏在同一行(無 <br/> 分隔)。用 [^。] 排除句號,確保只切出「最後一個句號之後」的魔物名,
+# 不會把前面的敘述文字也吃進去;用 .search() 讓比對從最後一個句號之後的位置自然找到起點。
+SPELL_TAIL_RE = re.compile(r'([^。]+?)第(\d+)の?術$')
+COMMAND_SPELL_TAIL = "コマンド"  # 指示術(不屬於特定魔物,對應英文 related_mamodo="Command: All")
+COMMAND_SPELL_TAIL_RE = re.compile(r'コマンド$')
+PARTNER_TAIL_RE = re.compile(r'^魔物＝(.+)$')
+PARTNER_NAME_TAIL_RE = re.compile(r'^パートナー＝(.+)$')  # 魔物卡宣告綁定的夥伴(與上者鏡像對稱)
 
 
 def classify_token(tok: str, header: dict, number: str) -> None:
@@ -196,25 +213,66 @@ def parse_header(main_lines: list[str], type_: str, number: str) -> tuple[dict, 
 
 
 def parse_card_page(html: str, category_ja: str, number: str) -> dict:
-    m = BLOCK_RE.search(html)
-    if not m:
-        raise ValueError("找不到卡片資料區塊(<blockquote><div>...<hr/><div>...</div></blockquote>)")
-    main_raw, flavor_raw = m.group(1), m.group(2)
+    bq = BLOCKQUOTE_RE.search(html)
+    if not bq:
+        raise ValueError("找不到卡片資料區塊(<blockquote>...</blockquote>)")
+    divs = DIV_RE.findall(bq.group(1))
+    if len(divs) < 2:
+        raise ValueError(f"{number}: 資料區塊 <div> 數量不足(需至少 2 個,實際 {len(divs)} 個)")
+    main_raw, flavor_raw = divs[0], divs[-1]
+    extra_raws = divs[1:-1]  # 框線規則卡多出的中間段落(見 FRAME_NOTE 說明)
     type_ = CATEGORY_TO_TYPE.get(category_ja, category_ja)
 
     main_lines = [x for x in BR_RE.split(main_raw) if strip_tags(x)]
     main_lines = main_lines[1:]  # 第一行是「卡號　名稱」,略去
 
     header, consumed = parse_header(main_lines, type_, number)
-    result: dict = {"related_mamodo_ja": "", "effect_ja": "",
+    result: dict = {"related_mamodo_ja": "", "related_partner_ja": "", "effect_ja": "",
                      "raw_header_lines": "|".join(strip_tags(x) for x in main_lines[:consumed]),
                      **header}
 
     body_lines = main_lines[consumed:]
-    tail = SPELL_TAIL_RE.search(body_lines[-1]) if body_lines else None
-    if type_ == "spell" and tail:
-        result["related_mamodo_ja"] = tail.group(1).strip()
-        body_lines = body_lines[:-1]
+    for extra in extra_raws:
+        body_lines += [x for x in BR_RE.split(extra)
+                       if strip_tags(x) and strip_tags(x) != FRAME_NOTE]
+    if type_ == "spell" and body_lines:
+        last = strip_tags(body_lines[-1])
+        m = SPELL_TAIL_RE.search(last)
+        cmd = COMMAND_SPELL_TAIL_RE.search(last) if not m else None
+        if m:
+            result["related_mamodo_ja"] = m.group(1)
+            remainder = last[:m.start()]  # 保留最後一個句號之前的敘述文字(可能與尾巴同一行)
+            body_lines = body_lines[:-1] + ([remainder] if remainder else [])
+        elif cmd:
+            result["related_mamodo_ja"] = COMMAND_SPELL_TAIL  # 指示術,不屬於特定魔物
+            remainder = last[:cmd.start()]
+            body_lines = body_lines[:-1] + ([remainder] if remainder else [])
+    elif type_ == "partner" and body_lines:
+        tail = PARTNER_TAIL_RE.match(strip_tags(body_lines[-1]))
+        if tail:
+            result["related_mamodo_ja"] = tail.group(1).strip()
+            body_lines = body_lines[:-1]
+    elif type_ == "mamodo" and body_lines:
+        tail = PARTNER_NAME_TAIL_RE.match(strip_tags(body_lines[-1]))
+        if tail:
+            result["related_partner_ja"] = tail.group(1).strip()
+            body_lines = body_lines[:-1]
+    # 事件卡:不解析對應魔物/夥伴(見規格)
+
+    def require_tail_field(field: str) -> None:
+        if result[field]:
+            return
+        gap = KNOWN_DATA_GAPS.get(number, {}).get(field)
+        if gap:
+            result[field] = gap
+        else:
+            raise ValueError(f"{number}: 缺少必填欄位 {field}")
+
+    if type_ in REQUIRE_RELATED_MAMODO:
+        require_tail_field("related_mamodo_ja")
+    if type_ in REQUIRE_RELATED_PARTNER:
+        require_tail_field("related_partner_ja")
+
     result["effect_ja"] = "".join(strip_tags(x) for x in body_lines)
 
     flavor_lines = [strip_tags(x) for x in BR_RE.split(flavor_raw) if strip_tags(x)]

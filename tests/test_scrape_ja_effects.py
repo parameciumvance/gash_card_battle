@@ -71,7 +71,7 @@ T-103　テスト術2
 <br />
 相手のターン
 <br />
-仮の効果文。
+仮の効果文。テスト魔物第2の術
 
 </div>
 <hr />
@@ -113,11 +113,155 @@ T-001　テスト魔物
 魔物　3000　バトル
 <br />
 《テスト技》MPを1へらす→自分が攻撃するバトル中、この魔物の魔力を+500する。
+<br />
+パートナー＝テスト夥伴
 
 </div>
 <hr />
 <div>
 テスト用の風味文その四。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 魔物卡:卡面多印一段「框線規則」,wiki 拆成 4 段 <div>(對應 M-007/M-029 真實案例)
+MAMODO_CARD_FRAMED_RULE_HTML = """
+<h2>T-002　テスト変身魔物</h2>
+<blockquote><div>
+T-002　テスト変身魔物
+<br />
+魔物　5000
+<br />
+自分の「テスト魔物」に重ねる。
+
+</div>
+<hr />
+<div>
+以上、枠囲み
+
+</div>
+<hr />
+<div>
+《テスト技2》MPを1へらす→仮の効果文。
+<br />
+パートナー＝テスト夥伴2
+
+</div>
+<hr />
+<div>
+テスト用の風味文その十一。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 夥伴卡:最後一行「魔物＝X」宣告對應魔物(對應 P-001 真實案例)
+PARTNER_CARD_HTML = """
+<h2>T-301　テスト夥伴</h2>
+<blockquote><div>
+T-301　テスト夥伴
+<br />
+パートナー
+<br />
+《SET!》このカードを捨て札にする→仮の効果文。
+<br />
+魔物＝テスト魔物
+
+</div>
+<hr />
+<div>
+テスト用の風味文その六。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 夥伴卡:沒有「魔物＝X」尾行,最後一行應完整併入效果文
+PARTNER_CARD_NO_TAIL_HTML = """
+<h2>T-302　テスト夥伴2</h2>
+<blockquote><div>
+T-302　テスト夥伴2
+<br />
+パートナー
+<br />
+仮の効果文その一。
+
+</div>
+<hr />
+<div>
+テスト用の風味文その七。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 術卡:對象魔物名無連結,純文字(對應 S-043/S-048 等真實案例)
+SPELL_CARD_UNLINKED_TAIL_HTML = """
+<h2>T-105　テスト術4</h2>
+<blockquote><div>
+T-105　テスト術4
+<br />
+術　MP2　＋1000　バトル攻撃
+<br />
+仮の効果文。テスト魔物第1の術
+
+</div>
+<hr />
+<div>
+テスト用の風味文その八。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 術卡:指示術(コマンド),不屬於特定魔物
+COMMAND_SPELL_HTML = """
+<h2>T-106　テストコマンド術</h2>
+<blockquote><div>
+T-106　テストコマンド術
+<br />
+術　MP1　特殊　バトル攻撃
+<br />
+仮の効果文。
+<br />
+コマンド
+
+</div>
+<hr />
+<div>
+テスト用の風味文その九。
+<br />
+LEVEL:テスト　テストパック
+
+</div>
+</blockquote>
+"""
+
+# 夥伴卡:尾行格式跟登記過的已知缺漏(P-018)不同,應套用覆寫值而非報錯
+PARTNER_CARD_KNOWN_GAP_HTML = """
+<h2>P-018　テスト夥伴3</h2>
+<blockquote><div>
+P-018　テスト夥伴3
+<br />
+パートナー
+<br />
+仮の効果文。パートナー＝ヨポポ
+
+</div>
+<hr />
+<div>
+テスト用の風味文その十。
 <br />
 LEVEL:テスト　テストパック
 
@@ -250,7 +394,38 @@ def test_parse_card_page_spell_two_line_header():
     assert r["power"] == "特殊"
     assert r["ad"] == "D"
     assert r["effect_icon_ja"] == "非バトル"
+    assert r["related_mamodo_ja"] == "テスト魔物"
+    assert r["effect_ja"] == "仮の効果文。"  # 尾巴與敘述文黏同一行,句號前的文字仍保留
+
+
+def test_parse_card_page_spell_unlinked_related_mamodo():
+    """對象魔物名沒有包在連結裡也要能解析(對應 S-043/S-048 等真實案例)。"""
+    r = parse_card_page(SPELL_CARD_UNLINKED_TAIL_HTML, "術", "T-105")
+    assert r["related_mamodo_ja"] == "テスト魔物"
+    assert "第1の術" not in r["effect_ja"]
+
+
+def test_parse_card_page_command_spell():
+    """指示術(コマンド)不屬於特定魔物,related_mamodo_ja 存為「コマンド」。"""
+    r = parse_card_page(COMMAND_SPELL_HTML, "術", "T-106")
+    assert r["related_mamodo_ja"] == "コマンド"
     assert r["effect_ja"] == "仮の効果文。"
+
+
+def test_parse_card_page_partner_known_gap_override():
+    """P-018:頁面尾行寫成「パートナー＝X」而非「魔物＝X」,登記為已知缺漏後套用覆寫值。"""
+    r = parse_card_page(PARTNER_CARD_KNOWN_GAP_HTML, "パートナー", "P-018")
+    assert r["related_mamodo_ja"] == "ヨポポ"
+
+
+def test_parse_card_page_spell_missing_related_mamodo_raises():
+    with pytest.raises(ValueError, match="related_mamodo_ja"):
+        parse_card_page(SPELL_MISSING_AD_HTML.replace("＋2000", "＋2000　バトル攻撃"), "術", "T-107")
+
+
+def test_parse_card_page_partner_missing_related_mamodo_raises_when_not_registered():
+    with pytest.raises(ValueError, match="related_mamodo_ja"):
+        parse_card_page(PARTNER_CARD_NO_TAIL_HTML, "パートナー", "T-302")
 
 
 def test_parse_card_page_event_second_line_is_effect_text():
@@ -266,7 +441,36 @@ def test_parse_card_page_mamodo_ability_text_not_misparsed():
     assert r["power"] == "3000"
     assert r["ad"] == ""
     assert "攻撃" in r["effect_ja"]
+    assert r["related_partner_ja"] == "テスト夥伴"
+    assert r["related_mamodo_ja"] == ""
     assert r["flavor_ja"] == "テスト用の風味文その四。"
+
+
+def test_parse_card_page_mamodo_missing_partner_raises():
+    html_without_partner_tail = MAMODO_CARD_HTML.replace(
+        "\nパートナー＝テスト夥伴\n", "\n")
+    with pytest.raises(ValueError, match="related_partner_ja"):
+        parse_card_page(html_without_partner_tail, "魔物", "T-999-no-partner")
+
+
+def test_parse_card_page_mamodo_framed_rule_block():
+    """回歸測試:框線規則卡(變身/術相容性等)多拆出中間 <div>,對應 M-007/M-029 真實案例。
+    框線提示「以上、枠囲み」應被濾掉,框線規則文字與後段《能力》效果文都要保留,
+    パートナー＝X 尾行要能從最後一段(而非第一段)正確解析出來。"""
+    r = parse_card_page(MAMODO_CARD_FRAMED_RULE_HTML, "魔物", "T-002")
+    assert r["power"] == "5000"
+    assert r["related_partner_ja"] == "テスト夥伴2"
+    assert "枠囲み" not in r["effect_ja"]
+    assert "自分の「テスト魔物」に重ねる" in r["effect_ja"]
+    assert "仮の効果文" in r["effect_ja"]
+    assert r["flavor_ja"] == "テスト用の風味文その十一。"
+
+
+def test_parse_card_page_partner_tail_line_parsed():
+    r = parse_card_page(PARTNER_CARD_HTML, "パートナー", "T-301")
+    assert r["related_mamodo_ja"] == "テスト魔物"
+    assert "魔物＝" not in r["effect_ja"]
+    assert "仮の効果文" in r["effect_ja"]
 
 
 def test_parse_card_page_missing_ad_raises():
