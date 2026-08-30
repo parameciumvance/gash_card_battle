@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
 from ..engine.engine import IllegalCommand, new_game, submit
+from ..engine.state import BOOK_SIZE
 from ..paths import frontend_dir, resolve_assets
 from .rooms import Room, RoomError, RoomStore, awaited_player, default_command
 from .views import filter_events, snapshot
@@ -65,6 +66,15 @@ class JoinBody(BaseModel):
 
 class CommandBody(BaseModel):
     command: dict
+
+
+class DebugPlayerState(BaseModel):
+    book: list[str]
+    mp: int
+
+
+class DebugStateBody(BaseModel):
+    players: list[DebugPlayerState]
 
 
 # ---------------------------------------------------------------- 輔助
@@ -342,6 +352,55 @@ async def post_command(code: str, body: CommandBody,
     await _broadcast(room, events)
     ev = _effective_viewer(room, viewer)
     return {"events": filter_events(events, ev), **_state_payload(room, viewer)}
+
+
+def _debug_state_payload(room: Room) -> dict:
+    return {"players": [{"book": list(p.book), "mp": p.mp} for p in room.game.state.players]}
+
+
+@app.get("/api/rooms/{code}/debug-state")
+async def get_debug_state(code: str, x_player_token: str | None = Header(default=None)):
+    """金手指:僅本機測試模式開放,回傳雙方 book/mp 供編輯。"""
+    room, viewer = _resolve(code, x_player_token)
+    if room.mode != "local":
+        raise HTTPException(403, detail={"code": "room.not_local", "message": "僅本機測試模式開放"})
+    if room.game is None:
+        raise HTTPException(409, detail={"code": "room.waiting", "message": "等待對手加入"})
+    return _debug_state_payload(room)
+
+
+@app.post("/api/rooms/{code}/debug-state")
+async def post_debug_state(code: str, body: DebugStateBody,
+                           x_player_token: str | None = Header(default=None)):
+    """金手指:驗證卡號存在、book 長度為 32 後整包取代雙方 book/mp。"""
+    room, viewer = _resolve(code, x_player_token)
+    if room.mode != "local":
+        raise HTTPException(403, detail={"code": "room.not_local", "message": "僅本機測試模式開放"})
+    if viewer == "spectator":
+        raise HTTPException(403, detail={"code": "room.spectator", "message": "觀戰者不能套用金手指"})
+    if room.game is None:
+        raise HTTPException(409, detail={"code": "room.waiting", "message": "等待對手加入"})
+    if len(body.players) != 2:
+        raise HTTPException(422, detail={"code": "debug_state.bad_players",
+                                         "message": "players 須含雙方"})
+    db = card_db()
+    for ps in body.players:
+        if len(ps.book) != BOOK_SIZE:
+            raise HTTPException(422, detail={"code": "debug_state.bad_book",
+                                             "message": f"book 長度須為 {BOOK_SIZE}"})
+        unknown = [c for c in ps.book if c not in db]
+        if unknown:
+            raise HTTPException(422, detail={"code": "debug_state.unknown_card",
+                                             "message": f"不存在的卡號:{unknown[0]}"})
+    async with _lock(room.code):
+        for i, ps in enumerate(body.players):
+            room.game.state.players[i].book = list(ps.book)
+            room.game.state.players[i].mp = ps.mp
+        batch: list[dict] = []
+        room.game.emit(batch, "cheat_applied", player=None)
+        room.touch()
+    await _broadcast(room, batch)
+    return _debug_state_payload(room)
 
 
 @app.get("/api/rooms/{code}/state")

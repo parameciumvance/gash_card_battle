@@ -276,6 +276,17 @@ body {
 #log .ev.important { color: var(--glow); }
 #log .ev.turn { color: var(--accent-green); font-weight: bold; margin-top: 4px; }
 
+#cheat-panel {
+  width: 300px; background: var(--panel); border-left: 1px solid var(--panel-line);
+  display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow-y: auto;
+}
+#cheat-panel h3 { font-size: 13px; color: var(--ink-dim); }
+.cheat-player { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.cheat-player label { font-size: 11px; color: var(--ink-dim); }
+.cheat-player textarea { font-size: 11px; font-family: monospace; height: 90px; resize: vertical; }
+#cheat-error { color: var(--danger); font-size: 12px; }
+#cheat-actions { display: flex; gap: 8px; }
+
 #dialog-overlay, #zoom-overlay {
   position: fixed; inset: 0; background: rgba(8, 10, 18, .72);
   display: flex; align-items: center; justify-content: center; z-index: 50;

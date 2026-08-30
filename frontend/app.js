@@ -588,12 +588,96 @@ document.getElementById("log-title").onclick = () => {
   updateLogTab();
 };
 
+// ---------------------------------------------------------------- 金手指(僅本機測試模式)
+
+function cheatUrl() { return `/api/rooms/${SESSION.code}/debug-state`; }
+function cheatToken() { return Object.values(SESSION.tokens)[0]; }
+
+function showCheatError(msg) {
+  const el = document.getElementById("cheat-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function renderCheatFields(data) {
+  const holder = document.getElementById("cheat-players");
+  holder.innerHTML = "";
+  data.players.forEach((p, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "cheat-player";
+    const bookLabel = document.createElement("label");
+    bookLabel.textContent = t("ui.cheat.book_label", { player: pname(i) });
+    const bookArea = document.createElement("textarea");
+    bookArea.id = `cheat-book-${i}`;
+    bookArea.value = JSON.stringify(p.book);
+    const mpLabel = document.createElement("label");
+    mpLabel.textContent = t("ui.cheat.mp_label", { player: pname(i) });
+    const mpInput = document.createElement("input");
+    mpInput.type = "number";
+    mpInput.id = `cheat-mp-${i}`;
+    mpInput.value = p.mp;
+    wrap.append(bookLabel, bookArea, mpLabel, mpInput);
+    holder.appendChild(wrap);
+  });
+  document.getElementById("cheat-error").classList.add("hidden");
+}
+
+async function cheatRefresh() {
+  try {
+    renderCheatFields(await api(cheatUrl(), { headers: { "X-Player-Token": cheatToken() } }));
+  } catch (err) {
+    showCheatError(err.message);
+  }
+}
+
+async function cheatApply() {
+  const players = [];
+  for (let i = 0; i < 2; i++) {
+    const raw = document.getElementById(`cheat-book-${i}`).value;
+    let book;
+    try {
+      book = JSON.parse(raw);
+    } catch (_) {
+      showCheatError(t("ui.cheat.bad_json", { player: pname(i) }));
+      return;
+    }
+    const mp = parseInt(document.getElementById(`cheat-mp-${i}`).value, 10) || 0;
+    players.push({ book, mp });
+  }
+  try {
+    const data = await api(cheatUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Player-Token": cheatToken() },
+      body: JSON.stringify({ players }),
+    });
+    renderCheatFields(data);
+    toast(t("ui.cheat.applied"));
+  } catch (err) {
+    showCheatError(err.message);
+  }
+}
+
+document.getElementById("cheat-toggle").onclick = () => {
+  const panel = document.getElementById("cheat-panel");
+  const wasHidden = panel.classList.contains("hidden");
+  panel.classList.toggle("hidden");
+  if (wasHidden) cheatRefresh();
+};
+document.getElementById("cheat-refresh").onclick = cheatRefresh;
+document.getElementById("cheat-apply").onclick = cheatApply;
+
 function renderTopbar() {
   document.getElementById("title").textContent = t("app.title");
   updateLogTab();
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  const cheatToggle = document.getElementById("cheat-toggle");
+  cheatToggle.textContent = t("ui.cheat.toggle");
+  cheatToggle.classList.toggle("hidden", !isLocal());
+  document.getElementById("cheat-title").textContent = t("ui.cheat.title");
+  document.getElementById("cheat-refresh").textContent = t("ui.cheat.refresh");
+  document.getElementById("cheat-apply").textContent = t("ui.cheat.apply");
   const idEl = document.getElementById("identity");
   const v = myViewer();
   idEl.textContent = !SESSION ? "" :

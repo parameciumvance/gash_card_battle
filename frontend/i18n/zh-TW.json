@@ -117,8 +117,8 @@
   "log.pages_peeked": "{player} 目前翻開的頁面被檢視",
   "log.game_ended": "對局結束:{player} 獲勝({reason})",
   "log.coin_first": "擲硬幣決定先攻:{player}",
-  "ui.landing.local": "本機對戰",
-  "ui.landing.local_desc": "兩人共用此畫面輪流操作",
+  "ui.landing.local": "本機測試模式",
+  "ui.landing.local_desc": "兩人共用此畫面輪流操作,附金手指面板",
   "ui.landing.create": "建立房間",
   "ui.landing.create_desc": "產生房號與連結,邀請朋友線上對戰",
   "ui.landing.join": "加入房間",
@@ -238,5 +238,13 @@
   "ui.book_page_left": "已上場",
   "ui.book_spell_used": "本回合已用",
   "ui.assets.missing": "卡圖未安裝:遊戲可正常進行(卡面以卡背佔位)。將卡圖 assets 資料夾放至 {dir} 後重新整理即可顯示卡圖。",
-  "ui.assets.partial": "卡圖不完整({count}/{expected} 張):部分卡片將以卡背佔位,更新卡圖包後重新整理即可。"
+  "ui.assets.partial": "卡圖不完整({count}/{expected} 張):部分卡片將以卡背佔位,更新卡圖包後重新整理即可。",
+  "ui.cheat.toggle": "金手指",
+  "ui.cheat.title": "金手指(僅本機測試模式,可改魔本頁卡號與 MP)",
+  "ui.cheat.book_label": "{player} 的魔本(32 項卡號 JSON 陣列)",
+  "ui.cheat.mp_label": "{player} 的 MP",
+  "ui.cheat.refresh": "重新整理",
+  "ui.cheat.apply": "套用",
+  "ui.cheat.applied": "已套用",
+  "ui.cheat.bad_json": "書格式錯誤(須為 32 項卡號的 JSON 陣列):{player}"
 }
