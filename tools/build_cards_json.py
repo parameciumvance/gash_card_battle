@@ -4,8 +4,10 @@
 - `attr_name` 只在術卡填入 `attr_ja`,魔物/夥伴卡一律 None(僅 M-023 讀取,不承擔顯示職責)。
 - `related_mamodo`:術/夥伴/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除
   括號後綴(如「（変身後）」)推導,使變身/形態卡與基礎家族名一致。
-- `image_url`/`sets` 沿用轉換前 `data/cards.json` 同卡號的舊值;無舊值(新卡如 S-042)
-  則分別為 None / []。
+- `effect_icon`:バトル/非バトル/ジャマー 轉為 battle/nonbattle/jammer,空字串為 None。
+- `image_url` 直接從 xlsx 的 A 欄 HYPERLINK/儲存格超連結讀取(不沿用轉換前的 cards.json);
+  xlsx 中沒有對應卡號的(如 S-042)為 None。
+- `sets` 沿用轉換前 `data/cards.json` 同卡號的舊值;無舊值(新卡如 S-042)則為 []。
 
 用法: python tools/build_cards_json.py
 """
@@ -17,8 +19,11 @@ import json
 import re
 from pathlib import Path
 
+import openpyxl
+
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data/cards_ja.csv"
+XLSX = ROOT / "openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx"
 OUT = ROOT / "data/cards.json"
 
 EXPECTED_COUNT = 135  # 134(第一彈+Level 2)+ S-042
@@ -27,6 +32,8 @@ FORM_SUFFIX_RE = re.compile(r"（[^）]*）")
 POWER_X_RE = re.compile(r"^(\d+)×$")
 POWER_BONUS_RE = re.compile(r"^\+(\d+)$")
 POWER_BASE_RE = re.compile(r"^(\d+)$")
+
+EFFECT_ICON_MAP = {"バトル": "battle", "非バトル": "nonbattle", "ジャマー": "jammer"}
 
 
 def _none_if_blank(s: str) -> str | None:
@@ -70,6 +77,47 @@ def derive_attr_name(row: dict) -> str | None:
     return None
 
 
+def derive_effect_icon(row: dict) -> str | None:
+    icon = row["effect_icon_ja"].strip()
+    if not icon:
+        return None
+    return EFFECT_ICON_MAP[icon]
+
+
+def parse_card_cell(cell) -> tuple[str | None, str]:
+    """回傳 (卡圖 URL, 卡號)。A 欄有兩種形態:
+    - HYPERLINK 公式(前幾列): =HYPERLINK("url","E-001")
+    - 純文字卡號 + 儲存格超連結物件(需非 read_only 模式才讀得到)
+    """
+    value = str(cell.value or "")
+    if value.startswith("=HYPERLINK"):
+        quoted = re.findall(r'"([^"]*)"', value)
+        if len(quoted) >= 2:
+            return quoted[0], quoted[-1]
+        raise ValueError(f"無法解析卡號欄: {value!r}")
+    url = cell.hyperlink.target if cell.hyperlink is not None else None
+    return url, value.strip()
+
+
+def load_image_urls(xlsx_path: Path) -> dict[str, str]:
+    """從 xlsx「The Table」工作表逐列讀取 (卡號 → 卡圖連結),e/j 雙版本時 j 優先。"""
+    wb = openpyxl.load_workbook(xlsx_path)  # 非 read_only:才能讀儲存格超連結物件
+    ws = wb["The Table"]
+    urls: dict[str, str] = {}
+    versions: dict[str, str] = {}  # 基礎卡號 → 已入庫版本尾碼('' / 'e' / 'j')
+    for cells in ws.iter_rows():
+        image_url, raw_number = parse_card_cell(cells[0])
+        m = re.fullmatch(r"([A-Z]+-\d+)([ej]?)", raw_number)
+        if not m or image_url is None:
+            continue
+        number, suffix = m.group(1), m.group(2)
+        if number in versions and not (suffix == "j" and versions[number] == "e"):
+            continue
+        versions[number] = suffix
+        urls[number] = image_url
+    return urls
+
+
 def load_old_cards(path: Path) -> dict[str, dict]:
     if not path.exists():
         return {}
@@ -77,7 +125,7 @@ def load_old_cards(path: Path) -> dict[str, dict]:
     return {c["number"]: c for c in raws}
 
 
-def convert(csv_path: Path, old_cards: dict[str, dict]) -> list[dict]:
+def convert(csv_path: Path, image_urls: dict[str, str], old_cards: dict[str, dict]) -> list[dict]:
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
 
@@ -88,17 +136,18 @@ def convert(csv_path: Path, old_cards: dict[str, dict]) -> list[dict]:
             {
                 "number": row["number"],
                 "type": row["type"],
-                "name_en": row["name_ja"],
+                "name_ja": row["name_ja"],
                 "related_mamodo": derive_related_mamodo(row),
                 "cost": _int_or_none(row["cost"]),
                 "ad": _none_if_blank(row["ad"]),
                 "class": row["class"],
                 "attr_name": derive_attr_name(row),
-                "effect_en": row["effect_ja"],
+                "effect_ja": row["effect_ja"],
+                "effect_icon": derive_effect_icon(row),
                 "power": parse_power(row["power"]),
                 "damage": _int_or_none(row["damage"]),
                 "sets": old.get("sets", []),
-                "image_url": old.get("image_url"),
+                "image_url": image_urls.get(row["number"]),
             }
         )
 
@@ -110,7 +159,8 @@ def convert(csv_path: Path, old_cards: dict[str, dict]) -> list[dict]:
 
 def main() -> None:
     old_cards = load_old_cards(OUT)
-    cards = convert(CSV_PATH, old_cards)
+    image_urls = load_image_urls(XLSX)
+    cards = convert(CSV_PATH, image_urls, old_cards)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(cards, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -119,7 +169,7 @@ def main() -> None:
     counts = Counter(c["type"] for c in cards)
     no_image = [c["number"] for c in cards if c["image_url"] is None]
     print(f"已寫入 {OUT}: {len(cards)} 種 {dict(counts)}")
-    print(f"沒有卡圖連結(新卡): {no_image}")
+    print(f"沒有卡圖連結: {no_image}")
 
 
 if __name__ == "__main__":

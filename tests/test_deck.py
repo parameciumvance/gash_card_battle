@@ -11,12 +11,12 @@ def test_card_db_has_135_cards():
     assert db["S-001"].power_bonus == 2000 and db["S-001"].damage == 1
     assert db["S-005"].klass == "superior" and db["S-005"].cost == 6
     # S-025 為擲 1 次硬幣版本(非「2回」)
-    assert "コイン" in db["S-025"].effect_en
-    assert "2回" not in db["S-025"].effect_en
+    assert "コイン" in db["S-025"].effect_ja
+    assert "2回" not in db["S-025"].effect_ja
     # E-018 含連續回合限制條款
-    assert "直前のターン" in db["E-018"].effect_en
+    assert "直前のターン" in db["E-018"].effect_ja
     # E-022 限本回合入墓
-    assert "このターン中" in db["E-022"].effect_en
+    assert "このターン中" in db["E-022"].effect_ja
 
 
 def test_level1_deck_is_valid():

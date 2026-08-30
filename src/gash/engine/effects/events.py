@@ -202,7 +202,7 @@ def _e011_targets(game, player):
                      and s.partner is None), None)
         if slot is None:
             continue
-        if any(game.db[s.partner].name_en == card.name_en for s in ps.slots if s.partner):
+        if any(game.db[s.partner].name_ja == card.name_ja for s in ps.slots if s.partner):
             continue
         out.append({"value": i, "card": number, "slot_uid": slot.uid})
     return out

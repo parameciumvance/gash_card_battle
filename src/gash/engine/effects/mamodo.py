@@ -392,7 +392,7 @@ def m028(game, batch, owner, slot, ev):
 @reg.spell_compat("M-029")
 def m029_compat(game, player, slot, spell_card):
     return (slot.top == "M-029" and spell_card.related_mamodo == "ガッシュ・ベル"
-            and "ザケル" in (spell_card.name_en or ""))
+            and "ザケル" in (spell_card.name_ja or ""))
 
 
 @reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",

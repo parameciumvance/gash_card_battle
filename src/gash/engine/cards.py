@@ -25,13 +25,14 @@ COMMAND_ALL = "コマンド"
 class CardDef:
     number: str
     type: str
-    name_en: str
+    name_ja: str
     related_mamodo: str | None
     cost: int | None
     ad: str | None          # "A" / "D" / "AD" / None
     klass: str              # "none" / "intermediate" / "superior"
     attr_name: str | None   # 屬性或《效果名》
-    effect_en: str
+    effect_ja: str
+    effect_icon: str | None     # "battle" / "nonbattle" / "jammer" / None
     power_base: int | None      # 魔物本體魔力
     power_bonus: int | None     # 術的魔力加值
     power_special: bool         # 術魔力為 Special(不參與合計)
@@ -54,13 +55,14 @@ def _to_def(raw: dict) -> CardDef:
     return CardDef(
         number=raw["number"],
         type=raw["type"],
-        name_en=raw["name_en"],
+        name_ja=raw["name_ja"],
         related_mamodo=raw.get("related_mamodo"),
         cost=raw.get("cost"),
         ad=raw.get("ad"),
         klass=raw.get("class", "none"),
         attr_name=raw.get("attr_name"),
-        effect_en=raw.get("effect_en", ""),
+        effect_ja=raw.get("effect_ja", ""),
+        effect_icon=raw.get("effect_icon"),
         power_base=power.get("base"),
         power_bonus=power.get("bonus"),
         power_special=bool(power.get("special")),

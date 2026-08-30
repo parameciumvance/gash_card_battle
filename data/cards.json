@@ -2,13 +2,14 @@
  {
   "number": "E-001",
   "type": "event",
-  "name_en": "守る心",
+  "name_ja": "守る心",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "この効果は、次のターンのスタートフェイズまで【スタンバイ】し、次のターン中【ステイ】する。自分の魔物1体を選ぶ。次のターン中、その魔物の魔力を+3000する。",
+  "effect_ja": "この効果は、次のターンのスタートフェイズまで【スタンバイ】し、次のターン中【ステイ】する。自分の魔物1体を選ぶ。次のターン中、その魔物の魔力を+3000する。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -20,13 +21,14 @@
  {
   "number": "E-002",
   "type": "event",
-  "name_en": "ティーナ",
+  "name_ja": "ティーナ",
   "related_mamodo": null,
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】次のターンのエンドフェイズまで、自分も相手も、術を使えない。",
+  "effect_ja": "【ステイ】次のターンのエンドフェイズまで、自分も相手も、術を使えない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -38,13 +40,14 @@
  {
   "number": "E-003",
   "type": "event",
-  "name_en": "ブリ",
+  "name_ja": "ブリ",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分のMPを2ふやす。",
+  "effect_ja": "自分のMPを2ふやす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -56,13 +59,14 @@
  {
   "number": "E-004",
   "type": "event",
-  "name_en": "友情のカレー",
+  "name_ja": "友情のカレー",
   "related_mamodo": null,
   "cost": 5,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分と相手のMPを0にする。※MPが1以上のとき、この効果は「MPをへらす」効果としてあつかう。",
+  "effect_ja": "自分と相手のMPを0にする。※MPが1以上のとき、この効果は「MPをへらす」効果としてあつかう。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -74,13 +78,14 @@
  {
   "number": "E-005",
   "type": "event",
-  "name_en": "鈴芽のお見舞い",
+  "name_ja": "鈴芽のお見舞い",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを2回投げる。●オモテが2回出たら、自分の魔本を2枚もどす。●オモテが1回、ウラが1回出たら、効果はない。●ウラが2回出たら、自分の魔本を2枚めくる。",
+  "effect_ja": "コインを2回投げる。●オモテが2回出たら、自分の魔本を2枚もどす。●オモテが1回、ウラが1回出たら、効果はない。●ウラが2回出たら、自分の魔本を2枚めくる。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -93,13 +98,14 @@
  {
   "number": "E-006",
   "type": "event",
-  "name_en": "秋山勇太",
+  "name_ja": "秋山勇太",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の魔物を1体選ぶ。コインを投げる。オモテならその魔物を「健康状態」にする。ウラならこのターン中、その魔物の魔力を+1000する(【ステイ】)。",
+  "effect_ja": "自分の魔物を1体選ぶ。コインを投げる。オモテならその魔物を「健康状態」にする。ウラならこのターン中、その魔物の魔力を+1000する(【ステイ】)。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -111,13 +117,14 @@
  {
   "number": "E-007",
   "type": "event",
-  "name_en": "木山つくし",
+  "name_ja": "木山つくし",
   "related_mamodo": null,
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の「負傷状態」の魔物1体を選び、「健康状態」にする。",
+  "effect_ja": "自分の「負傷状態」の魔物1体を選び、「健康状態」にする。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -129,13 +136,14 @@
  {
   "number": "E-008",
   "type": "event",
-  "name_en": "水野鈴芽",
+  "name_ja": "水野鈴芽",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】このターン中、自分も相手もパートナーの効果を使えない。",
+  "effect_ja": "【ステイ】このターン中、自分も相手もパートナーの効果を使えない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -147,13 +155,14 @@
  {
   "number": "E-009",
   "type": "event",
-  "name_en": "やさしい王様",
+  "name_ja": "やさしい王様",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】自分の魔物1体を選ぶ。このターン中、その魔物の魔力を+3000する。",
+  "effect_ja": "【ステイ】自分の魔物1体を選ぶ。このターン中、その魔物の魔力を+3000する。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -165,13 +174,14 @@
  {
   "number": "E-010",
   "type": "event",
-  "name_en": "やさしい清麿",
+  "name_ja": "やさしい清麿",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【スタンバイ】相手の「このカードが場にある→」効果ではないパートナー1枚を選ぶ。このターン中1回だけ、そのパートナーの効果を、自分のものとして使うことができる(「このカードを捨て札にする→」効果を使っても、相手のパートナーは捨て札にはならない)。",
+  "effect_ja": "【スタンバイ】相手の「このカードが場にある→」効果ではないパートナー1枚を選ぶ。このターン中1回だけ、そのパートナーの効果を、自分のものとして使うことができる(「このカードを捨て札にする→」効果を使っても、相手のパートナーは捨て札にはならない)。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -183,13 +193,14 @@
  {
   "number": "E-011",
   "type": "event",
-  "name_en": "鉄のフォルゴレ",
+  "name_ja": "鉄のフォルゴレ",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを投げてオモテなら、自分の捨て札のパートナーカード1枚を選び、場に出す。ウラなら、自分のMPを2へらすことで、コインを1回投げなおすことができる(何回でも投げなおすことができる)。",
+  "effect_ja": "コインを投げてオモテなら、自分の捨て札のパートナーカード1枚を選び、場に出す。ウラなら、自分のMPを2へらすことで、コインを1回投げなおすことができる(何回でも投げなおすことができる)。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -201,13 +212,14 @@
  {
   "number": "E-012",
   "type": "event",
-  "name_en": "ガッシュ登場",
+  "name_ja": "ガッシュ登場",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の魔本の好きなページから魔物カードを1枚選び、場に出す。",
+  "effect_ja": "自分の魔本の好きなページから魔物カードを1枚選び、場に出す。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -219,13 +231,14 @@
  {
   "number": "E-013",
   "type": "event",
-  "name_en": "ナオミちゃん",
+  "name_ja": "ナオミちゃん",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【スタンバイ】このターン中の次のバトル中、相手はダメージを魔物で「かばう」ことができない。",
+  "effect_ja": "【スタンバイ】このターン中の次のバトル中、相手はダメージを魔物で「かばう」ことができない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -239,13 +252,14 @@
  {
   "number": "E-014",
   "type": "event",
-  "name_en": "ウマゴン",
+  "name_ja": "ウマゴン",
   "related_mamodo": null,
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本を1枚めくる。そうしたなら、相手の魔本の今のページを見る。",
+  "effect_ja": "相手の魔本を1枚めくる。そうしたなら、相手の魔本の今のページを見る。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -260,13 +274,14 @@
  {
   "number": "E-015",
   "type": "event",
-  "name_en": "バルカン３００",
+  "name_ja": "バルカン３００",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】自分の魔物1体を選ぶ。次のターンのエンドフェイズまで、その魔物の魔力を+2000する。",
+  "effect_ja": "【ステイ】自分の魔物1体を選ぶ。次のターンのエンドフェイズまで、その魔物の魔力を+2000する。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -278,13 +293,14 @@
  {
   "number": "E-016",
   "type": "event",
-  "name_en": "高嶺清太郎",
+  "name_ja": "高嶺清太郎",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本を見て、最後のページ以外の好きなページから術カード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
+  "effect_ja": "相手の魔本を見て、最後のページ以外の好きなページから術カード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -297,13 +313,14 @@
  {
   "number": "E-017",
   "type": "event",
-  "name_en": "高嶺華",
+  "name_ja": "高嶺華",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本を見て、好きなページからイベントカード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
+  "effect_ja": "相手の魔本を見て、好きなページからイベントカード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -316,13 +333,14 @@
  {
   "number": "E-018",
   "type": "event",
-  "name_en": "フォルゴレのダンス",
+  "name_ja": "フォルゴレのダンス",
   "related_mamodo": null,
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手のMPを4へらす。直前のターンに、自分が相手のMPをへらす効果を使っているとき、へらせるMPは0になる。",
+  "effect_ja": "相手のMPを4へらす。直前のターンに、自分が相手のMPをへらす効果を使っているとき、へらせるMPは0になる。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -336,13 +354,14 @@
  {
   "number": "E-019",
   "type": "event",
-  "name_en": "清麿の怒り",
+  "name_ja": "清麿の怒り",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の場の魔物1体を選び、捨て札にする。",
+  "effect_ja": "自分の場の魔物1体を選び、捨て札にする。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -356,13 +375,14 @@
  {
   "number": "E-020",
   "type": "event",
-  "name_en": "恵のコンサート",
+  "name_ja": "恵のコンサート",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "次の効果の両方を、この順で使う。●自分のMPを3をふやす。●相手はコインを投げる。オモテなら、相手のMPを3ふやす。",
+  "effect_ja": "次の効果の両方を、この順で使う。●自分のMPを3をふやす。●相手はコインを投げる。オモテなら、相手のMPを3ふやす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -375,13 +395,14 @@
  {
   "number": "E-021",
   "type": "event",
-  "name_en": "敵じゃない人がいる",
+  "name_ja": "敵じゃない人がいる",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "この効果は、自分の場に魔物が2体以上いれば使える。次の効果の、片方または両方を、好きな順で使う。●自分の「負傷状態」の魔物1体を選び、「健康状態」にする。●自分のMPを2ふやす。",
+  "effect_ja": "この効果は、自分の場に魔物が2体以上いれば使える。次の効果の、片方または両方を、好きな順で使う。●自分の「負傷状態」の魔物1体を選び、「健康状態」にする。●自分のMPを2ふやす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -394,13 +415,14 @@
  {
   "number": "E-022",
   "type": "event",
-  "name_en": "セッコロ",
+  "name_ja": "セッコロ",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを投げる。オモテなら、自分の捨て札から、このターン中に捨て札になったパートナーカード1枚を選び、場に出す。",
+  "effect_ja": "コインを投げる。オモテなら、自分の捨て札から、このターン中に捨て札になったパートナーカード1枚を選び、場に出す。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -413,13 +435,14 @@
  {
   "number": "E-023",
   "type": "event",
-  "name_en": "戦いの意義",
+  "name_ja": "戦いの意義",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】次のターンのエンドフェイズまで、自分の場の、パートナーがついている魔物は、その魔力が＋2000される。",
+  "effect_ja": "【ステイ】次のターンのエンドフェイズまで、自分の場の、パートナーがついている魔物は、その魔力が＋2000される。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -431,13 +454,14 @@
  {
   "number": "E-024",
   "type": "event",
-  "name_en": "プロフェッサー・ダルタニアン",
+  "name_ja": "プロフェッサー・ダルタニアン",
   "related_mamodo": null,
   "cost": 0,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】相手の魔物1体を選ぶ。このターン中、相手はその魔物の「魔物の効果」や術を使えない。",
+  "effect_ja": "【ステイ】相手の魔物1体を選ぶ。このターン中、相手はその魔物の「魔物の効果」や術を使えない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -452,13 +476,14 @@
  {
   "number": "E-025",
   "type": "event",
-  "name_en": "ヨポポの踊り",
+  "name_ja": "ヨポポの踊り",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【ステイ】このターン中、相手は「魔物の効果」を使えない。",
+  "effect_ja": "【ステイ】このターン中、相手は「魔物の効果」を使えない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -470,13 +495,14 @@
  {
   "number": "E-026",
   "type": "event",
-  "name_en": "なんでワニなのよ！",
+  "name_ja": "なんでワニなのよ！",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを2回なげる。自分のMPを、オモテが出た回数×2ふやす。",
+  "effect_ja": "コインを2回なげる。自分のMPを、オモテが出た回数×2ふやす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -488,13 +514,14 @@
  {
   "number": "E-027",
   "type": "event",
-  "name_en": "無二の親友",
+  "name_ja": "無二の親友",
   "related_mamodo": null,
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "次の効果の両方を、この順で使う。●相手は、相手の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、相手は、相手の魔本の好きなページからパートナーカード1枚を選び、場に出す。●自分は、自分の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、自分の魔本の好きなページからパートナーカード1枚を選び、場に出す。",
+  "effect_ja": "次の効果の両方を、この順で使う。●相手は、相手の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、相手は、相手の魔本の好きなページからパートナーカード1枚を選び、場に出す。●自分は、自分の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、自分の魔本の好きなページからパートナーカード1枚を選び、場に出す。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -506,13 +533,14 @@
  {
   "number": "M-001",
   "type": "mamodo",
-  "name_en": "ガッシュ・ベル",
+  "name_ja": "ガッシュ・ベル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《やさしい王様》MPを1へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+1000する。",
+  "effect_ja": "《やさしい王様》MPを1へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+1000する。",
+  "effect_icon": "battle",
   "power": {
    "base": 4000
   },
@@ -526,13 +554,14 @@
  {
   "number": "M-002",
   "type": "mamodo",
-  "name_en": "ガッシュ・ベル",
+  "name_ja": "ガッシュ・ベル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《おちこぼれガッシュ》このカードが場にある→自分のスタートフェイズに、自分のMPが2以下なら、自分のMPを1ふやす。",
+  "effect_ja": "《おちこぼれガッシュ》このカードが場にある→自分のスタートフェイズに、自分のMPが2以下なら、自分のMPを1ふやす。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -546,13 +575,14 @@
  {
   "number": "M-003",
   "type": "mamodo",
-  "name_en": "ガッシュ・ベル",
+  "name_ja": "ガッシュ・ベル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《傷だらけのヒーロー》このカードが場にある→この魔物が「負傷状態」のとき、この魔物の魔力を+1000する。",
+  "effect_ja": "《傷だらけのヒーロー》このカードが場にある→この魔物が「負傷状態」のとき、この魔物の魔力を+1000する。",
+  "effect_icon": null,
   "power": {
    "base": 4000
   },
@@ -567,13 +597,14 @@
  {
   "number": "M-004",
   "type": "mamodo",
-  "name_en": "レイコム",
+  "name_ja": "レイコム",
   "related_mamodo": "レイコム",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《悪事の道具》このカードが場にある→この魔物にパートナーがついているとき、この魔物の魔力を＋1000する。",
+  "effect_ja": "《悪事の道具》このカードが場にある→この魔物にパートナーがついているとき、この魔物の魔力を＋1000する。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -587,13 +618,14 @@
  {
   "number": "M-005",
   "type": "mamodo",
-  "name_en": "ブラゴ",
+  "name_ja": "ブラゴ",
   "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《孤高の戦士》MPを2へらす→【ステイ】このバトル中、この魔物の「魔物の効果」や術のダメージを1ふやす。",
+  "effect_ja": "《孤高の戦士》MPを2へらす→【ステイ】このバトル中、この魔物の「魔物の効果」や術のダメージを1ふやす。",
+  "effect_icon": "battle",
   "power": {
    "base": 5000
   },
@@ -607,13 +639,14 @@
  {
   "number": "M-006",
   "type": "mamodo",
-  "name_en": "ゴフレ",
+  "name_ja": "ゴフレ",
   "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《偽りの友》このカードが場にある→【ステイ】このカードが場に出たターン中、相手は術カードを使えない。",
+  "effect_ja": "《偽りの友》このカードが場にある→【ステイ】このカードが場に出たターン中、相手は術カードを使えない。",
+  "effect_icon": null,
   "power": {
    "base": 2000
   },
@@ -627,13 +660,14 @@
  {
   "number": "M-007",
   "type": "mamodo",
-  "name_en": "ゴフレ（変身後）",
+  "name_ja": "ゴフレ（変身後）",
   "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の「ゴフレ」に重ねる。《魔物の本性》このカードが場にある→このカードが場に出たとき、相手の魔本を1枚めくる。",
+  "effect_ja": "自分の「ゴフレ」に重ねる。《魔物の本性》このカードが場にある→このカードが場に出たとき、相手の魔本を1枚めくる。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -647,13 +681,14 @@
  {
   "number": "M-008",
   "type": "mamodo",
-  "name_en": "スギナ",
+  "name_ja": "スギナ",
   "related_mamodo": "スギナ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《策士》使用を宣言する→【スタンバイ】このターン中の次のバトルで、この魔物の術を本来より1低いコストで使うことができる。そうしたなら、その術の魔力は-1000される(0より小さくはならない)。",
+  "effect_ja": "《策士》使用を宣言する→【スタンバイ】このターン中の次のバトルで、この魔物の術を本来より1低いコストで使うことができる。そうしたなら、その術の魔力は-1000される(0より小さくはならない)。",
+  "effect_icon": null,
   "power": {
    "base": 3500
   },
@@ -667,13 +702,14 @@
  {
   "number": "M-009",
   "type": "mamodo",
-  "name_en": "コルル",
+  "name_ja": "コルル",
   "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《優しい少女》このカードが場にある→このカードが捨て札になったとき、自分のMPを4ふやす。",
+  "effect_ja": "《優しい少女》このカードが場にある→このカードが捨て札になったとき、自分のMPを4ふやす。",
+  "effect_icon": null,
   "power": {
    "base": 1000
   },
@@ -687,13 +723,14 @@
  {
   "number": "M-010",
   "type": "mamodo",
-  "name_en": "コルル（変身後）",
+  "name_ja": "コルル（変身後）",
   "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の「コルル」に重ねる。《狂戦士》MPを1へらす→【ステイ】自分が防御するバトル中、この魔物の魔力を+1000する。",
+  "effect_ja": "自分の「コルル」に重ねる。《狂戦士》MPを1へらす→【ステイ】自分が防御するバトル中、この魔物の魔力を+1000する。",
+  "effect_icon": "battle",
   "power": {
    "base": 4000
   },
@@ -707,13 +744,14 @@
  {
   "number": "M-011",
   "type": "mamodo",
-  "name_en": "フェイン",
+  "name_ja": "フェイン",
   "related_mamodo": "フェイン",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《索敵》使用を宣言する→相手の魔本を見て、好きなページから魔物カード1枚を選び、捨て札にする。ゲーム中に1回だけ使える。",
+  "effect_ja": "《索敵》使用を宣言する→相手の魔本を見て、好きなページから魔物カード1枚を選び、捨て札にする。ゲーム中に1回だけ使える。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -727,13 +765,14 @@
  {
   "number": "M-012",
   "type": "mamodo",
-  "name_en": "キャンチョメ",
+  "name_ja": "キャンチョメ",
   "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《幸運の持ち主》使用を宣言する→自分が投げたコイン1個をふりなおす。",
+  "effect_ja": "《幸運の持ち主》使用を宣言する→自分が投げたコイン1個をふりなおす。",
+  "effect_icon": null,
   "power": {
    "base": 1000
   },
@@ -747,13 +786,14 @@
  {
   "number": "M-013",
   "type": "mamodo",
-  "name_en": "キャンチョメ",
+  "name_ja": "キャンチョメ",
   "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《無敵キャンチョメ》MPを2へらす→この効果は、このカードが「負傷状態」ならば使える。【ステイ】このバトル中、この魔物はダメージを受けない。",
+  "effect_ja": "《無敵キャンチョメ》MPを2へらす→この効果は、このカードが「負傷状態」ならば使える。【ステイ】このバトル中、この魔物はダメージを受けない。",
+  "effect_icon": "battle",
   "power": {
    "base": 2000
   },
@@ -768,13 +808,14 @@
  {
   "number": "M-014",
   "type": "mamodo",
-  "name_en": "ティオ",
+  "name_ja": "ティオ",
   "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《信頼できる仲間》このカードが場にある→この効果は、自分の場にこの魔物以外の魔物がいるとき使える。自分の魔物すべてを選び、その魔力を+1000する(この魔物を含む)。",
+  "effect_ja": "《信頼できる仲間》このカードが場にある→この効果は、自分の場にこの魔物以外の魔物がいるとき使える。自分の魔物すべてを選び、その魔力を+1000する(この魔物を含む)。",
+  "effect_icon": null,
   "power": {
    "base": 2000
   },
@@ -788,13 +829,14 @@
  {
   "number": "M-015",
   "type": "mamodo",
-  "name_en": "ティオ",
+  "name_ja": "ティオ",
   "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《いじっぱり》MPを5へらす→【ステイ】このバトル中、この魔物はダメージを受けない。",
+  "effect_ja": "《いじっぱり》MPを5へらす→【ステイ】このバトル中、この魔物はダメージを受けない。",
+  "effect_icon": "battle",
   "power": {
    "base": 3000
   },
@@ -808,13 +850,14 @@
  {
   "number": "M-016",
   "type": "mamodo",
-  "name_en": "ガッシュ・ベル",
+  "name_ja": "ガッシュ・ベル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《失われた記憶》使用を宣言する→自分の魔本の今のページのカード1枚と、今より前のページのカード1枚を選び、入れかえる。ゲーム中に1回だけ使える。",
+  "effect_ja": "《失われた記憶》使用を宣言する→自分の魔本の今のページのカード1枚と、今より前のページのカード1枚を選び、入れかえる。ゲーム中に1回だけ使える。",
+  "effect_icon": null,
   "power": {
    "base": 4000
   },
@@ -830,13 +873,14 @@
  {
   "number": "M-017",
   "type": "mamodo",
-  "name_en": "ブラゴ",
+  "name_ja": "ブラゴ",
   "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《黒き魔物》MPを2へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+2000する。",
+  "effect_ja": "《黒き魔物》MPを2へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+2000する。",
+  "effect_icon": "battle",
   "power": {
    "base": 5000
   },
@@ -850,13 +894,14 @@
  {
   "number": "M-018",
   "type": "mamodo",
-  "name_en": "ブラゴ",
+  "name_ja": "ブラゴ",
   "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《冷静沈着》MPを1へらす→自分のバトルフェイズに、相手の魔本の今のページを見る。そこに「バトル防御アイコン」を持つ術カードがなければ、自分のMPを2ふやす。",
+  "effect_ja": "《冷静沈着》MPを1へらす→自分のバトルフェイズに、相手の魔本の今のページを見る。そこに「バトル防御アイコン」を持つ術カードがなければ、自分のMPを2ふやす。",
+  "effect_icon": null,
   "power": {
    "base": 5000
   },
@@ -870,13 +915,14 @@
  {
   "number": "M-019",
   "type": "mamodo",
-  "name_en": "キャンチョメ",
+  "name_ja": "キャンチョメ",
   "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《変な生き物》使用を宣言する→相手が投げたコイン1個をふりなおさせる。",
+  "effect_ja": "《変な生き物》使用を宣言する→相手が投げたコイン1個をふりなおさせる。",
+  "effect_icon": null,
   "power": {
    "base": 1000
   },
@@ -890,13 +936,14 @@
  {
   "number": "M-020",
   "type": "mamodo",
-  "name_en": "ティオ",
+  "name_ja": "ティオ",
   "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《恵と一緒》MPを1へらす→自分の魔本の好きなページから、パートナーカード「大海恵」1枚を選び、場に出す。",
+  "effect_ja": "《恵と一緒》MPを1へらす→自分の魔本の好きなページから、パートナーカード「大海恵」1枚を選び、場に出す。",
+  "effect_icon": null,
   "power": {
    "base": 3500
   },
@@ -910,13 +957,14 @@
  {
   "number": "M-021",
   "type": "mamodo",
-  "name_en": "ハイド",
+  "name_ja": "ハイド",
   "related_mamodo": "ハイド",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《風の乗り手》MPを1へらす→自分の魔本の好きなページから、パートナーカード「窪塚泳太」1枚を選び、場に出す。",
+  "effect_ja": "《風の乗り手》MPを1へらす→自分の魔本の好きなページから、パートナーカード「窪塚泳太」1枚を選び、場に出す。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -930,13 +978,14 @@
  {
   "number": "M-022",
   "type": "mamodo",
-  "name_en": "ゾフィス",
+  "name_ja": "ゾフィス",
   "related_mamodo": "ゾフィス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《心理操作》MPを5へらす→相手のパートナー1枚を選び、捨て札にする。",
+  "effect_ja": "《心理操作》MPを5へらす→相手のパートナー1枚を選び、捨て札にする。",
+  "effect_icon": null,
   "power": {
    "base": 5500
   },
@@ -950,13 +999,14 @@
  {
   "number": "M-023",
   "type": "mamodo",
-  "name_en": "ポッケリオ",
+  "name_ja": "ポッケリオ",
   "related_mamodo": "ポッケリオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《植物の魔物》このカードが場にある→自分は、この魔物で、他の魔物の「木」属性の術を使うことができる。",
+  "effect_ja": "《植物の魔物》このカードが場にある→自分は、この魔物で、他の魔物の「木」属性の術を使うことができる。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -970,13 +1020,14 @@
  {
   "number": "M-024",
   "type": "mamodo",
-  "name_en": "ロブノス（分身体）",
+  "name_ja": "ロブノス（分身体）",
   "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "「ロブノス（分身体）」を場に2体までおくことができる。《二身一体》このカードが場にある→この効果は、自分の「ロブノス（分身体）」が2体いるときに使える。自分は術カード「ビライツ」を、1枚につき、1ターンに2回使える。",
+  "effect_ja": "「ロブノス（分身体）」を場に2体までおくことができる。《二身一体》このカードが場にある→この効果は、自分の「ロブノス（分身体）」が2体いるときに使える。自分は術カード「ビライツ」を、1枚につき、1ターンに2回使える。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -991,13 +1042,14 @@
  {
   "number": "M-025",
   "type": "mamodo",
-  "name_en": "ロブノス（完全体）",
+  "name_ja": "ロブノス（完全体）",
   "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《フルパワー》このカードが場にある→このカードが場に出たとき、次の効果の両方を、この順で使う。●自分の捨て札の「ロブノス（完全体）」または「ロブノス（分身体）」1枚を選び、自分の魔本の空いているページにもどすことができる。●自分のMPを2ふやす。",
+  "effect_ja": "《フルパワー》このカードが場にある→このカードが場に出たとき、次の効果の両方を、この順で使う。●自分の捨て札の「ロブノス（完全体）」または「ロブノス（分身体）」1枚を選び、自分の魔本の空いているページにもどすことができる。●自分のMPを2ふやす。",
+  "effect_icon": null,
   "power": {
    "base": 5000
   },
@@ -1012,13 +1064,14 @@
  {
   "number": "M-026",
   "type": "mamodo",
-  "name_en": "マルス",
+  "name_ja": "マルス",
   "related_mamodo": "マルス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《裏切り者》MPを2へらす→相手が直前に使った「魔物の効果」1つを無効にする。",
+  "effect_ja": "《裏切り者》MPを2へらす→相手が直前に使った「魔物の効果」1つを無効にする。",
+  "effect_icon": "jammer",
   "power": {
    "base": 3500
   },
@@ -1034,13 +1087,14 @@
  {
   "number": "M-027",
   "type": "mamodo",
-  "name_en": "バルトロ（アーマー体）",
+  "name_ja": "バルトロ（アーマー体）",
   "related_mamodo": "バルトロ",
   "cost": null,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "「ゼベルオン」を使わないと場に出せない。この魔物が捨て札になるとき、下の「バルトロ(本体)」を場に残す。《偽りの鎧》MPを1へらす→合計魔力5000で攻撃(相手の魔本に2ダメージ)する。",
+  "effect_ja": "「ゼベルオン」を使わないと場に出せない。この魔物が捨て札になるとき、下の「バルトロ(本体)」を場に残す。《偽りの鎧》MPを1へらす→合計魔力5000で攻撃(相手の魔本に2ダメージ)する。",
+  "effect_icon": null,
   "power": {
    "base": 5000
   },
@@ -1054,13 +1108,14 @@
  {
   "number": "M-028",
   "type": "mamodo",
-  "name_en": "バルトロ（本体）",
+  "name_ja": "バルトロ（本体）",
   "related_mamodo": "バルトロ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《狂暴な本体》このカードが場にある→この魔物に重なっている「バルトロ(アーマー体)」が捨て札になったとき、相手の魔本を2枚めくる。",
+  "effect_ja": "《狂暴な本体》このカードが場にある→この魔物に重なっている「バルトロ(アーマー体)」が捨て札になったとき、相手の魔本を2枚めくる。",
+  "effect_icon": null,
   "power": {
    "base": 3000
   },
@@ -1074,13 +1129,14 @@
  {
   "number": "M-029",
   "type": "mamodo",
-  "name_en": "ゼオン",
+  "name_ja": "ゼオン",
   "related_mamodo": "ゼオン",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分は、この魔物で「ガッシュ・ベル」の術「ザケル」を使える。《憎悪》MPを7へらす→相手の「負傷状態」の魔物1体を選び、捨て札にする。",
+  "effect_ja": "自分は、この魔物で「ガッシュ・ベル」の術「ザケル」を使える。《憎悪》MPを7へらす→相手の「負傷状態」の魔物1体を選び、捨て札にする。",
+  "effect_icon": null,
   "power": {
    "base": 6000
   },
@@ -1095,13 +1151,14 @@
  {
   "number": "M-030",
   "type": "mamodo",
-  "name_en": "ヨポポ",
+  "name_ja": "ヨポポ",
   "related_mamodo": "ヨポポ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《トポポイ》使用を宣言する→この効果は、自分の魔本が最後のページのときに使える。【スタンバイ】このターンのエンドフェイズに、魔本をめくらずターンを終了する。ゲーム中1回だけ使える。",
+  "effect_ja": "《トポポイ》使用を宣言する→この効果は、自分の魔本が最後のページのときに使える。【スタンバイ】このターンのエンドフェイズに、魔本をめくらずターンを終了する。ゲーム中1回だけ使える。",
+  "effect_icon": null,
   "power": {
    "base": 2000
   },
@@ -1116,13 +1173,14 @@
  {
   "number": "M-031",
   "type": "mamodo",
-  "name_en": "キクロプ",
+  "name_ja": "キクロプ",
   "related_mamodo": "キクロプ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《キクロプの鎧》このカードが場にある→この魔物は、合計魔力6000以下の術のダメージを受けない。",
+  "effect_ja": "《キクロプの鎧》このカードが場にある→この魔物は、合計魔力6000以下の術のダメージを受けない。",
+  "effect_icon": null,
   "power": {
    "base": 4000
   },
@@ -1136,13 +1194,14 @@
  {
   "number": "P-001",
   "type": "partner",
-  "name_en": "高嶺清麿",
+  "name_ja": "高嶺清麿",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《SET!》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が「ガッシュ・ベル」の術で攻撃するとき、相手は防御できない。",
+  "effect_ja": "《SET!》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が「ガッシュ・ベル」の術で攻撃するとき、相手は防御できない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1154,13 +1213,14 @@
  {
   "number": "P-002",
   "type": "partner",
-  "name_en": "細川",
+  "name_ja": "細川",
   "related_mamodo": "レイコム",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《強盗》このカードを捨て札にする→相手のＭＰを3へらす。そうしたなら、へらした数と同じ数、自分のＭＰをふやす。",
+  "effect_ja": "《強盗》このカードを捨て札にする→相手のＭＰを3へらす。そうしたなら、へらした数と同じ数、自分のＭＰをふやす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1174,13 +1234,14 @@
  {
   "number": "P-003",
   "type": "partner",
-  "name_en": "シェリー",
+  "name_ja": "シェリー",
   "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《強き黒い力》このカードを捨て札にする→【ステイ】このバトル中、自分の「ブラゴ」による攻撃のダメージを+2する（重複しない）。",
+  "effect_ja": "《強き黒い力》このカードを捨て札にする→【ステイ】このバトル中、自分の「ブラゴ」による攻撃のダメージを+2する（重複しない）。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1194,13 +1255,14 @@
  {
   "number": "P-004",
   "type": "partner",
-  "name_en": "連次",
+  "name_ja": "連次",
   "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《雨の日の訪問者》このカードを捨て札にする→【ステイ】このバトル中、自分の「ゴフレ」によるダメージを２倍にする（重複しない）。",
+  "effect_ja": "《雨の日の訪問者》このカードを捨て札にする→【ステイ】このバトル中、自分の「ゴフレ」によるダメージを２倍にする（重複しない）。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1212,13 +1274,14 @@
  {
   "number": "P-005",
   "type": "partner",
-  "name_en": "春彦",
+  "name_ja": "春彦",
   "related_mamodo": "スギナ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《植物園のトレーニング》このカードを捨て札にする→【ステイ】このターン中、自分の「スギナ」の術すべての、本来のコストを0にする。",
+  "effect_ja": "《植物園のトレーニング》このカードを捨て札にする→【ステイ】このターン中、自分の「スギナ」の術すべての、本来のコストを0にする。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1230,13 +1293,14 @@
  {
   "number": "P-006",
   "type": "partner",
-  "name_en": "しおり",
+  "name_ja": "しおり",
   "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《涙の想い》このカードを捨て札にする→【スタンバイ】このバトル中、自分の「コルル（変身後）」がダメージを受けるとき、そのダメージを受けない。そうしたなら、その「コルル（変身後）」を下のカードを残して捨て札にする。",
+  "effect_ja": "《涙の想い》このカードを捨て札にする→【スタンバイ】このバトル中、自分の「コルル（変身後）」がダメージを受けるとき、そのダメージを受けない。そうしたなら、その「コルル（変身後）」を下のカードを残して捨て札にする。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1249,13 +1313,14 @@
  {
   "number": "P-007",
   "type": "partner",
-  "name_en": "清兵衛",
+  "name_ja": "清兵衛",
   "related_mamodo": "フェイン",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《スカッとする力》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が使う「フェイン」の術の魔力を＋4000する。",
+  "effect_ja": "《スカッとする力》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が使う「フェイン」の術の魔力を＋4000する。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1267,13 +1332,14 @@
  {
   "number": "P-008",
   "type": "partner",
-  "name_en": "パルコ・フォルゴレ",
+  "name_ja": "パルコ・フォルゴレ",
   "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《もげ!》このカードを捨て札にする→相手のパートナーカード1枚を選び、捨て札にする。",
+  "effect_ja": "《もげ!》このカードを捨て札にする→相手のパートナーカード1枚を選び、捨て札にする。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1286,13 +1352,14 @@
  {
   "number": "P-009",
   "type": "partner",
-  "name_en": "大海恵",
+  "name_ja": "大海恵",
   "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《アイドル》このカードを捨て札にする→このバトルの、相手が使った術1つを無効にする。",
+  "effect_ja": "《アイドル》このカードを捨て札にする→このバトルの、相手が使った術1つを無効にする。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1304,13 +1371,14 @@
  {
   "number": "P-010",
   "type": "partner",
-  "name_en": "高嶺清麿",
+  "name_ja": "高嶺清麿",
   "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《コンボ》このカードを捨て札にする→自分の魔本を1枚めくる。このターン中、自分は「自分の魔本をめくる」効果を合計１回しか使えない。",
+  "effect_ja": "《コンボ》このカードを捨て札にする→自分の魔本を1枚めくる。このターン中、自分は「自分の魔本をめくる」効果を合計１回しか使えない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1324,13 +1392,14 @@
  {
   "number": "P-011",
   "type": "partner",
-  "name_en": "窪塚泳太",
+  "name_ja": "窪塚泳太",
   "related_mamodo": "ハイド",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《女好き》このカードを捨て札にする→【ステイ】相手の魔物1体を選ぶ。このターン中、その魔物の魔力を0にする。",
+  "effect_ja": "《女好き》このカードを捨て札にする→【ステイ】相手の魔物1体を選ぶ。このターン中、その魔物の魔力を0にする。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1342,13 +1411,14 @@
  {
   "number": "P-012",
   "type": "partner",
-  "name_en": "シェリー",
+  "name_ja": "シェリー",
   "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《Destiny》このカードを捨て札にする→【ステイ】このターン中、自分の「ブラゴ」によるダメージを「かばって」、ダメージを受けた魔物は捨て札になる。",
+  "effect_ja": "《Destiny》このカードを捨て札にする→【ステイ】このターン中、自分の「ブラゴ」によるダメージを「かばって」、ダメージを受けた魔物は捨て札になる。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1360,13 +1430,14 @@
  {
   "number": "P-013",
   "type": "partner",
-  "name_en": "ココ",
+  "name_ja": "ココ",
   "related_mamodo": "ゾフィス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《狂った笑み》このカードが場にある→相手の魔物カード1枚が捨て札になるたびに、相手の魔本を1枚めくる。",
+  "effect_ja": "《狂った笑み》このカードが場にある→相手の魔物カード1枚が捨て札になるたびに、相手の魔本を1枚めくる。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1378,13 +1449,14 @@
  {
   "number": "P-014",
   "type": "partner",
-  "name_en": "ペリコ",
+  "name_ja": "ペリコ",
   "related_mamodo": "ポッケリオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《逃げて逃げて逃げまくれ》このカードを捨て札にする→【ステイ】このターン中、相手は術で攻撃できない。",
+  "effect_ja": "《逃げて逃げて逃げまくれ》このカードを捨て札にする→【ステイ】このターン中、相手は術で攻撃できない。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1396,13 +1468,14 @@
  {
   "number": "P-015",
   "type": "partner",
-  "name_en": "リュック",
+  "name_ja": "リュック",
   "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《ビライツ乱射》このカードを捨て札にする→【スタンバイ】このターン中に１回、自分は、自分の魔本の好きなページにある術カード「ビライツ」を使うことができる。",
+  "effect_ja": "《ビライツ乱射》このカードを捨て札にする→【スタンバイ】このターン中に１回、自分は、自分の魔本の好きなページにある術カード「ビライツ」を使うことができる。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1415,13 +1488,14 @@
  {
   "number": "P-016",
   "type": "partner",
-  "name_en": "レンブラント",
+  "name_ja": "レンブラント",
   "related_mamodo": "マルス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《攻撃無効》このカードを捨て札にする→このバトルの、相手の術による攻撃1つを無効にする。",
+  "effect_ja": "《攻撃無効》このカードを捨て札にする→このバトルの、相手の術による攻撃1つを無効にする。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1435,13 +1509,14 @@
  {
   "number": "P-017",
   "type": "partner",
-  "name_en": "ステング",
+  "name_ja": "ステング",
   "related_mamodo": "バルトロ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《防御無効》このカードを捨て札にする→このバトルの、相手の術による防御1つを無効にする。",
+  "effect_ja": "《防御無効》このカードを捨て札にする→このバトルの、相手の術による防御1つを無効にする。",
+  "effect_icon": "battle",
   "power": {},
   "damage": null,
   "sets": [
@@ -1453,13 +1528,14 @@
  {
   "number": "P-018",
   "type": "partner",
-  "name_en": "ジェム",
+  "name_ja": "ジェム",
   "related_mamodo": "ヨポポ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《大好きよ》このカードを捨て札にする→自分の魔本を1枚もどす。このターン中、自分は「自分の魔本をもどす」効果を合計１回しか使えない。パートナー＝ヨポポ",
+  "effect_ja": "《大好きよ》このカードを捨て札にする→自分の魔本を1枚もどす。このターン中、自分は「自分の魔本をもどす」効果を合計１回しか使えない。パートナー＝ヨポポ",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1473,13 +1549,14 @@
  {
   "number": "P-019",
   "type": "partner",
-  "name_en": "イギリス紳士",
+  "name_ja": "イギリス紳士",
   "related_mamodo": "キクロプ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "《紳士協定》このカードが場にある→相手が相手自身の魔本のページを1枚もどすたびに、相手のＭＰを2へらす。",
+  "effect_ja": "《紳士協定》このカードが場にある→相手が相手自身の魔本のページを1枚もどすたびに、相手のＭＰを2へらす。",
+  "effect_icon": null,
   "power": {},
   "damage": null,
   "sets": [
@@ -1491,13 +1568,14 @@
  {
   "number": "S-001",
   "type": "spell",
-  "name_en": "ザケル",
+  "name_ja": "ザケル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1511,13 +1589,14 @@
  {
   "number": "S-002",
   "type": "spell",
-  "name_en": "ザケル",
+  "name_ja": "ザケル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1533,13 +1612,14 @@
  {
   "number": "S-003",
   "type": "spell",
-  "name_en": "ラシルド",
+  "name_ja": "ラシルド",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "D",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
+  "effect_ja": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -1554,13 +1634,14 @@
  {
   "number": "S-004",
   "type": "spell",
-  "name_en": "ジケルド",
+  "name_ja": "ジケルド",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1575,13 +1656,14 @@
  {
   "number": "S-005",
   "type": "spell",
-  "name_en": "バオウ・ザケルガ",
+  "name_ja": "バオウ・ザケルガ",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 6,
   "ad": "AD",
   "class": "superior",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 6000
   },
@@ -1595,13 +1677,14 @@
  {
   "number": "S-006",
   "type": "spell",
-  "name_en": "ギコル",
+  "name_ja": "ギコル",
   "related_mamodo": "レイコム",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": "氷",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1615,13 +1698,14 @@
  {
   "number": "S-007",
   "type": "spell",
-  "name_en": "フリズド",
+  "name_ja": "フリズド",
   "related_mamodo": "レイコム",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "氷",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次の相手のターンのエンドフェイズまで、相手はパートナーの効果を使えない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次の相手のターンのエンドフェイズまで、相手はパートナーの効果を使えない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1635,13 +1719,14 @@
  {
   "number": "S-008",
   "type": "spell",
-  "name_en": "レイス",
+  "name_ja": "レイス",
   "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1655,13 +1740,14 @@
  {
   "number": "S-009",
   "type": "spell",
-  "name_en": "グラビレイ",
+  "name_ja": "グラビレイ",
   "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1675,13 +1761,14 @@
  {
   "number": "S-010",
   "type": "spell",
-  "name_en": "ギガノレイス",
+  "name_ja": "ギガノレイス",
   "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -1695,13 +1782,14 @@
  {
   "number": "S-011",
   "type": "spell",
-  "name_en": "アイアン・グラビレイ",
+  "name_ja": "アイアン・グラビレイ",
   "related_mamodo": "ブラゴ",
   "cost": 4,
   "ad": "A",
   "class": "intermediate",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -1716,13 +1804,14 @@
  {
   "number": "S-012",
   "type": "spell",
-  "name_en": "ドルク",
+  "name_ja": "ドルク",
   "related_mamodo": "ゴフレ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -1736,13 +1825,14 @@
  {
   "number": "S-013",
   "type": "spell",
-  "name_en": "ドルセン",
+  "name_ja": "ドルセン",
   "related_mamodo": "ゴフレ",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -1756,13 +1846,14 @@
  {
   "number": "S-014",
   "type": "spell",
-  "name_en": "ジュロン",
+  "name_ja": "ジュロン",
   "related_mamodo": "スギナ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "木",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1776,13 +1867,14 @@
  {
   "number": "S-015",
   "type": "spell",
-  "name_en": "ラージア・ジュガロ",
+  "name_ja": "ラージア・ジュガロ",
   "related_mamodo": "スギナ",
   "cost": 4,
   "ad": "AD",
   "class": "none",
   "attr_name": "木",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -1796,13 +1888,14 @@
  {
   "number": "S-016",
   "type": "spell",
-  "name_en": "ゼルク",
+  "name_ja": "ゼルク",
   "related_mamodo": "コルル",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。この術を防御で使ったとき、この術の魔力を+1000する。",
+  "effect_ja": "相手の魔本にダメージ。この術を防御で使ったとき、この術の魔力を+1000する。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1816,13 +1909,14 @@
  {
   "number": "S-017",
   "type": "spell",
-  "name_en": "ゼルセン",
+  "name_ja": "ゼルセン",
   "related_mamodo": "コルル",
   "cost": 4,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。この術を攻撃で使ったとき、この術の魔力を+2000する。",
+  "effect_ja": "相手の魔本にダメージ。この術を攻撃で使ったとき、この術の魔力を+2000する。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -1836,13 +1930,14 @@
  {
   "number": "S-018",
   "type": "spell",
-  "name_en": "ウイガル",
+  "name_ja": "ウイガル",
   "related_mamodo": "フェイン",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1856,13 +1951,14 @@
  {
   "number": "S-019",
   "type": "spell",
-  "name_en": "ウルク",
+  "name_ja": "ウルク",
   "related_mamodo": "フェイン",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "【スタンバイ】このターン中の次のバトルで、相手は自分の攻撃を防御できない。",
+  "effect_ja": "【スタンバイ】このターン中の次のバトルで、相手は自分の攻撃を防御できない。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -1876,13 +1972,14 @@
  {
   "number": "S-020",
   "type": "spell",
-  "name_en": "ポルク",
+  "name_ja": "ポルク",
   "related_mamodo": "キャンチョメ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手のMPを3へらす。",
+  "effect_ja": "相手のMPを3へらす。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -1896,13 +1993,14 @@
  {
   "number": "S-021",
   "type": "spell",
-  "name_en": "コポルク",
+  "name_ja": "コポルク",
   "related_mamodo": "キャンチョメ",
   "cost": 2,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを2回投げて、オモテが1回以上出れば、このバトルの「効果の使用」の最後に、相手の攻撃を無効にする。",
+  "effect_ja": "コインを2回投げて、オモテが1回以上出れば、このバトルの「効果の使用」の最後に、相手の攻撃を無効にする。",
+  "effect_icon": null,
   "power": {
    "special": true
   },
@@ -1918,13 +2016,14 @@
  {
   "number": "S-022",
   "type": "spell",
-  "name_en": "セウシル",
+  "name_ja": "セウシル",
   "related_mamodo": "ティオ",
   "cost": 1,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_ja": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -1938,13 +2037,14 @@
  {
   "number": "S-023",
   "type": "spell",
-  "name_en": "サイス",
+  "name_ja": "サイス",
   "related_mamodo": "ティオ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 1000
   },
@@ -1958,13 +2058,14 @@
  {
   "number": "S-024",
   "type": "spell",
-  "name_en": "マ・セシルド",
+  "name_ja": "マ・セシルド",
   "related_mamodo": "ティオ",
   "cost": 3,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_ja": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_icon": null,
   "power": {
    "bonus": 8000
   },
@@ -1978,13 +2079,14 @@
  {
   "number": "S-025",
   "type": "spell",
-  "name_en": "逃げるぞ！",
+  "name_ja": "逃げるぞ！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
+  "effect_ja": "魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
+  "effect_icon": null,
   "power": {
    "special": true
   },
@@ -1999,13 +2101,14 @@
  {
   "number": "S-026",
   "type": "spell",
-  "name_en": "ＳＥＴ！",
+  "name_ja": "ＳＥＴ！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、相手は防御できない。",
+  "effect_ja": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、相手は防御できない。",
+  "effect_icon": "nonbattle",
   "power": {
    "special": true
   },
@@ -2019,13 +2122,14 @@
  {
   "number": "S-027",
   "type": "spell",
-  "name_en": "耐えてくれよ！",
+  "name_ja": "耐えてくれよ！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負の勝敗にかかわらず、コインを2回投げて、オモテが1回以上出れば、相手の攻撃のダメージを1へらす。",
+  "effect_ja": "魔力勝負の勝敗にかかわらず、コインを2回投げて、オモテが1回以上出れば、相手の攻撃のダメージを1へらす。",
+  "effect_icon": null,
   "power": {
    "special": true
   },
@@ -2039,13 +2143,14 @@
  {
   "number": "S-028",
   "type": "spell",
-  "name_en": "伏せろ！",
+  "name_ja": "伏せろ！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_ja": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
+  "effect_icon": null,
   "power": {
    "bonus": 1000
   },
@@ -2059,13 +2164,14 @@
  {
   "number": "S-029",
   "type": "spell",
-  "name_en": "ザケル",
+  "name_ja": "ザケル",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2079,13 +2185,14 @@
  {
   "number": "S-030",
   "type": "spell",
-  "name_en": "ラシルド",
+  "name_ja": "ラシルド",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 2,
   "ad": "D",
   "class": "none",
   "attr_name": "雷",
-  "effect_en": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
+  "effect_ja": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 5000
   },
@@ -2099,13 +2206,14 @@
  {
   "number": "S-031",
   "type": "spell",
-  "name_en": "バオウ・ザケルガ",
+  "name_ja": "バオウ・ザケルガ",
   "related_mamodo": "ガッシュ・ベル",
   "cost": 7,
   "ad": "AD",
   "class": "superior",
   "attr_name": "雷",
-  "effect_en": "相手の魔本にダメージ。この術のダメージを受けた魔物は捨て札になる。",
+  "effect_ja": "相手の魔本にダメージ。この術のダメージを受けた魔物は捨て札になる。",
+  "effect_icon": null,
   "power": {
    "bonus": 6000
   },
@@ -2120,13 +2228,14 @@
  {
   "number": "S-032",
   "type": "spell",
-  "name_en": "レイス",
+  "name_ja": "レイス",
   "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。この術のダメージは3より上にならない。",
+  "effect_ja": "相手の魔本にダメージ。この術のダメージは3より上にならない。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2140,13 +2249,14 @@
  {
   "number": "S-033",
   "type": "spell",
-  "name_en": "グラビレイ",
+  "name_ja": "グラビレイ",
   "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手の魔物すべてを選び、その魔物の魔力を-2000する(0より小さくはならない)(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手の魔物すべてを選び、その魔物の魔力を-2000する(0より小さくはならない)(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2160,13 +2270,14 @@
  {
   "number": "S-034",
   "type": "spell",
-  "name_en": "ギガノレイス",
+  "name_ja": "ギガノレイス",
   "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。この術のダメージは4より上にならない。",
+  "effect_ja": "相手の魔本にダメージ。この術のダメージは4より上にならない。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2180,13 +2291,14 @@
  {
   "number": "S-035",
   "type": "spell",
-  "name_en": "アイアン・グラビレイ",
+  "name_ja": "アイアン・グラビレイ",
   "related_mamodo": "ブラゴ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": "重力",
-  "effect_en": "相手の魔本にダメージ。コインを2回投げる。オモテが2回出れば、相手は、この術のダメージを「かばう」ことができない。",
+  "effect_ja": "相手の魔本にダメージ。コインを2回投げる。オモテが2回出れば、相手は、この術のダメージを「かばう」ことができない。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2200,13 +2312,14 @@
  {
   "number": "S-036",
   "type": "spell",
-  "name_en": "ディオガ・グラビドン",
+  "name_ja": "ディオガ・グラビドン",
   "related_mamodo": "ブラゴ",
   "cost": 10,
   "ad": "AD",
   "class": "superior",
   "attr_name": "重力",
-  "effect_en": "相手の魔物すべてを選ぶ。相手の魔本と、選んだ魔物すべてにダメージをあたえる。",
+  "effect_ja": "相手の魔物すべてを選ぶ。相手の魔本と、選んだ魔物すべてにダメージをあたえる。",
+  "effect_icon": null,
   "power": {
    "bonus": 6000
   },
@@ -2221,13 +2334,14 @@
  {
   "number": "S-037",
   "type": "spell",
-  "name_en": "ジキル",
+  "name_ja": "ジキル",
   "related_mamodo": "ハイド",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": "風",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2241,13 +2355,14 @@
  {
   "number": "S-038",
   "type": "spell",
-  "name_en": "ジキルガ",
+  "name_ja": "ジキルガ",
   "related_mamodo": "ハイド",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": "風",
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2261,13 +2376,14 @@
  {
   "number": "S-039",
   "type": "spell",
-  "name_en": "ラドム",
+  "name_ja": "ラドム",
   "related_mamodo": "ゾフィス",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、相手のパートナー1枚を選び、捨て札にする。",
+  "effect_ja": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、相手のパートナー1枚を選び、捨て札にする。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2281,13 +2397,14 @@
  {
   "number": "S-040",
   "type": "spell",
-  "name_en": "バルジュロン",
+  "name_ja": "バルジュロン",
   "related_mamodo": "ポッケリオ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": "木",
-  "effect_en": "相手の魔本にダメージ。この術の魔力は、コインを3回投げて、オモテの数×2000となる。",
+  "effect_ja": "相手の魔本にダメージ。この術の魔力は、コインを3回投げて、オモテの数×2000となる。",
+  "effect_icon": null,
   "power": {
    "special": true,
    "per_heads": 2000
@@ -2302,13 +2419,14 @@
  {
   "number": "S-041",
   "type": "spell",
-  "name_en": "ジュルク",
+  "name_ja": "ジュルク",
   "related_mamodo": "ポッケリオ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": "木",
-  "effect_en": "【ステイ】コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない。",
+  "effect_ja": "【ステイ】コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない。",
+  "effect_icon": "nonbattle",
   "power": {
    "special": true
   },
@@ -2322,30 +2440,32 @@
  {
   "number": "S-042",
   "type": "spell",
-  "name_en": "ビライツ",
+  "name_ja": "ビライツ",
   "related_mamodo": "ロブノス",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。自分の攻撃の合計魔力が8000以上のならば、この術のダメージを+2する。",
+  "effect_ja": "相手の魔本にダメージ。自分の攻撃の合計魔力が8000以上のならば、この術のダメージを+2する。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
   "damage": 1,
   "sets": [],
-  "image_url": null
+  "image_url": "https://drive.google.com/file/d/1B93s-5SV0RkRV_NGj77ossVX2gSnvoyO/view?usp=drive_link"
  },
  {
   "number": "S-043",
   "type": "spell",
-  "name_en": "レリ・ブルク",
+  "name_ja": "レリ・ブルク",
   "related_mamodo": "ロブノス",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "次の効果の1つを使う。●自分の「ロブノス（分身体）」2体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（完全体）」1枚を選び、場に出す。●自分の「ロブノス（完全体）」1体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（分身体）」を2枚選び、場に出す。",
+  "effect_ja": "次の効果の1つを使う。●自分の「ロブノス（分身体）」2体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（完全体）」1枚を選び、場に出す。●自分の「ロブノス（完全体）」1体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（分身体）」を2枚選び、場に出す。",
+  "effect_icon": "nonbattle",
   "power": {
    "special": true
   },
@@ -2359,13 +2479,14 @@
  {
   "number": "S-044",
   "type": "spell",
-  "name_en": "ガロン",
+  "name_ja": "ガロン",
   "related_mamodo": "マルス",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -2380,13 +2501,14 @@
  {
   "number": "S-045",
   "type": "spell",
-  "name_en": "ガンズ・ガロン",
+  "name_ja": "ガンズ・ガロン",
   "related_mamodo": "マルス",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを2回投げてオモテが2回出れば、相手はこの術を防御できない。相手の魔本にダメージ。",
+  "effect_ja": "コインを2回投げてオモテが2回出れば、相手はこの術を防御できない。相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },
@@ -2400,13 +2522,14 @@
  {
   "number": "S-046",
   "type": "spell",
-  "name_en": "エイジャス・ガロン",
+  "name_ja": "エイジャス・ガロン",
   "related_mamodo": "マルス",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを投げてオモテなら、相手はこの術を防御できない。相手の魔本にダメージ。",
+  "effect_ja": "コインを投げてオモテなら、相手はこの術を防御できない。相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2420,13 +2543,14 @@
  {
   "number": "S-047",
   "type": "spell",
-  "name_en": "ギガノ・ガランズ",
+  "name_ja": "ギガノ・ガランズ",
   "related_mamodo": "マルス",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 5000
   },
@@ -2440,13 +2564,14 @@
  {
   "number": "S-048",
   "type": "spell",
-  "name_en": "ゼベルオン",
+  "name_ja": "ゼベルオン",
   "related_mamodo": "バルトロ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "自分の魔本の好きなページから「バルトロ（アーマー体）」1枚を選び、自分の場の「バルトロ（本体）」の上に重ねる。",
+  "effect_ja": "自分の魔本の好きなページから「バルトロ（アーマー体）」1枚を選び、自分の場の「バルトロ（本体）」の上に重ねる。",
+  "effect_icon": "nonbattle",
   "power": {
    "special": true
   },
@@ -2460,13 +2585,14 @@
  {
   "number": "S-049",
   "type": "spell",
-  "name_en": "ゼベルセン",
+  "name_ja": "ゼベルセン",
   "related_mamodo": "バルトロ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 5000
   },
@@ -2480,13 +2606,14 @@
  {
   "number": "S-050",
   "type": "spell",
-  "name_en": "ミケル",
+  "name_ja": "ミケル",
   "related_mamodo": "ヨポポ",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -2500,13 +2627,14 @@
  {
   "number": "S-051",
   "type": "spell",
-  "name_en": "ドレミケル",
+  "name_ja": "ドレミケル",
   "related_mamodo": "ヨポポ",
   "cost": 5,
   "ad": "AD",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2520,13 +2648,14 @@
  {
   "number": "S-052",
   "type": "spell",
-  "name_en": "アムルク",
+  "name_ja": "アムルク",
   "related_mamodo": "キクロプ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 2000
   },
@@ -2540,13 +2669,14 @@
  {
   "number": "S-053",
   "type": "spell",
-  "name_en": "アムド・シザルグ",
+  "name_ja": "アムド・シザルグ",
   "related_mamodo": "キクロプ",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 1000
   },
@@ -2560,13 +2690,14 @@
  {
   "number": "S-054",
   "type": "spell",
-  "name_en": "アムルセン",
+  "name_ja": "アムルセン",
   "related_mamodo": "キクロプ",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 4000
   },
@@ -2580,13 +2711,14 @@
  {
   "number": "S-055",
   "type": "spell",
-  "name_en": "エムルロン",
+  "name_ja": "エムルロン",
   "related_mamodo": "キクロプ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "相手の魔本にダメージ。",
+  "effect_ja": "相手の魔本にダメージ。",
+  "effect_icon": null,
   "power": {
    "bonus": 1000
   },
@@ -2600,13 +2732,14 @@
  {
   "number": "S-056",
   "type": "spell",
-  "name_en": "目をそらすな！",
+  "name_ja": "目をそらすな！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "魔力勝負に勝ったとき、相手の攻撃を無効にする。魔力勝負の勝敗にかかわらず、このバトル中に、自分の魔本がダメージを受けたとき、めくられたページの枚数×2、MPをふやす(【ステイ】)。",
+  "effect_ja": "魔力勝負に勝ったとき、相手の攻撃を無効にする。魔力勝負の勝敗にかかわらず、このバトル中に、自分の魔本がダメージを受けたとき、めくられたページの枚数×2、MPをふやす(【ステイ】)。",
+  "effect_icon": null,
   "power": {
    "bonus": 0
   },
@@ -2620,13 +2753,14 @@
  {
   "number": "S-057",
   "type": "spell",
-  "name_en": "チェックメイトだ！",
+  "name_ja": "チェックメイトだ！",
   "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、自分が使う術の「ダメージをあたえる」効果は、「相手の魔物1体を選び、ダメージをあたえる」効果になる。",
+  "effect_ja": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、自分が使う術の「ダメージをあたえる」効果は、「相手の魔物1体を選び、ダメージをあたえる」効果になる。",
+  "effect_icon": "nonbattle",
   "power": {
    "special": true
   },
@@ -2640,13 +2774,14 @@
  {
   "number": "S-058",
   "type": "spell",
-  "name_en": "ザケル",
+  "name_ja": "ザケル",
   "related_mamodo": "ゼオン",
   "cost": 3,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "相手の魔物1体を選び、ダメージをあたえる。",
+  "effect_ja": "相手の魔物1体を選び、ダメージをあたえる。",
+  "effect_icon": null,
   "power": {
    "bonus": 3000
   },

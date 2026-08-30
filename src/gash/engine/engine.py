@@ -173,7 +173,7 @@ def same_name_copies(game: Game, player: int, card: CardDef) -> int:
         1
         for s in game.state.players[player].slots
         for n in ([s.top] if card.type == MAMODO else ([s.partner] if s.partner else []))
-        if game.db[n].name_en == card.name_en
+        if game.db[n].name_ja == card.name_ja
     )
 
 
@@ -450,7 +450,7 @@ def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
     ps = game.state.players[player]
     if not isinstance(page, int) or not 1 <= page <= BOOK_SIZE or page in ps.consumed_pages:
         return None
-    name = game.db[ps.card_at(page)].name_en
+    name = game.db[ps.card_at(page)].name_ja
     for sb in game.state.standby:
         if sb.kind == "spell_any_page" and sb.owner == player and sb.data.get("spell_name") == name:
             return sb
@@ -581,7 +581,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
     if page not in st.players[attacker].open_pages():  # 經 P-015 類待命自任意頁使用
         for sb in _consume_standby(game, "spell_any_page",
                                    lambda s: s.owner == attacker
-                                   and s.data.get("spell_name") == card.name_en):
+                                   and s.data.get("spell_name") == card.name_ja):
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     st.players[attacker].used_spell_pages.add(page)
     pay_mp(game, batch, attacker, cost, f"spell:{number}")
@@ -661,7 +661,7 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
             if page not in st.players[player].open_pages():
                 for sb in _consume_standby(game, "spell_any_page",
                                            lambda s: s.owner == player
-                                           and s.data.get("spell_name") == card.name_en):
+                                           and s.data.get("spell_name") == card.name_ja):
                     game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
             st.players[player].used_spell_pages.add(page)
             pay_mp(game, batch, player, cost, f"spell:{number}")
