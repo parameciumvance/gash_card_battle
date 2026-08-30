@@ -11,7 +11,7 @@ from .primitives import add_modifier, choose_or_auto, schedule_standby
 @reg.activated("P-001", mode="discard", timing="nonbattle")
 def p001(game, batch, player, slot):
     schedule_standby(game, batch, kind="attack_undefendable", source="P-001",
-                     owner=player, data={"mamodo": "Zatch Bell"})
+                     owner=player, data={"mamodo": "ガッシュ・ベル"})
 
 
 # P-002 細川:對手 MP-3,自己獲得實際減少量
@@ -38,7 +38,7 @@ def _no_dup(game, source) -> bool:
 
 # P-003 シェリー:該場戰鬥布拉哥攻擊傷害 +2(不可重複)
 @reg.activated("P-003", mode="discard", timing="battle",
-               condition=lambda g, p, s: _battle_attack_by(g, p, "Brago") and _no_dup(g, "P-003"))
+               condition=lambda g, p, s: _battle_attack_by(g, p, "ブラゴ") and _no_dup(g, "P-003"))
 def p003(game, batch, player, slot):
     b = game.state.battle
     add_modifier(game, batch, kind="damage_delta", source="P-003", owner=player,
@@ -47,7 +47,7 @@ def p003(game, batch, player, slot):
 
 # P-004 連次:該場戰鬥勾夫雷造成的傷害加倍(不可重複)
 @reg.activated("P-004", mode="discard", timing="battle",
-               condition=lambda g, p, s: _battle_attack_by(g, p, "Gofure") and _no_dup(g, "P-004"))
+               condition=lambda g, p, s: _battle_attack_by(g, p, "ゴフレ") and _no_dup(g, "P-004"))
 def p004(game, batch, player, slot):
     b = game.state.battle
     add_modifier(game, batch, kind="damage_double", source="P-004", owner=player,
@@ -59,7 +59,7 @@ def p004(game, batch, player, slot):
 def p005(game, batch, player, slot):
     from ..state import DUR_TURN
     add_modifier(game, batch, kind="spell_cost_zero", source="P-005", owner=player,
-                 duration=DUR_TURN, target_player=player, data={"mamodo": "Sugino"})
+                 duration=DUR_TURN, target_player=player, data={"mamodo": "スギナ"})
 
 
 # P-006 しおり:[待命] 戰鬥中無效對可露露(變身後)的 1 次傷害,然後棄掉變身後
@@ -86,7 +86,7 @@ def p006_after(game, batch, value, data):
 @reg.activated("P-007", mode="discard", timing="nonbattle")
 def p007(game, batch, player, slot):
     schedule_standby(game, batch, kind="spell_bonus", source="P-007", owner=player,
-                     data={"mamodo": "Fein", "power_delta": 4000})
+                     data={"mamodo": "フェイン", "power_delta": 4000})
 
 
 # P-008 パルコ・フォルゴレ:棄掉對手場上 1 張夥伴卡
@@ -179,7 +179,7 @@ def p011_pick(game, batch, value, data):
 @reg.activated("P-012", mode="discard", timing="nonbattle")
 def p012(game, batch, player, slot):
     add_modifier(game, batch, kind="protect_discard", source="P-012", owner=player,
-                 duration=DUR_TURN, target_player=player, data={"mamodo": "Brago"})
+                 duration=DUR_TURN, target_player=player, data={"mamodo": "ブラゴ"})
 
 
 # P-013 ココ:[此卡在場上] 對手魔物入墓→翻對手書 1 頁(觸發器)
@@ -200,7 +200,7 @@ def p014(game, batch, player, slot):
 @reg.activated("P-015", mode="discard", timing="nonbattle")
 def p015(game, batch, player, slot):
     schedule_standby(game, batch, kind="spell_any_page", source="P-015", owner=player,
-                     data={"spell_name": "Biraitsu"})
+                     data={"spell_name": "ビライツ"})
 
 
 # P-016 レンブラント:[棄掉] 將對手該場戰鬥攻擊所用的術無效

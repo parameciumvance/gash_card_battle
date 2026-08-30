@@ -12,7 +12,6 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "httpx2>=2.12",
-    "openpyxl>=3.1",
     "pyinstaller>=6.10",
 ]
 

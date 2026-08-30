@@ -1,4 +1,4 @@
-"""卡片定義與載入。cards.json 由 tools/extract_cards.py 產出。"""
+"""卡片定義與載入。cards.json 由 tools/build_cards_json.py 產出。"""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ PARTNER = "partner"
 SPELL = "spell"
 EVENT = "event"
 
-# 指示卡(對所有魔物的命令)在 xlsx 中的 related_mamodo 標記
-COMMAND_ALL = "Command: All"
+# 指示卡(對所有魔物的命令)的 related_mamodo 標記(日文權威來源用語)
+COMMAND_ALL = "コマンド"
 
 
 @dataclass(frozen=True)

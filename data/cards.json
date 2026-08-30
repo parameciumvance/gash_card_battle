@@ -2,89 +2,85 @@
  {
   "number": "E-001",
   "type": "event",
-  "name_en": "The Will to Protect",
+  "name_en": "守る心",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Add 3000 Power to 1 of your in-play MAMODO cards during the next turn. This effect is [STANDBY] until the START PHASE of the next turn, and [STAY] during the next turn.",
+  "effect_en": "この効果は、次のターンのスタートフェイズまで【スタンバイ】し、次のターン中【ステイ】する。自分の魔物1体を選ぶ。次のターン中、その魔物の魔力を+3000する。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1g6fL1TI2Qpo9csKvKEU4Kz9lWtOsChQO/view?usp=sharing"
  },
  {
   "number": "E-002",
   "type": "event",
-  "name_en": "Tina",
+  "name_en": "ティーナ",
   "related_mamodo": null,
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Both players cannot play any SPELL cards until the END PHASE of the next turn.",
+  "effect_en": "【ステイ】次のターンのエンドフェイズまで、自分も相手も、術を使えない。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1SmMFXPmmqqDlIhC2iHI-sKQ1IdFLtKsa/view?usp=sharing"
  },
  {
   "number": "E-003",
   "type": "event",
-  "name_en": "Yellowtail",
+  "name_en": "ブリ",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Get 2 MP.",
+  "effect_en": "自分のMPを2ふやす。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1FoYa0ybMHZKGRqQur--iCbuc_1B0bpWH/view?usp=sharing"
  },
  {
   "number": "E-004",
   "type": "event",
-  "name_en": "Friendship Curry",
+  "name_en": "友情のカレー",
   "related_mamodo": null,
   "cost": 5,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Reduce both players' MP to 0. ※ When either player has 1 or more MP, this effect is considered to be reducing a player's MP.",
+  "effect_en": "自分と相手のMPを0にする。※MPが1以上のとき、この効果は「MPをへらす」効果としてあつかう。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/10aFTiGhvZtVXStOTICYsZckDrtIhasmq/view?usp=sharing"
  },
  {
   "number": "E-005",
   "type": "event",
-  "name_en": "Suzy's Lucky Fruit",
+  "name_en": "鈴芽のお見舞い",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin twice; • If you get heads twice, turn back 2 pages of your Spell Book. • If you get heads and tails, there is no effect. • If you get tails twice, turn 2 pages of your Spell Book.",
+  "effect_en": "コインを2回投げる。●オモテが2回出たら、自分の魔本を2枚もどす。●オモテが1回、ウラが1回出たら、効果はない。●ウラが2回出たら、自分の魔本を2枚めくる。",
   "power": {},
   "damage": null,
   "sets": [
@@ -92,152 +88,144 @@
    "Level 1",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1MhyB4JeFmGm6FTs0EEOEhxSNB5uyTkUF/view?usp=sharing"
  },
  {
   "number": "E-006",
   "type": "event",
-  "name_en": "Yuta Akiyama",
+  "name_en": "秋山勇太",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Select 1 of your in-play MAMODO cards and flip a coin; if it's heads, turn the selected MAMODO card to Normal Status. If it's tails, add 1000 Power to the selected MAMODO card during this turn ([STAY]).",
+  "effect_en": "自分の魔物を1体選ぶ。コインを投げる。オモテならその魔物を「健康状態」にする。ウラならこのターン中、その魔物の魔力を+1000する(【ステイ】)。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1zU8-m_j0-pdv_ljKu8oPDA0J8yvUVmQO/view?usp=sharing"
  },
  {
   "number": "E-007",
   "type": "event",
-  "name_en": "Ivy Kinoyama",
+  "name_en": "木山つくし",
   "related_mamodo": null,
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Turn 1 of your Injured MAMODO cards to Normal Status.",
+  "effect_en": "自分の「負傷状態」の魔物1体を選び、「健康状態」にする。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1GSQJOtXbwGB9v9uYp7tZIHGiJ7IdsZw3/view?usp=sharing"
  },
  {
   "number": "E-008",
   "type": "event",
-  "name_en": "Suzy Mizuno",
+  "name_en": "水野鈴芽",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Both players cannot apply the effects of their in-play PARTNER cards during this turn.",
+  "effect_en": "【ステイ】このターン中、自分も相手もパートナーの効果を使えない。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1WYYe7-jda6CdXXHro6eDdRiTbfJ1A8wa/view?usp=sharing"
  },
  {
   "number": "E-009",
   "type": "event",
-  "name_en": "Kind King",
+  "name_en": "やさしい王様",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Add 3000 Power to 1 of your in-play MAMODO cards during this turn.",
+  "effect_en": "【ステイ】自分の魔物1体を選ぶ。このターン中、その魔物の魔力を+3000する。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1iE3UZlTv4HRZ5kl4rNa0Git5Oj9KgEWs/view?usp=sharing"
  },
  {
   "number": "E-010",
   "type": "event",
-  "name_en": "Kind Kiyo",
+  "name_en": "やさしい清麿",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STANDBY] Select 1 of your opponent's in-play PARTNER cards without [In Play]. You can apply the effects of the selected PARTNER card as your own once during this turn (any PARTNER cards used through this effect with [Send this card to the Discard Pile] remain in play after applying their effects).",
+  "effect_en": "【スタンバイ】相手の「このカードが場にある→」効果ではないパートナー1枚を選ぶ。このターン中1回だけ、そのパートナーの効果を、自分のものとして使うことができる(「このカードを捨て札にする→」効果を使っても、相手のパートナーは捨て札にはならない)。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1yq9dZH50GOojjHSrKjDMx6ROmToyMEB5/view?usp=sharing"
  },
  {
   "number": "E-011",
   "type": "event",
-  "name_en": "Iron Man Folgore",
+  "name_en": "鉄のフォルゴレ",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin; if it's heads, move 1 PARTNER card from your Discard Pile into play. If it's tails, you may pay 2 MP to re-do the coin toss until you get heads.",
+  "effect_en": "コインを投げてオモテなら、自分の捨て札のパートナーカード1枚を選び、場に出す。ウラなら、自分のMPを2へらすことで、コインを1回投げなおすことができる(何回でも投げなおすことができる)。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1cQ2IvqJtEEBfPq7DKfvmxIT2TZ1IV8tT/view?usp=sharing"
  },
  {
   "number": "E-012",
   "type": "event",
-  "name_en": "Here Comes Zatch Bell!",
+  "name_en": "ガッシュ登場",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Select 1 MAMODO card from any page of your Spell Book and put it in play.",
+  "effect_en": "自分の魔本の好きなページから魔物カードを1枚選び、場に出す。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1GfOtow31_GgBRPIgR6BtaOgUIRxaT2Hs/view?usp=sharing"
  },
  {
   "number": "E-013",
   "type": "event",
-  "name_en": "Naomi",
+  "name_en": "ナオミちゃん",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STANDBY] Your opponent can neither SACRIFICE nor PROTECT their Spell Book from Damage during the next Battle this turn.",
+  "effect_en": "【スタンバイ】このターン中の次のバトル中、相手はダメージを魔物で「かばう」ことができない。",
   "power": {},
   "damage": null,
   "sets": [
@@ -246,19 +234,18 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/110JZUt2z3qCtAl4LM7PhJJpfF8hAXu5Q/view?usp=sharing"
  },
  {
   "number": "E-014",
   "type": "event",
-  "name_en": "Ponygon",
+  "name_en": "ウマゴン",
   "related_mamodo": null,
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Turn 1 page of your opponent's Spell Book. Then, look at the currently open pages of your opponent's Spell Book.",
+  "effect_en": "相手の魔本を1枚めくる。そうしたなら、相手の魔本の今のページを見る。",
   "power": {},
   "damage": null,
   "sets": [
@@ -268,38 +255,36 @@
    "Revised Edition",
    "File 1: Zatch Bell & Ponygon"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/12qv6Pq9ZoULJ13ZdfC4f-jsa-WTYu60M/view?usp=sharing"
  },
  {
   "number": "E-015",
   "type": "event",
-  "name_en": "Volcan 300",
+  "name_en": "バルカン３００",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Add 2000 Power to 1 of your in-play MAMODO cards until the END PHASE of the next turn.",
+  "effect_en": "【ステイ】自分の魔物1体を選ぶ。次のターンのエンドフェイズまで、その魔物の魔力を+2000する。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1gj5Jqjq3AvhDxmz0HEgUUbCCX4qMRDu1/view?usp=sharing"
  },
  {
   "number": "E-016",
   "type": "event",
-  "name_en": "Mr. Takamine (Seitaro Takamine)",
+  "name_en": "高嶺清太郎",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Look at your opponent's Spell Book. Select 1 SPELL card from any page (except the last page) and send it to the Discard Pile. Then, reduce your MP equal to the MP cost of the selected SPELL card (if you have less MP than that card's cost, reduce your MP to 0).",
+  "effect_en": "相手の魔本を見て、最後のページ以外の好きなページから術カード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
   "power": {},
   "damage": null,
   "sets": [
@@ -307,19 +292,18 @@
    "Level 2",
    "The Best Booster 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1f6BBKyBp-gpkkXeDukemWvtWkeqPbh_X/view?usp=sharing"
  },
  {
   "number": "E-017",
   "type": "event",
-  "name_en": "Mrs. Takamine (Hana Takamine)",
+  "name_en": "高嶺華",
   "related_mamodo": null,
   "cost": 3,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Look at your opponent's Spell Book. Select 1 EVENT card from any page and send it to the Discard Pile. Then, reduce your MP equal to the MP cost of the selected EVENT card (if you have less MP than that EVENT card's cost, reduce your MP to 0).",
+  "effect_en": "相手の魔本を見て、好きなページからイベントカード1枚を選び、捨て札にする。そうしたなら、捨て札にしたカードの本来のコストだけ、自分のMPをへらせるだけへらす。",
   "power": {},
   "damage": null,
   "sets": [
@@ -327,19 +311,18 @@
    "Level 2",
    "The Best Booster 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1NKz_XH4jV3rx1M1ADaXpmjC6SgVr3Mk3/view?usp=sharing"
  },
  {
   "number": "E-018",
   "type": "event",
-  "name_en": "Folgore's Dance",
+  "name_en": "フォルゴレのダンス",
   "related_mamodo": null,
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Reduce your opponent's MP by 4. If you applied an effect that reduced your opponent's MP on the previous turn, no MP is reduced.",
+  "effect_en": "相手のMPを4へらす。直前のターンに、自分が相手のMPをへらす効果を使っているとき、へらせるMPは0になる。",
   "power": {},
   "damage": null,
   "sets": [
@@ -348,19 +331,18 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1SVd4YnNwfHcA-7Hkpt7n3f1SANG8LGdW/view?usp=sharing"
  },
  {
   "number": "E-019",
   "type": "event",
-  "name_en": "Kiyo's Anger",
+  "name_en": "清麿の怒り",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Send 1 of your in-play MAMODO cards to the Discard Pile.",
+  "effect_en": "自分の場の魔物1体を選び、捨て札にする。",
   "power": {},
   "damage": null,
   "sets": [
@@ -369,19 +351,18 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1I7fHLlmukovHv3BNO8A_i0mi2Rq1Zm26/view?usp=sharing"
  },
  {
   "number": "E-020",
   "type": "event",
-  "name_en": "Megumi's Concert",
+  "name_en": "恵のコンサート",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Apply the following effects in order: ● Get 3 MP ● Your opponent flips a coin; if it's heads, your opponent gets 3 MP.",
+  "effect_en": "次の効果の両方を、この順で使う。●自分のMPを3をふやす。●相手はコインを投げる。オモテなら、相手のMPを3ふやす。",
   "power": {},
   "damage": null,
   "sets": [
@@ -389,19 +370,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1iIi9cGzosvMNtjXTvesvS5a6po0YjneE/view?usp=sharing"
  },
  {
   "number": "E-021",
   "type": "event",
-  "name_en": "Big Relief!",
+  "name_en": "敵じゃない人がいる",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "This EVENT card can be played only when you have 2 or more MAMODO cards in play. Apply 1 or both of the following effects: ● Turn 1 of your Injured MAMODO cards to Normal Status. ● Get 2 MP.",
+  "effect_en": "この効果は、自分の場に魔物が2体以上いれば使える。次の効果の、片方または両方を、好きな順で使う。●自分の「負傷状態」の魔物1体を選び、「健康状態」にする。●自分のMPを2ふやす。",
   "power": {},
   "damage": null,
   "sets": [
@@ -409,19 +389,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1gJRa-Da-aN5jG7pLK5ZMH_EMi6ptkM8H/view?usp=sharing"
  },
  {
   "number": "E-022",
   "type": "event",
-  "name_en": "Kory",
+  "name_en": "セッコロ",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin; if it's heads, select 1 PARTNER card in your Discard Pile that was sent to the Discard Pile on this turn and put it in play.",
+  "effect_en": "コインを投げる。オモテなら、自分の捨て札から、このターン中に捨て札になったパートナーカード1枚を選び、場に出す。",
   "power": {},
   "damage": null,
   "sets": [
@@ -429,38 +408,36 @@
    "Level 2",
    "The Best Booster 2"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1nWbDgOhYB8u5Ttv6HRSFsyz2mONqSPfL/view?usp=sharing"
  },
  {
   "number": "E-023",
   "type": "event",
-  "name_en": "Purpose of the Battle",
+  "name_en": "戦いの意義",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Add 2000 Power to all of your MAMODO cards with a PARTNER card attached until the END PHASE of the next turn.",
+  "effect_en": "【ステイ】次のターンのエンドフェイズまで、自分の場の、パートナーがついている魔物は、その魔力が＋2000される。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ErquVdeEdmoi3cGf-Jn_5S4-5183kni2/view?usp=sharing"
  },
  {
   "number": "E-024",
   "type": "event",
-  "name_en": "Professor Dartagnan",
+  "name_en": "プロフェッサー・ダルタニアン",
   "related_mamodo": null,
   "cost": 0,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Select 1 of your opponent's in-play MAMODO cards. Your opponent can neither play SPELL cards for nor apply the effects of the selected MAMODO card during this turn.",
+  "effect_en": "【ステイ】相手の魔物1体を選ぶ。このターン中、相手はその魔物の「魔物の効果」や術を使えない。",
   "power": {},
   "damage": null,
   "sets": [
@@ -470,76 +447,72 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1jcfN2yL7vxGiT7o4MpxFhl18sv8yTGKc/view?usp=sharing"
  },
  {
   "number": "E-025",
   "type": "event",
-  "name_en": "Yopopo's Dance",
+  "name_en": "ヨポポの踊り",
   "related_mamodo": null,
   "cost": 0,
-  "ad": "AD",
+  "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STAY] Your opponent cannot apply the effects of their MAMODO cards during this turn.",
+  "effect_en": "【ステイ】このターン中、相手は「魔物の効果」を使えない。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1g1W6u0ak1e27IpBY4ScXMCMQbGdztDNi/view?usp=sharing"
  },
  {
   "number": "E-026",
   "type": "event",
-  "name_en": "I Asked For Fish!",
+  "name_en": "なんでワニなのよ！",
   "related_mamodo": null,
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin twice; get MP equal to the number of heads you get times 2.",
+  "effect_en": "コインを2回なげる。自分のMPを、オモテが出た回数×2ふやす。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/162Rres-k0lWr3ZyMp_e8WXUMEINbqd90/view?usp=sharing"
  },
  {
   "number": "E-027",
   "type": "event",
-  "name_en": "Best Friends",
+  "name_en": "無二の親友",
   "related_mamodo": null,
-  "cost": 0,
+  "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Apply both of the following effects in order: ● Your opponent sends all but 1 of their in-play PARTNER cards to the Discard Pile. If they have no PARTNER cards in play, they select 1 PARTNER card from any page of their Spell Book and put it in play. ● Send all but 1 of your in-play PARTNER cards to the Discard Pile. If you have none in play, select 1 PARTNER card from any page of your Spell Book and put it in play.",
+  "effect_en": "次の効果の両方を、この順で使う。●相手は、相手の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、相手は、相手の魔本の好きなページからパートナーカード1枚を選び、場に出す。●自分は、自分の場のパートナーカードを1枚残してすべて選び、捨て札にする。パートナーがなければ、自分の魔本の好きなページからパートナーカード1枚を選び、場に出す。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/14iNncExiqnsARAsFI82pAVROfhbUkVCY/view?usp=sharing"
  },
  {
   "number": "M-001",
   "type": "mamodo",
-  "name_en": "Zatch Bell",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ガッシュ・ベル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Kind King",
-  "effect_en": "[1 MP] [STAY] Add 1000 Power to this MAMODO card during the Battle when it Attacks.",
+  "attr_name": null,
+  "effect_en": "《やさしい王様》MPを1へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+1000する。",
   "power": {
    "base": 4000
   },
@@ -548,19 +521,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1brC4BiOWwsUL_m6ek21J-enVA_ubW_sd/view?usp=drive_link"
  },
  {
   "number": "M-002",
   "type": "mamodo",
-  "name_en": "Zatch Bell",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ガッシュ・ベル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Dropout Zatch",
-  "effect_en": "[IN PLAY] If you have 2 MP or less at your START PHASE, get 1 MP.",
+  "attr_name": null,
+  "effect_en": "《おちこぼれガッシュ》このカードが場にある→自分のスタートフェイズに、自分のMPが2以下なら、自分のMPを1ふやす。",
   "power": {
    "base": 3000
   },
@@ -569,19 +541,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1YABW5cXKQDas6Ovs-E_KsS1YmIt-C1XX/view?usp=drive_link"
  },
  {
   "number": "M-003",
   "type": "mamodo",
-  "name_en": "Zatch Bell",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ガッシュ・ベル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Injured Hero",
-  "effect_en": "[IN PLAY] Add 1000 Power to this MAMODO card when it is in Injured Status.",
+  "attr_name": null,
+  "effect_en": "《傷だらけのヒーロー》このカードが場にある→この魔物が「負傷状態」のとき、この魔物の魔力を+1000する。",
   "power": {
    "base": 4000
   },
@@ -591,19 +562,18 @@
    "Level 1",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/12JlPOQLmm3E2mV6qnWhpKOtwz2SNpxo6/view?usp=drive_link"
  },
  {
   "number": "M-004",
   "type": "mamodo",
-  "name_en": "Reycom",
-  "related_mamodo": "Reycom",
+  "name_en": "レイコム",
+  "related_mamodo": "レイコム",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Evil Tool",
-  "effect_en": "[IN PLAY] Add 1000 Power to this MAMODO card when it has a PARTNER card attached.",
+  "attr_name": null,
+  "effect_en": "《悪事の道具》このカードが場にある→この魔物にパートナーがついているとき、この魔物の魔力を＋1000する。",
   "power": {
    "base": 3000
   },
@@ -612,19 +582,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/16d2FdwwGNVO7iAo-tYiFKiWEzv8VHZk2/view?usp=sharing"
  },
  {
   "number": "M-005",
   "type": "mamodo",
-  "name_en": "Brago",
-  "related_mamodo": "Brago",
+  "name_en": "ブラゴ",
+  "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Self-Possessed Warrior",
-  "effect_en": "[2 MP] [STAY] Increase the Damage of this MAMODO card's Attack by 1 during the Battle when it Attacks.",
+  "attr_name": null,
+  "effect_en": "《孤高の戦士》MPを2へらす→【ステイ】このバトル中、この魔物の「魔物の効果」や術のダメージを1ふやす。",
   "power": {
    "base": 5000
   },
@@ -633,19 +602,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1IQSi17esDqC3MD-1vXW1wvot-cRDZAw8/view?usp=sharing"
  },
  {
   "number": "M-006",
   "type": "mamodo",
-  "name_en": "Gofure",
-  "related_mamodo": "Gofure",
+  "name_en": "ゴフレ",
+  "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Imitated Friend",
-  "effect_en": "[IN PLAY] [STAY] Your opponent cannot play SPELL cards during the turn this MAMODO card is put in play.",
+  "attr_name": null,
+  "effect_en": "《偽りの友》このカードが場にある→【ステイ】このカードが場に出たターン中、相手は術カードを使えない。",
   "power": {
    "base": 2000
   },
@@ -654,19 +622,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Rs4BnKqTmL9DeC4CVUYU5XVuny5YyCF7/view?usp=sharing"
  },
  {
   "number": "M-007",
   "type": "mamodo",
-  "name_en": "Gofure (Transformed)",
-  "related_mamodo": "Gofure",
+  "name_en": "ゴフレ（変身後）",
+  "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Real Self",
-  "effect_en": "This card is placed on a regular Gofure MAMODO card. [IN PLAY] Turn 1 page of your opponent's Spell Book when this MAMODO card is put in play.",
+  "attr_name": null,
+  "effect_en": "自分の「ゴフレ」に重ねる。《魔物の本性》このカードが場にある→このカードが場に出たとき、相手の魔本を1枚めくる。",
   "power": {
    "base": 3000
   },
@@ -675,19 +642,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1nRZjhg0Xtlr2UW3oqWa986lpq8m9B7Mv/view?usp=sharing"
  },
  {
   "number": "M-008",
   "type": "mamodo",
-  "name_en": "Sugino",
-  "related_mamodo": "Sugino",
+  "name_en": "スギナ",
+  "related_mamodo": "スギナ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Tactician",
-  "effect_en": "[DECLARE TO USE] [STANDBY] Reduce the MP cost of a SPELL card played for this MAMODO card by 1. In addition, reduce the Power of that SPELL card by 1000.",
+  "attr_name": null,
+  "effect_en": "《策士》使用を宣言する→【スタンバイ】このターン中の次のバトルで、この魔物の術を本来より1低いコストで使うことができる。そうしたなら、その術の魔力は-1000される(0より小さくはならない)。",
   "power": {
    "base": 3500
   },
@@ -696,19 +662,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1GnnKuEe8UPSscQIKB_tFBSps0_ELLgCF/view?usp=sharing"
  },
  {
   "number": "M-009",
   "type": "mamodo",
-  "name_en": "Kolulu",
-  "related_mamodo": "Kolulu",
+  "name_en": "コルル",
+  "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Kind Girl",
-  "effect_en": "[IN PLAY] When this MAMODO card is sent to the Discard Pile, get 4 MP.",
+  "attr_name": null,
+  "effect_en": "《優しい少女》このカードが場にある→このカードが捨て札になったとき、自分のMPを4ふやす。",
   "power": {
    "base": 1000
   },
@@ -717,19 +682,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1tOpYZiCDJvr1pJ6o3CGvTAVXnow73mMl/view?usp=sharing"
  },
  {
   "number": "M-010",
   "type": "mamodo",
-  "name_en": "Kolulu (Transformed)",
-  "related_mamodo": "Kolulu",
+  "name_en": "コルル（変身後）",
+  "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Mad Warrior",
-  "effect_en": "This card is placed on a regular Kolulu MAMODO card. [1 MP] [STAY] Add 1000 Power to this MAMODO card during the Battle when it Defends.",
+  "attr_name": null,
+  "effect_en": "自分の「コルル」に重ねる。《狂戦士》MPを1へらす→【ステイ】自分が防御するバトル中、この魔物の魔力を+1000する。",
   "power": {
    "base": 4000
   },
@@ -738,19 +702,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1stT-o3gKy6rjfm-Ju-CHW7Fc3W9TRztx/view?usp=sharing"
  },
  {
   "number": "M-011",
   "type": "mamodo",
-  "name_en": "Fein",
-  "related_mamodo": "Fein",
+  "name_en": "フェイン",
+  "related_mamodo": "フェイン",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Tactical Enemy",
-  "effect_en": "[DECLARE TO USE] Look at your opponent's Spell Book. Select 1 MAMODO card from any of the pages and send it to the Discard Pile. This effect can be applied only once per game (per player).",
+  "attr_name": null,
+  "effect_en": "《索敵》使用を宣言する→相手の魔本を見て、好きなページから魔物カード1枚を選び、捨て札にする。ゲーム中に1回だけ使える。",
   "power": {
    "base": 3000
   },
@@ -759,19 +722,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1JFLKYNdwut4mGexFgijtRrDAF0TkDodQ/view?usp=sharing"
  },
  {
   "number": "M-012",
   "type": "mamodo",
-  "name_en": "Kanchome",
-  "related_mamodo": "Kanchome",
+  "name_en": "キャンチョメ",
+  "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Lucky Guy",
-  "effect_en": "[DECLARE TO USE] Re-do your coin toss.",
+  "attr_name": null,
+  "effect_en": "《幸運の持ち主》使用を宣言する→自分が投げたコイン1個をふりなおす。",
   "power": {
    "base": 1000
   },
@@ -780,21 +742,20 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1I4LakZy-kyJBYlTCq9P57LU3_a_XqExc/view?usp=sharing"
  },
  {
   "number": "M-013",
   "type": "mamodo",
-  "name_en": "Kanchome",
-  "related_mamodo": "Kanchome",
+  "name_en": "キャンチョメ",
+  "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Invincible Fellow",
-  "effect_en": "[2 MP] [STAY] This MAMODO card does not receive Damage or Injury during the Battle. This effect can be applied only when this MAMODO card is in Injured Status.",
+  "attr_name": null,
+  "effect_en": "《無敵キャンチョメ》MPを2へらす→この効果は、このカードが「負傷状態」ならば使える。【ステイ】このバトル中、この魔物はダメージを受けない。",
   "power": {
-   "base": 1000
+   "base": 2000
   },
   "damage": null,
   "sets": [
@@ -802,19 +763,18 @@
    "Level 1",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/106vPPerZHvtfy7AvBHkNgV32_f72Vd9V/view?usp=sharing"
  },
  {
   "number": "M-014",
   "type": "mamodo",
-  "name_en": "Tia",
-  "related_mamodo": "Tia",
+  "name_en": "ティオ",
+  "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Reliable Partner",
-  "effect_en": "[IN PLAY] Add 1000 Power to all of your in-play MAMODO cards when you have 2 or more MAMODO cards (including this card) in play.",
+  "attr_name": null,
+  "effect_en": "《信頼できる仲間》このカードが場にある→この効果は、自分の場にこの魔物以外の魔物がいるとき使える。自分の魔物すべてを選び、その魔力を+1000する(この魔物を含む)。",
   "power": {
    "base": 2000
   },
@@ -823,19 +783,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1zP34cqfIg-VUHDIFPWeo-fjSmckRhb5b/view?usp=drive_link"
  },
  {
   "number": "M-015",
   "type": "mamodo",
-  "name_en": "Tia",
-  "related_mamodo": "Tia",
+  "name_en": "ティオ",
+  "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Obstinacy",
-  "effect_en": "[5 MP] [STAY] This MAMODO card does not receive Damage or Injury during the Battle.",
+  "attr_name": null,
+  "effect_en": "《いじっぱり》MPを5へらす→【ステイ】このバトル中、この魔物はダメージを受けない。",
   "power": {
    "base": 3000
   },
@@ -844,19 +803,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1714i_GcccZK-1NSOan3O1plXEhMYakLZ/view?usp=sharing"
  },
  {
   "number": "M-016",
   "type": "mamodo",
-  "name_en": "Zatch Bell",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ガッシュ・ベル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Lost Memory",
-  "effect_en": "[DECLARE TO USE] Switch 1 card in the currently open pages of your Spell Book with a card in any of the previous pages. This effect can be applied only once per game (per player).",
+  "attr_name": null,
+  "effect_en": "《失われた記憶》使用を宣言する→自分の魔本の今のページのカード1枚と、今より前のページのカード1枚を選び、入れかえる。ゲーム中に1回だけ使える。",
   "power": {
    "base": 4000
   },
@@ -867,19 +825,18 @@
    "The Best Booster 2",
    "File 1: Zatch Bell & Ponygon"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1HFQ7KIORS2Z35oqfqDL2M778xvTi_5MJ/view?usp=sharing"
  },
  {
   "number": "M-017",
   "type": "mamodo",
-  "name_en": "Brago",
-  "related_mamodo": "Brago",
+  "name_en": "ブラゴ",
+  "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Dark Mamodo",
-  "effect_en": "[2 MP] [STAY] Add 2000 Power to this MAMODO card during the Battle when it Attacks.",
+  "attr_name": null,
+  "effect_en": "《黒き魔物》MPを2へらす→【ステイ】自分が攻撃するバトル中、この魔物の魔力を+2000する。",
   "power": {
    "base": 5000
   },
@@ -888,19 +845,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1yPQZ1Nokz3ABXkHbEo2BFSjaXfZ6oRgK/view?usp=sharing"
  },
  {
   "number": "M-018",
   "type": "mamodo",
-  "name_en": "Brago",
-  "related_mamodo": "Brago",
+  "name_en": "ブラゴ",
+  "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Self-Possession",
-  "effect_en": "[1 MP] Look at the currently open pages of your opponent's Spell Book during your BATTLE PHASE; if there are no SPELL cards with a \"Defend\" Icon, get 2 MP.",
+  "attr_name": null,
+  "effect_en": "《冷静沈着》MPを1へらす→自分のバトルフェイズに、相手の魔本の今のページを見る。そこに「バトル防御アイコン」を持つ術カードがなければ、自分のMPを2ふやす。",
   "power": {
    "base": 5000
   },
@@ -909,19 +865,18 @@
    "Series 1 Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1IrXOaQDu83IbXU1Z3vS2VN7JSYK4-uZ_/view?usp=sharing"
  },
  {
   "number": "M-019",
   "type": "mamodo",
-  "name_en": "Kanchome",
-  "related_mamodo": "Kanchome",
+  "name_en": "キャンチョメ",
+  "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Odd Animal",
-  "effect_en": "[DECLARE TO USE] Your opponent re-does their coin toss.",
+  "attr_name": null,
+  "effect_en": "《変な生き物》使用を宣言する→相手が投げたコイン1個をふりなおさせる。",
   "power": {
    "base": 1000
   },
@@ -930,19 +885,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1JjGRwiPGpX7otDer6-rG6ATZqWvwOUln/view?usp=sharing"
  },
  {
   "number": "M-020",
   "type": "mamodo",
-  "name_en": "Tia",
-  "related_mamodo": "Tia",
+  "name_en": "ティオ",
+  "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Along With Megumi",
-  "effect_en": "[1 MP] Select 1 Megumi PARTNER card from any page of your Spell Book and attach it to this MAMODO card.",
+  "attr_name": null,
+  "effect_en": "《恵と一緒》MPを1へらす→自分の魔本の好きなページから、パートナーカード「大海恵」1枚を選び、場に出す。",
   "power": {
    "base": 3500
   },
@@ -951,19 +905,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Xp5rlS4aTto2Rzh7TOz4aQSET_jIHcfg/view?usp=sharing"
  },
  {
   "number": "M-021",
   "type": "mamodo",
-  "name_en": "Hyde",
-  "related_mamodo": "Hyde",
+  "name_en": "ハイド",
+  "related_mamodo": "ハイド",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Rider on the Wind",
-  "effect_en": "[1 MP] Select 1 Eido PARTNER card from any page of your Spell Book and attach it to this MAMODO card.",
+  "attr_name": null,
+  "effect_en": "《風の乗り手》MPを1へらす→自分の魔本の好きなページから、パートナーカード「窪塚泳太」1枚を選び、場に出す。",
   "power": {
    "base": 3000
   },
@@ -972,19 +925,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Wtu1UvctlenQ3SCHjfCBssoVFobk2abf/view?usp=sharing"
  },
  {
   "number": "M-022",
   "type": "mamodo",
-  "name_en": "Zofis",
-  "related_mamodo": "Zofis",
+  "name_en": "ゾフィス",
+  "related_mamodo": "ゾフィス",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Mental Controller",
-  "effect_en": "[5 MP] Send 1 of your opponent's in-play PARTNER cards to the Discard Pile.",
+  "attr_name": null,
+  "effect_en": "《心理操作》MPを5へらす→相手のパートナー1枚を選び、捨て札にする。",
   "power": {
    "base": 5500
   },
@@ -993,19 +945,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1FETW2l8vAwxGmckzE_R1uCjeWH5ujW4Q/view?usp=sharing"
  },
  {
   "number": "M-023",
   "type": "mamodo",
-  "name_en": "Pokkerio",
-  "related_mamodo": "Pokkerio",
+  "name_en": "ポッケリオ",
+  "related_mamodo": "ポッケリオ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Vegetation Mamodo",
-  "effect_en": "[IN PLAY] Any SPELL cards with a \"Wood\" Attribute can be played for this MAMODO card.",
+  "attr_name": null,
+  "effect_en": "《植物の魔物》このカードが場にある→自分は、この魔物で、他の魔物の「木」属性の術を使うことができる。",
   "power": {
    "base": 3000
   },
@@ -1014,19 +965,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1x3eMyCL6f91Zim3mU7hIR584O4Z0X7x0/view?usp=sharing"
  },
  {
   "number": "M-024",
   "type": "mamodo",
-  "name_en": "Robnos (Double)",
-  "related_mamodo": "Robnos",
+  "name_en": "ロブノス（分身体）",
+  "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Two in One",
-  "effect_en": "Up to 2 Robnos (Double) MAMODO cards can be in play (per player). [IN PLAY] When you have 2 Robnos (Double) MAMODO cards in play, a Biraitsu SPELL card can be played up to twice per turn (per player).",
+  "attr_name": null,
+  "effect_en": "「ロブノス（分身体）」を場に2体までおくことができる。《二身一体》このカードが場にある→この効果は、自分の「ロブノス（分身体）」が2体いるときに使える。自分は術カード「ビライツ」を、1枚につき、1ターンに2回使える。",
   "power": {
    "base": 3000
   },
@@ -1036,19 +986,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1jWF6-_Eg4cdseTJSq_EDM_RF1rHoXm9o/view?usp=sharing"
  },
  {
   "number": "M-025",
   "type": "mamodo",
-  "name_en": "Robnos (Complete)",
-  "related_mamodo": "Robnos",
+  "name_en": "ロブノス（完全体）",
+  "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Maximum Power",
-  "effect_en": "[IN PLAY] Apply both of the following effects in order when this MAMODO card is put in play: ● Move 1 Robnos (Double) or Robnos (Complete) MAMODO card from your Discard Pile to an empty page of your Spell Book. ● Get 2 MP.",
+  "attr_name": null,
+  "effect_en": "《フルパワー》このカードが場にある→このカードが場に出たとき、次の効果の両方を、この順で使う。●自分の捨て札の「ロブノス（完全体）」または「ロブノス（分身体）」1枚を選び、自分の魔本の空いているページにもどすことができる。●自分のMPを2ふやす。",
   "power": {
    "base": 5000
   },
@@ -1058,19 +1007,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/10FyozQaKhDGOmSWtu1pGlbCV1TKpRbYV/view?usp=sharing"
  },
  {
   "number": "M-026",
   "type": "mamodo",
-  "name_en": "Maruss",
-  "related_mamodo": "Maruss",
+  "name_en": "マルス",
+  "related_mamodo": "マルス",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Betrayer",
-  "effect_en": "[2 MP] Negate a MAMODO card's effect your opponent just applied.",
+  "attr_name": null,
+  "effect_en": "《裏切り者》MPを2へらす→相手が直前に使った「魔物の効果」1つを無効にする。",
   "power": {
    "base": 3500
   },
@@ -1081,19 +1029,18 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/11cHQ2QtzbIxV6vYLtCi-xWNd3EkaiA-X/view?usp=sharing"
  },
  {
   "number": "M-027",
   "type": "mamodo",
-  "name_en": "Baltro (Armored)",
-  "related_mamodo": "Baltro",
+  "name_en": "バルトロ（アーマー体）",
+  "related_mamodo": "バルトロ",
   "cost": null,
-  "ad": null,
+  "ad": "A",
   "class": "none",
-  "attr_name": "Emulated Armor",
-  "effect_en": "This card is placed on a regular Baltro MAMODO card when a Zeberu SPELL card is played for the Baltro MAMODO card. The regular Baltro MAMODO card remains in play when this card is sent to the Discard Pile. [1 MP] This card may Attack without using a SPELL card (Total Power=5000, Damage=2).",
+  "attr_name": null,
+  "effect_en": "「ゼベルオン」を使わないと場に出せない。この魔物が捨て札になるとき、下の「バルトロ(本体)」を場に残す。《偽りの鎧》MPを1へらす→合計魔力5000で攻撃(相手の魔本に2ダメージ)する。",
   "power": {
    "base": 5000
   },
@@ -1102,19 +1049,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ZHdz9Uy9SFLnEKCd0fakM6rRYZ8WnlWg/view?usp=sharing"
  },
  {
   "number": "M-028",
   "type": "mamodo",
-  "name_en": "Baltro",
-  "related_mamodo": "Baltro",
+  "name_en": "バルトロ（本体）",
+  "related_mamodo": "バルトロ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Brutal Real Form",
-  "effect_en": "[IN PLAY] When the Baltro (Armored) MAMODO card placed over this MAMODO card is sent to the Discard Pile, turn 2 pages of your opponent's Spell Book.",
+  "attr_name": null,
+  "effect_en": "《狂暴な本体》このカードが場にある→この魔物に重なっている「バルトロ(アーマー体)」が捨て札になったとき、相手の魔本を2枚めくる。",
   "power": {
    "base": 3000
   },
@@ -1123,19 +1069,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1QGWKrQiYKiaMKquK_yxp-_YdqO99PZTi/view?usp=sharing"
  },
  {
   "number": "M-029",
   "type": "mamodo",
-  "name_en": "Zeno",
-  "related_mamodo": "Zeno",
+  "name_en": "ゼオン",
+  "related_mamodo": "ゼオン",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Enmity",
-  "effect_en": "Any Zaker SPELL cards with Zatch Bell as their MAMODO name can be played for this MAMODO card. [7 MP] Send 1 of your opponent's Injured MAMODO cards to the Discard Pile.",
+  "attr_name": null,
+  "effect_en": "自分は、この魔物で「ガッシュ・ベル」の術「ザケル」を使える。《憎悪》MPを7へらす→相手の「負傷状態」の魔物1体を選び、捨て札にする。",
   "power": {
    "base": 6000
   },
@@ -1145,19 +1090,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ZvLlYGDDcy4pJURWL_oG4tLNkeifHpSf/view?usp=sharing"
  },
  {
   "number": "M-030",
   "type": "mamodo",
-  "name_en": "Yopopo",
-  "related_mamodo": "Yopopo",
+  "name_en": "ヨポポ",
+  "related_mamodo": "ヨポポ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Topopoi",
-  "effect_en": "[DECLARE TO USE] This effect can be applied only when you are on the last page of your Spell Book. [STANDBY] End the turn without turning a page of the Spell Book at the END PHASE of this turn. This effect can be applied only once per game (per player).",
+  "attr_name": null,
+  "effect_en": "《トポポイ》使用を宣言する→この効果は、自分の魔本が最後のページのときに使える。【スタンバイ】このターンのエンドフェイズに、魔本をめくらずターンを終了する。ゲーム中1回だけ使える。",
   "power": {
    "base": 2000
   },
@@ -1167,19 +1111,18 @@
    "Level 2",
    "The Best Booster 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1OE3rP0kqpliBkPcrv7bII2f7-wzwDO9W/view?usp=sharing"
  },
  {
   "number": "M-031",
   "type": "mamodo",
-  "name_en": "Kikuropu",
-  "related_mamodo": "Kikuropu",
+  "name_en": "キクロプ",
+  "related_mamodo": "キクロプ",
   "cost": null,
   "ad": null,
   "class": "none",
-  "attr_name": "Kikuropu's Armor",
-  "effect_en": "[IN PLAY] This MAMODO card does not receive Damage or Injury from a SPELL card with a Total Power of 6000 or less.",
+  "attr_name": null,
+  "effect_en": "《キクロプの鎧》このカードが場にある→この魔物は、合計魔力6000以下の術のダメージを受けない。",
   "power": {
    "base": 4000
   },
@@ -1188,38 +1131,36 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/189i0o_6mk-hwW5Qijt122mUNxoHnG--g/view?usp=sharing"
  },
  {
   "number": "P-001",
   "type": "partner",
-  "name_en": "Kiyo Takamine",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "高嶺清麿",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] The SPELL card your Zatch Bell MAMODO card Attacks with in the next Battle this turn cannot be Defended.",
+  "effect_en": "《SET!》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が「ガッシュ・ベル」の術で攻撃するとき、相手は防御できない。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1avF4PbnlnmsjGlF6qAJXQDVOcX3uYYWL/view?usp=sharing"
  },
  {
   "number": "P-002",
   "type": "partner",
-  "name_en": "Hosokawa",
-  "related_mamodo": "Reycom",
+  "name_en": "細川",
+  "related_mamodo": "レイコム",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Reduce your opponent's MP by 3 to get MP equal to the number they reduced their MP by from this effect.",
+  "effect_en": "《強盗》このカードを捨て札にする→相手のＭＰを3へらす。そうしたなら、へらした数と同じ数、自分のＭＰをふやす。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1228,19 +1169,18 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1WR_9OvpxcQeoki74DkV6VuLwRqUeIDwi/view?usp=sharing"
  },
  {
   "number": "P-003",
   "type": "partner",
-  "name_en": "Sherry",
-  "related_mamodo": "Brago",
+  "name_en": "シェリー",
+  "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] Increase the Damage inflicted by your Brago MAMODO card's Attack during this Battle by 2 (this effect cannot be duplicated).",
+  "effect_en": "《強き黒い力》このカードを捨て札にする→【ステイ】このバトル中、自分の「ブラゴ」による攻撃のダメージを+2する（重複しない）。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1249,57 +1189,54 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/11C0zkD4PBoLBhXWhkD7-scVHij9PvgmM/view?usp=sharing"
  },
  {
   "number": "P-004",
   "type": "partner",
-  "name_en": "Renji",
-  "related_mamodo": "Gofure",
+  "name_en": "連次",
+  "related_mamodo": "ゴフレ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] The Damage inflicted by your Gofure MAMODO card during this Battle is doubled (this effect cannot be duplicated).",
+  "effect_en": "《雨の日の訪問者》このカードを捨て札にする→【ステイ】このバトル中、自分の「ゴフレ」によるダメージを２倍にする（重複しない）。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1m12gca6KzSuLr_mEOQiXry6I99Hqkzou/view?usp=sharing"
  },
  {
   "number": "P-005",
   "type": "partner",
-  "name_en": "Haru",
-  "related_mamodo": "Sugino",
+  "name_en": "春彦",
+  "related_mamodo": "スギナ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] The MP cost of all of your SPELL cards with Sugino as their MAMODO name is considered to be 0 during this turn.",
+  "effect_en": "《植物園のトレーニング》このカードを捨て札にする→【ステイ】このターン中、自分の「スギナ」の術すべての、本来のコストを0にする。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1BCMW9JG1Td1VRSNzJ8Fct-LwRaKjFlow/view?usp=sharing"
  },
  {
   "number": "P-006",
   "type": "partner",
-  "name_en": "Lori",
-  "related_mamodo": "Kolulu",
+  "name_en": "しおり",
+  "related_mamodo": "コルル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] Negate an infliction of Damage or Injury done to your Kolulu (Transformed) MAMODO card during the Battle. Then, send your Kolulu (Transformed) MAMODO card to the Discard Pile (the regular Kolulu MAMODO card remains in play).",
+  "effect_en": "《涙の想い》このカードを捨て札にする→【スタンバイ】このバトル中、自分の「コルル（変身後）」がダメージを受けるとき、そのダメージを受けない。そうしたなら、その「コルル（変身後）」を下のカードを残して捨て札にする。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1307,38 +1244,36 @@
    "Level 1",
    "Revised Edition"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1v3nLh8VUgN7lqzU_jhqEeXLZ5asaenZV/view?usp=sharing"
  },
  {
   "number": "P-007",
   "type": "partner",
-  "name_en": "Sebe",
-  "related_mamodo": "Fein",
+  "name_en": "清兵衛",
+  "related_mamodo": "フェイン",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] Add 4000 Power to a SPELL card you play in the next Battle with Fein as its MAMODO name during this turn.",
+  "effect_en": "《スカッとする力》このカードを捨て札にする→【スタンバイ】このターン中の次のバトルで、自分が使う「フェイン」の術の魔力を＋4000する。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1F2kU_UYjyPvNMGt9aflA-c2rQPW1XL28/view?usp=sharing"
  },
  {
   "number": "P-008",
   "type": "partner",
-  "name_en": "Parco Folgore",
-  "related_mamodo": "Kanchome",
+  "name_en": "パルコ・フォルゴレ",
+  "related_mamodo": "キャンチョメ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Send 1 of your opponent's in-play PARTNER cards to the Discard Pile.",
+  "effect_en": "《もげ!》このカードを捨て札にする→相手のパートナーカード1枚を選び、捨て札にする。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1346,38 +1281,36 @@
    "Level 1",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/150an1e-T17ECPN6YkKkCi1onDFiRbUJr/view?usp=sharing"
  },
  {
   "number": "P-009",
   "type": "partner",
-  "name_en": "Megumi",
-  "related_mamodo": "Tia",
+  "name_en": "大海恵",
+  "related_mamodo": "ティオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Negate the SPELL card your opponent just played.",
+  "effect_en": "《アイドル》このカードを捨て札にする→このバトルの、相手が使った術1つを無効にする。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1U5ZXfIQJYoCbh33pVmzB0vpgDHwR_OKX/view?usp=sharing"
  },
  {
   "number": "P-010",
   "type": "partner",
-  "name_en": "Kiyo Takamine",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "高嶺清麿",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Turn 1 page of your Spell Book. Effects that turn pages of your Spell Book can be applied only once per turn (per player).",
+  "effect_en": "《コンボ》このカードを捨て札にする→自分の魔本を1枚めくる。このターン中、自分は「自分の魔本をめくる」効果を合計１回しか使えない。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1386,95 +1319,90 @@
    "The Best Booster 2",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Hi7_sZMSzOmm3E_74ZiimU16eVG10SCs/view?usp=sharing"
  },
  {
   "number": "P-011",
   "type": "partner",
-  "name_en": "Eido",
-  "related_mamodo": "Hyde",
+  "name_en": "窪塚泳太",
+  "related_mamodo": "ハイド",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] The Power of 1 of your opponent's in-play MAMODO cards is considered to be 0 during this turn.",
+  "effect_en": "《女好き》このカードを捨て札にする→【ステイ】相手の魔物1体を選ぶ。このターン中、その魔物の魔力を0にする。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1LpRYP21Xs-1ioDVAFDspLOUffvq9anm8/view?usp=sharing"
  },
  {
   "number": "P-012",
   "type": "partner",
-  "name_en": "Sherry",
-  "related_mamodo": "Brago",
+  "name_en": "シェリー",
+  "related_mamodo": "ブラゴ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] Any MAMODO cards that SACRIFICE or PROTECT against Damage inflicted by your Brago MAMODO card's Attacks during this turn are sent to the Discard Pile.",
+  "effect_en": "《Destiny》このカードを捨て札にする→【ステイ】このターン中、自分の「ブラゴ」によるダメージを「かばって」、ダメージを受けた魔物は捨て札になる。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1U2tSrjXhKVMNu9ONr7YQgOzhDXv8GSub/view?usp=sharing"
  },
  {
   "number": "P-013",
   "type": "partner",
-  "name_en": "Koko",
-  "related_mamodo": "Zofis",
+  "name_en": "ココ",
+  "related_mamodo": "ゾフィス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[IN PLAY] Each time an opponent's MAMODO card is sent to the Discard Pile, turn 1 page of your opponent's Spell Book.",
+  "effect_en": "《狂った笑み》このカードが場にある→相手の魔物カード1枚が捨て札になるたびに、相手の魔本を1枚めくる。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Qo8giWriNZyUZLVI-FdHEV0bwzXhWBai/view?usp=sharing"
  },
  {
   "number": "P-014",
   "type": "partner",
-  "name_en": "Periko",
-  "related_mamodo": "Pokkerio",
+  "name_en": "ペリコ",
+  "related_mamodo": "ポッケリオ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STAY] Your opponent cannot play SPELL cards to Attack during this turn.",
+  "effect_en": "《逃げて逃げて逃げまくれ》このカードを捨て札にする→【ステイ】このターン中、相手は術で攻撃できない。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1TxVELTKZYzIp7uNlg6QEaCHWlxhgVNn2/view?usp=sharing"
  },
  {
   "number": "P-015",
   "type": "partner",
-  "name_en": "Ruku",
-  "related_mamodo": "Robnos",
+  "name_en": "リュック",
+  "related_mamodo": "ロブノス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] [STANDBY] After applying this effect, only once during this turn (per player), you can play 1 Biraitsu SPELL card from any page of your Spell Book.",
+  "effect_en": "《ビライツ乱射》このカードを捨て札にする→【スタンバイ】このターン中に１回、自分は、自分の魔本の好きなページにある術カード「ビライツ」を使うことができる。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1482,19 +1410,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ALxAiqzXHvJ3InHy3zW7fHnmWh5I13mi/view?usp=sharing"
  },
  {
   "number": "P-016",
   "type": "partner",
-  "name_en": "Rembrant",
-  "related_mamodo": "Maruss",
+  "name_en": "レンブラント",
+  "related_mamodo": "マルス",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Negate the SPELL card your opponent Attacked with in the Battle.",
+  "effect_en": "《攻撃無効》このカードを捨て札にする→このバトルの、相手の術による攻撃1つを無効にする。",
   "power": {},
   "damage": null,
   "sets": [
@@ -1503,38 +1430,36 @@
    "The Best Booster 1",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1zzVBzcA94UH5n4mRfZkBD48_R-liDo5R/view?usp=sharing"
  },
  {
   "number": "P-017",
   "type": "partner",
-  "name_en": "Steng",
-  "related_mamodo": "Baltro",
+  "name_en": "ステング",
+  "related_mamodo": "バルトロ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Negate the SPELL card your opponent Defended with in the Battle.",
+  "effect_en": "《防御無効》このカードを捨て札にする→このバトルの、相手の術による防御1つを無効にする。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1_dj_bSI6OYnWfRIP5rpJP0KPtpBGxL51/view?usp=sharing"
  },
  {
   "number": "P-018",
   "type": "partner",
-  "name_en": "Djem",
-  "related_mamodo": "Yopopo",
+  "name_en": "ジェム",
+  "related_mamodo": "ヨポポ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[SEND THIS CARD TO THE DISCARD PILE] Turn back 1 page of your Spell Book. Effects that turn back pages of your Spell Book can be applied only once per turn (per player).",
+  "effect_en": "《大好きよ》このカードを捨て札にする→自分の魔本を1枚もどす。このターン中、自分は「自分の魔本をもどす」効果を合計１回しか使えない。パートナー＝ヨポポ",
   "power": {},
   "damage": null,
   "sets": [
@@ -1543,38 +1468,36 @@
    "The Best Booster 2",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/18UpsxHJXphSvUQ600K97tHtFV-vGlj0c/view?usp=sharing"
  },
  {
   "number": "P-019",
   "type": "partner",
-  "name_en": "British Gentleman",
-  "related_mamodo": "Kikuropu",
+  "name_en": "イギリス紳士",
+  "related_mamodo": "キクロプ",
   "cost": null,
   "ad": null,
   "class": "none",
   "attr_name": null,
-  "effect_en": "[IN PLAY] Each time your opponent turns back any pages of their Spell Book, reduce your opponent's MP by 2.",
+  "effect_en": "《紳士協定》このカードが場にある→相手が相手自身の魔本のページを1枚もどすたびに、相手のＭＰを2へらす。",
   "power": {},
   "damage": null,
   "sets": [
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1mQgePZkvaCkTP8aNjdSI7sdCqwN7OD_d/view?usp=sharing"
  },
  {
   "number": "S-001",
   "type": "spell",
-  "name_en": "Zaker",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ザケル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -1583,19 +1506,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1GSbiPFCKcZSExJmb5g4l-wBji1nPOO-D/view?usp=sharing"
  },
  {
   "number": "S-002",
   "type": "spell",
-  "name_en": "Zaker",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ザケル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -1606,19 +1528,18 @@
    "The Best Booster 1",
    "File 1: Zatch Bell & Ponygon"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1zB_BAOeDv5mc5sd5bW1Ye6kw7gin2hNn/view?usp=sharing"
  },
  {
   "number": "S-003",
   "type": "spell",
-  "name_en": "Rashield",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ラシルド",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "D",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as a Defender.",
+  "attr_name": "雷",
+  "effect_en": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
   "power": {
    "bonus": 4000
   },
@@ -1628,19 +1549,18 @@
    "Level 1",
    "The Best Booster 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1KDQolGR38Ab_mkFXixkb7Fqp5M_hhEvz/view?usp=sharing"
  },
  {
   "number": "S-004",
   "type": "spell",
-  "name_en": "Jikerdor",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ジケルド",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 1,
   "ad": "A",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, flip a coin; if it's heads, your opponent cannot play SPELL cards until the END PHASE of the next turn ([STAY]).",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
   "power": {
    "bonus": 2000
   },
@@ -1650,19 +1570,18 @@
    "Level 1",
    "File 1: Zatch Bell & Ponygon"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ONBBjpjkCYH761xA8CmMO9CpEzWPvXFp/view?usp=sharing"
  },
  {
   "number": "S-005",
   "type": "spell",
-  "name_en": "Bao Zakeruga",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "バオウ・ザケルガ",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 6,
   "ad": "AD",
   "class": "superior",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 6000
   },
@@ -1671,19 +1590,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1jNie-mpglEfHlZ_4FTWKI0DP1nSpnMgH/view?usp=sharing"
  },
  {
   "number": "S-006",
   "type": "spell",
-  "name_en": "Gikor",
-  "related_mamodo": "Reycom",
+  "name_en": "ギコル",
+  "related_mamodo": "レイコム",
   "cost": 1,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Ice",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "氷",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -1692,19 +1610,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/19HwgJYnQisfHg7golmn9C29IyU-tO_7_/view?usp=sharing"
  },
  {
   "number": "S-007",
   "type": "spell",
-  "name_en": "Freezudo",
-  "related_mamodo": "Reycom",
+  "name_en": "フリズド",
+  "related_mamodo": "レイコム",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Ice",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot apply the effects of their PARTNER cards until the END PHASE of their next turn ([STAY]).",
+  "attr_name": "氷",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次の相手のターンのエンドフェイズまで、相手はパートナーの効果を使えない(【ステイ】)。",
   "power": {
    "bonus": 2000
   },
@@ -1713,19 +1630,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1iquPXYHd1qkxC0fsvt_xOvVISz9EONID/view?usp=sharing"
  },
  {
   "number": "S-008",
   "type": "spell",
-  "name_en": "Reis",
-  "related_mamodo": "Brago",
+  "name_en": "レイス",
+  "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -1734,19 +1650,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1tKv_FLwOQK2rn7vONygb43vVNzGfrLBM/view?usp=sharing"
  },
  {
   "number": "S-009",
   "type": "spell",
-  "name_en": "Gravirei",
-  "related_mamodo": "Brago",
+  "name_en": "グラビレイ",
+  "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "A",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot play SPELL cards until the END PHASE of their next turn ([STAY]).",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
   "power": {
    "bonus": 2000
   },
@@ -1755,19 +1670,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1NQkME5G8qUDAGHemHP_1EOeqGaHEz9hd/view?usp=sharing"
  },
  {
   "number": "S-010",
   "type": "spell",
-  "name_en": "Giganoreis",
-  "related_mamodo": "Brago",
+  "name_en": "ギガノレイス",
+  "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 3000
   },
@@ -1776,19 +1690,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Nrb7EIsQ6FxEStCdVFaRyDdJIaHEcAiy/view?usp=sharing"
  },
  {
   "number": "S-011",
   "type": "spell",
-  "name_en": "Ion Gravirei",
-  "related_mamodo": "Brago",
+  "name_en": "アイアン・グラビレイ",
+  "related_mamodo": "ブラゴ",
   "cost": 4,
   "ad": "A",
   "class": "intermediate",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, your opponent cannot play SPELL cards until the END PHASE of their next turn ([STAY]).",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
   "power": {
    "bonus": 4000
   },
@@ -1798,19 +1711,18 @@
    "Level 1",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Z3fTEH6g8VRBzjyFM-tBAvcGZ4n_yZLs/view?usp=sharing"
  },
  {
   "number": "S-012",
   "type": "spell",
-  "name_en": "Doruk",
-  "related_mamodo": "Gofure",
+  "name_en": "ドルク",
+  "related_mamodo": "ゴフレ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 3000
   },
@@ -1819,19 +1731,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1L7B7GD1ag7p6fTMwwwEhQbspcPntPk5k/view?usp=sharing"
  },
  {
   "number": "S-013",
   "type": "spell",
-  "name_en": "Dorsen",
-  "related_mamodo": "Gofure",
+  "name_en": "ドルセン",
+  "related_mamodo": "ゴフレ",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 3000
   },
@@ -1840,19 +1751,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Y1PENrnPhTLWThVjjeUzIG2XYYNs744d/view?usp=sharing"
  },
  {
   "number": "S-014",
   "type": "spell",
-  "name_en": "Juron",
-  "related_mamodo": "Sugino",
+  "name_en": "ジュロン",
+  "related_mamodo": "スギナ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Wood",
-  "effect_en": "Damage your opponent's Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, flip a coin; if it's heads, your opponent cannot play SPELL cards until the END PHASE of the next turn ([STAY]).",
+  "attr_name": "木",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、相手は術を使えない(【ステイ】)。",
   "power": {
    "bonus": 2000
   },
@@ -1861,19 +1771,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Lafn1c6IOo9kPw2aWzmAesEhdOPLS1B8/view?usp=sharing"
  },
  {
   "number": "S-015",
   "type": "spell",
-  "name_en": "Raja Jugaro",
-  "related_mamodo": "Sugino",
+  "name_en": "ラージア・ジュガロ",
+  "related_mamodo": "スギナ",
   "cost": 4,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Wood",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "木",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 4000
   },
@@ -1882,19 +1791,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/14qHNAG_GbrVVXs-tu_Z0JQl9AA2DCvQ0/view?usp=sharing"
  },
  {
   "number": "S-016",
   "type": "spell",
-  "name_en": "Zeruk",
-  "related_mamodo": "Kolulu",
+  "name_en": "ゼルク",
+  "related_mamodo": "コルル",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Defending, add 1000 Power to this SPELL card.",
+  "effect_en": "相手の魔本にダメージ。この術を防御で使ったとき、この術の魔力を+1000する。",
   "power": {
    "bonus": 2000
   },
@@ -1903,19 +1811,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1-iQ9Npd0eksFCd-jiQjFfc3Orv7DA4dU/view?usp=sharing"
  },
  {
   "number": "S-017",
   "type": "spell",
-  "name_en": "Zerusen",
-  "related_mamodo": "Kolulu",
+  "name_en": "ゼルセン",
+  "related_mamodo": "コルル",
   "cost": 4,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When Attacking, add 2000 Power to this SPELL card.",
+  "effect_en": "相手の魔本にダメージ。この術を攻撃で使ったとき、この術の魔力を+2000する。",
   "power": {
    "bonus": 3000
   },
@@ -1924,19 +1831,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1x4BJtwhwJd_eCw8run9jBjUPAab9QqKp/view?usp=sharing"
  },
  {
   "number": "S-018",
   "type": "spell",
-  "name_en": "Wigar",
-  "related_mamodo": "Fein",
+  "name_en": "ウイガル",
+  "related_mamodo": "フェイン",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -1945,19 +1851,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Rs_jKsNsXR9etDzUsZjxNnL66nqW1BGc/view?usp=sharing"
  },
  {
   "number": "S-019",
   "type": "spell",
-  "name_en": "Yuruk",
-  "related_mamodo": "Fein",
+  "name_en": "ウルク",
+  "related_mamodo": "フェイン",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STANDBY] When you win the Battle as an Attacker, the next Attack you declare this turn cannot be Defended.",
+  "effect_en": "【スタンバイ】このターン中の次のバトルで、相手は自分の攻撃を防御できない。",
   "power": {
    "bonus": 3000
   },
@@ -1966,19 +1871,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1yd-2316kB3XjydvbLzhkfYdb2kflvcEU/view?usp=sharing"
  },
  {
   "number": "S-020",
   "type": "spell",
-  "name_en": "Poruk",
-  "related_mamodo": "Kanchome",
+  "name_en": "ポルク",
+  "related_mamodo": "キャンチョメ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Reduce your opponent’s MP by 3 when you win the Battle as an Attacker.",
+  "effect_en": "相手のMPを3へらす。",
   "power": {
    "bonus": 2000
   },
@@ -1987,19 +1891,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1QbeRzxAa9YO4dGSsCPMFHm6-Wyme67D2/view?usp=sharing"
  },
  {
   "number": "S-021",
   "type": "spell",
-  "name_en": "Koporuk",
-  "related_mamodo": "Kanchome",
+  "name_en": "コポルク",
+  "related_mamodo": "キャンチョメ",
   "cost": 2,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin twice; if you get heads at least once, negate your opponent's Attack regardless of their Power.",
+  "effect_en": "コインを2回投げて、オモテが1回以上出れば、このバトルの「効果の使用」の最後に、相手の攻撃を無効にする。",
   "power": {
    "special": true
   },
@@ -2010,19 +1913,18 @@
    "The Best Booster 2",
    "Revised Edition"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1TPqgxaDCzOdPvKuAa335FIr6toSkgg8b/view?usp=sharing"
  },
  {
   "number": "S-022",
   "type": "spell",
-  "name_en": "Seoshi",
-  "related_mamodo": "Tia",
+  "name_en": "セウシル",
+  "related_mamodo": "ティオ",
   "cost": 1,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
   "power": {
    "bonus": 4000
   },
@@ -2031,19 +1933,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1edYkUc51aCIsh3uIuc_KTp23VVgY21kj/view?usp=sharing"
  },
  {
   "number": "S-023",
   "type": "spell",
-  "name_en": "Saisu",
-  "related_mamodo": "Tia",
+  "name_en": "サイス",
+  "related_mamodo": "ティオ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 1000
   },
@@ -2052,19 +1953,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1jy6LPmm2huML_ZUvburhsD7wxynsabsf/view?usp=sharing"
  },
  {
   "number": "S-024",
   "type": "spell",
-  "name_en": "Ma Seshield",
-  "related_mamodo": "Tia",
+  "name_en": "マ・セシルド",
+  "related_mamodo": "ティオ",
   "cost": 3,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
   "power": {
    "bonus": 8000
   },
@@ -2073,19 +1973,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/10OuEREgnUGQpnFCLzzTZ7mJ0tv4WwuFS/view?usp=sharing"
  },
  {
   "number": "S-025",
   "type": "spell",
-  "name_en": "Let's Get Out of Here!",
-  "related_mamodo": "Command: All",
+  "name_en": "逃げるぞ！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin; if you get heads, negate your opponent’s Attack.",
+  "effect_en": "魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
   "power": {
    "special": true
   },
@@ -2095,19 +1994,18 @@
    "Level 1",
    "The Best Booster 2"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1OqjbsHJhO6SbzlOR1GX6W1i8XbSmyydR/view?usp=sharing"
  },
  {
   "number": "S-026",
   "type": "spell",
-  "name_en": "Ready!",
-  "related_mamodo": "Command: All",
+  "name_en": "ＳＥＴ！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin; if it's heads, apply the following effect: [STANDBY] Your opponent cannot Defend in the next Battle during this turn.",
+  "effect_en": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、相手は防御できない。",
   "power": {
    "special": true
   },
@@ -2116,19 +2014,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": "j",
   "image_url": "https://drive.google.com/file/d/1dn-2LNZCU8cLC8jDrPOoIV2muV2viCP2/view?usp=sharing"
  },
  {
   "number": "S-027",
   "type": "spell",
-  "name_en": "Hold On!",
-  "related_mamodo": "Command: All",
+  "name_en": "耐えてくれよ！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Flip a coin twice; if you get heads at least once, reduce the Damage of your opponent's Attack by 1.",
+  "effect_en": "魔力勝負の勝敗にかかわらず、コインを2回投げて、オモテが1回以上出れば、相手の攻撃のダメージを1へらす。",
   "power": {
    "special": true
   },
@@ -2137,19 +2034,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1_QkrRZpQiTlzytHloB3x72s1kfzGQvWE/view?usp=sharing"
  },
  {
   "number": "S-028",
   "type": "spell",
-  "name_en": "Watch Out!",
-  "related_mamodo": "Command: All",
+  "name_en": "伏せろ！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender.",
+  "effect_en": "魔力勝負で勝ったとき、相手の攻撃を無効にする。",
   "power": {
    "bonus": 1000
   },
@@ -2158,19 +2054,18 @@
    "Series 1",
    "Level 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1LiCPmwREbtk0rIgnEdQ5opNDQCrmwlv6/view?usp=sharing"
  },
  {
   "number": "S-029",
   "type": "spell",
-  "name_en": "Zaker",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ザケル",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 3,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 3000
   },
@@ -2179,19 +2074,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/10Lq7xDbal5kc4jP7u-8aYoJulrpgINvD/view?usp=sharing"
  },
  {
   "number": "S-030",
   "type": "spell",
-  "name_en": "Rashield",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "ラシルド",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 2,
   "ad": "D",
   "class": "none",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as a Defender.",
+  "attr_name": "雷",
+  "effect_en": "【カウンター】魔力勝負で勝ったとき、相手の魔本にダメージ。",
   "power": {
    "bonus": 5000
   },
@@ -2200,19 +2094,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/15iW90udH7P3o3ULBfUPFFC4hpsqs4eUv/view?usp=sharing"
  },
  {
   "number": "S-031",
   "type": "spell",
-  "name_en": "Bao Zakeruga",
-  "related_mamodo": "Zatch Bell",
+  "name_en": "バオウ・ザケルガ",
+  "related_mamodo": "ガッシュ・ベル",
   "cost": 7,
   "ad": "AD",
   "class": "superior",
-  "attr_name": "Thunder",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. A MAMODO card that is Injured by this SPELL card is sent to the Discard Pile.",
+  "attr_name": "雷",
+  "effect_en": "相手の魔本にダメージ。この術のダメージを受けた魔物は捨て札になる。",
   "power": {
    "bonus": 6000
   },
@@ -2222,19 +2115,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1NPfYd2KMvZuiMDjXANwZbi651YIfz9kO/view?usp=sharing"
  },
  {
   "number": "S-032",
   "type": "spell",
-  "name_en": "Reis",
-  "related_mamodo": "Brago",
+  "name_en": "レイス",
+  "related_mamodo": "ブラゴ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. This SPELL card’s Damage cannot be greater than 3 Damage.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。この術のダメージは3より上にならない。",
   "power": {
    "bonus": 3000
   },
@@ -2243,19 +2135,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/19_2Gg39oyqsemIBXlQA9TMq4Y-5Yma9c/view?usp=sharing"
  },
  {
   "number": "S-033",
   "type": "spell",
-  "name_en": "Gravirei",
-  "related_mamodo": "Brago",
+  "name_en": "グラビレイ",
+  "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. [STAY] When you inflict Damage or Injury, reduce the Power of all of your opponent’s in-play MAMODO cards by 2000 until your opponent’s next END PHASE (it cannot be less than 0 by this effect).",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、相手の魔物すべてを選び、その魔物の魔力を-2000する(0より小さくはならない)(【ステイ】)。",
   "power": {
    "bonus": 3000
   },
@@ -2264,19 +2155,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1NjHG4ihskRCdSGyjWxqf4OrXehjUmnKH/view?usp=sharing"
  },
  {
   "number": "S-034",
   "type": "spell",
-  "name_en": "Giganoreis",
-  "related_mamodo": "Brago",
+  "name_en": "ギガノレイス",
+  "related_mamodo": "ブラゴ",
   "cost": 3,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. This SPELL card’s Damage cannot be greater than 4 Damage.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。この術のダメージは4より上にならない。",
   "power": {
    "bonus": 4000
   },
@@ -2285,19 +2175,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1VKULcYWGPwzner6trhL-4JnMs_9TUylZ/view?usp=sharing"
  },
  {
   "number": "S-035",
   "type": "spell",
-  "name_en": "Ion Gravirei",
-  "related_mamodo": "Brago",
+  "name_en": "アイアン・グラビレイ",
+  "related_mamodo": "ブラゴ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. Flip a coin twice; if you get heads twice, your opponent can neither SACRIFICE nor PROTECT their Spell Book from Damage.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔本にダメージ。コインを2回投げる。オモテが2回出れば、相手は、この術のダメージを「かばう」ことができない。",
   "power": {
    "bonus": 4000
   },
@@ -2306,19 +2195,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1cBtkSwPjZ9A0Nzdu7OXYkuxhJ0Ge751R/view?usp=sharing"
  },
  {
   "number": "S-036",
   "type": "spell",
-  "name_en": "Dioga Gravidon",
-  "related_mamodo": "Brago",
+  "name_en": "ディオガ・グラビドン",
+  "related_mamodo": "ブラゴ",
   "cost": 10,
   "ad": "AD",
   "class": "superior",
-  "attr_name": "Down Force",
-  "effect_en": "Damage your opponent's Spell Book and Injure all of your opponent's MAMODO cards when you win the Battle as an Attacker.",
+  "attr_name": "重力",
+  "effect_en": "相手の魔物すべてを選ぶ。相手の魔本と、選んだ魔物すべてにダメージをあたえる。",
   "power": {
    "bonus": 6000
   },
@@ -2328,19 +2216,18 @@
    "Series 2",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1I8bKbURiKtrCC-sai940KaOVoPdox2RB/view?usp=sharing"
  },
  {
   "number": "S-037",
   "type": "spell",
-  "name_en": "Jikir",
-  "related_mamodo": "Hyde",
+  "name_en": "ジキル",
+  "related_mamodo": "ハイド",
   "cost": 1,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Wind",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. [STAY] When you inflict Damage or Injury, flip a coin; if it’s heads, your Spell Book and all of your MAMODO cards cannot receive Damage or Injury until your opponent’s next END PHASE.",
+  "attr_name": "風",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
   "power": {
    "bonus": 3000
   },
@@ -2349,19 +2236,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/16QEKna3KeARgwfHaHLVYBavfBd0nntpO/view?usp=sharing"
  },
  {
   "number": "S-038",
   "type": "spell",
-  "name_en": "Jikirga",
-  "related_mamodo": "Hyde",
+  "name_en": "ジキルガ",
+  "related_mamodo": "ハイド",
   "cost": 3,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Wind",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. [STAY] When you inflict Damage or Injury, your Spell Book and all of your MAMODO cards cannot receive Damage or Injury until your opponent’s next END PHASE.",
+  "attr_name": "風",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない(【ステイ】)。",
   "power": {
    "bonus": 3000
   },
@@ -2370,19 +2256,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1Ki-9v9qmWehb2uJiBLalFVhNcYdIeIt8/view?usp=sharing"
  },
  {
   "number": "S-039",
   "type": "spell",
-  "name_en": "Radom",
-  "related_mamodo": "Zofis",
+  "name_en": "ラドム",
+  "related_mamodo": "ゾフィス",
   "cost": 3,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. When you inflict Damage or Injury, send 1 of your opponent’s in-play PARTNER cards to the Discard Pile.",
+  "effect_en": "相手の魔本にダメージ。相手の魔本か魔物にダメージをあたえたとき、相手のパートナー1枚を選び、捨て札にする。",
   "power": {
    "bonus": 4000
   },
@@ -2391,19 +2276,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1C8yLxIrinwcKXdnQIPRC3j0yMataY50b/view?usp=sharing"
  },
  {
   "number": "S-040",
   "type": "spell",
-  "name_en": "Barjuron",
-  "related_mamodo": "Pokkerio",
+  "name_en": "バルジュロン",
+  "related_mamodo": "ポッケリオ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
-  "attr_name": "Wood",
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. Flip a coin 3 times; the Power of this SPELL card is equal to the number of heads you get times 2000.",
+  "attr_name": "木",
+  "effect_en": "相手の魔本にダメージ。この術の魔力は、コインを3回投げて、オモテの数×2000となる。",
   "power": {
    "special": true,
    "per_heads": 2000
@@ -2413,19 +2297,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1ej7sQr63LkrjPda5w_g9T6bMe2xObDi4/view?usp=sharing"
  },
  {
   "number": "S-041",
   "type": "spell",
-  "name_en": "Juruk",
-  "related_mamodo": "Pokkerio",
+  "name_en": "ジュルク",
+  "related_mamodo": "ポッケリオ",
   "cost": 1,
   "ad": "A",
   "class": "none",
-  "attr_name": "Wood",
-  "effect_en": "[STAY] Flip a coin; if it’s heads, your Spell Book and all of your MAMODO cards cannot receive Damage or Injury until your opponent’s next END PHASE. This SPELL card cannot be defended.",
+  "attr_name": "木",
+  "effect_en": "【ステイ】コインを投げてオモテなら、次のターンのエンドフェイズまで、自分の魔本と魔物はダメージを受けない。",
   "power": {
    "special": true
   },
@@ -2434,19 +2317,35 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/18X0ebG_nos1HWPRxNNDvsq49kMPMEM9s/view?usp=sharing"
+ },
+ {
+  "number": "S-042",
+  "type": "spell",
+  "name_en": "ビライツ",
+  "related_mamodo": "ロブノス",
+  "cost": 2,
+  "ad": "AD",
+  "class": "none",
+  "attr_name": null,
+  "effect_en": "相手の魔本にダメージ。自分の攻撃の合計魔力が8000以上のならば、この術のダメージを+2する。",
+  "power": {
+   "bonus": 3000
+  },
+  "damage": 1,
+  "sets": [],
+  "image_url": null
  },
  {
   "number": "S-043",
   "type": "spell",
-  "name_en": "Rei Buruk",
-  "related_mamodo": "Robnos",
+  "name_en": "レリ・ブルク",
+  "related_mamodo": "ロブノス",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Send 2 in-play Robnos (Double) MAMODO cards to the Discard Pile to put 1 Robnos (Complete) MAMODO card from any pocket of your Spell Book in play, OR, send 1 in-play Robnos (Complete) MAMODO card to the Discard Pile to put 2 Robnos (Double) MAMODO cards in play. This SPELL card cannot be defended.",
+  "effect_en": "次の効果の1つを使う。●自分の「ロブノス（分身体）」2体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（完全体）」1枚を選び、場に出す。●自分の「ロブノス（完全体）」1体を選び、捨て札にする。そうしたなら、自分の魔本の好きなページから「ロブノス（分身体）」を2枚選び、場に出す。",
   "power": {
    "special": true
   },
@@ -2455,19 +2354,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1vtrFLLjH0qG8Lbf1-EXKplUbBJFuIudk/view?usp=sharing"
  },
  {
   "number": "S-044",
   "type": "spell",
-  "name_en": "Garon",
-  "related_mamodo": "Maruss",
+  "name_en": "ガロン",
+  "related_mamodo": "マルス",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -2477,19 +2375,18 @@
    "Level 2",
    "The Best Booster 1"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/13G9OiJ5bHpEGViOQjcKrSN1en4mjyQKl/view?usp=sharing"
  },
  {
   "number": "S-045",
   "type": "spell",
-  "name_en": "Ganzu Garon",
-  "related_mamodo": "Maruss",
+  "name_en": "ガンズ・ガロン",
+  "related_mamodo": "マルス",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. Flip a coin twice; if you get heads twice, this SPELL card cannot be defended.",
+  "effect_en": "コインを2回投げてオモテが2回出れば、相手はこの術を防御できない。相手の魔本にダメージ。",
   "power": {
    "bonus": 3000
   },
@@ -2498,19 +2395,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1AIRbdDXDqpkMdwmVuzhF7XpDhhP-BiR4/view?usp=sharing"
  },
  {
   "number": "S-046",
   "type": "spell",
-  "name_en": "Ei Garon",
-  "related_mamodo": "Maruss",
+  "name_en": "エイジャス・ガロン",
+  "related_mamodo": "マルス",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker. Flip a coin; if its heads, this SPELL card cannot be defended.",
+  "effect_en": "コインを投げてオモテなら、相手はこの術を防御できない。相手の魔本にダメージ。",
   "power": {
    "bonus": 4000
   },
@@ -2519,19 +2415,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1dCDRKHfZmoEGwmu-7REf1qOiI5OzoM8w/view?usp=sharing"
  },
  {
   "number": "S-047",
   "type": "spell",
-  "name_en": "Gigano Garanzu",
-  "related_mamodo": "Maruss",
+  "name_en": "ギガノ・ガランズ",
+  "related_mamodo": "マルス",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 5000
   },
@@ -2540,19 +2435,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1GyagH680lhAzgCZbf3MLgNutLbcqP3km/view?usp=sharing"
  },
  {
   "number": "S-048",
   "type": "spell",
-  "name_en": "Zeberu",
-  "related_mamodo": "Baltro",
+  "name_en": "ゼベルオン",
+  "related_mamodo": "バルトロ",
   "cost": 1,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Select 1 Baltro (Armored) MAMODO card from any pocket of your Spell Book and place it on a regular Baltro MAMODO card. This SPELL card cannot be defended.",
+  "effect_en": "自分の魔本の好きなページから「バルトロ（アーマー体）」1枚を選び、自分の場の「バルトロ（本体）」の上に重ねる。",
   "power": {
    "special": true
   },
@@ -2561,19 +2455,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1pojTsQMg9gJhzapEOBtq6PmAErwXLU6L/view?usp=sharing"
  },
  {
   "number": "S-049",
   "type": "spell",
-  "name_en": "Zeberusen",
-  "related_mamodo": "Baltro",
+  "name_en": "ゼベルセン",
+  "related_mamodo": "バルトロ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 5000
   },
@@ -2582,19 +2475,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1YSq00dRxR1bcdMCPNhomtE68lCJRJ_3R/view?usp=sharing"
  },
  {
   "number": "S-050",
   "type": "spell",
-  "name_en": "Mikeru",
-  "related_mamodo": "Yopopo",
+  "name_en": "ミケル",
+  "related_mamodo": "ヨポポ",
   "cost": 1,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -2603,19 +2495,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1CoBm_OIsgvaWQcwe6OwEIpxTn6VXfU5n/view?usp=sharing"
  },
  {
   "number": "S-051",
   "type": "spell",
-  "name_en": "Doremikeru",
-  "related_mamodo": "Yopopo",
+  "name_en": "ドレミケル",
+  "related_mamodo": "ヨポポ",
   "cost": 5,
   "ad": "AD",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 4000
   },
@@ -2624,19 +2515,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1W5rsVSfpV1jSO6ZWa3Zg0aeTpVlDhh8w/view?usp=sharing"
  },
  {
   "number": "S-052",
   "type": "spell",
-  "name_en": "Amuruk",
-  "related_mamodo": "Kikuropu",
+  "name_en": "アムルク",
+  "related_mamodo": "キクロプ",
   "cost": 2,
   "ad": "AD",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 2000
   },
@@ -2645,19 +2535,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1nvqPTqxqaxWeLfqhPEAgXh03QNC4PW10/view?usp=sharing"
  },
  {
   "number": "S-053",
   "type": "spell",
-  "name_en": "Amu Shizaruk",
-  "related_mamodo": "Kikuropu",
+  "name_en": "アムド・シザルグ",
+  "related_mamodo": "キクロプ",
   "cost": 2,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 1000
   },
@@ -2666,19 +2555,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1gnax-A-ImyTJTvuhFnKWqdd2IgnR58ud/view?usp=sharing"
  },
  {
   "number": "S-054",
   "type": "spell",
-  "name_en": "Amursen",
-  "related_mamodo": "Kikuropu",
+  "name_en": "アムルセン",
+  "related_mamodo": "キクロプ",
   "cost": 4,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 4000
   },
@@ -2687,19 +2575,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1LvpFVzBQoJsgN4wf2DQBIftjTjaiDEPT/view?usp=sharing"
  },
  {
   "number": "S-055",
   "type": "spell",
-  "name_en": "Emron",
-  "related_mamodo": "Kikuropu",
+  "name_en": "エムルロン",
+  "related_mamodo": "キクロプ",
   "cost": 5,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "Damage your opponent’s Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔本にダメージ。",
   "power": {
    "bonus": 1000
   },
@@ -2708,19 +2595,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1xFwnsfpw29mUbCVX16NMmRGASTffaz-J/view?usp=sharing"
  },
  {
   "number": "S-056",
   "type": "spell",
-  "name_en": "Stay Focused!",
-  "related_mamodo": "Command: All",
+  "name_en": "目をそらすな！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "D",
   "class": "none",
   "attr_name": null,
-  "effect_en": "Negate your opponent’s Attack when you win the Battle as a Defender. If your opponent’s Attack inflicts Damage, get MP equal to 2 times the number of pages turned as Damage.",
+  "effect_en": "魔力勝負に勝ったとき、相手の攻撃を無効にする。魔力勝負の勝敗にかかわらず、このバトル中に、自分の魔本がダメージを受けたとき、めくられたページの枚数×2、MPをふやす(【ステイ】)。",
   "power": {
    "bonus": 0
   },
@@ -2729,19 +2615,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1fJMS96Iy-USTWRkpStV5BMD9FvQK_LGt/view?usp=sharing"
  },
  {
   "number": "S-057",
   "type": "spell",
-  "name_en": "Checkmate!",
-  "related_mamodo": "Command: All",
+  "name_en": "チェックメイトだ！",
+  "related_mamodo": "コマンド",
   "cost": 0,
   "ad": "A",
   "class": "none",
   "attr_name": null,
-  "effect_en": "[STANDBY] Flip a coin; if it’s heads, the next SPELL card you play in the same turn Injures 1 of your opponent’s MAMODO cards instead of Damaging their Spell Book when you win the Battle as an Attacker. This SPELL card cannot be defended.",
+  "effect_en": "コインを投げてオモテなら、次の効果を使える。【スタンバイ】このターン中の次のバトルで、自分が使う術の「ダメージをあたえる」効果は、「相手の魔物1体を選び、ダメージをあたえる」効果になる。",
   "power": {
    "special": true
   },
@@ -2750,19 +2635,18 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/130fxYABw7Ogl3BupIsqcjw4RXeF-UM_L/view?usp=sharing"
  },
  {
   "number": "S-058",
   "type": "spell",
-  "name_en": "Zaker",
-  "related_mamodo": "Zeno",
+  "name_en": "ザケル",
+  "related_mamodo": "ゼオン",
   "cost": 3,
   "ad": "A",
   "class": "intermediate",
   "attr_name": null,
-  "effect_en": "Injure 1 of your opponent’s MAMODO cards instead of Damaging their Spell Book when you win the Battle as an Attacker.",
+  "effect_en": "相手の魔物1体を選び、ダメージをあたえる。",
   "power": {
    "bonus": 3000
   },
@@ -2771,7 +2655,6 @@
    "Series 1",
    "Level 2"
   ],
-  "text_version": null,
   "image_url": "https://drive.google.com/file/d/1LZ1_GDAIcOStVl56n9JT7N_vRHpLSmZ7/view?usp=sharing"
  }
 ]

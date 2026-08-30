@@ -163,6 +163,51 @@ def test_m020_attach_partner_from_book():
     assert 4 in g.state.players[0].consumed_pages  # P4(index的P-009在page4)
 
 
+# ---------------------------------------------------------------- 書內搜卡(M-021 裝搭檔)
+
+def test_m021_attach_partner_from_book():
+    # P1=M-021 海爾, P5=P-011 窪塚泳太(在後頁,不在翻開頁)
+    b0 = book("M-021", "S-029", "S-029", "P-011")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    uid = slot_uid(g, 0, "M-021")
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": uid})
+    # 只有 1 張窪塚泳太 → 自動裝上
+    assert g.state.players[0].slots[0].partner == "P-011"
+    assert 4 in g.state.players[0].consumed_pages  # P4(index的P-011在page4)
+
+
+# ---------------------------------------------------------------- 術相容擴充(M-023 可用木屬性術)
+
+def test_m023_wood_attr_spell_compat():
+    # M-023 波克利歐搭配 S-014(スギナ家族、木屬性)攻擊:家族不同但屬性相容
+    b0 = book("M-023", "S-014")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert g.state.battle.attack_spell == "S-014"
+
+
+# ---------------------------------------------------------------- 書內任意頁用術(P-015 → S-042)
+
+def test_p015_allows_spell_from_closed_page():
+    # P1=M-024 羅布諾斯(分身体), P5=S-042 比萊茲(不在翻開頁 1/2 內)
+    b0 = book("M-024", "S-029", "S-029", "S-029", "S-042")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    slot = g.state.players[0].slots[0]
+    slot.partner = "P-015"
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": slot.uid})
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "declare_attack", "player": 0, "page": 5, "slot_uid": slot.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert g.state.battle.attack_spell == "S-042"
+
+
 # ---------------------------------------------------------------- 負傷代替傷害(S-058)
 
 def test_s058_injure_instead():

@@ -127,21 +127,22 @@ frontend/               無框架靜態前端(中文 UI,文字全走 i18n 字典
   i18n/zh-TW.json       介面文字與行動記錄模板
   assets/cards/         卡圖(缺圖時自動以文字卡面呈現)
 data/
-  cards.json            67 種卡結構化數值資料(由 xlsx 抽取,e/j 差異採日版 j)
+  cards_ja.csv          日文權威來源(atwiki 抓取結果),cards.json 的轉換輸入
+  cards.json            卡片結構化數值資料(由 cards_ja.csv 轉換,日文為準)
   cards.zh-TW.json      卡片中文文本(卡名/效果),獨立於數值、可自由校對
   decks/level1.json     預組魔本(32 頁)
 tools/
-  extract_cards.py      xlsx → cards.json 抽取(開發工具,一次性)
+  scrape_ja_effects.py  atwiki 日文權威資料抓取 → data/cards_ja.csv
+  build_cards_json.py   cards_ja.csv → cards.json 轉換
   download_images.py    卡圖批次下載(Google Drive,支援續抓與失敗清單)
   build_release.py      發行打包(PyInstaller onedir → 單一 zip,不含卡圖)
 ```
 
 ## 資料管線
 
-1. `openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 為卡片資料來源(唯讀);
-   與權威來源試算表(見 `openspec/specs/card-effects/Zatch Bell CCG List for TTS.gsheet` 捷徑)不符時以試算表為準重新匯出。
-2. `python tools/extract_cards.py` 過濾 Series 1 Level 1、e/j 去重(採日版 j)、
-   自儲存格超連結取得卡圖網址,輸出 `data/cards.json`(67 種)。
+1. `python tools/scrape_ja_effects.py` 抓取 atwiki.jp 日文權威頁面,輸出 `data/cards_ja.csv`。
+2. `python tools/build_cards_json.py` 將 `data/cards_ja.csv` 轉換為 `data/cards.json`;
+   `image_url`/`sets` 沿用轉換前既有 `data/cards.json` 的舊值(新卡無舊值可沿用時為空)。
 3. `python tools/download_images.py` 批次下載卡圖至 `frontend/assets/cards/{卡號}.jpg`;
    已存在自動跳過,失敗清單寫入 `_failed.txt`,缺圖不影響遊戲。
 

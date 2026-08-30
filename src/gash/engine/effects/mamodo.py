@@ -76,7 +76,7 @@ def m007(game, batch, player, slot):
 @reg.activated("M-008", mode="declare", timing="nonbattle")
 def m008(game, batch, player, slot):
     schedule_standby(game, batch, kind="spell_bonus", source="M-008", owner=player,
-                     data={"mamodo": "Sugino", "power_delta": -1000, "cost_delta": -1})
+                     data={"mamodo": "スギナ", "power_delta": -1000, "cost_delta": -1})
 
 
 # M-009 コルル:被棄掉時 MP+4
@@ -251,26 +251,26 @@ def _partner_pages(game, player, mamodo_name):
 
 
 @reg.activated("M-020", mode="mp", mp_cost=1, timing="nonbattle",
-               condition=lambda g, p, s: s.partner is None and bool(_partner_pages(g, p, "Tia")))
+               condition=lambda g, p, s: s.partner is None and bool(_partner_pages(g, p, "ティオ")))
 def m020(game, batch, player, slot):
-    _attach_from_book(game, batch, player, slot, "Tia", "m020_pick")
+    _attach_from_book(game, batch, player, slot, "ティオ", "m020_pick")
 
 
 @reg.choice_resolver("m020_pick")
 def m020_pick(game, batch, value, data):
-    _resolve_attach(game, batch, value, data, "Tia")
+    _resolve_attach(game, batch, value, data, "ティオ")
 
 
 # M-021 ハイド:[1MP] 自書任意頁取艾多夥伴裝備到此魔物
 @reg.activated("M-021", mode="mp", mp_cost=1, timing="nonbattle",
-               condition=lambda g, p, s: s.partner is None and bool(_partner_pages(g, p, "Hyde")))
+               condition=lambda g, p, s: s.partner is None and bool(_partner_pages(g, p, "ハイド")))
 def m021(game, batch, player, slot):
-    _attach_from_book(game, batch, player, slot, "Hyde", "m021_pick")
+    _attach_from_book(game, batch, player, slot, "ハイド", "m021_pick")
 
 
 @reg.choice_resolver("m021_pick")
 def m021_pick(game, batch, value, data):
-    _resolve_attach(game, batch, value, data, "Hyde")
+    _resolve_attach(game, batch, value, data, "ハイド")
 
 
 def _attach_from_book(game, batch, player, slot, mamodo_name, resolver_key):
@@ -319,7 +319,7 @@ def m022_pick(game, batch, value, data):
 # M-023 ポッケリオ:[此卡在場上] 木屬性術可為此魔物使用(相容性 hook)
 @reg.spell_compat("M-023")
 def m023_compat(game, player, slot, spell_card):
-    return slot.top == "M-023" and spell_card.attr_name == "Wood"
+    return slot.top == "M-023" and spell_card.attr_name == "木"
 
 
 # M-024 ロブノス(二体):同名可 2 隻;比萊茲術次數上限由 M-024 查詢
@@ -391,8 +391,8 @@ def m028(game, batch, owner, slot, ev):
 # M-029 ゼオン:賈修的ザケル術可為此魔物使用;[7MP] 棄掉對手 1 隻負傷魔物
 @reg.spell_compat("M-029")
 def m029_compat(game, player, slot, spell_card):
-    return (slot.top == "M-029" and spell_card.related_mamodo == "Zatch Bell"
-            and "Zaker" in (spell_card.name_en or ""))
+    return (slot.top == "M-029" and spell_card.related_mamodo == "ガッシュ・ベル"
+            and "ザケル" in (spell_card.name_en or ""))
 
 
 @reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",
