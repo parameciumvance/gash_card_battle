@@ -891,6 +891,19 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
     while ctx["items"]:
         if st.phase == GAME_OVER:
             return
+        # 目標魔物在處理前已消失(如被其他項目的庇護頂替致入墓):此份傷害作廢,不詢問庇護
+        kept, stale = [], []
+        for it in ctx["items"]:
+            if it["kind"] == "slot" and st.slot_by_uid(it["player"], it["slot_uid"]) is None:
+                stale.append(it)
+            else:
+                kept.append(it)
+        if stale:
+            ctx["items"] = kept
+            for it in stale:
+                game.emit(batch, "damage_prevented", player=it["player"],
+                          slot=it["slot_uid"], reason="no_target")
+            continue
         if len(ctx["items"]) > 1:
             # 多項傷害:受方決定順序(第一彈僅庇護鏈會出現,仍保留通用機制)
             receiver = ctx["items"][0]["player"]

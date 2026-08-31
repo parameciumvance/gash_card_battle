@@ -407,6 +407,52 @@ def test_s036_damage_can_be_protected():
     assert any(not s.injured for s in opp.slots) or len(opp.slots) < 2
 
 
+def test_s036_protector_discarded_own_damage_item_skipped():
+    # 對手 A(健康)、B(已負傷)。B 頂替 A 的傷害後因已負傷而入墓,
+    # B 自己那份原始傷害此時目標已不存在,應直接作廢,不得再詢問是否庇護
+    from gash.engine.state import MamodoSlot
+    b0 = book("M-005", "S-036")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 15
+    opp = g.state.players[1]
+    a_slot = opp.slots[0]
+    b_slot = MamodoSlot(uid=g.state.next_uid(), stack=["M-001"], injured=True)
+    opp.slots.append(b_slot)
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    events = submit(g, {"type": "pass", "player": 1})
+
+    pending = g.state.pending
+    assert pending.kind == "damage_order"
+    a_index = next(o["index"] for o in pending.options
+                  if o["item"]["kind"] == "slot" and o["item"]["slot_uid"] == a_slot.uid)
+    events += submit(g, {"type": "choose", "player": 1, "value": a_index})
+
+    pending = g.state.pending
+    assert pending.kind == "protect"
+    assert pending.data["ctx"]["items"][0]["slot_uid"] == a_slot.uid
+    events += submit(g, {"type": "choose", "player": 1, "value": b_slot.uid})  # 用 B 頂替 A
+    assert b_slot not in opp.slots  # B 已負傷,頂替後直接入墓
+
+    # 剩餘流程走到底(book 傷害若詢問庇護一律選不庇護),收集全部事件
+    while g.state.pending is not None:
+        pending = g.state.pending
+        if pending.kind == "protect":
+            events += submit(g, {"type": "choose", "player": 1, "value": None})
+        else:
+            raise AssertionError(f"未預期的 pending: {pending.kind}")
+
+    protect_targets = [e.get("item", {}).get("slot_uid") for e in events
+                       if e["type"] == "choice_required" and e["kind"] == "protect"]
+    assert b_slot.uid not in protect_targets  # 從未針對 B 已消失的那份傷害詢問庇護
+    assert any(e["type"] == "damage_prevented" and e.get("slot") == b_slot.uid
+              and e.get("reason") == "no_target" for e in events)
+    assert not a_slot.injured  # A 的傷害被 B 頂替,A 本身未受傷
+
+
 def test_s036_damage_negated_by_p006():
     # 防方 M-010(變身後コルル)裝 P-006,待命無效 1 次傷害
     b0 = book("M-005", "S-036")

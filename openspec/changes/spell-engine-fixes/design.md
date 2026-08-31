@@ -42,5 +42,6 @@
 
 - **`used_nonbattle_spells` 的清空時機依賴現有 `turn_ended` 邏輯的正確性**:目前 `used_abilities`/`used_event_this_turn` 都在同一處清空且運作正常,新增一個同模式的欄位風險低,但仍須補一個測試驗證「用過後同回合不可用、下回合(輪到自己時)恢復可用」的完整跨回合案例。
 - **S-036 改用 `_start_damage` 後,多目標(對手全部魔物 + 魔本)會觸發 `damage_order` 選擇(受方決定處理順序)**:這是正規管線既有行為(`_process_damage` 對多於 1 筆 item 時的既定邏輯),但 S-036 過去沒有這個互動步驟,遷移後前端/測試都需要多處理一種 `pending choice`。
+  - **實作階段更正(使用者遊玩後回報)**:多項傷害的 `_process_damage` 迴圈原本只在每次挑出下一項時檢查「是否有庇護者」,沒檢查「這一項自身的目標是否還在場上」。若前面某項傷害被一隻已負傷的魔物 B 頂替庇護、B 因而入墓,B 自己原本那份傷害的目標已經消失,但迴圈仍會把場上其他健康魔物列為「B 那份傷害」的候選庇護者、詢問要不要庇護一個已經不存在的目標。修正:`_process_damage` 迴圈開頭新增一輪過濾,把目標(`slot_uid`)已不在場上的項目直接從 `items` 移除、各自發出 `damage_prevented(reason="no_target")`,再繼續原本的 `damage_order`/`protect` 判斷。已同步補上 `game-engine` spec 的對應 Requirement 文字與 Scenario。
 - **刪除 `injure_or_discard` 是不可逆動作**:已確認全專案唯一呼叫點就是 `_s036_on_win`,遷移完成後刪除風險低。
 - **`SPELL_COMPAT`/`related_mamodo` 判斷邏輯要從 `_validate_spell_declaration` 抽成共用函式,供 `_use_book_card` 呼叫**:這是本次唯一牽動既有攻擊宣告路徑的重構,MUST 確認抽出共用函式後,原本 `declare_attack`/`declare_defense` 的行為(含既有測試)完全不變。
