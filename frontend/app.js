@@ -1327,7 +1327,8 @@ function logLine(ev) {
     case "attack_negated": return t("log.attack_negated", { source: cname(ev.source) || ev.source || "" });
     case "defense_negated": return t("log.defense_negated", { source: cname(ev.source) || ev.source || "" });
     case "damage_dealt": return t("log.damage_dealt.book", { ...P, amount: ev.amount });
-    case "damage_prevented": return t("log.damage_prevented", P);
+    case "damage_prevented":
+      return ev.reason === "no_target" ? t("log.damage_no_target", P) : t("log.damage_prevented", P);
     case "damage_negated": return t("log.damage_negated", { card: cname(ev.card) });
     case "protected": return t("log.protected", { ...P, card: cname(ev.card) });
     case "mamodo_injured": return t("log.mamodo_injured", { ...P, card: cname(ev.card) });

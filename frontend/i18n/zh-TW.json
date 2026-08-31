@@ -101,6 +101,7 @@
   "log.defense_negated": "防禦被無效化({source})",
   "log.damage_dealt.book": "{player} 的魔本受到 {amount} 點傷害",
   "log.damage_prevented": "{player} 的魔物不受傷害",
+  "log.damage_no_target": "{player} 有一份傷害因對象已不在場而略過",
   "log.damage_negated": "傷害被無效({card})",
   "log.protected": "{player} 以《{card}》庇護傷害",
   "log.mamodo_injured": "{player} 的《{card}》負傷",
