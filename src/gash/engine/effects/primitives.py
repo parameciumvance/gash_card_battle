@@ -1,6 +1,6 @@
 """效果原語:卡片 handler 用來組合效果的共用積木。
 
-硬幣判定為互動式:擲出後若玩家場上有可用的 M-012(康裘美《幸運兒》),
+硬幣判定為互動式:擲出後若玩家場上有可用的 M-012(凱喬美《幸運兒》),
 會進入 pending 讓玩家決定是否重擲,確定後才呼叫 callback 繼續解決。
 """
 
@@ -203,7 +203,7 @@ def _reflip_available(game, player) -> bool:
 
 
 def _opp_redo_available(game, opp) -> bool:
-    """M-019 康裘美《奇妙動物》:宣告使用→對手重擲(每回合一次)。"""
+    """M-019 凱喬美《奇妙動物》:宣告使用→對手重擲(每回合一次)。"""
     from ..engine import restricted, slot_restricted
     from ..state import MAMODO_LOCKED, NO_MAMODO_EFFECTS
     ps = game.state.players[opp]

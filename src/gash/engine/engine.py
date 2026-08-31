@@ -563,7 +563,7 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         st.action_player = bi["attacker"]
         st.consecutive_passes = 0
         return
-    raise IllegalCommand("battle_in.invalid", "只能讓過(進入戰鬥)或插入 1 個行動")
+    raise IllegalCommand("battle_in.invalid", "只能迎戰(進入戰鬥)或插入 1 個行動")
 
 
 # ---------------------------------------------------------------- 戰鬥
@@ -611,7 +611,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
                                    s.data.get("mamodo") in (None, mamodo_name))):
         battle.attack_undefendable = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:本場戰鬥不能庇護魔本(E-013)
+    # 待命:本場戰鬥不能保護魔本(E-013)
     for sb in _consume_standby(game, "no_protect_book", lambda s: s.owner == attacker):
         battle.data["no_protect_book"] = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
@@ -869,7 +869,7 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
 # ---------------------------------------------------------------- 傷害系統
 
 def _eligible_protectors(game: Game, item: dict) -> list[MamodoSlot]:
-    """可庇護此項傷害的魔物。魔本傷害:任何自己魔物;魔物傷害:其他魔物。"""
+    """可保護此項傷害的魔物。魔本傷害:任何自己魔物;魔物傷害:其他魔物。"""
     st = game.state
     player = item["player"]
     if item["kind"] == "book":
@@ -891,7 +891,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
     while ctx["items"]:
         if st.phase == GAME_OVER:
             return
-        # 目標魔物在處理前已消失(如被其他項目的庇護頂替致入墓):此份傷害作廢,不詢問庇護
+        # 目標魔物在處理前已消失(如被其他項目的保護頂替致入墓):此份傷害作廢,不詢問保護
         kept, stale = [], []
         for it in ctx["items"]:
             if it["kind"] == "slot" and st.slot_by_uid(it["player"], it["slot_uid"]) is None:
@@ -905,7 +905,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
                           slot=it["slot_uid"], reason="no_target")
             continue
         if len(ctx["items"]) > 1:
-            # 多項傷害:受方決定順序(第一彈僅庇護鏈會出現,仍保留通用機制)
+            # 多項傷害:受方決定順序(第一彈僅保護鏈會出現,仍保留通用機制)
             receiver = ctx["items"][0]["player"]
             st.pending = PendingChoice(
                 kind="damage_order", player=receiver, source=ctx.get("source"),
@@ -1042,7 +1042,7 @@ def _finish_battle_damage(game: Game, batch: list[dict], ctx: dict) -> None:
 
 def _maybe_discard_protector(game: Game, batch: list[dict], player: int,
                              slot: MamodoSlot, ctx: dict) -> None:
-    """P-012 雪莉:對自己布拉哥攻擊傷害進行庇護的魔物,承受後直接入墓。"""
+    """P-012 雪莉:對自己布拉哥攻擊傷害進行保護的魔物,承受後直接入墓。"""
     st = game.state
     battle = st.battle
     if battle is None or ctx.get("cause") != "battle_attack":
@@ -1073,7 +1073,7 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
             return
         slot = st.slot_by_uid(pending.player, value)
         if slot is None or slot.uid == item.get("slot_uid"):
-            raise IllegalCommand("choose.invalid", "無效的庇護對象")
+            raise IllegalCommand("choose.invalid", "無效的保護對象")
         st.pending = None
         ctx["items"].pop(0)
         game.emit(batch, "protected", player=pending.player, slot=slot.uid, card=slot.top)

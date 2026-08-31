@@ -32,7 +32,7 @@ STEP_EFFECTS = "effects"       # 戰鬥中效果輪流
 # --- 禁止旗標 ---
 NO_SPELLS = "no_spells"                    # 不能使用術卡
 NO_PARTNER_EFFECTS = "no_partner_effects"  # 夥伴卡效果失效
-NO_PROTECT_BOOK = "no_protect_book"        # 不能庇護魔本傷害(戰鬥時效)
+NO_PROTECT_BOOK = "no_protect_book"        # 不能保護魔本傷害(戰鬥時效)
 NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)

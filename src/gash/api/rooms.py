@@ -146,7 +146,7 @@ def default_command(game: Game) -> dict | None:
     if st.pending is not None:
         kind = st.pending.kind
         if kind == "protect" or kind == "coin_confirm":
-            return {"type": "choose", "value": None}       # 不庇護 / 保留硬幣
+            return {"type": "choose", "value": None}       # 不保護 / 保留硬幣
         if kind == "e011_retry":
             return {"type": "choose", "value": False}      # 放棄付費重擲
         if kind == "damage_order":
@@ -160,5 +160,5 @@ def default_command(game: Game) -> dict | None:
             return {"type": "no_defense"}
         return {"type": "pass"}
     if st.battle_in is not None:
-        return {"type": "battle_in_response", "allow": True}  # 讓過=依規則強制攻擊
+        return {"type": "battle_in_response", "allow": True}  # 迎戰=依規則強制攻擊
     return {"type": "pass"}

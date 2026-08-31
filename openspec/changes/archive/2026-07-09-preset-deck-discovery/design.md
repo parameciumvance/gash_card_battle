@@ -43,7 +43,7 @@
 
 ### D4. 牌組 JSON 顯示名欄位
 
-- `level1.json` 補一個內嵌 `name`(如「賈修+蒂歐+康裘美」)作為 fallback,並保留 `name_key`;確認兩者擇一都能正確顯示。
+- `level1.json` 補一個內嵌 `name`(如「賈修+蒂歐+凱喬美」)作為 fallback,並保留 `name_key`;確認兩者擇一都能正確顯示。
 - 新預組作者:最省 = 只寫 `name`;要多語 = 加 `name_key` 並在各 `i18n/<lang>.json` 補條目。
 
 ## Risks / Trade-offs

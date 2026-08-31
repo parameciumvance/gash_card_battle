@@ -348,7 +348,7 @@ def test_used_nonbattle_spell_blocks_same_turn_reuse():
 # ---------------------------------------------------------------- 傷害管線修正(S-036)
 
 def _resolve_damage_choices(g, receiver, protect_index=None):
-    """依序處理 damage_order(固定選第一項)/ protect(依 protect_index 決定庇護對象或不庇護)。"""
+    """依序處理 damage_order(固定選第一項)/ protect(依 protect_index 決定保護對象或不保護)。"""
     while g.state.pending is not None and g.state.pending.kind in ("damage_order", "protect"):
         pending = g.state.pending
         if pending.kind == "damage_order":
@@ -359,7 +359,7 @@ def _resolve_damage_choices(g, receiver, protect_index=None):
 
 
 def test_s036_damages_book_and_all_mamodo():
-    # 玩家0 用 M-005(布拉哥) + S-036;對手 1 隻魔物(不庇護),魔本+魔物皆應受傷害
+    # 玩家0 用 M-005(布拉哥) + S-036;對手 1 隻魔物(不保護),魔本+魔物皆應受傷害
     from gash.engine.state import MamodoSlot
     b0 = book("M-005", "S-036")
     g, tp = mk(b0, book("M-001"))
@@ -378,7 +378,7 @@ def test_s036_damages_book_and_all_mamodo():
 
 
 def test_s036_damage_can_be_protected():
-    # 對手有 2 隻魔物,庇護其中一份魔物傷害
+    # 對手有 2 隻魔物,保護其中一份魔物傷害
     from gash.engine.state import MamodoSlot
     b0 = book("M-005", "S-036")
     g, tp = mk(b0, book("M-001"))
@@ -391,7 +391,7 @@ def test_s036_damage_can_be_protected():
     submit(g, {"type": "no_defense", "player": 1})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
-    # 遇到第一個 protect 詢問時選擇庇護(用另一隻魔物頂替)
+    # 遇到第一個 protect 詢問時選擇保護(用另一隻魔物頂替)
     protected_once = False
     while g.state.pending is not None and g.state.pending.kind in ("damage_order", "protect"):
         pending = g.state.pending
@@ -403,13 +403,13 @@ def test_s036_damage_can_be_protected():
         else:
             submit(g, {"type": "choose", "player": 1, "value": None})
     assert protected_once
-    # 庇護後:恰有一隻魔物因為頂替而額外受傷,但不因此變成兩隻皆負傷又都入墓
+    # 保護後:恰有一隻魔物因為頂替而額外受傷,但不因此變成兩隻皆負傷又都入墓
     assert any(not s.injured for s in opp.slots) or len(opp.slots) < 2
 
 
 def test_s036_protector_discarded_own_damage_item_skipped():
     # 對手 A(健康)、B(已負傷)。B 頂替 A 的傷害後因已負傷而入墓,
-    # B 自己那份原始傷害此時目標已不存在,應直接作廢,不得再詢問是否庇護
+    # B 自己那份原始傷害此時目標已不存在,應直接作廢,不得再詢問是否保護
     from gash.engine.state import MamodoSlot
     b0 = book("M-005", "S-036")
     g, tp = mk(b0, book("M-001"))
@@ -437,7 +437,7 @@ def test_s036_protector_discarded_own_damage_item_skipped():
     events += submit(g, {"type": "choose", "player": 1, "value": b_slot.uid})  # 用 B 頂替 A
     assert b_slot not in opp.slots  # B 已負傷,頂替後直接入墓
 
-    # 剩餘流程走到底(book 傷害若詢問庇護一律選不庇護),收集全部事件
+    # 剩餘流程走到底(book 傷害若詢問保護一律選不保護),收集全部事件
     while g.state.pending is not None:
         pending = g.state.pending
         if pending.kind == "protect":
@@ -447,7 +447,7 @@ def test_s036_protector_discarded_own_damage_item_skipped():
 
     protect_targets = [e.get("item", {}).get("slot_uid") for e in events
                        if e["type"] == "choice_required" and e["kind"] == "protect"]
-    assert b_slot.uid not in protect_targets  # 從未針對 B 已消失的那份傷害詢問庇護
+    assert b_slot.uid not in protect_targets  # 從未針對 B 已消失的那份傷害詢問保護
     assert any(e["type"] == "damage_prevented" and e.get("slot") == b_slot.uid
               and e.get("reason") == "no_target" for e in events)
     assert not a_slot.injured  # A 的傷害被 B 頂替,A 本身未受傷
@@ -632,7 +632,7 @@ def test_full_regression_level1_deck_still_plays():
 # ---------------------------------------------------------------- 整合:無術攻擊造成傷害
 
 def _run_attack_to_damage(g, attacker, defender):
-    """防方不防禦、雙方戰鬥中 pass,推進到傷害/庇護決策點。"""
+    """防方不防禦、雙方戰鬥中 pass,推進到傷害/保護決策點。"""
     submit(g, {"type": "no_defense", "player": defender})
     while g.state.battle and g.state.battle.step == "effects" and g.state.pending is None:
         submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
@@ -649,15 +649,15 @@ def test_mamodo_attack_deals_book_damage():
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027"
     pos1 = g.state.players[1].pos
-    # 無術攻擊,防方無魔物可庇護魔本(對手只有 1 隻魔物,可庇護)→ 選不庇護
+    # 無術攻擊,防方無魔物可保護魔本(對手只有 1 隻魔物,可保護)→ 選不保護
     submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": slot.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
     while g.state.battle and g.state.battle.step == "effects" and g.state.pending is None:
         submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
-    # 合計魔力 5000 > 0,攻擊成功 → 進入庇護決策或直接傷害
+    # 合計魔力 5000 > 0,攻擊成功 → 進入保護決策或直接傷害
     if g.state.pending and g.state.pending.kind == "protect":
-        submit(g, {"type": "choose", "player": 1, "value": None})  # 不庇護
+        submit(g, {"type": "choose", "player": 1, "value": None})  # 不保護
     assert g.state.players[1].pos == pos1 + 4  # 傷害 2 → 翻 2 對頁
 
 

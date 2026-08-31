@@ -175,7 +175,7 @@ def p011_pick(game, batch, value, data):
                  duration=DUR_TURN, target_player=1 - player, target_slot=slot.uid)
 
 
-# P-012 シェリー:[棄掉][持續] 本回合對布拉哥攻擊傷害庇護/犧牲的魔物一律入墓
+# P-012 シェリー:[棄掉][持續] 本回合對布拉哥攻擊傷害保護/犧牲的魔物一律入墓
 @reg.activated("P-012", mode="discard", timing="nonbattle")
 def p012(game, batch, player, slot):
     add_modifier(game, batch, kind="protect_discard", source="P-012", owner=player,

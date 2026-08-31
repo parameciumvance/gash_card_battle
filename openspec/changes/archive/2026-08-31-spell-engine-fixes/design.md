@@ -2,7 +2,7 @@
 
 `engine.py:_use_book_card` 已經是「從魔本開啟頁直接使用卡片、不經戰鬥流程」的既有指令,對 `EVENT` 卡有完整實作(回合限制、條件檢查、MP 支付),對 `SPELL` 只留了一句「保留擴充點」就 raise。`openspec/specs/game-engine/spec.md` 的「使用場上與魔本中卡片的效果」需求也早就寫著「非戰鬥術使用後 SHALL 至下回合前不可再用」並有對應 Scenario——資料(`effect_icon`)、引擎擴充點、規格文字三者都已就緒,只是從未被實際串起來。S-026(第一彈)、S-041/S-043/S-048/S-057(Level 2)這 5 張「非バトル」術卡因此被迫借用 `declare_attack` 流程觸發,其中 4 張還誤植 `attack_undefendable = True` 來讓流程「跑得完」。
 
-另外,S-036 的傷害結算用一個專屬旁路函式 `injure_or_discard`,跳過了「庇護」「P-006 待命無效」「M-013/M-015 戰鬥中免疫」三種既有規格已保證的防護機制。S-042/S-045/S-046 三張則完全沒有 handler。
+另外,S-036 的傷害結算用一個專屬旁路函式 `injure_or_discard`,跳過了「保護」「P-006 待命無效」「M-013/M-015 戰鬥中免疫」三種既有規格已保證的防護機制。S-042/S-045/S-046 三張則完全沒有 handler。
 
 ## Goals / Non-Goals
 
@@ -42,6 +42,6 @@
 
 - **`used_nonbattle_spells` 的清空時機依賴現有 `turn_ended` 邏輯的正確性**:目前 `used_abilities`/`used_event_this_turn` 都在同一處清空且運作正常,新增一個同模式的欄位風險低,但仍須補一個測試驗證「用過後同回合不可用、下回合(輪到自己時)恢復可用」的完整跨回合案例。
 - **S-036 改用 `_start_damage` 後,多目標(對手全部魔物 + 魔本)會觸發 `damage_order` 選擇(受方決定處理順序)**:這是正規管線既有行為(`_process_damage` 對多於 1 筆 item 時的既定邏輯),但 S-036 過去沒有這個互動步驟,遷移後前端/測試都需要多處理一種 `pending choice`。
-  - **實作階段更正(使用者遊玩後回報)**:多項傷害的 `_process_damage` 迴圈原本只在每次挑出下一項時檢查「是否有庇護者」,沒檢查「這一項自身的目標是否還在場上」。若前面某項傷害被一隻已負傷的魔物 B 頂替庇護、B 因而入墓,B 自己原本那份傷害的目標已經消失,但迴圈仍會把場上其他健康魔物列為「B 那份傷害」的候選庇護者、詢問要不要庇護一個已經不存在的目標。修正:`_process_damage` 迴圈開頭新增一輪過濾,把目標(`slot_uid`)已不在場上的項目直接從 `items` 移除、各自發出 `damage_prevented(reason="no_target")`,再繼續原本的 `damage_order`/`protect` 判斷。已同步補上 `game-engine` spec 的對應 Requirement 文字與 Scenario。
+  - **實作階段更正(使用者遊玩後回報)**:多項傷害的 `_process_damage` 迴圈原本只在每次挑出下一項時檢查「是否有保護者」,沒檢查「這一項自身的目標是否還在場上」。若前面某項傷害被一隻已負傷的魔物 B 頂替保護、B 因而入墓,B 自己原本那份傷害的目標已經消失,但迴圈仍會把場上其他健康魔物列為「B 那份傷害」的候選保護者、詢問要不要保護一個已經不存在的目標。修正:`_process_damage` 迴圈開頭新增一輪過濾,把目標(`slot_uid`)已不在場上的項目直接從 `items` 移除、各自發出 `damage_prevented(reason="no_target")`,再繼續原本的 `damage_order`/`protect` 判斷。已同步補上 `game-engine` spec 的對應 Requirement 文字與 Scenario。
 - **刪除 `injure_or_discard` 是不可逆動作**:已確認全專案唯一呼叫點就是 `_s036_on_win`,遷移完成後刪除風險低。
 - **`SPELL_COMPAT`/`related_mamodo` 判斷邏輯要從 `_validate_spell_declaration` 抽成共用函式,供 `_use_book_card` 呼叫**:這是本次唯一牽動既有攻擊宣告路徑的重構,MUST 確認抽出共用函式後,原本 `declare_attack`/`declare_defense` 的行為(含既有測試)完全不變。

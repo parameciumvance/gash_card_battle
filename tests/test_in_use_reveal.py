@@ -62,7 +62,7 @@ def test_reveal_ends_with_battle():
     submit(g, {"type": "no_defense", "player": dp})
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
-    if g.state.pending is not None:  # 庇護詢問
+    if g.state.pending is not None:  # 保護詢問
         submit(g, {"type": "choose", "player": g.state.pending.player, "value": None})
     assert g.state.battle is None
     view = snapshot(g, dp)

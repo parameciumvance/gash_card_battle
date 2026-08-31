@@ -32,7 +32,7 @@ uvicorn gash.api.app:app --reload
 - 牌組存在瀏覽器(localStorage);「匯出牌組碼」產生一行 `gash1:...` 文字,
   可備份或貼給朋友,對方「匯入牌組碼」即得同一副。清瀏覽器資料前記得匯出。
 
-預組「賈修+蒂歐+康裘美」(`data/decks/level1.json`)永遠可選,也可作為構築起手複製。
+預組「賈修+蒂歐+凱喬美」(`data/decks/level1.json`)永遠可選,也可作為構築起手複製。
 
 ### 新增一個預設牌組
 
@@ -60,7 +60,7 @@ uvicorn gash.api.app:app --reload
 - 自己永遠顯示在畫面下方;**對手翻開頁只顯示卡背與頁碼**(依原規則,使用時才展示;
   伺服器端過濾,前端拿不到資料)。E-014/M-011 的檢視效果只對使用者本人揭露內容。
 - 斷線重連:重新整理頁面即自動續打(token 存於瀏覽器 localStorage)。
-- 回合計時開啟時,逾時由伺服器代打安全動作(pass/不防禦/不庇護等),不判負;
+- 回合計時開啟時,逾時由伺服器代打安全動作(pass/不防禦/不保護等),不判負;
   行動記錄會標示「逾時代打」。
 - 觀戰連結可分享給任意人數,觀戰者看不到任何一方的翻開頁內容。
 
@@ -113,7 +113,7 @@ src/gash/
   launcher.py           單機啟動器(uvicorn + cloudflared 通道 + 開瀏覽器)
   engine/               純 Python 遊戲引擎(無 IO,指令進 → 事件出)
     state.py            狀態模型:魔本頁序、MP、魔物槽、modifier、待命、戰鬥子狀態
-    engine.py           規則主體:階段流程、輪流行動權、戰鬥五步驟、傷害/庇護、勝敗
+    engine.py           規則主體:階段流程、輪流行動權、戰鬥五步驟、傷害/保護、勝敗
     cards.py / deck.py  卡片定義載入、魔本構築合法性驗證
     effects/            效果系統
       registry.py       引擎 ↔ 卡片效果的掛鉤介面
@@ -151,7 +151,7 @@ tools/
 卡片中文文本集中在 `data/cards.zh-TW.json`,以卡號為 key:
 
 ```json
-"S-001": {"name": "札克爾", "name_ja": "ザケル", "attr": "雷", "effect": "…"}
+"S-001": {"name": "薩喀爾", "name_ja": "ザケル", "attr": "雷", "effect": "…"}
 ```
 
 改動此檔只影響顯示,不影響任何遊戲邏輯;介面用語則在 `frontend/i18n/zh-TW.json`。

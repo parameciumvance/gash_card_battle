@@ -29,8 +29,8 @@
 - [x] 3.1 `_s036_on_win` 改為組 `items` 清單呼叫 `_start_damage`,刪除 `injure_or_discard` 函式。
       **驗收條件**:`grep -rn injure_or_discard src/` 無結果。
       實際結果:另外發現原本 `no_book_damage=True` 會讓 `_resolve_showdown` 主流程在 `on_win` 之後誤判「沒有傷害」而提前呼叫 `_finish_battle_damage` 結束戰鬥,導致 `_start_damage` 還在等待 `damage_order`/`protect` 選擇時戰鬥就被錯誤結束。新增 `SpellRider.on_win_owns_damage` 旗標(S-036 專用),`on_win` 呼叫後若此旗標為真則直接 return,不再執行預設分支;S-019/S-020(既有的 `on_win`+`no_book_damage` 用法,效果本身不涉及傷害系統)不受影響。以「暫時還原→確認測試失敗→改回」驗證此修正確實必要。
-- [x] 3.2 新增測試驗證 S-036 造成的魔物傷害可被庇護。
-      **驗收條件**:S-036 獲勝後,防方場上有其他健康魔物時引擎詢問庇護,選擇庇護後原目標不進入負傷狀態。
+- [x] 3.2 新增測試驗證 S-036 造成的魔物傷害可被保護。
+      **驗收條件**:S-036 獲勝後,防方場上有其他健康魔物時引擎詢問保護,選擇保護後原目標不進入負傷狀態。
       實際結果:`test_s036_damage_can_be_protected`。
 - [x] 3.3 新增測試驗證 S-036 造成的傷害會被 P-006 待命無效。
       **驗收條件**:防方預先設置 P-006 對指定魔物的待命無效,S-036 命中該魔物時傷害被無效化,不進入負傷狀態。
@@ -40,10 +40,10 @@
       實際結果:`test_s036_damage_blocked_by_no_damage_modifier`。另加 `test_s036_damages_book_and_all_mamodo` 驗證基本正確性(魔本+全部魔物皆受傷害)。
 - [x] 3.5 前端「選擇先承受哪一項傷害(`damage_order`)」對話框補上可讀標籤。
       **驗收條件**:實際啟動伺服器、以 Playwright 連進本機測試房間重現 S-036 多目標傷害情境,確認對話框顯示「玩家N魔本」或對應卡片(而非索引數字),點擊後能正確送出並繼續流程(截圖存證)。
-      實際結果:`_start_damage` 全專案原本只有 `spells.py` 的 S-036 handler 會傳入超過 1 個 item,`damage_order` 這個 pending choice 分支在此變更之前從未在正常對局中真正被觸發過,是一段沒被用過的既有機制——`frontend/app.js:renderPendingDialog` 對它只有 `#${opt.index}` 的陽春 fallback,從未被人發現。使用者實際玩測後發現「只顯示 0/1/2」。修正:`opt.item.kind==="book"` 時顯示「{玩家}魔本」(複用既有 `ui.book` 詞條),`opt.item.kind==="slot"` 時用 `cardEl` 顯示對應卡片(比照其他帶 `card` 欄位的選項)。用 Playwright 實際跑一次 S-036 攻擊、對手 1 隻魔物+魔本受傷的完整流程驗證,截圖確認畫面正確、點擊後能正確進入下一步(庇護詢問)。
-- [x] 3.6 多項傷害中,若某一項的目標魔物在處理前已消失(被其他項目的庇護頂替致入墓),該份傷害 MUST 直接作廢,不得再詢問庇護。
+      實際結果:`_start_damage` 全專案原本只有 `spells.py` 的 S-036 handler 會傳入超過 1 個 item,`damage_order` 這個 pending choice 分支在此變更之前從未在正常對局中真正被觸發過,是一段沒被用過的既有機制——`frontend/app.js:renderPendingDialog` 對它只有 `#${opt.index}` 的陽春 fallback,從未被人發現。使用者實際玩測後發現「只顯示 0/1/2」。修正:`opt.item.kind==="book"` 時顯示「{玩家}魔本」(複用既有 `ui.book` 詞條),`opt.item.kind==="slot"` 時用 `cardEl` 顯示對應卡片(比照其他帶 `card` 欄位的選項)。用 Playwright 實際跑一次 S-036 攻擊、對手 1 隻魔物+魔本受傷的完整流程驗證,截圖確認畫面正確、點擊後能正確進入下一步(保護詢問)。
+- [x] 3.6 多項傷害中,若某一項的目標魔物在處理前已消失(被其他項目的保護頂替致入墓),該份傷害 MUST 直接作廢,不得再詢問保護。
       **驗收條件**:對手 A(健康)、B(已負傷)兩隻魔物,S-036 命中魔本+A+B;受方選擇用 B 頂替 A 的傷害,B 因已負傷而入墓;B 自己原本那份傷害不得再觸發任何 `protect`/`damage_order` 詢問,應直接以 `damage_prevented`(`reason="no_target"`)略過。
-      實際結果:此為 3.1-3.4 完成後由使用者實際遊玩發現的邊角案例——`_process_damage` 迴圈原本只在damage_order/protect 詢問前檢查「是否有庇護者」,沒檢查「該傷害項目自身的目標是否還存在」,導致場上其他健康魔物被誤列為「B 那份已不存在的傷害」的候選庇護者。修正:`_process_damage` 迴圈開頭新增一輪過濾,把目標已不在場上的 `slot` 類項目直接從 `ctx["items"]` 移除並各自發出 `damage_prevented(reason="no_target")`,才繼續原本的 `damage_order`/`protect` 判斷。新增 `test_s036_protector_discarded_own_damage_item_skipped`,以「暫時還原修正→確認測試失敗→改回」驗證。
+      實際結果:此為 3.1-3.4 完成後由使用者實際遊玩發現的邊角案例——`_process_damage` 迴圈原本只在damage_order/protect 詢問前檢查「是否有保護者」,沒檢查「該傷害項目自身的目標是否還存在」,導致場上其他健康魔物被誤列為「B 那份已不存在的傷害」的候選保護者。修正:`_process_damage` 迴圈開頭新增一輪過濾,把目標已不在場上的 `slot` 類項目直接從 `ctx["items"]` 移除並各自發出 `damage_prevented(reason="no_target")`,才繼續原本的 `damage_order`/`protect` 判斷。新增 `test_s036_protector_discarded_own_damage_item_skipped`,以「暫時還原修正→確認測試失敗→改回」驗證。
 
 ## 4. 新增 S-042/S-045/S-046
 

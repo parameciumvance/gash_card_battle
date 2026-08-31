@@ -20,7 +20,7 @@
 ## 4. 回合計時器
 
 - [x] 4.1 「等待輸入者」推導函式(start/非戰鬥/battle_in/防禦步/效果步/pending 各狀態)與 deadline 管理(等待者變更即重置)
-- [x] 4.2 asyncio 逾時任務:代送安全預設指令(flip 0/pass/讓過/不防禦/不庇護/保留硬幣/放棄重擲/pick 第一項),事件標記 timeout
+- [x] 4.2 asyncio 逾時任務:代送安全預設指令(flip 0/pass/迎戰/不防禦/不保護/保留硬幣/放棄重擲/pick 第一項),事件標記 timeout
 - [x] 4.3 計時器測試:短 timer 驗證各狀態的代打與 deadline 重置;timer=關 不代打
 
 ## 5. 前端

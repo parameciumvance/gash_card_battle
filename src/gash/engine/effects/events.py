@@ -317,7 +317,7 @@ def e012_pick(game, batch, value, data):
         reg.ON_PLAY[number](game, batch, player, slot)
 
 
-# E-013 ナオミちゃん:[待命] 本回合下一場戰鬥,對手不能庇護魔本傷害
+# E-013 ナオミちゃん:[待命] 本回合下一場戰鬥,對手不能保護魔本傷害
 @reg.event("E-013")
 def e013(game, batch, player, page):
     schedule_standby(game, batch, kind="no_protect_book", source="E-013", owner=player)

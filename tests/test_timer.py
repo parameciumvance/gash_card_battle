@@ -30,7 +30,7 @@ def test_awaited_and_default_through_states():
     # 非戰鬥 → action_player、pass
     assert awaited_player(g) == 0
     assert default_command(g) == {"type": "pass"}
-    # 戰鬥開始確認 → 防方、讓過
+    # 戰鬥開始確認 → 防方、迎戰
     submit(g, {"type": "declare_attack", "player": 0, "page": 3})
     assert awaited_player(g) == 1
     assert default_command(g) == {"type": "battle_in_response", "allow": True}
@@ -44,7 +44,7 @@ def test_awaited_and_default_through_states():
     assert default_command(g) == {"type": "pass"}
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
-    # 庇護 pending → 受方、不庇護
+    # 保護 pending → 受方、不保護
     assert g.state.pending.kind == "protect"
     assert awaited_player(g) == 1
     assert default_command(g) == {"type": "choose", "value": None}

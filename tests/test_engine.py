@@ -201,9 +201,9 @@ def test_vanilla_battle_no_defense_damage_and_book_flip():
     types = ev_types(events)
     assert "showdown" in types
     sd = next(e for e in events if e["type"] == "showdown")
-    assert sd["attacker_total"] == 6000  # 賈修 4000 + 札克爾 2000
+    assert sd["attacker_total"] == 6000  # 賈修 4000 + 薩喀爾 2000
     assert sd["defender_total"] == 0     # 不防禦 = 0
-    # 防方有魔物 → 詢問庇護
+    # 防方有魔物 → 詢問保護
     assert g.state.pending is not None and g.state.pending.kind == "protect"
     events = submit(g, {"type": "choose", "player": dp, "value": None})
     assert g.state.players[dp].pos == 4  # 傷害 1 = 翻 1 張
@@ -251,7 +251,7 @@ def test_spell_cannot_be_reused_same_turn():
     assert exc.value.code == "spell.used"
 
 
-# ---------------------------------------------------------------- 庇護與負傷
+# ---------------------------------------------------------------- 保護與負傷
 
 def test_protect_book_with_mamodo():
     g = mk()
@@ -332,7 +332,7 @@ def test_book_out_by_damage_loses():
     g = mk()
     tp, dp = start_vanilla_battle(g)
     g.state.players[dp].pos = 32
-    g.state.players[dp].slots.clear()  # 無魔物可庇護
+    g.state.players[dp].slots.clear()  # 無魔物可保護
     submit(g, {"type": "no_defense", "player": dp})
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
@@ -344,7 +344,7 @@ def test_book_out_by_damage_loses():
 # ---------------------------------------------------------------- 可重現性與冒煙
 
 def script_until_over(g, max_steps=2000):
-    """簡單驅動器:翻頁→有可攻術就攻→不防→不庇護,直到分出勝負。"""
+    """簡單驅動器:翻頁→有可攻術就攻→不防→不保護,直到分出勝負。"""
     from gash.engine.state import START as PH_START
     steps = 0
     while g.state.phase != GAME_OVER and steps < max_steps:

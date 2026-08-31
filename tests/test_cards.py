@@ -205,7 +205,7 @@ def test_m009_mp_on_discard():
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
     mp_before = g.state.players[dp].mp
-    submit(g, {"type": "choose", "player": dp, "value": kolulu.uid})  # 庇護 → 負傷再受傷 → 棄掉
+    submit(g, {"type": "choose", "player": dp, "value": kolulu.uid})  # 保護 → 負傷再受傷 → 棄掉
     assert g.state.players[dp].mp == mp_before + 4
 
 
@@ -285,7 +285,7 @@ def test_m013_no_damage_when_injured():
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
     pos_before = g.state.players[dp].pos
-    events = submit(g, {"type": "choose", "player": dp, "value": kan.uid})  # 以 M-013 庇護
+    events = submit(g, {"type": "choose", "player": dp, "value": kan.uid})  # 以 M-013 保護
     assert any(e["type"] == "damage_prevented" for e in events)
     assert kan in g.state.players[dp].slots and kan.injured  # 沒被棄掉
     assert g.state.players[dp].pos == pos_before  # 魔本也沒受傷
@@ -311,7 +311,7 @@ def test_m014_j_version_two_or_more():
     assert slot_power(g, 0, tia) == 2000  # 只有 1 隻:不加成(j 版=2隻以上)
     other = give(g, 0, "M-012")
     assert slot_power(g, 0, tia) == 3000
-    assert slot_power(g, 0, other) == 2000  # 全體 +1000(康裘美 1000+1000)
+    assert slot_power(g, 0, other) == 2000  # 全體 +1000(凱喬美 1000+1000)
 
 
 def test_m015_no_damage():
@@ -414,7 +414,7 @@ def test_p006_negate_damage_then_discard_transformed():
                "slot_uid": kolulu.uid})
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
-    events = submit(g, {"type": "choose", "player": dp, "value": kolulu.uid})  # 庇護
+    events = submit(g, {"type": "choose", "player": dp, "value": kolulu.uid})  # 保護
     assert any(e["type"] == "damage_negated" for e in events)
     assert kolulu.top == "M-009"           # 變身後被棄掉
     assert "M-010" in g.state.players[dp].discard
@@ -657,7 +657,7 @@ def test_e013_no_protect_next_battle():
     submit(g, {"type": "no_defense", "player": dp})
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
-    # 不能庇護 → 不會出現庇護選擇,直接傷害
+    # 不能保護 → 不會出現保護選擇,直接傷害
     assert g.state.pending is None
     assert any(e["type"] == "damage_dealt" for e in events)
     assert g.state.players[dp].pos == 4
@@ -697,7 +697,7 @@ def test_s003_rashield_counter():
     events = submit(g, {"type": "pass", "player": dp})
     sd = showdown_of(events)
     assert sd["defender_total"] == 8000 and sd["winner"] == "defender"
-    # 反擊:攻方魔本受 1 點傷害(攻方可庇護)
+    # 反擊:攻方魔本受 1 點傷害(攻方可保護)
     assert g.state.pending.kind == "protect" and g.state.pending.player == tp
     submit(g, {"type": "choose", "player": tp, "value": None})
     assert g.state.players[tp].pos == 4
@@ -716,7 +716,7 @@ def test_spell_lock_after_damage(spell, mamodo, coin):
     submit(g, {"type": "no_defense", "player": dp})
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
-    submit(g, {"type": "choose", "player": dp, "value": None})  # 不庇護
+    submit(g, {"type": "choose", "player": dp, "value": None})  # 不保護
     # 對手下回合不能使用術卡(重置 pos 使第 3 頁 S-001 翻開,以隔離傷害翻頁的影響)
     end_turn(g)
     g.state.players[dp].pos = 2

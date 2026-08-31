@@ -1,5 +1,5 @@
 """全流程劇本測試(tasks 6.2):雙方使用 level1 預組魔本,
-以合法指令串完整走過:放卡、夥伴待命(P-001 不可防禦)、庇護、
+以合法指令串完整走過:放卡、夥伴待命(P-001 不可防禦)、保護、
 最後一頁バオウ・ザケルガ費用 0、魔本耗盡勝負判定。
 
 魔本頁面備忘:P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 ... P32=S-005
@@ -18,7 +18,7 @@ def test_story_full_game():
     g = new_game(deck.pages, seed=1)
     g.state.turn_player = 0
 
-    # ---- 第 1 回合(玩家0):放夥伴 → P-001 待命 → 不可防禦的攻擊 → 對手庇護
+    # ---- 第 1 回合(玩家0):放夥伴 → P-001 待命 → 不可防禦的攻擊 → 對手保護
     submit(g, {"type": "flip_pages", "player": 0, "count": 1})   # pos=4, mp=4
     submit(g, {"type": "play_card", "player": 0, "page": 4})     # P-001 裝到賈修
     submit(g, {"type": "pass", "player": 1})
@@ -36,7 +36,7 @@ def test_story_full_game():
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
     zatch1 = g.state.players[1].slots[0]
-    submit(g, {"type": "choose", "player": 1, "value": zatch1.uid})  # 以賈修庇護
+    submit(g, {"type": "choose", "player": 1, "value": zatch1.uid})  # 以賈修保護
     assert zatch1.injured and g.state.players[1].pos == 2         # 魔本無傷
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})                      # 結束階段
@@ -65,7 +65,7 @@ def test_story_full_game():
     submit(g, {"type": "no_defense", "player": 1})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
-    # 巴歐 10000 vs 0,傷害 3:對手不庇護 → pos 28+6=34 → 魔本耗盡
+    # 巴歐 10000 vs 0,傷害 3:對手不保護 → pos 28+6=34 → 魔本耗盡
     submit(g, {"type": "choose", "player": 1, "value": None})
     assert g.state.phase == GAME_OVER
     assert g.state.winner == 0

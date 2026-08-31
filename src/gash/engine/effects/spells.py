@@ -196,7 +196,7 @@ def _s033_on_damage(game, batch, player):
 reg.spell_rider("S-033", on_damage=_s033_on_damage)
 
 
-# ---- S-035 イオン・グラビレイ:擲2硬幣,2正→對手不能犧牲/庇護魔本
+# ---- S-035 イオン・グラビレイ:擲2硬幣,2正→對手不能犧牲/保護魔本
 def _s035_on_declare(game, batch, player, side):
     if side != "attack":
         return

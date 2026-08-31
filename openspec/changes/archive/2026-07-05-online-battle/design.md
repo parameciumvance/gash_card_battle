@@ -59,7 +59,7 @@ Room {
 
 - 房間建立時選 `timer_seconds ∈ {None,30,60,120}`。每當「等待輸入的玩家」改變,重置 deadline;asyncio 背景任務逾時觸發。
 - 「等待誰」由既有狀態推導:pending → pending.player;戰鬥防禦步 → 防方;battle_in → 防方;效果步 → effect_turn;開始階段 → 回合玩家;非戰鬥 → action_player。
-- 逾時代送安全預設指令:開始階段 `flip 0`、非戰鬥/效果步 `pass`、battle_in `讓過`、防禦步 `不防禦`、pending 依 kind(protect→不庇護、coin_confirm→保留、e011_retry→放棄、各類 pick→第一個選項)。
+- 逾時代送安全預設指令:開始階段 `flip 0`、非戰鬥/效果步 `pass`、battle_in `迎戰`、防禦步 `不防禦`、pending 依 kind(protect→不保護、coin_confirm→保留、e011_retry→放棄、各類 pick→第一個選項)。
 - 代打即正常指令,走同一條提交路徑並廣播;不判負、不特殊事件(log 標記 `timeout: true`)。
 - **替代方案**:超時判負(否決:斷線=瞬敗太苛);棋鐘制總時間(延後,規則複雜)。
 

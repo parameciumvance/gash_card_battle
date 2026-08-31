@@ -5,7 +5,7 @@
 參考資料(唯讀):
 - `ref/raw/rule3.md` — 完整中文規則(含 ADV 規則)。
 - `ref/raw/Zatch Bell CCG List for TTS.xlsx` — 全卡資料庫;"The Table" 工作表含卡號(HYPERLINK 顯示文字,如 `M-001`、`S-019j`)、類型、費用、A/D、魔力、傷害、效果全文(英文)、卡圖 Google Drive 連結。Level 1 共 77 列 = 67 種卡 + e/j 雙版本重複列(10 卡有 e/j 兩版)。
-- `ref/raw/deck/level1.txt` — 預組魔本(賈修+蒂歐+康裘美,32 頁,已驗證合法,底牌為 P32 バオウ・ザケルガ 吃「最後一頁術費用 0」規則)。
+- `ref/raw/deck/level1.txt` — 預組魔本(賈修+蒂歐+凱喬美,32 頁,已驗證合法,底牌為 P32 バオウ・ザケルガ 吃「最後一頁術費用 0」規則)。
 
 探索階段已定案的需求決策:全自動裁決、hotseat 起步預留線上、中文介面走 i18n、e/j 採日版 j、預組魔本雙方共用、含卡圖與行動 log、不含構築器。
 
@@ -42,11 +42,11 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 
 ### D2. 指令進/事件出(command → events)
 
-- `Command`:玩家意圖,如 `FlipPages(n)`、`PlayCard(page_slot)`、`UseAbility(card, ability)`、`DeclareAttack(spell)`、`DeclareDefense(spell|none)`、`Pass`、`ChooseTarget(...)`、`AssignDamage(...)`(庇護/受傷順序分配)。
+- `Command`:玩家意圖,如 `FlipPages(n)`、`PlayCard(page_slot)`、`UseAbility(card, ability)`、`DeclareAttack(spell)`、`DeclareDefense(spell|none)`、`Pass`、`ChooseTarget(...)`、`AssignDamage(...)`(保護/受傷順序分配)。
 - `Event`:已發生事實,如 `PagesFlipped`、`MPChanged`、`CardPlayed`、`BattleStarted`、`CoinFlipped`、`DamageDealt`、`MamodoInjured`、`MamodoDiscarded`、`GameEnded`。
 - 引擎對每個指令先驗證合法性(行動權、時機、費用、目標),非法即拒絕並回傳原因;合法則轉移狀態並產出事件列表。
 - 事件即 log:前端把事件流用 i18n 模板渲染成中文行動記錄。
-- 需要玩家中途決策的效果(選目標、庇護與否、受傷順序)以「引擎進入 `pending_choice` 狀態 + 發出 `ChoiceRequired` 事件 + 等待對應 Command」處理,不用 callback。硬幣判定由引擎擲(可注入 RNG seed 供測試重現)。
+- 需要玩家中途決策的效果(選目標、保護與否、受傷順序)以「引擎進入 `pending_choice` 狀態 + 發出 `ChoiceRequired` 事件 + 等待對應 Command」處理,不用 callback。硬幣判定由引擎擲(可注入 RNG seed 供測試重現)。
 
 ### D3. 狀態機:階段 × 輪流行動權 × 戰鬥子狀態
 
@@ -62,13 +62,13 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 ```
 
 - 行動權實作為顯式欄位 `priority_player` + `consecutive_passes`;雙方連續 pass 且回到非戰鬥中 → 戰鬥階段結束。
-- 戰鬥開始確認(バトル・イン)實作為一種指令:回合玩家宣告攻擊意圖(含用哪張術),非回合玩家回應「讓過(進戰鬥)」或「插入一個行動(確認失效)」。
+- 戰鬥開始確認(バトル・イン)實作為一種指令:回合玩家宣告攻擊意圖(含用哪張術),非回合玩家回應「迎戰(進戰鬥)」或「插入一個行動(確認失效)」。
 - 規則書的細節時序全部進引擎測試:宣告時擲硬幣/定目標、防禦不宣告則防方合計魔力=0、無效化≠減魔力、反擊(カウンター)在防方勝時仍解決、同時多項傷害由受方定順序。
 
 ### D4. 效果系統:共用原語 + 每卡 handler,不做 DSL
 
 - 67 張卡不值得發明 DSL。做法:
-  - **效果原語**(引擎提供):`gain_mp`、`add_power(target, amount, duration)`、`turn_pages(player, n)`、`set_restriction(flag, scope, duration)`(禁術/禁防禦/禁庇護/夥伴失效)、`schedule_standby(trigger, effect)`、`flip_coin()`、`negate_attack()`、`modify_damage(delta, duration)`、`discard(card)`、`put_in_play(card)` 等。
+  - **效果原語**(引擎提供):`gain_mp`、`add_power(target, amount, duration)`、`turn_pages(player, n)`、`set_restriction(flag, scope, duration)`(禁術/禁防禦/禁保護/夥伴失效)、`schedule_standby(trigger, effect)`、`flip_coin()`、`negate_attack()`、`modify_damage(delta, duration)`、`discard(card)`、`put_in_play(card)` 等。
   - **每卡 handler**:`cards/handlers/` 下按卡號註冊(`@card("M-001")`),宣告觸發時機(此卡在場上/宣告使用/MP減少N/將此卡棄掉/攻擊勝利時/造成傷害時…)+ 用原語組合效果。約 18 張香草術卡(「攻擊勝利→對魔本傷害 N」)完全由資料表達,不需 handler。
 - **持續效果與時效**:掛在 GameState 上的 modifier 列表,每個帶 `duration`(本場戰鬥/本回合/至下回合結束階段/至下回合開始階段)與來源卡;階段轉換時統一過期。魔力計算 = 基礎值 + Σ有效 modifier,永遠即算不快取。
 - **一場遊戲限一次**(M-011 フェイン):per-game 已用旗標記在玩家狀態。
@@ -78,7 +78,7 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 ### D5. 卡片資料管線:xlsx 一次性抽取 → repo 內版本化 JSON
 
 - 抽取腳本(開發工具,不是產品一部分)讀 xlsx → 過濾 Level 1 → e/j 去重採 j → 產出 `data/cards.json`(卡號、類型、對應魔物、費用、A/D、級別、魔力、傷害、效果原文)+ `data/cards.zh-TW.json`(卡名/效果名/效果文/風味文的中文翻譯)。
-- 翻譯檔獨立於數值檔:校對術語(ザケル→札克爾等)只改翻譯檔,不碰邏輯。翻譯的結構就是未來多語言的結構(`cards.ja.json`、`cards.en.json` 照樣放)。
+- 翻譯檔獨立於數值檔:校對術語(ザケル→薩喀爾等)只改翻譯檔,不碰邏輯。翻譯的結構就是未來多語言的結構(`cards.ja.json`、`cards.en.json` 照樣放)。
 - 抽取後的 JSON 進 repo 版本控制;xlsx 之後只作為對帳來源。預組魔本同樣抽成 `data/decks/level1.json`(32 頁卡號序列)。
 - 卡圖:腳本從 xlsx 的 Google Drive 連結批次下載到 `frontend/assets/cards/{卡號}.jpg`。**下載失敗不阻塞**:前端卡片元件永遠先渲染文字卡面(卡名/費用/魔力/效果),卡圖存在時疊上去。
 
@@ -86,11 +86,11 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 
 - 單頁靜態 HTML + 原生 JS(ES modules)+ CSS,由 FastAPI 直接 serve。不引入 React/Vue/建置工具——UI 本質是「渲染一份 JSON 狀態 + 按鈕發指令」,規模不需要框架,也符合工具鏈極簡(Python 優先)的偏好。
 - i18n:`i18n/zh-TW.json` key-value 字典 + `t(key, params)` 函式;事件 log 也用模板 key(如 `log.pages_flipped: "{player} 翻了 {n} 張魔本(MP +{mp})"`)。卡片文本從 `cards.zh-TW.json` 取。語言切換 = 換字典檔,結構上已就緒但 v1 只出 zh-TW。
-- 版面:中央雙方魔本對頁(當前頁的卡即「手牌」)、上下各自場區(魔物+夥伴)、MP 計數、右側行動 log、彈出式選擇對話框(目標選擇/庇護/硬幣結果)。
+- 版面:中央雙方魔本對頁(當前頁的卡即「手牌」)、上下各自場區(魔物+夥伴)、MP 計數、右側行動 log、彈出式選擇對話框(目標選擇/保護/硬幣結果)。
 
 ### D7. 測試策略
 
-- 引擎與效果以 pytest 單元測試為主:每張非香草卡至少一個測試;規則書時序細節(宣告時擲硬幣、防不宣告=0、最後一頁費用 0、魔物消失處理、庇護鏈)各自成測試。RNG 注入 seed 使硬幣可重現。
+- 引擎與效果以 pytest 單元測試為主:每張非香草卡至少一個測試;規則書時序細節(宣告時擲硬幣、防不宣告=0、最後一頁費用 0、魔物消失處理、保護鏈)各自成測試。RNG 注入 seed 使硬幣可重現。
 - 整局冒煙測試:腳本化一整局指令序列跑到分勝負。
 - API 層薄,少量整合測試即可;前端手動驗證。
 

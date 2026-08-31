@@ -58,7 +58,7 @@ Level 2 共 67 張新卡(去 e/j 後),其中 4 張 e/j 效果不同(E-018/E-021/
 ### D6. Rider/旗標延伸
 
 - SpellRider 新欄位:`damage_cap: int|None`(S-032=3、S-034=4,結算時 min)、`injure_instead: bool`(S-058;S-057 待命版=下一張攻擊勝利術改負傷,以 modifier 旗標實現)。
-- 新 restriction 旗標:`no_attack_spell`(P-014)、`mamodo_locked`(E-024 指定魔物:禁其術+效果)、`no_mamodo_effects`(E-025 全體)、`no_sacrifice_no_protect`(S-035,傷害解決時跳過庇護/犧牲決策)。均掛既有 modifier/restriction 架構與指令驗證檢查點。
+- 新 restriction 旗標:`no_attack_spell`(P-014)、`mamodo_locked`(E-024 指定魔物:禁其術+效果)、`no_mamodo_effects`(E-025 全體)、`no_sacrifice_no_protect`(S-035,傷害解決時跳過保護/犧牲決策)。均掛既有 modifier/restriction 架構與指令驗證檢查點。
 - Brago 家族:S-033(STAY 對手全魔物 -2000 至對手下個 END)、S-036(勝利時全負傷)、S-037/38(我方免疫至對手下個 END)=既有 duration `until_end_next_turn` + no_damage/power modifier 組合,無新機制。
 
 ### D7. 前端選書對話框
@@ -78,7 +78,7 @@ Level 2 共 67 張新卡(去 e/j 後),其中 4 張 e/j 效果不同(E-018/E-021/
 - [觸發器遞迴/交互失控] → 深度上限 4 + 觸發順序固定(場上位置序);測試覆蓋 P-013×M-025(入墓觸發鏈)。
 - [無術攻擊破壞戰鬥流程假設(attack_spell 處處被讀)] → BattleState 讀點盤查(views/log/rider 解析),以 `attack_display` 統一取名;E2E 打含 M-027 的完整戰鬥。
 - [搜卡選項洩露資訊] → 選項只進 pending.options,視角過濾既有單點(views.py)保證非決策者看不到;測試加雙視角快照斷言。
-- [67 張翻譯量] → 效果文以既有詞彙表(負傷/庇護/待命/魔力勝負…)統一,分批自校。
+- [67 張翻譯量] → 效果文以既有詞彙表(負傷/保護/待命/魔力勝負…)統一,分批自校。
 - [e/j 差異誤取] → 抽取腳本斷言 4 張差異卡取 j 版內容(單元測試)。
 
 ## Migration Plan
