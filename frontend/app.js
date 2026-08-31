@@ -1207,7 +1207,17 @@ function renderPendingDialog() {
       return { cardNum: opt.card, onpick: () => choose(value) };
     }
     if (opt.page !== undefined) return { label: t("ui.page_n", { n: opt.page }), onpick: () => choose(opt.page) };
-    if (opt.index !== undefined) return { label: `#${opt.index}`, onpick: () => choose(opt.index) };
+    if (opt.index !== undefined) {
+      const item = opt.item || {};
+      if (item.kind === "book") {
+        return { label: pname(item.player) + t("ui.book"), onpick: () => choose(opt.index) };
+      }
+      if (item.kind === "slot") {
+        const slot = S.players[item.player]?.slots.find((s) => s.uid === item.slot_uid);
+        if (slot) return { cardNum: slot.top, onpick: () => choose(opt.index) };
+      }
+      return { label: `#${opt.index}`, onpick: () => choose(opt.index) };
+    }
     return { label: String(opt.value), onpick: () => choose(opt.value) };
   });
   showDialog(title, options);

@@ -44,10 +44,12 @@ class CardDef:
         return self.type == SPELL and self.related_mamodo == COMMAND_ALL
 
     def can_attack(self) -> bool:
-        return self.type == SPELL and self.ad in ("A", "AD")
+        return (self.type == SPELL and self.effect_icon != "nonbattle"
+                and self.ad in ("A", "AD"))
 
     def can_defend(self) -> bool:
-        return self.type == SPELL and self.ad in ("D", "AD")
+        return (self.type == SPELL and self.effect_icon != "nonbattle"
+                and self.ad in ("D", "AD"))
 
 
 def _to_def(raw: dict) -> CardDef:

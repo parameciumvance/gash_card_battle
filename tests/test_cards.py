@@ -810,13 +810,23 @@ def test_s021_coin_negate_two_flips():
 
 def test_s026_set_then_undefendable():
     g = game(book0=book(p2="S-026", p3="S-001"), coins=(HEADS,))
-    tp, dp = start_attack(g, 2)  # S-026 指示術(單一魔物自動)
-    submit(g, {"type": "no_defense", "player": dp})
-    both_pass(g)
-    assert g.state.players[dp].pos == 2  # S-026 無傷害
+    tp = g.state.turn_player
+    dp = 1 - tp
+    submit(g, {"type": "flip_pages", "player": tp, "count": 0})
+    submit(g, {"type": "use_book_card", "player": tp, "page": 2})  # S-026(非戰鬥術)
+    submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
     assert g.state.battle.attack_undefendable is True
+
+
+def test_s026_cannot_declare_attack():
+    g = game(book0=book(p2="S-026"))
+    tp = g.state.turn_player
+    submit(g, {"type": "flip_pages", "player": tp, "count": 0})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": tp, "page": 2})
+    assert e.value.code == "spell.no_attack_icon"
 
 
 def test_s027_damage_reduction():

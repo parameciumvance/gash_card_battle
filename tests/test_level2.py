@@ -13,6 +13,22 @@ from gash.engine.state import BATTLE, GAME_OVER
 DB = card_db()
 
 
+class Rng:
+    """腳本化 RNG:random() 依序回傳 seq,之後固定 0.9(反面)。"""
+
+    def __init__(self, *seq):
+        self.seq = list(seq)
+
+    def random(self):
+        return self.seq.pop(0) if self.seq else 0.9
+
+    def randint(self, a, b):
+        return a
+
+
+HEADS, TAILS = 0.1, 0.9
+
+
 def book(*pages):
     """建立 32 頁魔本:給定前綴頁,其餘以香草填充卡補滿(P1 須為魔物)。"""
     filler = "S-029"  # 香草賈修術(AD),不影響測試
@@ -53,13 +69,9 @@ def test_mamodo_attack_full_battle():
         pytest.skip("seed 未給玩家0先攻")
     g.state.players[0].mp = 10
     to_battle(g, 0)
-    # 先用 S-048 疊裝甲(不可防禦、無魔本傷害)
-    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
-    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    # S-048 為不可防禦,防方只能不防禦
-    submit(g, {"type": "no_defense", "player": 1})
-    # 戰鬥中效果雙方 pass
-    _pass_effects(g, 0)
+    # 先用 S-048(非戰鬥術)疊裝甲
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
     # 裝甲已疊上
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027" and len(slot.stack) == 2
@@ -208,11 +220,328 @@ def test_p015_allows_spell_from_closed_page():
     assert g.state.battle.attack_spell == "S-042"
 
 
+# ---------------------------------------------------------------- 非戰鬥術(S-026/S-041/S-043/S-048/S-057)
+
+def test_s041_self_immune():
+    # P1=M-023 波克利歐(ポッケリオ家族),P2=S-041(擲幣正→自身免疫)
+    b0 = book("M-023", "S-041")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS)
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    assert any(m.kind == "full_immune" and m.owner == 0 for m in g.state.modifiers)
+
+
+def test_s043_fuse_two_doubles_into_complete():
+    # P1=M-024(分身体,起始魔物;準備階段已翻開 P2/P3), P6=M-024(第 2 隻), P7=S-043,
+    # P8=M-025(完全体,供合體效果自書任意頁取出)
+    b0 = book("M-024", "S-029", "S-029", "S-029", "S-029", "M-024", "S-043", "M-025")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    submit(g, {"type": "flip_pages", "player": 0, "count": 2})  # pos=2+4=6, open=[6,7]
+    submit(g, {"type": "play_card", "player": 0, "page": 6})  # 放出第 2 隻 M-024
+    submit(g, {"type": "pass", "player": 1})
+    assert sum(1 for s in g.state.players[0].slots if s.top == "M-024") == 2
+    submit(g, {"type": "use_book_card", "player": 0, "page": 7})  # S-043 合體
+    if g.state.pending is not None:  # M-025 登場觸發:選一張墓地羅布諾斯放回書空頁
+        submit(g, {"type": "choose", "player": 0, "value": g.state.pending.options[0]["value"]})
+    submit(g, {"type": "pass", "player": 1})
+    assert any(s.top == "M-025" for s in g.state.players[0].slots)
+    assert not any(s.top == "M-024" for s in g.state.players[0].slots)
+
+
+def test_s057_sets_injure_instead_standby():
+    # P1=M-001, P2=S-057(コマンド指示術,擲幣正→[待命] 下次攻擊獲勝改為負傷代替傷害)
+    b0 = book("M-001", "S-057")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS)
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    assert any(sb.kind == "injure_instead" and sb.owner == 0 for sb in g.state.standby)
+
+
+@pytest.mark.parametrize("number,page", [
+    ("S-026", 2), ("S-041", 2), ("S-043", 2), ("S-048", 2), ("S-057", 2),
+])
+def test_nonbattle_spell_cannot_declare_attack(number, page):
+    b0 = book("M-001", number)
+    g, tp = mk(b0, book("M-001"))
+    to_battle(g, 0)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 0, "page": page})
+    assert e.value.code == "spell.no_attack_icon"
+
+
+def test_use_book_card_rejects_battle_spell():
+    # S-001 是一般戰鬥術(effect_icon 非 nonbattle),不能經 use_book_card 使用
+    b0 = book("M-001", "S-001")
+    g, tp = mk(b0, book("M-001"))
+    to_battle(g, 0)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "spell.not_nonbattle"
+
+
+def test_nonbattle_spell_wrong_turn_timing():
+    # S-041 ad="A"(僅自分のターン)。玩家0先讓出優先權,非回合玩家1即使拿到行動權也不能使用
+    b0 = book("M-001", "S-029")
+    b1 = book("M-023", "S-041")
+    g, tp = mk(b0, b1)
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})  # 優先權轉給玩家1,回合仍是玩家0的
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    assert e.value.code == "spell.timing"
+
+
+def test_nonbattle_spell_requires_matching_mamodo():
+    # 場上沒有ポッケリオ家族魔物,不能使用 S-041
+    b0 = book("M-001", "S-041")
+    g, tp = mk(b0, book("M-001"))
+    to_battle(g, 0)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "spell.no_mamodo"
+
+
+def test_nonbattle_spell_insufficient_mp():
+    b0 = book("M-023", "S-041")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 0  # S-041 費用 1,MP 不足
+    to_battle(g, 0)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "spell.mp"
+
+
+def _end_turn(g):
+    st = g.state
+    if st.phase == "start":
+        submit(g, {"type": "flip_pages", "player": st.turn_player, "count": 0})
+    submit(g, {"type": "pass", "player": st.action_player})
+    submit(g, {"type": "pass", "player": st.action_player})
+
+
+def test_used_nonbattle_spell_blocks_same_turn_reuse():
+    # P1=M-023, P2=S-041
+    b0 = book("M-023", "S-041")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(TAILS)  # 硬幣結果不影響本測試(僅驗證使用次數限制)
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "spell.used"
+    submit(g, {"type": "pass", "player": 0})  # 連續 2 次 pass,結束玩家 0 回合
+    _end_turn(g)  # 結束玩家 1 回合,輪回玩家 0
+    # 下回合(輪到自己時)應恢復可用(回合結束的強制翻頁會讓 S-041 離開開啟頁範圍,
+    # 故直接驗證使用紀錄已清空,而非重新對同一頁提交指令)
+    assert "S-041" not in g.state.players[0].used_nonbattle_spells
+
+
+# ---------------------------------------------------------------- 傷害管線修正(S-036)
+
+def _resolve_damage_choices(g, receiver, protect_index=None):
+    """依序處理 damage_order(固定選第一項)/ protect(依 protect_index 決定庇護對象或不庇護)。"""
+    while g.state.pending is not None and g.state.pending.kind in ("damage_order", "protect"):
+        pending = g.state.pending
+        if pending.kind == "damage_order":
+            submit(g, {"type": "choose", "player": receiver, "value": 0})
+        else:
+            value = pending.options[protect_index]["value"] if protect_index is not None else None
+            submit(g, {"type": "choose", "player": receiver, "value": value})
+
+
+def test_s036_damages_book_and_all_mamodo():
+    # 玩家0 用 M-005(布拉哥) + S-036;對手 1 隻魔物(不庇護),魔本+魔物皆應受傷害
+    from gash.engine.state import MamodoSlot
+    b0 = book("M-005", "S-036")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 15
+    opp = g.state.players[1]
+    to_battle(g, 0)
+    pos1 = opp.pos
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    _resolve_damage_choices(g, 1, protect_index=None)
+    assert opp.pos == pos1 + 2 * 3  # S-036 傷害 3
+    assert all(s.injured for s in opp.slots)
+
+
+def test_s036_damage_can_be_protected():
+    # 對手有 2 隻魔物,庇護其中一份魔物傷害
+    from gash.engine.state import MamodoSlot
+    b0 = book("M-005", "S-036")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 15
+    opp = g.state.players[1]
+    opp.slots.append(MamodoSlot(uid=g.state.next_uid(), stack=["M-001"]))
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    # 遇到第一個 protect 詢問時選擇庇護(用另一隻魔物頂替)
+    protected_once = False
+    while g.state.pending is not None and g.state.pending.kind in ("damage_order", "protect"):
+        pending = g.state.pending
+        if pending.kind == "damage_order":
+            submit(g, {"type": "choose", "player": 1, "value": 0})
+        elif not protected_once and len(pending.options) > 1:
+            submit(g, {"type": "choose", "player": 1, "value": pending.options[1]["value"]})
+            protected_once = True
+        else:
+            submit(g, {"type": "choose", "player": 1, "value": None})
+    assert protected_once
+    # 庇護後:恰有一隻魔物因為頂替而額外受傷,但不因此變成兩隻皆負傷又都入墓
+    assert any(not s.injured for s in opp.slots) or len(opp.slots) < 2
+
+
+def test_s036_damage_negated_by_p006():
+    # 防方 M-010(變身後コルル)裝 P-006,待命無效 1 次傷害
+    b0 = book("M-005", "S-036")
+    g, tp = mk(b0, book("M-009"))
+    g.state.players[0].mp = 15
+    opp = g.state.players[1]
+    kolulu = opp.slots[0]
+    kolulu.stack.append("M-010")
+    kolulu.partner = "P-006"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})  # 讓出優先權給玩家1
+    submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner", "slot_uid": kolulu.uid})
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    _resolve_damage_choices(g, 1, protect_index=None)
+    assert not kolulu.injured  # P-006 無效了這份傷害
+
+
+def test_s036_damage_blocked_by_no_damage_modifier():
+    # 防方魔物有作用中的 no_damage modifier(比照 M-013/M-015),S-036 對其傷害被阻擋
+    from gash.engine.effects.primitives import add_modifier
+    from gash.engine.state import DUR_BATTLE
+    b0 = book("M-005", "S-036")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 15
+    opp = g.state.players[1]
+    to_battle(g, 0)
+    add_modifier(g, [], kind="no_damage", source="test", owner=1,
+                duration=DUR_BATTLE, target_player=1, target_slot=opp.slots[0].uid)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    _resolve_damage_choices(g, 1, protect_index=None)
+    assert not opp.slots[0].injured
+
+
 # ---------------------------------------------------------------- 負傷代替傷害(S-058)
 
 def test_s058_injure_instead():
     from gash.engine.effects import registry as reg
     assert reg.SPELL_RIDERS["S-058"].injure_instead is True
+
+
+# ---------------------------------------------------------------- 新增實作(S-042/S-045/S-046)
+
+def test_s042_damage_bonus_at_8000_power():
+    from gash.engine.effects.primitives import add_power
+    from gash.engine.state import DUR_BATTLE
+    b0 = book("M-024", "S-042")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    slot = g.state.players[0].slots[0]
+    add_power(g, [], source="test", owner=0, target_player=0, target_slot=slot.uid,
+             amount=2000, duration=DUR_BATTLE)  # 3000(M-024)+3000(S-042)+2000=8000
+    pos1 = g.state.players[1].pos
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert g.state.players[1].pos == pos1 + 2 * 3  # 基礎傷害 1 + 2 = 3
+
+
+def test_s042_no_bonus_below_8000_power():
+    b0 = book("M-024", "S-042")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    pos1 = g.state.players[1].pos
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert g.state.players[1].pos == pos1 + 2 * 1  # 合計 6000 < 8000,傷害維持 1
+
+
+def test_s045_two_heads_undefendable():
+    b0 = book("M-026", "S-045")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS, HEADS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    assert e.value.code == "defense.undefendable"
+
+
+def test_s045_not_both_heads_still_defendable():
+    b0 = book("M-026", "S-045")
+    b1 = book("M-001", "S-001")
+    g, tp = mk(b0, b1)
+    g.rng = Rng(HEADS, TAILS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})  # 不被拒
+
+
+def test_s046_one_head_undefendable():
+    b0 = book("M-026", "S-046")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    assert e.value.code == "defense.undefendable"
+
+
+def test_s046_tails_still_defendable():
+    b0 = book("M-026", "S-046")
+    b1 = book("M-001", "S-001")
+    g, tp = mk(b0, b1)
+    g.rng = Rng(TAILS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})  # 不被拒
 
 
 # ---------------------------------------------------------------- 術相容擴充(M-029 出賈修ザケル)
@@ -268,12 +597,9 @@ def test_mamodo_attack_deals_book_damage():
     g, tp = mk(b0, book("M-001"))
     g.state.players[0].mp = 10
     to_battle(g, 0)
-    # 疊裝甲
-    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
-    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    submit(g, {"type": "no_defense", "player": 1})
-    while g.state.battle and g.state.battle.step == "effects":
-        submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
+    # 疊裝甲(S-048 非戰鬥術)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027"
     pos1 = g.state.players[1].pos

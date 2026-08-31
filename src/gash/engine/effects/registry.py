@@ -48,12 +48,17 @@ class SpellRider:
     on_damage: Callable | None = None     # 造成傷害後 fn(game, batch, player)
     counter: bool = False                 # 【反擊】防方獲勝時仍解決
     no_book_damage: bool = False          # 獲勝時不造成魔本傷害(改由 on_win 處理)
+    on_win_owns_damage: bool = False      # on_win 自行呼叫 _start_damage 處理完整傷害流程,呼叫後不再執行預設分支(S-036)
     damage_cap: int | None = None         # 傷害上限(S-032/S-034)
     injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔本傷害(S-058)
     on_defense_damaged: Callable | None = None  # 以此術防禦卻被造成傷害後 fn(game, batch, defender, amount)
+    damage_bonus: Callable | None = None  # 依合計魔力調整傷害 fn(game, battle) -> int(S-042)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
+
+# 非戰鬥術卡 handler(自分/相手のターン、不經戰鬥流程直接使用): fn(game, batch, player)
+SPELL_NONBATTLE: dict[str, Callable] = {}
 
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
@@ -130,6 +135,13 @@ def event(number: str, condition: Callable | None = None):
 def spell_rider(number: str, **kwargs):
     SPELL_RIDERS[number] = SpellRider(**kwargs)
     return SPELL_RIDERS[number]
+
+
+def spell_nonbattle(number: str):
+    def deco(fn):
+        SPELL_NONBATTLE[number] = fn
+        return fn
+    return deco
 
 
 def choice_resolver(key: str):

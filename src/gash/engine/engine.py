@@ -108,23 +108,6 @@ def _full_immune(game: Game, player: int) -> bool:
                and m.active(game.state.turn_no) for m in game.state.modifiers)
 
 
-def injure_or_discard(game: Game, batch: list[dict], player: int, slot: MamodoSlot,
-                      reason: str) -> None:
-    """效果直接負傷 1 隻魔物(已負傷則入墓);尊重 M-031 免疫。"""
-    immunity = reg.DAMAGE_IMMUNITY.get(slot.top)
-    if immunity and immunity(game, player, slot, {"source": reason}):
-        game.emit(batch, "damage_prevented", player=player, slot=slot.uid, reason="immunity")
-        return
-    if _full_immune(game, player):
-        game.emit(batch, "damage_prevented", player=player, slot=slot.uid, reason="immune")
-        return
-    if slot.injured:
-        _discard_slot(game, batch, player, slot, reason=reason)
-    else:
-        slot.injured = True
-        game.emit(batch, "mamodo_injured", player=player, slot=slot.uid, card=slot.top)
-
-
 def spell_cost(game: Game, player: int, page: int, card: CardDef) -> int:
     ps = game.state.players[player]
     cost = card.cost or 0
@@ -437,8 +420,28 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         handler(game, batch, player, page)
         _check_victory(game, batch)
     elif card.type == SPELL:
-        # 第一彈無「非戰鬥」術;保留擴充點
-        raise IllegalCommand("spell.not_nonbattle", "此術卡沒有非戰鬥圖示")
+        if card.effect_icon != "nonbattle":
+            raise IllegalCommand("spell.not_nonbattle", "此術卡沒有非戰鬥圖示")
+        if card.ad == "A" and player != st.turn_player:
+            raise IllegalCommand("spell.timing", "此非戰鬥術只能在自己的回合使用")
+        if card.ad == "D" and player == st.turn_player:
+            raise IllegalCommand("spell.timing", "此非戰鬥術只能在對手的回合使用")
+        if not card.is_command_spell and not any(
+                _spell_usable_by(game, player, s, card) for s in st.players[player].slots):
+            raise IllegalCommand("spell.no_mamodo", "對應此術的魔物不在自己場上")
+        if number in st.players[player].used_nonbattle_spells:
+            raise IllegalCommand("spell.used", "此非戰鬥術本回合已使用過")
+        handler = reg.SPELL_NONBATTLE.get(number)
+        if handler is None:
+            raise IllegalCommand("spell.not_implemented", f"{number} 尚未實作")
+        cost = spell_cost(game, player, page, card)
+        if st.players[player].mp < cost:
+            raise IllegalCommand("spell.mp", "MP 不足")
+        st.players[player].used_nonbattle_spells.add(number)
+        pay_mp(game, batch, player, cost, f"spell:{number}")
+        game.emit(batch, "book_card_used", player=player, card=number, page=page)
+        handler(game, batch, player)
+        _check_victory(game, batch)
     else:
         raise IllegalCommand("book.not_usable", "此卡不能留在魔本中使用")
 
@@ -455,6 +458,14 @@ def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
         if sb.kind == "spell_any_page" and sb.owner == player and sb.data.get("spell_name") == name:
             return sb
     return None
+
+
+def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -> bool:
+    """此術卡是否可由場上這隻魔物使用(家族相符或術相容性擴充,如 M-023/M-029)。"""
+    if game.db[slot.top].related_mamodo == card.related_mamodo:
+        return True
+    compat = reg.SPELL_COMPAT.get(slot.top)
+    return bool(compat and compat(game, player, slot, card))
 
 
 def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, attack: bool) -> tuple[str, MamodoSlot]:
@@ -485,16 +496,12 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
             else:
                 raise IllegalCommand("spell.need_slot", "指示術須指定使用的魔物")
     else:
-        def usable_by(s: MamodoSlot) -> bool:
-            if game.db[s.top].related_mamodo == card.related_mamodo:
-                return True
-            compat = reg.SPELL_COMPAT.get(s.top)  # M-023/M-029 術相容性擴充
-            return bool(compat and compat(game, player, s, card))
         explicit = st.slot_by_uid(player, slot_uid) if slot_uid is not None else None
-        if explicit is not None and usable_by(explicit):
+        if explicit is not None and _spell_usable_by(game, player, explicit, card):
             slot = explicit
         else:
-            slot = next((s for s in st.players[player].slots if usable_by(s)), None)
+            slot = next((s for s in st.players[player].slots
+                        if _spell_usable_by(game, player, s, card)), None)
         if slot is None:
             raise IllegalCommand("spell.no_mamodo", "對應此術的魔物不在自己場上")
     if slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
@@ -759,6 +766,8 @@ def _attack_damage_amount(game: Game, battle: BattleState) -> int:
         total *= 2
     total += battle.data.get("defense_damage_delta", 0)  # S-027 減傷
     rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
+    if rider and rider.damage_bonus is not None:  # 依合計魔力調整傷害(S-042)
+        total += rider.damage_bonus(game, battle)
     if rider and rider.damage_cap is not None:  # 傷害上限(S-032/S-034)
         total = min(total, rider.damage_cap)
     return max(0, total)
@@ -779,6 +788,8 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
         if rider and rider.on_win:
             rider.on_win(game, batch, battle.attacker)
         if st.phase == GAME_OVER:
+            return
+        if rider and rider.on_win_owns_damage:
             return
         # 獲勝時負傷代替魔本傷害(S-058 / S-057 待命旗標)
         if (rider and rider.injure_instead) or battle.data.get("injure_instead"):
@@ -1148,6 +1159,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     for p in st.players:
         p.used_spell_pages.clear()
         p.used_abilities.clear()
+        p.used_nonbattle_spells.clear()
         p.used_event_this_turn = False
         p.discarded_this_turn.clear()
         p.page_effect_used = False

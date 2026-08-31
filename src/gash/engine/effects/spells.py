@@ -125,10 +125,9 @@ reg.spell_rider("S-021", on_declare=_coin_negate("S-021", 2))
 reg.spell_rider("S-025", on_declare=_coin_negate("S-025", 1))
 
 
-# ---- S-026 ＳＥＴ!:擲硬幣,正面→[待命] 本回合下一場戰鬥對手不能防禦
-def _s026_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
+# ---- S-026 ＳＥＴ!(非戰鬥術):擲硬幣,正面→[待命] 本回合下一場戰鬥對手不能防禦
+@reg.spell_nonbattle("S-026")
+def s026(game, batch, player):
     flip_coins(game, batch, player, 1, "S-026", "s026_resolve", {"player": player})
 
 
@@ -137,9 +136,6 @@ def s026_resolve(game, batch, results, data):
     if results[0]:
         schedule_standby(game, batch, kind="attack_undefendable", source="S-026",
                          owner=data["player"])
-
-
-reg.spell_rider("S-026", on_declare=_s026_on_declare, no_book_damage=True)
 
 
 # ---- S-027 耐えてくれよ!:擲2硬幣,至少1正→對手攻擊傷害 -1
@@ -218,14 +214,23 @@ def s035_resolve(game, batch, results, data):
 reg.spell_rider("S-035", on_declare=_s035_on_declare)
 
 
-# ---- S-036 ディオガ・グラビドン:獲勝時使對手場上所有魔物負傷(+ 香草魔本傷害)
+# ---- S-036 ディオガ・グラビドン:獲勝時對防方魔本與場上所有魔物造成傷害
 def _s036_on_win(game, batch, player):
-    from ..engine import injure_or_discard
-    for s in list(game.state.players[1 - player].slots):
-        injure_or_discard(game, batch, 1 - player, s, "S-036")
+    from ..engine import _attack_damage_amount, _start_damage
+    opp = 1 - player
+    battle = game.state.battle
+    amount = _attack_damage_amount(game, battle)
+    items = []
+    if amount > 0:
+        items.append({"kind": "book", "player": opp, "amount": amount})
+    items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
+              for s in list(game.state.players[opp].slots)]
+    _start_damage(game, batch, items,
+                  {"cause": "battle_attack", "source": battle.attack_spell,
+                   "source_player": player, "amount": amount})
 
 
-reg.spell_rider("S-036", on_win=_s036_on_win)
+reg.spell_rider("S-036", on_win=_s036_on_win, on_win_owns_damage=True)
 
 
 # ---- 自身免疫(至對手下個結束階段):S-037(擲幣)/ S-038(必定)/ S-041(擲幣)
@@ -295,13 +300,9 @@ def s040_resolve(game, batch, results, data):
 reg.spell_rider("S-040", on_declare=_s040_on_declare)
 
 
-# ---- S-041 ジュルク:不可被防禦;擲幣正→自身免疫(無魔本傷害)
-def _s041_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    b = game.state.battle
-    if b is not None:
-        b.attack_undefendable = True
+# ---- S-041 ジュルク(非戰鬥術):擲幣正→自身免疫(至對手下個結束階段)
+@reg.spell_nonbattle("S-041")
+def s041(game, batch, player):
     flip_coins(game, batch, player, 1, "S-041", "s041_resolve", {"player": player})
 
 
@@ -311,16 +312,9 @@ def s041_resolve(game, batch, results, data):
         _grant_full_immune(game, batch, data["player"], "S-041")
 
 
-reg.spell_rider("S-041", on_declare=_s041_on_declare, no_book_damage=True)
-
-
-# ---- S-043 レイ・ブルク:羅布諾斯雙向轉換(不可被防禦、無魔本傷害)
-def _s043_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    b = game.state.battle
-    if b is not None:
-        b.attack_undefendable = True
+# ---- S-043 レイ・ブルク(非戰鬥術):羅布諾斯雙向轉換
+@reg.spell_nonbattle("S-043")
+def s043(game, batch, player):
     ps = game.state.players[player]
     doubles = [s for s in ps.slots if s.top == "M-024"]
     completes = [s for s in ps.slots if s.top == "M-025"]
@@ -402,16 +396,9 @@ def _place_up_to_two_doubles(game, batch, player):
             break
 
 
-reg.spell_rider("S-043", on_declare=_s043_on_declare, no_book_damage=True)
-
-
-# ---- S-048 ゼベル:自書任意頁取 M-027 疊放到場上巴爾特羅(不可防禦、無魔本傷害)
-def _s048_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    b = game.state.battle
-    if b is not None:
-        b.attack_undefendable = True
+# ---- S-048 ゼベル(非戰鬥術):自書任意頁取 M-027 疊放到場上巴爾特羅
+@reg.spell_nonbattle("S-048")
+def s048(game, batch, player):
     ps = game.state.players[player]
     base = next((s for s in ps.slots if s.top == "M-028"), None)
     pages = _book_pages_of(game, player, "M-027")
@@ -436,9 +423,6 @@ def s048_place(game, batch, value, data):
               zone="mamodo", stacked=True, from_book=True)
 
 
-reg.spell_rider("S-048", on_declare=_s048_on_declare, no_book_damage=True)
-
-
 # ---- S-056 しっかりしろ!:防禦獲勝→無效攻擊(自動);被造成傷害→ MP = 2×傷害
 def _s056_on_defense_damaged(game, batch, defender, amount):
     from ..engine import gain_mp
@@ -448,13 +432,9 @@ def _s056_on_defense_damaged(game, batch, defender, amount):
 reg.spell_rider("S-056", on_defense_damaged=_s056_on_defense_damaged)
 
 
-# ---- S-057 チェックメイト!:擲幣正→本回合下一張攻擊術改為負傷(不可防禦、無魔本傷害)
-def _s057_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    b = game.state.battle
-    if b is not None:
-        b.attack_undefendable = True
+# ---- S-057 チェックメイト!(非戰鬥術):擲幣正→[待命] 本回合下一場戰鬥獲勝改為負傷代替傷害
+@reg.spell_nonbattle("S-057")
+def s057(game, batch, player):
     flip_coins(game, batch, player, 1, "S-057", "s057_resolve", {"player": player})
 
 
@@ -465,8 +445,46 @@ def s057_resolve(game, batch, results, data):
                          owner=data["player"])
 
 
-reg.spell_rider("S-057", on_declare=_s057_on_declare, no_book_damage=True)
-
-
 # ---- S-058 ザケル(ゼオン):獲勝時使對手 1 隻魔物負傷代替魔本傷害
 reg.spell_rider("S-058", injure_instead=True)
+
+
+# ---- S-042 ビライツ:攻擊時,自身合計魔力 8000 以上 → 此術傷害 +2
+reg.spell_rider("S-042", damage_bonus=lambda game, battle: (
+    2 if battle.data.get("attack_total", 0) >= 8000 else 0))
+
+
+# ---- S-045 ガンズ・ガロン:擲2硬幣,2 正 → 不可被防禦
+def _s045_on_declare(game, batch, player, side):
+    if side != "attack":
+        return
+    flip_coins(game, batch, player, 2, "S-045", "s045_resolve", {"player": player})
+
+
+@reg.choice_resolver("s045_resolve")
+def s045_resolve(game, batch, results, data):
+    if sum(results) >= 2:
+        b = game.state.battle
+        if b is not None:
+            b.attack_undefendable = True
+
+
+reg.spell_rider("S-045", on_declare=_s045_on_declare)
+
+
+# ---- S-046 エイジャス・ガロン:擲1硬幣,正 → 不可被防禦
+def _s046_on_declare(game, batch, player, side):
+    if side != "attack":
+        return
+    flip_coins(game, batch, player, 1, "S-046", "s046_resolve", {"player": player})
+
+
+@reg.choice_resolver("s046_resolve")
+def s046_resolve(game, batch, results, data):
+    if results[0]:
+        b = game.state.battle
+        if b is not None:
+            b.attack_undefendable = True
+
+
+reg.spell_rider("S-046", on_declare=_s046_on_declare)
