@@ -37,6 +37,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:ci
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1

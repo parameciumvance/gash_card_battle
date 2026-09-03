@@ -27,6 +27,10 @@
 - [x] 3.2 新增 `.github/workflows/deploy.yml`:`on: push tags: v*` 觸發——build Docker 映像檔、登入 GHCR、推送並標上 tag 版號與 `latest`、用 SSH 連進 VPS 執行 `docker compose pull && docker compose up -d`。
       **驗收條件**:推送一個測試 tag(如 `v0.0.1-test`),GitHub Actions 頁面顯示 build+push+deploy 三個階段都成功;GHCR 的 package 頁面能看到新推送的映像檔與對應 tag;VPS 上 `docker compose ps` 顯示容器已重啟(啟動時間為最新)。
       實際結果:檔案已建立並驗證 YAML 語法/結構正確(觸發條件、四個步驟:checkout → GHCR 登入 → build+push 兩個 tag → SSH 部署)。**推送測試 tag、實際觸發部署到 VPS,需要使用者在完成 3.3(Secrets 設定)與 README 的 VPS 初始化步驟後才能驗證**——推送 tag 是對外可見且會實際觸發部署的操作,且此環境沒有可實際連線的 VPS,不是這次能代為執行驗證的項目。
+      實作階段更正(使用者第一次實際打 tag 部署,依序踩了三個坑,逐一排查修正):
+      1. Build+push 階段報 `denied: installation not allowed to Create organization package`——repo 的 Settings → Actions → General → Workflow permissions 預設是唯讀,`GITHUB_TOKEN` 沒有 push package 的權限,改成 "Read and write permissions" 後解決,不是程式碼問題。
+      2. SSH 部署階段報 `ssh: handshake failed: EOF`——追查發現 `tailscale/github-action` 沒帶 `tags` 參數,導致每次都在 tailnet 建立永久節點而非用完即焚的臨時節點,節點憑證過期後變殭屍記錄,連線在 SSH 協定握手階段被斷開。已在 `deploy.yml` 補上 `tags: tag:ci`,並在 README 補充「先在 Tailscale ACL 宣告這個 tag」的一次性設定步驟(見 design.md 對應更正)。
+      3. 以上兩項皆需要使用者實際帳號權限才能操作驗證,已記錄在 README 供依循,無法由這次實作代為執行完整驗證。
       實作階段更正(使用者實際嘗試設置時發現):原設計假設 GitHub Actions runner 能直接連到 `VPS_HOST`,但使用者的 VPS 只透過 Tailscale 內網位址(`100.x.x.x`)開放 SSH,沒有公網 SSH 埠。GitHub Actions 的 runner 不在使用者的 tailnet 裡,直接 SSH 會連不上。已在 `Deploy to VPS` 步驟之前新增 `tailscale/github-action@v2` 步驟,讓 runner 用一把 reusable auth key(新 Secret `TS_AUTHKEY`)臨時加入 tailnet,之後才執行原本的 SSH 部署;`VPS_HOST` 這個既有 Secret 改填 Tailscale 位址即可,其餘部署邏輯不變。見 design.md 對應更正說明。
 - [ ] 3.3 確認 GitHub repo Secrets 已設定(`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`,及視 GHCR 可見性需要的登入資訊),且部署用的 SSH key 是專屬 deploy-only key(不是使用者個人登入金鑰)。
       **驗收條件**:repo Secrets 頁面能看到對應欄位已設定(不檢查其值,只確認欄位存在);VPS 上該 deploy-only key 的 `authorized_keys` 項目有註解標明用途,方便日後撤銷。

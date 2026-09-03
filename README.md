@@ -173,6 +173,20 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
    - 到 [Tailscale admin console](https://login.tailscale.com/admin/settings/keys) →
      Settings → Keys,產生一把 **reusable** 的 auth key
    - 在 GitHub repo Secrets 多新增一欄 `TS_AUTHKEY`,值就是這把 auth key
+   - 到 [Access Controls](https://login.tailscale.com/admin/acls/file) 編輯 ACL policy
+     檔案,加入(或在既有 `tagOwners` 區塊裡補一行):
+     ```json
+     "tagOwners": {
+       "tag:ci": ["autogroup:admin"],
+     },
+     ```
+     **這步不能省略**——`deploy.yml` 裡的 `tailscale/github-action` 帶了 `tags: tag:ci`
+     這個參數,用意是讓每次 workflow 建立的節點標記為 ephemeral(用完即焚)並自動核准;
+     如果 tailnet 沒有先宣告這個 tag,`tailscale up` 會失敗。沒設定這步的後果是:
+     每次部署都會在 Tailscale admin console 的 Machines 清單留下一個**永久節點**,
+     過一段時間憑證到期變成 `Expired` 殭屍記錄,實際連線會在 SSH 握手階段失敗
+     (`ssh: handshake failed: EOF`)——這是實際部署時踩過的坑,如果你已經累積了幾台
+     `github-xxxxx` 的過期機器,可以到 Machines 頁面手動刪除清掉。
 
 6. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
    `https://github.com/<你的帳號>?tab=packages` 把對應的 package 設為 public,
