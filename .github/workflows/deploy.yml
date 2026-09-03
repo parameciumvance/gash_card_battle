@@ -1,0 +1,50 @@
+name: Deploy
+
+# 只有打版號 tag 才建置映像檔並部署上 VPS,一般 push 不會觸碰生產環境
+# (見 tests.yml)。VPS 上須先完成一次性設置,見 README「VPS 部署」章節。
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+
+      # VPS 的 SSH 只開放在 Tailscale 內網(不對公網開放),runner 要先加入該 tailnet
+      # 才能連到 VPS_HOST(填 Tailscale 位址,如 100.x.x.x)。TS_AUTHKEY 從 Tailscale
+      # admin console → Settings → Keys 產生(reusable auth key)。若 tailscale/github-action
+      # 之後改版導致這個欄位名稱失效,請對照該 action 當時的官方 README 調整。
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/gash-card-battle
+            docker compose pull
+            docker compose up -d

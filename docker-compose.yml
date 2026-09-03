@@ -1,0 +1,34 @@
+# VPS 部署用:`docker compose pull && docker compose up -d`。
+# app 不對外開放埠,只有 caddy 對外;卡圖 volume 現在留空,部署方式另案處理。
+services:
+  app:
+    image: ghcr.io/parameciumvance/gash_card_battle:latest
+    restart: unless-stopped
+    environment:
+      - GASH_ASSETS_DIR=/app/assets
+    volumes:
+      - card-assets:/app/assets
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/meta')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  card-assets:
+  caddy-data:
+  caddy-config:

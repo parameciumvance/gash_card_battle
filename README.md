@@ -99,6 +99,111 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
 `GASH_ASSETS_DIR` 環境變數 → 執行檔旁 `assets/` → 使用者資料夾(上述)→ repo `frontend/assets/`。
 開發環境可 `python -m gash.launcher` 走與發行版相同的啟動流程。
 
+## VPS 部署(長期常駐、給不特定人玩)
+
+跟上面的單機發行(給朋友臨時開一次)不同,這是把服務架在自己的 VPS 上長期開著。
+流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並部署,平時不會打斷進行中的對局。
+
+**已知限制**:房間狀態存在單一行程的記憶體裡,**服務 MUST 只跑單一 uvicorn 行程**,
+不能開多個容器/多個 worker 分攤流量(那樣同一房間的請求可能被路由到沒有該房間資料的行程)。
+**每次部署重啟容器,當下進行中的對局都會消失**——這也是為什麼用「打 tag」而非「每次 push」
+觸發部署,方便你挑對局少的時間點發布。
+
+### 一次性設置
+
+以下每一步都標明要在**本機**(你自己平常用的電腦)還是 **VPS**(遠端伺服器)執行,
+不要搞反——尤其是 SSH 金鑰那步,金鑰要在本機產生,私鑰不會、也不需要留在 VPS 上。
+
+1. **(VPS)安裝 Docker**(Ubuntu 24.04):SSH 登入 VPS 後執行
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+   (內含 Docker Compose plugin,`docker compose` 指令即可使用,不需要另外裝 `docker-compose`。)
+
+2. **(VPS)建立部署目錄**:
+   ```bash
+   mkdir -p /opt/gash-card-battle
+   ```
+
+3. **(本機)把 `docker-compose.yml` 與 `Caddyfile` 傳到 VPS 剛建立的目錄**(這兩個檔案在
+   repo 根目錄,在你本機的 repo 資料夾下執行):
+   ```bash
+   scp docker-compose.yml Caddyfile youruser@your-vps-ip:/opt/gash-card-battle/
+   ```
+   VPS 上**不需要**整份 repo 原始碼,只需要這兩個檔案——服務本體是從 GHCR 拉映像檔運行的。
+
+4. **(本機)產生一把只給部署用的 SSH 金鑰**(不要用你平常登入 VPS 的個人金鑰),
+   並把公鑰送到 VPS:
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/gash_deploy_key -C "gash-card-battle deploy-only"
+   ssh-copy-id -i ~/.ssh/gash_deploy_key.pub youruser@your-vps-ip
+   ```
+   這兩行指令的 `youruser@your-vps-ip` 是**從本機連去 VPS**,執行時本機能連到 VPS 才會動;
+   如果 `ssh-copy-id` 卡住沒反應,先確認你是在本機(不是在 VPS 上)執行這行指令。
+   完成後 VPS 的 `~/.ssh/authorized_keys` 會多一行對應這把 deploy-only 金鑰的公鑰,
+   可以 SSH 進 VPS 用 `cat ~/.ssh/authorized_keys` 確認(建議加上註解方便之後撤銷)。
+
+   **`ssh-copy-id`/`ssh` 卡住的疑難排解**(這步最容易卡):
+   - **卡在 `Connecting to ... port 22.` 沒有任何後續輸出**:通常是連不到這個位址。
+     若 VPS 的 IP 長 `100.x.x.x`(Tailscale/CGNAT 位址),代表 VPS 的 SSH 只開放在
+     Tailscale 內網——本機也要連上**同一個 tailnet** 才能連過去。若是用 **WSL** 執行這些
+     指令,注意 WSL2 有自己獨立的網路(跟 Windows 宿主機分開),Windows 端裝了 Tailscale
+     不代表 WSL2 也能連,WSL2 裡要另外裝一份(`curl -fsSL https://tailscale.com/install.sh
+     | sh && sudo tailscale up`,用同一個帳號登入同一個 tailnet)。用 `tailscale status`
+     確認本機真的是 Connected 狀態。
+   - **能力 `ssh` 直接登入,但 `ssh-copy-id` 還是卡住**:通常是 VPS 關閉了密碼登入
+     (`PasswordAuthentication no`)——`ssh-copy-id` 預設想先用密碼登入才能塞入新公鑰,
+     VPS 不接受密碼就會卡住等一個不會出現的密碼提示。這時候跳過 `ssh-copy-id`,直接用
+     你已經能登入的那把金鑰把公鑰內容接上去:
+     ```bash
+     cat ~/.ssh/gash_deploy_key.pub | ssh youruser@your-vps-ip "cat >> ~/.ssh/authorized_keys"
+     ```
+
+5. **在 GitHub repo 網頁的 Settings → Secrets and variables → Actions,切到 "Secrets"
+   分頁(不是 "Variables" 分頁——Variables 是明文儲存,這幾個值都不該用)新增**:
+   - `VPS_HOST`:VPS 的 IP 位址(見下方「若 VPS 的 SSH 只開放在 Tailscale 內網」)
+   - `VPS_USER`:上一步用來登入 VPS 的使用者名稱
+   - `VPS_SSH_KEY`:上一步在**本機**產生的**私鑰**內容(`~/.ssh/gash_deploy_key` 檔案全文,
+     不是 `.pub` 那個公鑰檔)
+
+   **若 VPS 的 SSH 只開放在 Tailscale 內網(沒有對公網開放,如 IP 長 `100.x.x.x`
+   這種 CGNAT/Tailscale 位址)**:`VPS_HOST` 直接填這個 Tailscale 位址即可,但 GitHub
+   Actions 的執行環境本身不在你的 tailnet 裡,`deploy.yml` 已經多加了一步用
+   `tailscale/github-action` 讓 runner 臨時加入 tailnet,你只需要額外:
+   - 到 [Tailscale admin console](https://login.tailscale.com/admin/settings/keys) →
+     Settings → Keys,產生一把 **reusable** 的 auth key
+   - 在 GitHub repo Secrets 多新增一欄 `TS_AUTHKEY`,值就是這把 auth key
+
+6. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
+   `https://github.com/<你的帳號>?tab=packages` 把對應的 package 設為 public,
+   之後 VPS `docker compose pull` 才不需要登入;如果 repo 是 private,要 SSH 進 **VPS**
+   先 `docker login ghcr.io`(用一組有 `read:packages` 權限的 Personal Access Token)。
+
+### 發布新版本
+
+**(本機)** 在 repo 資料夾下打 tag 並推上 GitHub:
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+推 tag 後 GitHub Actions 會自動建置映像檔、推上 GHCR、SSH 進 VPS 執行
+`docker compose pull && docker compose up -d`(這段是 CI 自動做的,你不用手動登入 VPS)。
+可以到 repo 的 Actions 頁面看執行進度。
+
+### 之後補上網域
+
+**(本機)** 把 `Caddyfile` 裡的 `:80` 改成你的網域(如 `example.com`),
+`scp Caddyfile youruser@your-vps-ip:/opt/gash-card-battle/` 覆蓋過去;
+**(VPS)** 再執行 `docker compose restart caddy`——Caddy 會自動申請並續期 HTTPS 憑證,
+不需要另外裝 certbot 或手動管理憑證,前端也不用改(WebSocket 連線本來就是依當下的
+`http`/`https` 自動切換成 `ws`/`wss`)。
+
+### 卡圖
+
+`docker-compose.yml` 已經預留一個 volume 掛到 `GASH_ASSETS_DIR`,但這次沒有處理實際
+怎麼把卡圖檔案放進這個 volume——照單機發行的提醒,卡圖含版權素材,請自行斟酌散布範圍。
+
 ## 測試
 
 ```bash
