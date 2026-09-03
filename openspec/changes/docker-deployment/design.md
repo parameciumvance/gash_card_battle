@@ -30,7 +30,15 @@
 - **GitHub Actions 分兩個 workflow**:`test.yml`(`on: push, pull_request` 到 main,跑 `pytest`)與 `deploy.yml`(`on: push tags: v*`,build image → 推 GHCR,標上該 tag 與 `latest` → SSH 進 VPS 執行 `docker compose pull && docker compose up -d`)。VPS 上的 `docker-compose.yml` 固定引用 GHCR 的 `latest` tag(以「拿到最新已發布版本」為語意),打版號 tag 是為了在 GHCR 留下可回溯的版本紀錄與作為部署觸發點,不是每個容器都各自釘死版本號。
 - **SSH 部署用專屬 deploy-only key,存進 GitHub repo Secrets**(`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`):不重用使用者個人的 VPS 登入金鑰,降低外洩影響範圍。
   - **實作階段更正(VPS 網路架構跟原假設不同)**:原設計假設 `VPS_HOST` 是一個 GitHub Actions runner(在 GitHub 雲端上)可以直接連到的位址。使用者的 VPS 實際上**沒有公開的 SSH 埠,只能透過 Tailscale 的 tailnet 內網位址(`100.x.x.x` 這個 CGNAT 網段)連線**——這是刻意的安全性選擇(不把 SSH 暴露在公網上),但代表 GitHub Actions 的 runner(不在使用者的 tailnet 裡)沒辦法直接 SSH 過去。修正:`deploy.yml` 在 SSH 部署步驟之前,先用官方的 `tailscale/github-action` 讓 runner 臨時加入該 tailnet,之後才能用 Tailscale 位址連線;新增一個 GitHub Secret `TS_AUTHKEY`(Tailscale 的 reusable auth key,在 Tailscale admin console → Settings → Keys 產生)。`VPS_HOST` 這個既有 Secret 的值改填 Tailscale 位址(即 `100.123.0.19` 這種)而非公網 IP,其餘 SSH 部署邏輯不變。
-  - **實作階段再更正(第一次實際部署嘗試後發現)**:一開始只加了 `authkey` 參數,沒有加 `tags` 參數。`tailscale/github-action` 內部的邏輯是「有帶 `tags` 才會在 authkey 加上 `?preauthorized=true&ephemeral=true`」,沒有 `tags` 就完全不會加這個後綴——導致每次 workflow 執行,都會在 tailnet 留下一個**永久節點**而非用完即焚的臨時節點;這個節點的憑證到期後變成殭屍記錄(`Expired`),下次部署要連 SSH 時,連線在協定握手階段直接被斷開(`ssh: handshake failed: EOF`),而不是連不上這麼直觀的錯誤。修正:`deploy.yml` 補上 `tags: tag:ci`;但要用 tag 就必須先在 Tailscale 的 ACL policy 裡宣告 `tagOwners`(否則 `tailscale up --advertise-tags=` 會失敗),這是一次性的 Tailscale 端設定,記錄在 README。
+  - **實作階段再更正(第一次實際部署嘗試後發現,診斷有誤)**:一開始只加了 `authkey` 參數,沒有加 `tags` 參數,猜測是這樣導致每次 workflow 執行都在 tailnet 留下永久節點(而非用完即焚),節點憑證過期變殭屍記錄,連線在 SSH 協定握手階段被斷開(`ssh: handshake failed: EOF`)。當時據此補上了 `tags: tag:ci` 這個參數。
+  - **實作階段第三次更正(補上 `tags` 後重新部署,問題依舊,回頭查證該 action 原始碼才找到真正根因)**:直接查 `tailscale/github-action@v2` 的原始碼,發現關鍵判斷式其實是:
+    ```bash
+    if [ -n "${{ inputs['oauth-secret'] }}" ]; then
+      TAILSCALE_AUTHKEY="${{ inputs['oauth-secret'] }}?preauthorized=true&ephemeral=true"
+      TAGS_ARG="--advertise-tags=${{ inputs.tags }}"
+    fi
+    ```
+    這個條件式測試的是 `inputs['oauth-secret']`(OAuth client 認證專用欄位)是否有值,**跟 `tags` 或 `authkey` 完全無關**。也就是說,用傳統 `authkey` 方式登入時,不管有沒有設定 `tags`,這整段 if 都不會執行——上一輪「補上 tags 參數」的修正方向從一開始就是錯的,`tags` 這個輸入在 authkey 模式下根本沒被用到。真正修正:改用 **OAuth client** 認證(`oauth-client-id` + `oauth-secret` 兩個輸入,取代 `authkey`),搭配的 GitHub Secrets 也從 `TS_AUTHKEY` 改為 `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_CLIENT_SECRET`;ACL 的 `tagOwners` 宣告仍然需要(OAuth client 產生時要綁定一個已宣告的 tag)。這次教訓:對於行為不如預期的第三方 action,與其憑 log 片段猜測條件式測試的是哪個變數,應該直接去查該 action 對應版本的原始碼確認。
 - **部署後健康檢查借用既有 `GET /api/meta`**:`docker-compose.yml` 的 `app` 服務設定 `healthcheck` 打這支既有端點,`deploy.yml` 在重啟後可以等待健康檢查通過再視為部署成功(不需要新增專門的 healthz 端點)。
 
 ## Risks / Trade-offs

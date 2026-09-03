@@ -30,13 +30,17 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
 
       # VPS 的 SSH 只開放在 Tailscale 內網(不對公網開放),runner 要先加入該 tailnet
-      # 才能連到 VPS_HOST(填 Tailscale 位址,如 100.x.x.x)。TS_AUTHKEY 從 Tailscale
-      # admin console → Settings → Keys 產生(reusable auth key)。若 tailscale/github-action
-      # 之後改版導致這個欄位名稱失效,請對照該 action 當時的官方 README 調整。
+      # 才能連到 VPS_HOST(填 Tailscale 位址,如 100.x.x.x)。MUST 用 OAuth client(不是
+      # authkey)——tailscale/github-action@v2 內部只有偵測到 oauth-secret 有值時,才會
+      # 自動帶上 preauthorized=true&ephemeral=true 與 --advertise-tags,authkey 模式不管
+      # 有沒有設 tags 都不會套用。TS_OAUTH_CLIENT_ID/TS_OAUTH_CLIENT_SECRET 從
+      # Tailscale admin console → Settings → OAuth clients 產生。若 tailscale/github-action
+      # 之後改版導致這些欄位名稱失效,請對照該 action 當時的官方 README 調整。
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
 
       - name: Deploy to VPS
