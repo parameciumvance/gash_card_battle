@@ -187,10 +187,16 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
      ```
      這步是先宣告 `tag:ci` 這個標籤存在、由管理員授權使用,下一步產生 OAuth client
      時才能選到它。
-   - 到 [Tailscale admin console → Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth)
-     產生一個新的 OAuth client:scope 選 **Devices → Write**,標籤選剛才宣告的
-     `tag:ci`。產生後會拿到一組 **Client ID** 跟 **Client secret**(secret 只會顯示
-     一次,要先存起來)。
+   - 到 Tailscale admin console 的 OAuth client 設定頁面(可能顯示在 "Trust
+     credentials" 底下的 "OAuth Clients" 分類,依你看到的介面版本而定)產生一個新的
+     OAuth client:**scope 要勾 "Auth Keys" 這個類別底下的 "Write"**(不是
+     "Devices"、也不是 "OAuth Keys"——`tailscale/github-action` 實際上是用這個
+     OAuth client 動態產生一把 auth key、再用那把 key 執行 `tailscale up`,所以
+     需要的是「能產生 auth key」的權限)。同一個畫面會要求指定這個 OAuth client
+     被允許套用哪些 tag,這裡選 `tag:ci`,MUST 跟 `deploy.yml` 裡 `tags: tag:ci`
+     這個值一致,否則會在連線時收到 `403: calling actor does not have enough
+     permissions to perform this function`。產生後會拿到一組 **Client ID** 跟
+     **Client secret**(secret 只會顯示一次,要先存起來)。
    - 在 GitHub repo Secrets 新增兩欄:`TS_OAUTH_CLIENT_ID`(填 Client ID)、
      `TS_OAUTH_CLIENT_SECRET`(填 Client secret)。
 

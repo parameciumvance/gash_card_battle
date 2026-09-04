@@ -39,6 +39,7 @@
     fi
     ```
     這個條件式測試的是 `inputs['oauth-secret']`(OAuth client 認證專用欄位)是否有值,**跟 `tags` 或 `authkey` 完全無關**。也就是說,用傳統 `authkey` 方式登入時,不管有沒有設定 `tags`,這整段 if 都不會執行——上一輪「補上 tags 參數」的修正方向從一開始就是錯的,`tags` 這個輸入在 authkey 模式下根本沒被用到。真正修正:改用 **OAuth client** 認證(`oauth-client-id` + `oauth-secret` 兩個輸入,取代 `authkey`),搭配的 GitHub Secrets 也從 `TS_AUTHKEY` 改為 `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_CLIENT_SECRET`;ACL 的 `tagOwners` 宣告仍然需要(OAuth client 產生時要綁定一個已宣告的 tag)。這次教訓:對於行為不如預期的第三方 action,與其憑 log 片段猜測條件式測試的是哪個變數,應該直接去查該 action 對應版本的原始碼確認。
+  - **實作階段第四次更正(改用 OAuth client 後,連線時收到 `403: calling actor does not have enough permissions to perform this function`)**:查證後確認 `tailscale/github-action` 底層邏輯是「用 OAuth client 動態產生一把 auth key,再用這把 key 執行 `tailscale up`」,所以 OAuth client 需要的權限是**「Auth Keys」類別底下的「Write」**,不是原先猜測的「Devices」權限,也不是介面上另一個容易選錯的「OAuth Keys」選項。此外,建立 OAuth client 時 MUST 明確指定它被允許套用的 tag(即 `tag:ci`),且這個值必須跟 `deploy.yml` 裡 `tailscale/github-action` 的 `tags` 輸入完全一致,否則一樣會被 API 拒絕。已更新 README 對應步驟的 scope 說明。
 - **部署後健康檢查借用既有 `GET /api/meta`**:`docker-compose.yml` 的 `app` 服務設定 `healthcheck` 打這支既有端點,`deploy.yml` 在重啟後可以等待健康檢查通過再視為部署成功(不需要新增專門的 healthz 端點)。
 
 ## Risks / Trade-offs

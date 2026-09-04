@@ -30,7 +30,8 @@
       實作階段更正(使用者第一次實際打 tag 部署,依序踩了三個坑,逐一排查修正):
       1. Build+push 階段報 `denied: installation not allowed to Create organization package`——repo 的 Settings → Actions → General → Workflow permissions 預設是唯讀,`GITHUB_TOKEN` 沒有 push package 的權限,改成 "Read and write permissions" 後解決,不是程式碼問題。
       2. SSH 部署階段報 `ssh: handshake failed: EOF`——最初猜測是 `tailscale/github-action` 沒帶 `tags` 參數導致節點憑證過期,補上 `tags: tag:ci` 後重新部署,問題依舊(log 仍顯示同樣的 `[ -n "" ]`)。回頭直接查該 action `v2` 版本的原始碼才找到真正根因:內部判斷式測試的是 `inputs['oauth-secret']` 是否有值,用傳統 `authkey` 認證時這段邏輯完全不會執行,跟有沒有設 `tags` 無關。真正修正:`deploy.yml` 改用 OAuth client 認證(`oauth-client-id`+`oauth-secret`,對應 GitHub Secrets 改名為 `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_CLIENT_SECRET`),ACL 的 `tagOwners` 宣告仍需保留。詳見 design.md 的第三次更正說明。
-      3. 以上兩項皆需要使用者實際帳號權限才能操作驗證,已記錄在 README 供依循,無法由這次實作代為執行完整驗證。
+      3. 改用 OAuth client 後,連線時改報 `403: calling actor does not have enough permissions to perform this function`——查證確認該 action 是「用 OAuth client 動態產生一把 auth key、再用這把 key 執行 tailscale up」,所以 OAuth client 需要的權限是 **「Auth Keys」類別的「Write」**,不是原先猜測的「Devices」,也不是介面上另一個容易選錯的「OAuth Keys」;且建立時 MUST 指定允許套用的 tag(`tag:ci`),須與 `deploy.yml` 的 `tags` 輸入一致。已更新 README 對應步驟的 scope 說明,詳見 design.md 第四次更正。
+      4. 以上各項皆需要使用者實際帳號權限才能操作驗證,已記錄在 README 供依循,無法由這次實作代為執行完整驗證。
       實作階段更正(使用者實際嘗試設置時發現):原設計假設 GitHub Actions runner 能直接連到 `VPS_HOST`,但使用者的 VPS 只透過 Tailscale 內網位址(`100.x.x.x`)開放 SSH,沒有公網 SSH 埠。GitHub Actions 的 runner 不在使用者的 tailnet 裡,直接 SSH 會連不上。已在 `Deploy to VPS` 步驟之前新增 `tailscale/github-action@v2` 步驟,讓 runner 用一把 reusable auth key(新 Secret `TS_AUTHKEY`)臨時加入 tailnet,之後才執行原本的 SSH 部署;`VPS_HOST` 這個既有 Secret 改填 Tailscale 位址即可,其餘部署邏輯不變。見 design.md 對應更正說明。
 - [ ] 3.3 確認 GitHub repo Secrets 已設定(`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`,及視 GHCR 可見性需要的登入資訊),且部署用的 SSH key 是專屬 deploy-only key(不是使用者個人登入金鑰)。
       **驗收條件**:repo Secrets 頁面能看到對應欄位已設定(不檢查其值,只確認欄位存在);VPS 上該 deploy-only key 的 `authorized_keys` 項目有註解標明用途,方便日後撤銷。
