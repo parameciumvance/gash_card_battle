@@ -43,6 +43,15 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
 
+      # 診斷用:在正式 SSH 部署之前,先確認 runner 到 VPS 這條 tailnet 連線走的是
+      # P2P 直連還是 DERP relay,以及基本的 TCP 22 埠是否真的通。這一步不會影響
+      # 部署結果,只是把連線細節印到 log 裡,協助排查 `ssh: handshake failed: EOF`。
+      - name: Diagnose Tailscale connectivity
+        run: |
+          tailscale status
+          tailscale ping --c 3 ${{ secrets.VPS_HOST }} || true
+          tailscale nc ${{ secrets.VPS_HOST }} 22 </dev/null || true
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
         with:
