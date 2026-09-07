@@ -1,5 +1,6 @@
-# VPS 部署用:`docker compose pull && docker compose up -d`。
-# app 不對外開放埠,只有 caddy 對外;卡圖 volume 現在留空,部署方式另案處理。
+# VPS 部署用。app 不對外開放埠,只有 caddy 對外;卡圖 volume 現在留空,部署方式另案處理。
+# 更新機制是 watchtower 定期 poll GHCR,不是 CI 主動 SSH 進來重啟——CI 只需要能 push
+# image,完全不用碰這台機器的網路邊界(不加入 tailnet、不需要任何 SSH 金鑰)。
 services:
   app:
     image: ghcr.io/parameciumvance/gash_card_battle:latest
@@ -8,6 +9,8 @@ services:
       - GASH_ASSETS_DIR=/app/assets
     volumes:
       - card-assets:/app/assets
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/meta')"]
       interval: 30s
@@ -27,6 +30,22 @@ services:
       - caddy-config:/config
     depends_on:
       - app
+
+  # 定期檢查 GHCR 上 `app` 服務用的 image 有沒有新版,有的話自動 pull + 重啟該容器
+  # (WATCHTOWER_LABEL_ENABLE=true 讓它只管理有上面那個 label 的容器,不會去動 caddy
+  # 或它自己)。這就是整個部署的「觸發點」——沒有 CI 主動連進來這件事。
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 若 GHCR package 是 private,VPS 上先 `docker login ghcr.io` 一次,
+      # 再把產生的憑證檔掛給 watchtower 才能拉私有 image(見 README):
+      # - ~/.docker/config.json:/config.json
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
 
 volumes:
   card-assets:

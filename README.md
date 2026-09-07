@@ -102,17 +102,20 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
 ## VPS 部署(長期常駐、給不特定人玩)
 
 跟上面的單機發行(給朋友臨時開一次)不同,這是把服務架在自己的 VPS 上長期開著。
-流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並部署,平時不會打斷進行中的對局。
+流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並推上 GHCR,平時不會打斷
+進行中的對局。**CI 只負責 build + push image,不會、也不需要連進 VPS**——VPS 上跑一個
+[watchtower](https://containrrr.dev/watchtower/) 容器,定期自己檢查 GHCR 有沒有新版、
+有的話自動拉取重啟。這樣 GitHub 那邊完全不需要任何能連進 VPS 的憑證(不用 SSH 金鑰、
+不用 VPN/Tailscale),外洩風險最高也就是能推一個惡意 image 上你的 registry,碰不到
+VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而是等 watchtower 下一次
+輪詢(預設 5 分鐘)。
 
 **已知限制**:房間狀態存在單一行程的記憶體裡,**服務 MUST 只跑單一 uvicorn 行程**,
 不能開多個容器/多個 worker 分攤流量(那樣同一房間的請求可能被路由到沒有該房間資料的行程)。
 **每次部署重啟容器,當下進行中的對局都會消失**——這也是為什麼用「打 tag」而非「每次 push」
-觸發部署,方便你挑對局少的時間點發布。
+觸發建置,方便你挑對局少的時間點發布。
 
 ### 一次性設置
-
-以下每一步都標明要在**本機**(你自己平常用的電腦)還是 **VPS**(遠端伺服器)執行,
-不要搞反——尤其是 SSH 金鑰那步,金鑰要在本機產生,私鑰不會、也不需要留在 VPS 上。
 
 1. **(VPS)安裝 Docker**(Ubuntu 24.04):SSH 登入 VPS 後執行
    ```bash
@@ -132,78 +135,21 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
    ```
    VPS 上**不需要**整份 repo 原始碼,只需要這兩個檔案——服務本體是從 GHCR 拉映像檔運行的。
 
-4. **(本機)產生一把只給部署用的 SSH 金鑰**(不要用你平常登入 VPS 的個人金鑰),
-   並把公鑰送到 VPS:
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/gash_deploy_key -C "gash-card-battle deploy-only"
-   ssh-copy-id -i ~/.ssh/gash_deploy_key.pub youruser@your-vps-ip
-   ```
-   這兩行指令的 `youruser@your-vps-ip` 是**從本機連去 VPS**,執行時本機能連到 VPS 才會動;
-   如果 `ssh-copy-id` 卡住沒反應,先確認你是在本機(不是在 VPS 上)執行這行指令。
-   完成後 VPS 的 `~/.ssh/authorized_keys` 會多一行對應這把 deploy-only 金鑰的公鑰,
-   可以 SSH 進 VPS 用 `cat ~/.ssh/authorized_keys` 確認(建議加上註解方便之後撤銷)。
-
-   **`ssh-copy-id`/`ssh` 卡住的疑難排解**(這步最容易卡):
-   - **卡在 `Connecting to ... port 22.` 沒有任何後續輸出**:通常是連不到這個位址。
-     若 VPS 的 IP 長 `100.x.x.x`(Tailscale/CGNAT 位址),代表 VPS 的 SSH 只開放在
-     Tailscale 內網——本機也要連上**同一個 tailnet** 才能連過去。若是用 **WSL** 執行這些
-     指令,注意 WSL2 有自己獨立的網路(跟 Windows 宿主機分開),Windows 端裝了 Tailscale
-     不代表 WSL2 也能連,WSL2 裡要另外裝一份(`curl -fsSL https://tailscale.com/install.sh
-     | sh && sudo tailscale up`,用同一個帳號登入同一個 tailnet)。用 `tailscale status`
-     確認本機真的是 Connected 狀態。
-   - **能力 `ssh` 直接登入,但 `ssh-copy-id` 還是卡住**:通常是 VPS 關閉了密碼登入
-     (`PasswordAuthentication no`)——`ssh-copy-id` 預設想先用密碼登入才能塞入新公鑰,
-     VPS 不接受密碼就會卡住等一個不會出現的密碼提示。這時候跳過 `ssh-copy-id`,直接用
-     你已經能登入的那把金鑰把公鑰內容接上去:
-     ```bash
-     cat ~/.ssh/gash_deploy_key.pub | ssh youruser@your-vps-ip "cat >> ~/.ssh/authorized_keys"
-     ```
-
-5. **在 GitHub repo 網頁的 Settings → Secrets and variables → Actions,切到 "Secrets"
-   分頁(不是 "Variables" 分頁——Variables 是明文儲存,這幾個值都不該用)新增**:
-   - `VPS_HOST`:VPS 的 IP 位址(見下方「若 VPS 的 SSH 只開放在 Tailscale 內網」)
-   - `VPS_USER`:上一步用來登入 VPS 的使用者名稱
-   - `VPS_SSH_KEY`:上一步在**本機**產生的**私鑰**內容(`~/.ssh/gash_deploy_key` 檔案全文,
-     不是 `.pub` 那個公鑰檔)
-
-   **若 VPS 的 SSH 只開放在 Tailscale 內網(沒有對公網開放,如 IP 長 `100.x.x.x`
-   這種 CGNAT/Tailscale 位址)**:`VPS_HOST` 直接填這個 Tailscale 位址即可,但 GitHub
-   Actions 的執行環境本身不在你的 tailnet 裡,`deploy.yml` 已經多加了一步用
-   `tailscale/github-action` 讓 runner 臨時加入 tailnet。**這裡 MUST 用 OAuth client
-   認證,不能用 auth key**——`tailscale/github-action@v2` 內部只有偵測到 OAuth
-   認證時,才會自動把新節點標記為 ephemeral(用完即焚)並套用 `tags`;用傳統 auth key
-   的話,不管有沒有設定 `tags` 都不會生效,每次部署都會在 tailnet 留下一個永久節點,
-   憑證到期後變成 `Expired` 殭屍記錄,之後連線會在 SSH 握手階段失敗
-   (`ssh: handshake failed: EOF`)——這是實際部署時踩過的坑,如果你已經累積了幾台
-   `github-xxxxx` 的過期機器,先到 Machines 頁面手動刪除清掉。
-
-   設定步驟:
-   - 到 [Access Controls](https://login.tailscale.com/admin/acls/file) 編輯 ACL policy
-     檔案,加入(或在既有 `tagOwners` 區塊裡補一行):
-     ```json
-     "tagOwners": {
-       "tag:ci": ["autogroup:admin"],
-     },
-     ```
-     這步是先宣告 `tag:ci` 這個標籤存在、由管理員授權使用,下一步產生 OAuth client
-     時才能選到它。
-   - 到 Tailscale admin console 的 OAuth client 設定頁面(可能顯示在 "Trust
-     credentials" 底下的 "OAuth Clients" 分類,依你看到的介面版本而定)產生一個新的
-     OAuth client:**scope 要勾 "Auth Keys" 這個類別底下的 "Write"**(不是
-     "Devices"、也不是 "OAuth Keys"——`tailscale/github-action` 實際上是用這個
-     OAuth client 動態產生一把 auth key、再用那把 key 執行 `tailscale up`,所以
-     需要的是「能產生 auth key」的權限)。同一個畫面會要求指定這個 OAuth client
-     被允許套用哪些 tag,這裡選 `tag:ci`,MUST 跟 `deploy.yml` 裡 `tags: tag:ci`
-     這個值一致,否則會在連線時收到 `403: calling actor does not have enough
-     permissions to perform this function`。產生後會拿到一組 **Client ID** 跟
-     **Client secret**(secret 只會顯示一次,要先存起來)。
-   - 在 GitHub repo Secrets 新增兩欄:`TS_OAUTH_CLIENT_ID`(填 Client ID)、
-     `TS_OAUTH_CLIENT_SECRET`(填 Client secret)。
-
-6. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
+4. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
    `https://github.com/<你的帳號>?tab=packages` 把對應的 package 設為 public,
-   之後 VPS `docker compose pull` 才不需要登入;如果 repo 是 private,要 SSH 進 **VPS**
-   先 `docker login ghcr.io`(用一組有 `read:packages` 權限的 Personal Access Token)。
+   之後 `docker compose pull`/watchtower 才不需要登入就能拉;如果 repo 是 private,
+   要 SSH 進 **VPS** 先 `docker login ghcr.io`(用一組有 `read:packages` 權限的
+   Personal Access Token)——這組憑證會存在 `~/.docker/config.json`,watchtower 容器
+   要拉私有 image 也得用到它,把 `docker-compose.yml` 裡 `watchtower` 服務下方那行
+   註解掉的 `- ~/.docker/config.json:/config.json` 取消註解即可。
+
+5. **(VPS)啟動服務**:
+   ```bash
+   cd /opt/gash-card-battle
+   docker compose up -d
+   ```
+   之後平常不需要手動介入,watchtower 會自己偵測新版並更新 `app` 容器
+   (`caddy` 跟 `watchtower` 自己不受它管理,只有貼了 label 的 `app` 服務會被更新)。
 
 ### 發布新版本
 
@@ -213,9 +159,9 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-推 tag 後 GitHub Actions 會自動建置映像檔、推上 GHCR、SSH 進 VPS 執行
-`docker compose pull && docker compose up -d`(這段是 CI 自動做的,你不用手動登入 VPS)。
-可以到 repo 的 Actions 頁面看執行進度。
+推 tag 後 GitHub Actions 會自動建置映像檔並推上 GHCR,可以到 repo 的 Actions 頁面看
+執行進度。VPS 上的 watchtower 最慢 5 分鐘內會偵測到新版自動更新;想立刻生效,
+**(VPS)** 手動執行 `docker compose pull && docker compose up -d` 也可以。
 
 ### 之後補上網域
 

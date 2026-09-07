@@ -1,14 +1,16 @@
 name: Deploy
 
-# 只有打版號 tag 才建置映像檔並部署上 VPS,一般 push 不會觸碰生產環境
-# (見 tests.yml)。VPS 上須先完成一次性設置,見 README「VPS 部署」章節。
+# 只有打版號 tag 才建置映像檔並推上 GHCR,一般 push 不會觸碰生產環境(見 test.yml)。
+# 這個 workflow 只到「把新 image 推上 registry」為止——VPS 上的 watchtower 會自己
+# 定期偵測新版並拉取重啟,CI 完全不需要連進 VPS、不需要 SSH 金鑰或加入任何 VPN。
+# VPS 上須先完成一次性設置,見 README「VPS 部署」章節。
 on:
   push:
     tags:
       - "v*"
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,46 +30,3 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
             ghcr.io/${{ github.repository }}:latest
-
-      # VPS 的 SSH 只開放在 Tailscale 內網(不對公網開放),runner 要先加入該 tailnet
-      # 才能連到 VPS_HOST(填 Tailscale 位址,如 100.x.x.x)。MUST 用 OAuth client(不是
-      # authkey)——tailscale/github-action@v2 內部只有偵測到 oauth-secret 有值時,才會
-      # 自動帶上 preauthorized=true&ephemeral=true 與 --advertise-tags,authkey 模式不管
-      # 有沒有設 tags 都不會套用。TS_OAUTH_CLIENT_ID/TS_OAUTH_CLIENT_SECRET 從
-      # Tailscale admin console → Settings → OAuth clients 產生。若 tailscale/github-action
-      # 之後改版導致這些欄位名稱失效,請對照該 action 當時的官方 README 調整。
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          tags: tag:ci
-
-      # 診斷用:在正式 SSH 部署之前,先確認 runner 到 VPS 這條 tailnet 連線走的是
-      # P2P 直連還是 DERP relay。已確認是走 DERP relay(via DERP(tok)),
-      # tailscale nc 對 22 埠測試沒印出任何東西(連 SSH banner 都沒有),看不出細節,
-      # 改用真正的 OpenSSH client(-vvv)直接連,才能看到完整協定交握過程,跟本機
-      # 手動測試成功時的除錯輸出格式一致,方便比對是在哪個階段斷掉。私鑰只寫在這台
-      # runner 的暫時檔案系統,job 結束即銷毀,不會留存。
-      - name: Diagnose Tailscale connectivity
-        run: |
-          tailscale status
-          tailscale ping --c 3 ${{ secrets.VPS_HOST }} || true
-          umask 077
-          echo "${{ secrets.VPS_SSH_KEY }}" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          ssh -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
-            -i /tmp/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} 'echo ok' || true
-          rm -f /tmp/deploy_key
-
-      - name: Deploy to VPS
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          debug: true
-          script: |
-            cd /opt/gash-card-battle
-            docker compose pull
-            docker compose up -d
