@@ -1,5 +1,8 @@
-## ADDED Requirements
+# docker-deployment Specification
 
+## Purpose
+TBD - created by archiving change docker-deployment. Update Purpose after archive.
+## Requirements
 ### Requirement: Production 容器映像檔
 專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。
 

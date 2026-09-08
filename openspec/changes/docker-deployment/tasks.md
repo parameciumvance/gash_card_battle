@@ -34,9 +34,10 @@
       4. 改用 OAuth client 後,「Connect to Tailscale」步驟本身成功(確認 runner 已加入 tailnet),但 `appleboy/ssh-action` 部署仍以同樣的 `handshake failed: EOF` 失敗。逐層排查:VPS 的 `journalctl -u ssh` 在失敗時間點完全沒有這次連線的紀錄;`sudo ufw status verbose` 顯示 `inactive`;一度懷疑是 Linode Cloud Firewall 的預設 inbound drop 擋掉,但用 `tailscale ping` 診斷發現連線走 **DERP relay**(非 P2P 直連)——relay 模式下雙邊都是各自對 DERP 伺服器發起 outbound 連線,任何 stateful 雲端防火牆都不會擋這種回程流量,這個假設其實是錯的。改用原生 `ssh -vvv` 直連後才找到真正根因:回應的 SSH server 軟體版本顯示為 `Tailscale`(不是 VPS 真正的 `sshd`),並在使用者驗證前送出 `tailscale: tailnet policy does not permit you to SSH to this node` 後關閉連線——**Tailscale SSH 這個功能其實有啟用**,依 ACL 的 `"ssh"` 區塊(`src: autogroup:member, dst: autogroup:self`)做存取檢查,`tag:ci` 這種 tagged 節點不算 `autogroup:member`,沒有規則涵蓋而預設拒絕。這個部署設計本來就用專屬 deploy key 走一般 SSH 金鑰驗證,不需要 Tailscale SSH 這層存取控制,修正為在 VPS 上執行 `sudo tailscale set --ssh=false` 關閉即可。詳見 design.md 第五次更正。
       5. 上一項修正(關閉 Tailscale SSH)雖然可行,但重新評估「CI 主動 SSH 進 VPS」這個模式的安全性後,決定改架構:`deploy.yml` 移除所有 Tailscale/SSH 步驟,只做 build+push image 到 GHCR;VPS 上改跑 watchtower 容器定期輪詢 GHCR 自動更新。GitHub Secrets 不再需要任何能連進 VPS 的憑證(`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_CLIENT_SECRET` 全部移除),此項驗收條件與 3.3 也隨之改變,見下。詳見 design.md「實作階段最終更正」。
       6. 以上各項皆需要使用者實際帳號權限才能操作驗證,已記錄在 README 供依循,無法由這次實作代為執行完整驗證。
-- [ ] 3.3 (架構改為 watchtower 輪詢後,原本的 Secrets 設定項目已不適用,改為)確認 VPS 上 watchtower 容器已啟動並能拉到 GHCR 映像檔(若 repo 為 private,已完成 `docker login ghcr.io` 並掛載 `~/.docker/config.json` 給 watchtower)。
+- [x] 3.3 (架構改為 watchtower 輪詢後,原本的 Secrets 設定項目已不適用,改為)確認 VPS 上 watchtower 容器已啟動並能拉到 GHCR 映像檔(若 repo 為 private,已完成 `docker login ghcr.io` 並掛載 `~/.docker/config.json` 給 watchtower)。
       **驗收條件**:VPS 上 `docker compose ps` 能看到 `watchtower` 容器狀態為 running;推送一個測試 tag 後,在其輪詢週期內 `app` 容器被自動更新(啟動時間變新)。
-      **此項為使用者需在自己的 VPS 上手動完成的一次性操作,不是程式碼變更,無法由這次實作代為執行**——具體步驟已寫進 README「VPS 部署」章節(見 4.1)。完成後請自行勾選。
+      **此項為使用者需在自己的 VPS 上手動完成的一次性操作,不是程式碼變更,無法由這次實作代為執行**——具體步驟已寫進 README「VPS 部署」章節(見 4.1)。
+      實際結果:使用者確認已在真實 VPS 上完成部署,服務可正常運作。
 
 ## 4. 文件與收尾
 
