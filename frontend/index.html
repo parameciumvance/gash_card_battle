@@ -115,16 +115,41 @@
       <h3 id="log-title"></h3>
       <div id="log"></div>
     </aside>
-    <aside id="cheat-panel" class="hidden">
-      <h3 id="cheat-title"></h3>
-      <div id="cheat-players"></div>
-      <div id="cheat-error" class="hidden"></div>
-      <div id="cheat-actions">
-        <button id="cheat-refresh"></button>
-        <button id="cheat-apply"></button>
-      </div>
-    </aside>
   </main>
+
+  <dialog id="cheat-panel" aria-labelledby="cheat-title" aria-describedby="cheat-help">
+    <div id="cheat-head">
+      <h3 id="cheat-title"></h3>
+      <button id="cheat-close" autofocus></button>
+    </div>
+    <p id="cheat-help"></p>
+    <fieldset id="cheat-editor">
+      <div id="cheat-toolbar">
+        <div id="cheat-players" role="group"></div>
+        <label id="cheat-mp-label" for="cheat-mp"></label>
+        <input id="cheat-mp" type="number" step="1">
+        <strong id="cheat-selection" aria-live="polite"></strong>
+      </div>
+      <div id="cheat-columns">
+        <section id="cheat-book">
+          <h4 id="cheat-book-title"></h4>
+          <div id="cheat-book-grid"></div>
+        </section>
+        <section id="cheat-pool">
+          <h4 id="cheat-pool-title"></h4>
+          <div id="cheat-filters"></div>
+          <div id="cheat-pool-grid"></div>
+        </section>
+      </div>
+    </fieldset>
+    <div id="cheat-error" class="hidden" role="alert"></div>
+    <div id="cheat-actions">
+      <span id="cheat-status" role="status"></span>
+      <button id="cheat-refresh"></button>
+      <button id="cheat-cancel"></button>
+      <button id="cheat-apply" class="primary"></button>
+    </div>
+  </dialog>
 
   <div id="anim-overlay"></div>
 

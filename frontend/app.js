@@ -169,6 +169,7 @@ function setConn(ok) {
 // ---------------------------------------------------------------- 入口流程
 
 function show(sectionId) {
+  if (sectionId !== "layout") closeCheat();
   for (const id of ["landing", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
@@ -307,6 +308,7 @@ async function resumeRoom(code) {
 }
 
 function leaveRoom() {
+  closeCheat();
   wsWanted = false;
   if (ws) ws.close();
   SESSION = null; S = null; R = null;
@@ -590,81 +592,196 @@ document.getElementById("log-title").onclick = () => {
 
 // ---------------------------------------------------------------- 金手指(僅本機測試模式)
 
-function cheatUrl() { return `/api/rooms/${SESSION.code}/debug-state`; }
-function cheatToken() { return Object.values(SESSION.tokens)[0]; }
+let CHEAT = null;
+let cheatGeneration = 0;
+
+function canCheat() { return isLocal() && ["all", 0, 1].includes(myViewer()); }
+function cheatCurrent(editor) { return CHEAT === editor && SESSION === editor.session && canCheat(); }
+function cheatEditable() { return CHEAT && CHEAT.players && !CHEAT.busy && cheatCurrent(CHEAT); }
 
 function showCheatError(msg) {
   const el = document.getElementById("cheat-error");
   el.textContent = msg;
-  el.classList.remove("hidden");
+  el.classList.toggle("hidden", !msg);
 }
 
-function renderCheatFields(data) {
+function closeCheat() {
+  CHEAT = null;
+  const panel = document.getElementById("cheat-panel");
+  if (panel.open) panel.close();
+}
+
+function openCheat() {
+  if (!canCheat() || CHEAT) return;
+  CHEAT = { session: SESSION, generation: ++cheatGeneration, players: null,
+    active: 0, selected: [null, null], ftype: "", fmamodo: "", fproduct: "", busy: false, applied: false };
+  showCheatError("");
+  document.getElementById("cheat-panel").showModal();
+  renderCheatFields();
+  cheatRefresh();
+}
+
+function renderCheatFields() {
+  const editor = CHEAT;
+  if (!editor) return;
   const holder = document.getElementById("cheat-players");
-  holder.innerHTML = "";
-  data.players.forEach((p, i) => {
-    const wrap = document.createElement("div");
-    wrap.className = "cheat-player";
-    const bookLabel = document.createElement("label");
-    bookLabel.textContent = t("ui.cheat.book_label", { player: pname(i) });
-    const bookArea = document.createElement("textarea");
-    bookArea.id = `cheat-book-${i}`;
-    bookArea.value = JSON.stringify(p.book);
-    const mpLabel = document.createElement("label");
-    mpLabel.textContent = t("ui.cheat.mp_label", { player: pname(i) });
-    const mpInput = document.createElement("input");
-    mpInput.type = "number";
-    mpInput.id = `cheat-mp-${i}`;
-    mpInput.value = p.mp;
-    wrap.append(bookLabel, bookArea, mpLabel, mpInput);
-    holder.appendChild(wrap);
+  holder.replaceChildren();
+  for (let i = 0; i < 2; i++) {
+    const button = document.createElement("button");
+    button.textContent = pname(i);
+    button.setAttribute("aria-pressed", String(editor.active === i));
+    button.onclick = () => {
+      if (!cheatEditable()) return;
+      editor.active = i;
+      renderCheatFields();
+    };
+    holder.appendChild(button);
+  }
+  const mp = document.getElementById("cheat-mp");
+  document.getElementById("cheat-mp-label").textContent = t("ui.cheat.mp_label", { player: pname(editor.active) });
+  mp.value = editor.players ? editor.players[editor.active].mp : "";
+  mp.oninput = () => {
+    if (cheatEditable()) {
+      editor.players[editor.active].mp = mp.value;
+      cheatMutated();
+    }
+  };
+  renderCardPoolFilters(document.getElementById("cheat-filters"), editor, renderCheatPool);
+  renderCheatPool();
+  renderCheatBook();
+  setCheatBusy(editor.busy);
+}
+
+function renderCheatPool() {
+  if (!CHEAT) return;
+  renderCardPool(document.getElementById("cheat-pool-grid"), CHEAT, (num) => {
+    if (!cheatEditable()) return;
+    const i = CHEAT.selected[CHEAT.active];
+    if (i === null) { showCheatError(t("ui.cheat.select_page")); return; }
+    CHEAT.players[CHEAT.active].book[i] = num;
+    cheatMutated();
+    renderCheatBook();
   });
-  document.getElementById("cheat-error").classList.add("hidden");
+}
+
+function renderCheatBook() {
+  const editor = CHEAT;
+  const grid = document.getElementById("cheat-book-grid");
+  const selected = editor.selected[editor.active];
+  document.getElementById("cheat-selection").textContent = selected === null
+    ? t("ui.cheat.select_page") : t("ui.cheat.selected_page", { n: selected + 1 });
+  if (!editor.players) { grid.replaceChildren(); return; }
+  const player = editor.active;
+  const pages = editor.players[player].book;
+  renderBookGrid(grid, (i) => bookPageSlotEl(i, pages, selected, {
+    scope: `cheat-${editor.generation}-${player}`,
+    enabled: () => cheatEditable() && CHEAT === editor && editor.active === player,
+    select: (index) => {
+      editor.selected[player] = editor.selected[player] === index ? null : index;
+      showCheatError("");
+      renderCheatBook();
+    },
+    swap: (from, to) => {
+      [pages[from], pages[to]] = [pages[to], pages[from]];
+      editor.selected[player] = null;
+      cheatMutated();
+      renderCheatBook();
+    },
+  }));
+}
+
+function cheatMutated() {
+  CHEAT.applied = false;
+  showCheatError("");
+  document.getElementById("cheat-status").textContent = "";
+}
+
+function setCheatBusy(busy) {
+  if (!CHEAT) return;
+  CHEAT.busy = busy;
+  const disabled = busy || !CHEAT.players;
+  document.getElementById("cheat-editor").disabled = disabled;
+  document.getElementById("cheat-editor").inert = disabled;
+  document.getElementById("cheat-apply").disabled = disabled;
+  document.getElementById("cheat-refresh").disabled = busy;
+  document.getElementById("cheat-status").textContent = busy ? t("ui.cheat.loading")
+    : CHEAT.applied ? t("ui.cheat.applied") : "";
 }
 
 async function cheatRefresh() {
+  const editor = CHEAT;
+  if (!editor || editor.busy || !cheatCurrent(editor)) return;
+  editor.applied = false;
+  setCheatBusy(true);
+  showCheatError("");
   try {
-    renderCheatFields(await api(cheatUrl(), { headers: { "X-Player-Token": cheatToken() } }));
+    const data = await api(`/api/rooms/${editor.session.code}/debug-state`, {
+      headers: { "X-Player-Token": Object.values(editor.session.tokens)[0] },
+    });
+    if (!cheatCurrent(editor)) return;
+    editor.players = data.players.map((p) => ({ book: [...p.book], mp: p.mp }));
+    editor.selected = [null, null];
+    renderCheatFields();
   } catch (err) {
-    showCheatError(err.message);
+    if (cheatCurrent(editor)) showCheatError(err.message);
+  } finally {
+    if (cheatCurrent(editor)) setCheatBusy(false);
   }
 }
 
 async function cheatApply() {
-  const players = [];
+  if (!cheatEditable()) return;
+  const editor = CHEAT;
   for (let i = 0; i < 2; i++) {
-    const raw = document.getElementById(`cheat-book-${i}`).value;
-    let book;
-    try {
-      book = JSON.parse(raw);
-    } catch (_) {
-      showCheatError(t("ui.cheat.bad_json", { player: pname(i) }));
+    const book = editor.players[i].book;
+    if (!Array.isArray(book) || book.length !== BOOK_SIZE || book.some((num) => !CARDS[num])) {
+      showCheatError(t("ui.cheat.bad_book", { player: pname(i) }));
       return;
     }
-    const mp = parseInt(document.getElementById(`cheat-mp-${i}`).value, 10) || 0;
-    players.push({ book, mp });
   }
+  const players = editor.players.map((p) => ({ book: [...p.book], mp: parseInt(p.mp, 10) || 0 }));
+  const headers = { "X-Player-Token": Object.values(editor.session.tokens)[0] };
+  const base = `/api/rooms/${editor.session.code}`;
+  editor.applied = false;
+  setCheatBusy(true);
+  showCheatError("");
   try {
-    const data = await api(cheatUrl(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Player-Token": cheatToken() },
+    const data = await api(`${base}/debug-state`, {
+      method: "POST", headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ players }),
     });
-    renderCheatFields(data);
-    toast(t("ui.cheat.applied"));
+    if (cheatCurrent(editor)) {
+      editor.players = data.players.map((p) => ({ book: [...p.book], mp: p.mp }));
+      editor.applied = true;
+      renderCheatFields();
+    }
+    // 本機模式沒有持續 WS，明確讀回盤面及事件；關閉編輯器也仍同步同一房間。
+    if (SESSION !== editor.session) return;
+    try {
+      const [state, events] = await Promise.all([
+        api(`${base}/state`, { headers }),
+        api(`${base}/events?since=${logSeq}`, { headers }),
+      ]);
+      if (SESSION === editor.session) applyPayload({ ...state, events: events.events });
+    } catch (err) {
+      if (cheatCurrent(editor)) showCheatError(t("ui.cheat.sync_failed", { msg: err.message }));
+    }
   } catch (err) {
-    showCheatError(err.message);
+    if (cheatCurrent(editor)) showCheatError(err.message);
+  } finally {
+    if (cheatCurrent(editor)) setCheatBusy(false);
   }
 }
 
-document.getElementById("cheat-toggle").onclick = () => {
-  const panel = document.getElementById("cheat-panel");
-  const wasHidden = panel.classList.contains("hidden");
-  panel.classList.toggle("hidden");
-  if (wasHidden) cheatRefresh();
-};
+document.getElementById("cheat-toggle").onclick = openCheat;
 document.getElementById("cheat-refresh").onclick = cheatRefresh;
 document.getElementById("cheat-apply").onclick = cheatApply;
+document.getElementById("cheat-cancel").onclick = closeCheat;
+document.getElementById("cheat-close").onclick = closeCheat;
+document.getElementById("cheat-panel").addEventListener("cancel", (ev) => {
+  ev.preventDefault();
+  closeCheat();
+});
 
 function renderTopbar() {
   document.getElementById("title").textContent = t("app.title");
@@ -674,7 +791,11 @@ function renderTopbar() {
   leave.classList.toggle("hidden", !SESSION);
   const cheatToggle = document.getElementById("cheat-toggle");
   cheatToggle.textContent = t("ui.cheat.toggle");
-  cheatToggle.classList.toggle("hidden", !isLocal());
+  cheatToggle.classList.toggle("hidden", !canCheat());
+  if (CHEAT && !cheatCurrent(CHEAT)) closeCheat();
+  for (const key of ["cancel", "close", "help", "pool_title", "book_title"]) {
+    document.getElementById("cheat-" + key.replace("_", "-")).textContent = t("ui.cheat." + key);
+  }
   document.getElementById("cheat-title").textContent = t("ui.cheat.title");
   document.getElementById("cheat-refresh").textContent = t("ui.cheat.refresh");
   document.getElementById("cheat-apply").textContent = t("ui.cheat.apply");
@@ -1555,15 +1676,19 @@ function renderNewSelect() {
 }
 
 function renderPoolFilters() {
-  const holder = document.getElementById("pool-filters");
+  renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool);
+}
+
+function renderCardPoolFilters(holder, filters, onChange) {
   holder.innerHTML = "";
   const typeSel = document.createElement("select");
   typeSel.innerHTML = `<option value="">${t("builder.filter.type")}:${t("builder.filter.all")}</option>`;
   for (const ty of ["mamodo", "partner", "spell", "event"]) {
     typeSel.innerHTML += `<option value="${ty}">${t("builder.type." + ty)}</option>`;
   }
-  typeSel.value = B.ftype;
-  typeSel.onchange = () => { B.ftype = typeSel.value; renderPool(); };
+  typeSel.setAttribute("aria-label", t("builder.filter.type"));
+  typeSel.value = filters.ftype;
+  typeSel.onchange = () => { filters.ftype = typeSel.value; onChange(); };
   holder.appendChild(typeSel);
 
   const mamodoSel = document.createElement("select");
@@ -1576,8 +1701,9 @@ function renderPoolFilters() {
     const zh = numAny && ZH[numAny.number] ? ZH[numAny.number].name : name;
     mamodoSel.innerHTML += `<option value="${name}">${zh}</option>`;
   }
-  mamodoSel.value = B.fmamodo;
-  mamodoSel.onchange = () => { B.fmamodo = mamodoSel.value; renderPool(); };
+  mamodoSel.setAttribute("aria-label", t("builder.filter.mamodo"));
+  mamodoSel.value = filters.fmamodo;
+  mamodoSel.onchange = () => { filters.fmamodo = mamodoSel.value; onChange(); };
   holder.appendChild(mamodoSel);
 
   // 產品(彈數)篩選:同一張卡可屬多個產品
@@ -1587,71 +1713,117 @@ function renderPoolFilters() {
   for (const tag of products) {
     productSel.innerHTML += `<option value="${tag}">${tag}</option>`;
   }
-  productSel.value = B.fproduct;
-  productSel.onchange = () => { B.fproduct = productSel.value; renderPool(); };
+  productSel.setAttribute("aria-label", t("builder.filter.product"));
+  productSel.value = filters.fproduct;
+  productSel.onchange = () => { filters.fproduct = productSel.value; onChange(); };
   holder.appendChild(productSel);
 }
 
 function renderPool() {
-  const grid = document.getElementById("pool-grid");
+  renderCardPool(document.getElementById("pool-grid"), B, placeCard);
+}
+
+function renderCardPool(grid, filters, onPick) {
   grid.innerHTML = "";
   const numbers = Object.keys(CARDS).sort();
   for (const num of numbers) {
     const def = CARDS[num];
-    if (B.ftype && def.type !== B.ftype) continue;
-    if (B.fmamodo && def.related_mamodo !== B.fmamodo) continue;
-    if (B.fproduct && !(def.sets || []).includes(B.fproduct)) continue;
+    if (filters.ftype && def.type !== filters.ftype) continue;
+    if (filters.fmamodo && def.related_mamodo !== filters.fmamodo) continue;
+    if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) continue;
     const el = cardEl(num, { small: true });
-    el.onclick = () => placeCard(num);
+    el.onclick = () => onPick(num);
+    el.setAttribute("role", "button");
+    el.tabIndex = 0;
+    el.setAttribute("aria-label", `${num} ${cname(num)}`);
+    el.onkeydown = (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onPick(num); }
+    };
     grid.appendChild(el);
   }
 }
 
 function pageSlotEl(i) {
+  return bookPageSlotEl(i, B.deck.pages, B.selected, {
+    scope: "builder", enabled: () => true, select: togglePage, swap: swapPages,
+  });
+}
+
+function bookPageSlotEl(i, pages, selected, actions) {
   const slot = document.createElement("div");
-  slot.className = "page-slot" + (B.selected === i ? " selected" : "")
-    + (B.deck.pages[i] ? " filled" : "");
+  slot.className = "page-slot" + (selected === i ? " selected" : "")
+    + (pages[i] ? " filled" : "");
+  slot.dataset.page = i;
+  slot.setAttribute("role", "button");
+  slot.setAttribute("aria-pressed", String(selected === i));
+  slot.setAttribute("aria-label", `P${i + 1} ${pages[i] ? cname(pages[i]) : t("builder.empty_page", { n: i + 1 })}`);
+  slot.tabIndex = 0;
+  const pick = () => { if (actions.enabled()) actions.select(i); };
   const pno = document.createElement("span");
   pno.className = "pno";
   pno.textContent = i === 0 ? t("builder.page_first")
     : i === 31 ? t("builder.page_last") : `P${i + 1}`;
   slot.appendChild(pno);
-  const num = B.deck.pages[i];
+  const num = pages[i];
   if (num) {
     const card = cardEl(num, { small: true });
-    card.onclick = (ev) => { ev.stopPropagation(); togglePage(i); };
+    card.onclick = (ev) => { ev.stopPropagation(); pick(); };
+    card.querySelector("img").draggable = false;
     slot.appendChild(card);
     slot.draggable = true;
-    slot.ondragstart = (ev) => ev.dataTransfer.setData("text/plain", String(i));
+    slot.ondragstart = (ev) => {
+      if (!actions.enabled()) { ev.preventDefault(); return; }
+      ev.dataTransfer.setData("application/x-gash-page", JSON.stringify({ scope: actions.scope, index: i }));
+      ev.dataTransfer.effectAllowed = "move";
+    };
   } else {
     const label = document.createElement("span");
     label.className = "empty-label";
     label.textContent = t("builder.empty_page", { n: i + 1 });
     slot.appendChild(label);
   }
-  slot.onclick = () => togglePage(i);
-  slot.ondragover = (ev) => { ev.preventDefault(); slot.classList.add("dragover"); };
+  slot.onclick = pick;
+  slot.onkeydown = (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); }
+  };
+  slot.ondragover = (ev) => {
+    if (!actions.enabled() || !Array.from(ev.dataTransfer.types).includes("application/x-gash-page")) return;
+    ev.preventDefault();
+    slot.classList.add("dragover");
+  };
   slot.ondragleave = () => slot.classList.remove("dragover");
+  slot.ondragend = () => slot.classList.remove("dragover");
   slot.ondrop = (ev) => {
     ev.preventDefault();
-    const from = Number(ev.dataTransfer.getData("text/plain"));
-    if (!Number.isNaN(from) && from !== i) swapPages(from, i);
+    slot.classList.remove("dragover");
+    if (!actions.enabled()) return;
+    try {
+      const from = JSON.parse(ev.dataTransfer.getData("application/x-gash-page"));
+      if (from.scope === actions.scope && Number.isInteger(from.index) &&
+          from.index >= 0 && from.index < pages.length && from.index !== i) actions.swap(from.index, i);
+    } catch (_) { /* 忽略外部拖入的非頁位資料。 */ }
   };
   return slot;
 }
 
 function renderBook() {
-  const grid = document.getElementById("book-grid");
-  grid.innerHTML = "";
+  renderBookGrid(document.getElementById("book-grid"), pageSlotEl);
+}
+
+function renderBookGrid(grid, renderSlot) {
+  const focused = grid.contains(document.activeElement)
+    ? document.activeElement.closest(".page-slot")?.dataset.page : null;
+  grid.replaceChildren();
   const spread = (indices, single) => {
     const el = document.createElement("div");
     el.className = "spread" + (single ? " single" : "");
-    for (const i of indices) el.appendChild(pageSlotEl(i));
+    for (const i of indices) el.appendChild(renderSlot(i));
     grid.appendChild(el);
   };
-  spread([0], true);                       // P1 首頁
-  for (let i = 1; i < 31; i += 2) spread([i, i + 1], false);  // P2-3 ... P30-31
-  spread([31], true);                      // P32 末頁
+  spread([0], true);
+  for (let i = 1; i < 31; i += 2) spread([i, i + 1], false);
+  spread([31], true);
+  if (focused != null) grid.querySelector(`[data-page="${focused}"]`)?.focus({ preventScroll: true });
 }
 
 function renderValidation() {

@@ -241,11 +241,19 @@
   "ui.assets.missing": "卡圖未安裝:遊戲可正常進行(卡面以卡背佔位)。將卡圖 assets 資料夾放至 {dir} 後重新整理即可顯示卡圖。",
   "ui.assets.partial": "卡圖不完整({count}/{expected} 張):部分卡片將以卡背佔位,更新卡圖包後重新整理即可。",
   "ui.cheat.toggle": "金手指",
-  "ui.cheat.title": "金手指(僅本機測試模式,可改魔本頁卡號與 MP)",
-  "ui.cheat.book_label": "{player} 的魔本(32 項卡號 JSON 陣列)",
+  "ui.cheat.title": "金手指：魔本與 MP",
   "ui.cheat.mp_label": "{player} 的 MP",
-  "ui.cheat.refresh": "重新整理",
+  "ui.cheat.refresh": "重新整理（覆蓋修改）",
   "ui.cheat.apply": "套用",
   "ui.cheat.applied": "已套用",
-  "ui.cheat.bad_json": "書格式錯誤(須為 32 項卡號的 JSON 陣列):{player}"
+  "ui.cheat.cancel": "取消（不套用）",
+  "ui.cheat.close": "關閉",
+  "ui.cheat.help": "先選魔本頁位，再點卡池卡圖替換；拖曳頁位可交換卡片。可自由配置，修改雙方後按套用。取消或關閉會丟棄未套用修改。",
+  "ui.cheat.pool_title": "卡片瀏覽",
+  "ui.cheat.book_title": "魔本・32 頁",
+  "ui.cheat.select_page": "請先選擇要替換的頁位",
+  "ui.cheat.selected_page": "目前選中：第 {n} 頁",
+  "ui.cheat.loading": "處理中…",
+  "ui.cheat.bad_book": "{player} 的魔本須有完整 32 頁，且每頁都是有效卡號",
+  "ui.cheat.sync_failed": "已套用，但讀取最新盤面失敗：{msg}"
 }
