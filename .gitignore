@@ -4,3 +4,5 @@ build/
 dist/
 gash.spec
 *.egg-info/
+.codex
+.claude/
