@@ -135,6 +135,12 @@ VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而�
    ```
    VPS 上**不需要**整份 repo 原始碼,只需要這兩個檔案——服務本體是從 GHCR 拉映像檔運行的。
 
+   **這份是手動複製過去的快照,repo 更新不會自動同步。** 之後如果又改了
+   `docker-compose.yml` 或 `Caddyfile`(例如新增服務、調整設定),記得重新
+   `scp` 覆蓋過去,並在 **(VPS)** 執行 `docker compose up -d` 套用——單純
+   `docker compose pull` 只會拉新的 image,不會套用 compose 檔案本身的變更
+   (watchtower 這類新增的服務不會自己冒出來)。
+
 4. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
    `https://github.com/<你的帳號>?tab=packages` 把對應的 package 設為 public,
    之後 `docker compose pull`/watchtower 才不需要登入就能拉;如果 repo 是 private,
