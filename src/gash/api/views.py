@@ -94,6 +94,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
     # 己方完整魔本只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):
         view["book"] = list(ps.book)
+        view["used_nonbattle_spells"] = sorted(ps.used_nonbattle_spells)
     return view
 
 

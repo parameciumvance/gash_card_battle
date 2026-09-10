@@ -526,16 +526,40 @@ function mamodoInPlay(p, related) {
   return S.players[p].slots.find((s) => CARDS[s.top].related_mamodo === related);
 }
 
+const COMMAND_MAMODO = "コマンド";
+function isCommandSpell(def) { return def.type === "spell" && def.related_mamodo === COMMAND_MAMODO; }
+
+// 與引擎 _spell_usable_by 的家族及 M-023/M-029 相容性保持一致。
+function hasSpellMamodo(p, def) {
+  return S.players[p].slots.some((slot) =>
+    CARDS[slot.top].related_mamodo === def.related_mamodo ||
+    (slot.top === "M-023" && def.attr_name === "木") ||
+    (slot.top === "M-029" && def.related_mamodo === "ガッシュ・ベル" && (def.name_ja || "").includes("ザケル")));
+}
+
+function nonbattleSpellUsable(p, entry) {
+  const def = CARDS[entry.card];
+  const ps = S.players[p];
+  if ((def.ad === "A" && p !== S.turn_player) || (def.ad === "D" && p === S.turn_player)) {
+    return { ok: false, reason: t(def.ad === "A" ? "ui.spell.own_turn" : "ui.spell.other_turn") };
+  }
+  if ((ps.used_nonbattle_spells || []).includes(entry.card)) return { ok: false, reason: t("ui.used") };
+  if (!isCommandSpell(def) && !hasSpellMamodo(p, def)) return { ok: false, reason: t("ui.spell.no_mamodo") };
+  const cost = entry.cost ?? def.cost ?? 0;
+  if (ps.mp < cost) return { ok: false, reason: t("ui.spell.mp", { mp: ps.mp, cost }) };
+  return { ok: true };
+}
+
 function spellUsable(p, entry, forAttack) {
   const def = CARDS[entry.card];
   const ps = S.players[p];
-  if (def.type !== "spell") return { ok: false };
+  if (def.type !== "spell" || def.effect_icon === "nonbattle") return { ok: false };
   const icon = forAttack ? ["A", "AD"] : ["D", "AD"];
   if (!icon.includes(def.ad)) return { ok: false };
   if (ps.used_spell_pages.includes(entry.page)) return { ok: false, reason: t("ui.used") };
   if (ps.mp < entry.cost) return { ok: false, reason: `MP ${ps.mp} < ${entry.cost}` };
-  const isCommand = def.related_mamodo === "Command: All";
-  if (!isCommand && !mamodoInPlay(p, def.related_mamodo)) return { ok: false };
+  const isCommand = isCommandSpell(def);
+  if (!isCommand && !hasSpellMamodo(p, def)) return { ok: false, reason: t("ui.spell.no_mamodo") };
   if (isCommand && ps.slots.length === 0) return { ok: false };
   return { ok: true, isCommand };
 }
@@ -1101,7 +1125,14 @@ function pageButtons(p, entry) {
         onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
       });
     }
-    if (def.type === "spell" && p === S.turn_player && !S.battle_in) {
+    if (def.type === "spell" && def.effect_icon === "nonbattle" && inNonBattle()) {
+      const u = nonbattleSpellUsable(p, entry);
+      buttons.push({
+        label: t("ui.use_event"), primary: true, disabled: !u.ok, reason: u.reason,
+        onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
+      });
+    }
+    if (def.type === "spell" && def.effect_icon !== "nonbattle" && p === S.turn_player && !S.battle_in) {
       const u = spellUsable(p, entry, true);
       if (["A", "AD"].includes(def.ad)) {
         buttons.push({
@@ -1119,7 +1150,7 @@ function pageButtons(p, entry) {
   if (!S.pending && S.battle && S.battle.step === "defense"
       && p === 1 - S.battle.attacker && iControl(p)) {
     const u = spellUsable(p, entry, false);
-    if (["D", "AD"].includes(def.ad) && def.type === "spell") {
+    if (["D", "AD"].includes(def.ad) && def.type === "spell" && def.effect_icon !== "nonbattle") {
       const blocked = S.battle.attack_undefendable ? t("ui.undefendable") : (u.ok ? null : u.reason);
       buttons.push({
         label: t("ui.defend"), primary: true,
@@ -1693,7 +1724,7 @@ function renderCardPoolFilters(holder, filters, onChange) {
 
   const mamodoSel = document.createElement("select");
   const names = [...new Set(Object.values(CARDS)
-    .map((c) => c.related_mamodo).filter((m) => m && m !== "Command: All"))].sort();
+    .map((c) => c.related_mamodo).filter((m) => m && m !== COMMAND_MAMODO))].sort();
   mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`;
   for (const name of names) {
     const numAny = Object.values(CARDS).find(

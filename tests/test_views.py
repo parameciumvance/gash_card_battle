@@ -95,3 +95,29 @@ def test_filter_events_keeps_order_and_seq():
     seqs = [e["seq"] for e in out]
     assert seqs == sorted(seqs)
     assert len(out) == len(g.events)  # 事件都在(內容可能裁剪),序號連續可對齊
+
+
+def test_nonbattle_usage_visibility_and_sorted_card_numbers():
+    g = mk()
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == []
+    g.state.players[0].used_nonbattle_spells.update(["S-057", "S-026"])
+    g.state.players[1].used_nonbattle_spells.add("S-041")
+    for viewer in (0, 1, "spectator", "all"):
+        view = snapshot(g, viewer)
+        for p in (0, 1):
+            if viewer == "all" or viewer == p:
+                assert view["players"][p]["used_nonbattle_spells"] == sorted(g.state.players[p].used_nonbattle_spells)
+            else:
+                assert "used_nonbattle_spells" not in view["players"][p]
+
+
+def test_nonbattle_usage_snapshot_after_use_and_turn_reset():
+    g = mk()
+    g.state.players[0].book[1] = "S-026"
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == ["S-026"]
+    assert snapshot(g, "all")["players"][0]["used_nonbattle_spells"] == ["S-026"]
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == []

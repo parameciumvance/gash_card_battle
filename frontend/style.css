@@ -355,6 +355,11 @@ body {
 #zoom-card .card {
   width: 300px; min-height: 380px; font-size: 15px; cursor: default;
 }
+#zoom-card .card .cnum {
+  position: static; display: block; font-size: 14px; line-height: 1.5;
+  color: #403426; font-weight: normal; margin-top: 6px;
+}
+#zoom-card { max-height: 75dvh; overflow-y: auto; }
 #zoom-card .card:hover { transform: none; box-shadow: none; }
 #zoom-card .card .cname { font-size: 19px; }
 #zoom-card .card .cname-ja { font-size: 12px; }

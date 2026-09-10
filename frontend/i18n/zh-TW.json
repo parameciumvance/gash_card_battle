@@ -255,5 +255,9 @@
   "ui.cheat.selected_page": "目前選中：第 {n} 頁",
   "ui.cheat.loading": "處理中…",
   "ui.cheat.bad_book": "{player} 的魔本須有完整 32 頁，且每頁都是有效卡號",
-  "ui.cheat.sync_failed": "已套用，但讀取最新盤面失敗：{msg}"
+  "ui.cheat.sync_failed": "已套用，但讀取最新盤面失敗：{msg}",
+  "ui.spell.own_turn": "只能在自己的回合使用",
+  "ui.spell.other_turn": "只能在對手的回合使用",
+  "ui.spell.no_mamodo": "場上沒有可使用此術的魔物",
+  "ui.spell.mp": "MP 不足（目前 {mp}，需要 {cost}）"
 }
