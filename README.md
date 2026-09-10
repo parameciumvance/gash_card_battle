@@ -104,7 +104,8 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
 跟上面的單機發行(給朋友臨時開一次)不同,這是把服務架在自己的 VPS 上長期開著。
 流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並推上 GHCR,平時不會打斷
 進行中的對局。**CI 只負責 build + push image,不會、也不需要連進 VPS**——VPS 上跑一個
-[watchtower](https://containrrr.dev/watchtower/) 容器,定期自己檢查 GHCR 有沒有新版、
+[watchtower](https://github.com/nicholas-fedor/watchtower)(原 `containrrr/watchtower` 已於
+2025-12-17 封存,改用社群接手維護的分支)容器,定期自己檢查 GHCR 有沒有新版、
 有的話自動拉取重啟。這樣 GitHub 那邊完全不需要任何能連進 VPS 的憑證(不用 SSH 金鑰、
 不用 VPN/Tailscale),外洩風險最高也就是能推一個惡意 image 上你的 registry,碰不到
 VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而是等 watchtower 下一次
@@ -147,7 +148,8 @@ VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而�
    要 SSH 進 **VPS** 先 `docker login ghcr.io`(用一組有 `read:packages` 權限的
    Personal Access Token)——這組憑證會存在 `~/.docker/config.json`,watchtower 容器
    要拉私有 image 也得用到它,把 `docker-compose.yml` 裡 `watchtower` 服務下方那行
-   註解掉的 `- ~/.docker/config.json:/config.json` 取消註解即可。
+   註解掉的 `- ${HOME}/.docker/config.json:/config.json:ro` 取消註解即可
+   (compose 檔案不會展開 `~`,MUST 用 `${HOME}` 或絕對路徑)。
 
 5. **(VPS)啟動服務**:
    ```bash

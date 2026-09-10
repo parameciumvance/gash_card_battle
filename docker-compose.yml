@@ -35,13 +35,18 @@ services:
   # (WATCHTOWER_LABEL_ENABLE=true 讓它只管理有上面那個 label 的容器,不會去動 caddy
   # 或它自己)。這就是整個部署的「觸發點」——沒有 CI 主動連進來這件事。
   watchtower:
-    image: containrrr/watchtower
+    # 原本的 containrrr/watchtower 已於 2025-12-17 由原作者封存(不再更新),
+    # 舊版綁的 Docker API client 太舊,連不上新版 Docker Engine(`client version
+    # 1.25 is too old` 這類錯誤,導致不斷重啟崩潰)。改用社群接手維護的分支,
+    # 環境變數/label 完全相容,純換 image 名稱。
+    image: ghcr.io/nicholas-fedor/watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # 若 GHCR package 是 private,VPS 上先 `docker login ghcr.io` 一次,
-      # 再把產生的憑證檔掛給 watchtower 才能拉私有 image(見 README):
-      # - ~/.docker/config.json:/config.json
+      # 再把產生的憑證檔掛給 watchtower 才能拉私有 image(見 README)。注意
+      # compose 檔案不會展開 `~`,MUST 用 `${HOME}` 或絕對路徑:
+      # - ${HOME}/.docker/config.json:/config.json:ro
     environment:
       - WATCHTOWER_LABEL_ENABLE=true
       - WATCHTOWER_CLEANUP=true
