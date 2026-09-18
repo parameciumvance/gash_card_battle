@@ -6,3 +6,4 @@ gash.spec
 *.egg-info/
 .codex
 .claude/
+frontend/assets/cards/
