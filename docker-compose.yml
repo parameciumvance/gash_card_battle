@@ -1,4 +1,4 @@
-# VPS 部署用。app 不對外開放埠,只有 caddy 對外;卡圖 volume 現在留空,部署方式另案處理。
+# VPS 部署用。app 不對外開放埠,只有 caddy 對外;卡圖 volume 需手動放入(見 README「卡圖」)。
 # 更新機制是 watchtower 定期 poll GHCR,不是 CI 主動 SSH 進來重啟——CI 只需要能 push
 # image,完全不用碰這台機器的網路邊界(不加入 tailnet、不需要任何 SSH 金鑰)。
 services:

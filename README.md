@@ -181,8 +181,35 @@ git push origin v0.1.0
 
 ### 卡圖
 
-`docker-compose.yml` 已經預留一個 volume 掛到 `GASH_ASSETS_DIR`,但這次沒有處理實際
-怎麼把卡圖檔案放進這個 volume——照單機發行的提醒,卡圖含版權素材,請自行斟酌散布範圍。
+`docker-compose.yml` 已經預留一個 volume(`card-assets`)掛到 `GASH_ASSETS_DIR`
+(`/app/assets`),服務會從 `/app/assets/cards/{卡號}.jpg` 讀圖。映像檔不含卡圖,也不含
+`tools/`,所以要在本機下載後再傳上去——照單機發行的提醒,卡圖含版權素材,請自行斟酌散布範圍。
+
+1. **(本機)下載卡圖**:
+
+   ```bash
+   python tools/download_images.py    # 產出 frontend/assets/cards/*.jpg,支援續抓
+   scp -r frontend/assets/cards youruser@your-vps-ip:/tmp/cards
+   ```
+
+2. **(VPS)複製進 `app` 容器的 volume**(在 `/opt/gash-card-battle` 目錄下):
+
+   ```bash
+   docker compose cp /tmp/cards app:/app/assets/
+   ```
+
+   若 `/app/assets/cards` 已存在(例如補圖),改用
+   `docker compose cp /tmp/cards/. app:/app/assets/cards/`,否則會變成 `cards/cards`。
+
+3. **驗證**:
+
+   ```bash
+   docker compose exec app ls /app/assets/cards | wc -l
+   ```
+
+卡圖是靜態檔,放進去後不需要重啟;若第一次放圖後網頁仍沒顯示,執行一次
+`docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
+volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
 ## 測試
 
