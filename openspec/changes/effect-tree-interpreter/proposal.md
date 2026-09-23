@@ -11,11 +11,13 @@
 ## What Changes
 
 - 新增**效果樹**:效果以不可變(frozen dataclass)節點組合,例如 `Choose(target=OwnMamodo(), then=Standby(at=NextStartPhase(), then=AddPower(amount=3000, duration=DUR_TURN)))`,節點命名以語意為主,不含卡號。
-- 新增**直譯器**:`run(node, ctx)` 逐層解決節點;遇到停點(等玩家選擇、擲幣確認、待命)時,把 `(source, path, ctx)` 存入 `PendingChoice` / `Standby`,不存閉包;引擎在玩家回應或待命觸發時呼叫 `resume(...)` 從該節點繼續。
+- 新增**直譯器**:`run(node, ctx)` 逐層解決節點;遇到停點(等玩家選擇、擲幣確認、待命)時,把 `(effect_id, path, ctx)` 存入 `PendingChoice` / `Standby`,不存閉包;引擎在玩家回應或待命觸發時呼叫 `resume(...)` 從該節點繼續。
 - 註冊層新增以效果樹註冊的方式(如 `reg.event("E-001", when=..., effect=<樹>)`),註冊時自動注入 `source` 卡號;註冊檔逐卡一行、依卡號排序。
 - **新舊並存**:既有 `@reg.xxx` 裝飾器與 `CHOICE_RESOLVERS` 字串 key 維持可用,逐卡遷移,每遷移一批都以既有測試驗證。
 - `Choose` 節點依選項規格自動產生驗證(驗證失敗保留 pending、單一選項自動解決),取代各卡手寫的 `*_pick` 驗證。
-- 遷移範圍:本 change 先完成直譯器骨架、E-001、以及擲幣類卡片;其餘卡片遷移與前端 `choice.title.*` 改為依節點種類,列為後續 change。
+- 遷移範圍:本 change 先完成直譯器骨架、E-001、以及擲幣類卡片(S-004 / S-014 / S-021 / S-025 / S-026);其餘卡片遷移、前端 `choice.title.*` 改為依節點種類、支援可停下的 `Standby.then`,列為後續 change。
+- 遷移前先補**特徵測試**(M-019 / M-012 確認鏈、三種擲幣入口、E-001 目標離場),固定現行行為後才遷移,因為既有測試不足以證明等價。
+- 本次 `Standby.then` 限定同步完成,註冊時拒絕會停下的子樹。
 
 ## Capabilities
 
@@ -23,7 +25,7 @@
 - `effect-tree`: 效果樹節點、直譯器、續體(source/path/ctx)存取與 resume 的行為契約,以及以效果樹註冊卡片的方式。
 
 ### Modified Capabilities
-<!-- 無。遷移為內部重構,遊戲可觀察行為(card-effects 既有需求)不變,由既有測試作為回歸保證。 -->
+<!-- 無。遷移為內部重構,遊戲可觀察行為(card-effects 既有需求)不變,由既有測試加上遷移前補的特徵測試作為回歸保證。 -->
 
 ## Impact
 
