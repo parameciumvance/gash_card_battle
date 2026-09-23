@@ -22,35 +22,6 @@ def _slot_options(game, player, predicate=lambda s: True):
     return [{"value": s.uid, "card": s.top} for s in _own_slots(game, player) if predicate(s)]
 
 
-# E-001 守る心:下回合自己 1 隻魔物 +3000(待命至下回合開始階段)
-@reg.event("E-001", condition=lambda g, p: bool(g.state.players[p].slots))
-def e001(game, batch, player, page):
-    choose_or_auto(game, batch, kind="e001_pick", player=player,
-                   options=_slot_options(game, player), data={"player": player}, source="E-001")
-
-
-@reg.choice_resolver("e001_pick")
-def e001_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    slot = game.state.slot_by_uid(player, value if isinstance(value, int) else -1)
-    if slot is None:
-        raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
-    sb = schedule_standby(game, batch, kind="start_phase", source="E-001", owner=player,
-                          data={"callback": "e001_fire", "slot_uid": slot.uid,
-                                "player": player, "expires": "next_start"})
-
-
-@reg.choice_resolver("e001_fire")
-def e001_fire(game, batch, value, data):
-    player = data["player"]
-    slot = game.state.slot_by_uid(player, data["slot_uid"])
-    if slot is None:
-        return
-    add_power(game, batch, source="E-001", owner=player, target_player=player,
-              target_slot=slot.uid, amount=3000, duration=DUR_TURN)
-
-
 # E-002 ティーナ:至下回合結束階段,雙方不能使用術卡
 @reg.event("E-002")
 def e002(game, batch, player, page):

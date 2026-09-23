@@ -123,8 +123,23 @@ def activated(number: str, **kwargs):
     return deco
 
 
-def event(number: str, condition: Callable | None = None):
+def _tree_claimed(number: str, hook: str) -> bool:
+    from . import tree
+    return (number, hook) in tree.TREE_HOOKS
+
+
+def event(number: str, condition: Callable | None = None, *, effect=None, when: Callable | None = None):
+    """事件卡註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹(`when` 為使用前置條件)。"""
+    if effect is not None:
+        from . import tree
+        EVENT[number] = tree.register_event(number, effect)
+        if when is not None:
+            EVENT_CONDITION[number] = when
+        return None
+
     def deco(fn):
+        if _tree_claimed(number, "event"):
+            raise ValueError(f"{number} 的 event 掛鉤已以效果樹註冊")
         EVENT[number] = fn
         if condition is not None:
             EVENT_CONDITION[number] = condition
@@ -133,12 +148,29 @@ def event(number: str, condition: Callable | None = None):
 
 
 def spell_rider(number: str, **kwargs):
+    """術卡附加效果。on_declare / on_damage 可傳可呼叫物件或效果樹。"""
+    from . import tree
+    for hook in ("on_declare", "on_damage"):
+        value = kwargs.get(hook)
+        if isinstance(value, tree.Effect):
+            legacy = number in SPELL_RIDERS and getattr(SPELL_RIDERS[number], hook) is not None
+            kwargs[hook] = tree.rider_hook(number, hook, value, legacy)
+        elif value is not None and _tree_claimed(number, f"rider.{hook}"):
+            raise ValueError(f"{number} 的 rider.{hook} 掛鉤已以效果樹註冊")
     SPELL_RIDERS[number] = SpellRider(**kwargs)
     return SPELL_RIDERS[number]
 
 
-def spell_nonbattle(number: str):
+def spell_nonbattle(number: str, *, effect=None):
+    """非戰鬥術註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹。"""
+    if effect is not None:
+        from . import tree
+        SPELL_NONBATTLE[number] = tree.register_spell_nonbattle(number, effect)
+        return None
+
     def deco(fn):
+        if _tree_claimed(number, "spell_nonbattle"):
+            raise ValueError(f"{number} 的 spell_nonbattle 掛鉤已以效果樹註冊")
         SPELL_NONBATTLE[number] = fn
         return fn
     return deco

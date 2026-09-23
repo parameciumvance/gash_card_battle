@@ -1,0 +1,354 @@
+"""遷移前特徵測試:固定擲幣確認鏈(M-012 / M-019)、三種擲幣入口與 E-001 的現行行為。
+
+效果樹遷移(effect-tree-interpreter)前後這些測試都必須通過。全部經 submit() 走引擎入口,
+逐步斷言 pending 的 kind / 決策者、能力消耗、事件序列與 RNG 呼叫次數。
+"""
+
+import pytest
+
+from gash.engine.engine import IllegalCommand, slot_power, submit
+
+from .test_cards import HEADS, TAILS, book, end_turn, game, give, slot0, start_attack
+
+TRACED = {"coin_flipped", "choice_required", "ability_used", "attack_negated",
+          "modifier_added", "standby_set", "standby_resolved"}
+
+
+class StrictRng:
+    """腳本化 RNG:序列用完再呼叫即拋錯(抓額外的 RNG 消耗),並記錄呼叫次數。"""
+
+    def __init__(self, *seq):
+        self.seq = list(seq)
+        self.calls = 0
+
+    def random(self):
+        self.calls += 1
+        if not self.seq:
+            raise AssertionError("RNG 被超額呼叫")
+        return self.seq.pop(0)
+
+    def randint(self, a, b):
+        return a
+
+
+def strict_game(*coins, **kw):
+    g = game(**kw)
+    g.rng = StrictRng(*coins)
+    return g
+
+
+def kinds(events):
+    return [(e["type"], e.get("result", e.get("kind"))) for e in events if e["type"] in TRACED]
+
+
+def pending(g):
+    p = g.state.pending
+    return None if p is None else (p.kind, p.player, [o["value"] for o in p.options])
+
+
+# ================================================================ M-019 / M-012 確認鏈
+
+def defend_with_s025(g):
+    """攻方 tp 攻擊,防方 dp 以 S-025 防禦(擲 1 枚硬幣)。回傳 (tp, dp, events)。"""
+    tp, dp = start_attack(g, 3)
+    events = submit(g, {"type": "declare_defense", "player": dp, "page": 2,
+                        "slot_uid": slot0(g, dp).uid})
+    return tp, dp, events
+
+
+def test_m019_keep_result():
+    g = strict_game(TAILS, book0=None, book1=book(p2="S-025"))
+    give(g, 0, "M-019")
+    tp, dp, events = defend_with_s025(g)
+    assert kinds(events) == [("coin_flipped", "tails"), ("choice_required", "opp_coin_redo")]
+    assert pending(g) == ("opp_coin_redo", tp, [None, True])  # 決策者是對手(攻方)
+    events = submit(g, {"type": "choose", "player": tp, "value": None})
+    assert g.state.battle.attack_negated is False  # 保留反面
+    assert "mamodo:M-019" not in g.state.players[tp].used_abilities
+    assert g.rng.calls == 1
+    assert kinds(events) == []
+
+
+def test_m019_pay_reflip():
+    g = strict_game(TAILS, HEADS, book1=book(p2="S-025"))
+    give(g, 0, "M-019")
+    tp, dp, _ = defend_with_s025(g)
+    events = submit(g, {"type": "choose", "player": tp, "value": True})
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
+                             ("attack_negated", None)]
+    assert g.state.battle.attack_negated is True
+    assert "mamodo:M-019" in g.state.players[tp].used_abilities
+    assert g.state.pending is None
+    assert g.rng.calls == 2
+
+
+def test_m019_then_m012_chain():
+    g = strict_game(TAILS, HEADS, TAILS, book1=book(p2="S-025"))
+    give(g, 0, "M-019")
+    give(g, 1, "M-012")
+    tp, dp, events = defend_with_s025(g)
+    assert pending(g) == ("opp_coin_redo", tp, [None, True])
+    # 對手令整組重擲(反面 → 正面),接著輪到防方的 M-012 確認
+    events = submit(g, {"type": "choose", "player": tp, "value": True})
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
+                             ("choice_required", "coin_confirm")]
+    assert pending(g) == ("coin_confirm", dp, [None, 0])
+    assert g.state.battle.attack_negated is False  # 尚未確定
+    # 防方以 M-012 重擲(正面 → 反面)
+    events = submit(g, {"type": "choose", "player": dp, "value": 0})
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "tails")]
+    assert g.state.battle.attack_negated is False
+    assert {"mamodo:M-019"} <= g.state.players[tp].used_abilities
+    assert {"mamodo:M-012"} <= g.state.players[dp].used_abilities
+    assert g.state.pending is None
+    assert g.rng.calls == 3
+
+
+def test_m012_confirm_rejects_invalid_and_keeps_pending():
+    g = strict_game(TAILS, book1=book(p2="S-025"))
+    give(g, 1, "M-012")
+    tp, dp, _ = defend_with_s025(g)
+    with pytest.raises(IllegalCommand) as exc:
+        submit(g, {"type": "choose", "player": dp, "value": 5})
+    assert exc.value.code == "choose.invalid"
+    assert pending(g) == ("coin_confirm", dp, [None, 0])
+    submit(g, {"type": "choose", "player": dp, "value": None})
+    assert g.state.pending is None
+    assert g.rng.calls == 1
+
+
+# ================================================================ 入口 1:傷害後擲幣(S-004 / S-014)
+
+def _s004_until_damage(g):
+    g.state.players[0].mp = 10
+    tp, dp = start_attack(g, 3, slot_uid=slot0(g, 0).uid)
+    submit(g, {"type": "no_defense", "player": dp})
+    submit(g, {"type": "pass", "player": tp})
+    submit(g, {"type": "pass", "player": dp})
+    return tp, dp
+
+
+def _assert_spells_locked(g, tp, dp):
+    end_turn(g)
+    g.state.players[dp].pos = 2
+    submit(g, {"type": "flip_pages", "player": dp, "count": 0})
+    with pytest.raises(IllegalCommand) as exc:
+        submit(g, {"type": "declare_attack", "player": dp, "page": 3})
+    assert exc.value.code == "spell.restricted"
+
+
+@pytest.mark.parametrize("spell,mamodo", [("S-004", "M-001"), ("S-014", "M-008")])
+def test_damage_coin_no_confirm_heads_locks(spell, mamodo):
+    g = strict_game(HEADS, book0=book(first=mamodo, p3=spell))
+    tp, dp = _s004_until_damage(g)
+    events = submit(g, {"type": "choose", "player": dp, "value": None})  # 不保護
+    assert kinds(events) == [("coin_flipped", "heads"), ("modifier_added", "restriction")]
+    assert pending(g) is None
+    assert g.rng.calls == 1
+    _assert_spells_locked(g, tp, dp)
+
+
+def test_damage_coin_no_confirm_tails_does_not_lock():
+    g = strict_game(TAILS, book0=book(first="M-001", p3="S-004"))
+    tp, dp = _s004_until_damage(g)
+    events = submit(g, {"type": "choose", "player": dp, "value": None})
+    assert kinds(events) == [("coin_flipped", "tails")]
+    assert g.rng.calls == 1
+    end_turn(g)
+    g.state.players[dp].pos = 2
+    submit(g, {"type": "flip_pages", "player": dp, "count": 0})
+    submit(g, {"type": "declare_attack", "player": dp, "page": 3})  # 未被鎖,可宣告
+
+
+def test_damage_coin_with_m012_confirm_keep():
+    g = strict_game(HEADS, book0=book(first="M-001", p3="S-004"))
+    give(g, 0, "M-012")
+    tp, dp = _s004_until_damage(g)
+    events = submit(g, {"type": "choose", "player": dp, "value": None})
+    assert kinds(events) == [("coin_flipped", "heads"), ("choice_required", "coin_confirm")]
+    assert pending(g) == ("coin_confirm", tp, [None, 0])
+    submit(g, {"type": "choose", "player": tp, "value": None})
+    assert pending(g) is None
+    assert g.rng.calls == 1
+    _assert_spells_locked(g, tp, dp)
+
+
+def test_damage_coin_with_m012_confirm_reflip_to_tails():
+    g = strict_game(HEADS, TAILS, book0=book(first="M-001", p3="S-004"))
+    give(g, 0, "M-012")
+    tp, dp = _s004_until_damage(g)
+    submit(g, {"type": "choose", "player": dp, "value": None})
+    events = submit(g, {"type": "choose", "player": tp, "value": 0})
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "tails")]
+    assert pending(g) is None
+    assert g.rng.calls == 2
+    end_turn(g)
+    g.state.players[dp].pos = 2
+    submit(g, {"type": "flip_pages", "player": dp, "count": 0})
+    submit(g, {"type": "declare_attack", "player": dp, "page": 3})  # 重擲成反面 → 未鎖
+
+
+# ================================================================ 入口 2:宣告時擲幣(S-021 / S-025)
+
+@pytest.mark.parametrize("coins,negated", [
+    ((HEADS, HEADS), True), ((HEADS, TAILS), True), ((TAILS, HEADS), True),
+    ((TAILS, TAILS), False),
+])
+def test_s021_two_coin_branches(coins, negated):
+    g = strict_game(*coins, book1=book(first="M-013", p2="S-021"))
+    tp, dp = start_attack(g, 3)
+    g.state.players[dp].mp = 5
+    events = submit(g, {"type": "declare_defense", "player": dp, "page": 2})
+    assert len([e for e in events if e["type"] == "coin_flipped"]) == 2
+    assert pending(g) is None
+    assert g.state.battle.attack_negated is negated
+    assert g.rng.calls == 2
+
+
+def test_s021_with_m012_reflip_changes_branch():
+    g = strict_game(TAILS, TAILS, HEADS, book1=book(first="M-012", p2="S-021"))
+    tp, dp = start_attack(g, 3)
+    g.state.players[dp].mp = 5
+    submit(g, {"type": "declare_defense", "player": dp, "page": 2})
+    assert pending(g) == ("coin_confirm", dp, [None, 0, 1])
+    events = submit(g, {"type": "choose", "player": dp, "value": 1})
+    assert kinds(events)[:2] == [("ability_used", None), ("coin_flipped", "heads")]
+    assert g.state.battle.attack_negated is True
+    assert g.rng.calls == 3
+
+
+@pytest.mark.parametrize("coin,negated", [(HEADS, True), (TAILS, False)])
+def test_s025_single_coin_branches(coin, negated):
+    g = strict_game(coin, book1=book(p2="S-025"))
+    tp, dp = start_attack(g, 3)
+    events = submit(g, {"type": "declare_defense", "player": dp, "page": 2,
+                        "slot_uid": slot0(g, dp).uid})
+    assert len([e for e in events if e["type"] == "coin_flipped"]) == 1
+    assert g.state.battle.attack_negated is negated
+    assert g.rng.calls == 1
+
+
+# ================================================================ 入口 3:非戰鬥術擲幣(S-026)
+
+def _s026_use(g):
+    tp = g.state.turn_player
+    dp = 1 - tp
+    submit(g, {"type": "flip_pages", "player": tp, "count": 0})
+    events = submit(g, {"type": "use_book_card", "player": tp, "page": 2})
+    return tp, dp, events
+
+
+def _s026_attack_undefendable(g, tp, dp):
+    submit(g, {"type": "pass", "player": dp})
+    submit(g, {"type": "declare_attack", "player": tp, "page": 3})
+    submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
+    return g.state.battle.attack_undefendable
+
+
+def test_s026_no_confirm_heads_sets_standby():
+    g = strict_game(HEADS, book0=book(p2="S-026", p3="S-001"))
+    tp, dp, events = _s026_use(g)
+    assert kinds(events) == [("coin_flipped", "heads"), ("standby_set", "attack_undefendable")]
+    assert g.rng.calls == 1
+    assert _s026_attack_undefendable(g, tp, dp) is True
+
+
+def test_s026_no_confirm_tails_no_standby():
+    g = strict_game(TAILS, book0=book(p2="S-026", p3="S-001"))
+    tp, dp, events = _s026_use(g)
+    assert kinds(events) == [("coin_flipped", "tails")]
+    assert g.rng.calls == 1
+    assert _s026_attack_undefendable(g, tp, dp) is False
+
+
+def test_s026_with_m012_confirm_reflip_to_heads():
+    g = strict_game(TAILS, HEADS, book0=book(p2="S-026", p3="S-001"))
+    give(g, 0, "M-012")
+    tp, dp, events = _s026_use(g)
+    assert kinds(events) == [("coin_flipped", "tails"), ("choice_required", "coin_confirm")]
+    assert pending(g) == ("coin_confirm", tp, [None, 0])
+    events = submit(g, {"type": "choose", "player": tp, "value": 0})
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
+                             ("standby_set", "attack_undefendable")]
+    assert g.rng.calls == 2
+    assert _s026_attack_undefendable(g, tp, dp) is True
+
+
+def test_s026_with_m019_opponent_redo():
+    g = strict_game(HEADS, TAILS, book0=book(p2="S-026", p3="S-001"))
+    give(g, 1, "M-019")
+    tp, dp, events = _s026_use(g)
+    assert pending(g) == ("opp_coin_redo", dp, [None, True])
+    events = submit(g, {"type": "choose", "player": dp, "value": True})
+    assert [k for k in kinds(events)] == [("ability_used", None), ("coin_flipped", "tails")]
+    assert g.rng.calls == 2
+    assert _s026_attack_undefendable(g, tp, dp) is False
+
+
+# ================================================================ E-001
+
+def _e001_use(g, uid=None):
+    tp = g.state.turn_player
+    submit(g, {"type": "flip_pages", "player": tp, "count": 0})
+    return tp, submit(g, {"type": "use_book_card", "player": tp, "page": 2})
+
+
+def test_e001_multi_slot_choose_and_retry():
+    g = strict_game(book0=book(p2="E-001"))
+    a = slot0(g, 0)
+    b = give(g, 0, "M-002")
+    tp, events = _e001_use(g)
+    assert pending(g) == ("e001_pick", 0, [a.uid, b.uid])
+    with pytest.raises(IllegalCommand) as exc:
+        submit(g, {"type": "choose", "player": 0, "value": 9999})
+    assert exc.value.code == "choose.invalid"
+    assert pending(g) == ("e001_pick", 0, [a.uid, b.uid])  # 保留,可重選
+    events = submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    assert kinds(events) == [("standby_set", "start_phase")]
+    assert pending(g) is None
+    base_a, base_b = slot_power(g, 0, a), slot_power(g, 0, b)
+    end_turn(g)
+    events = submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    assert ("modifier_added", "power") in kinds(events)
+    assert slot_power(g, 0, b) == base_b + 3000
+    assert slot_power(g, 0, a) == base_a  # 只加在選定的魔物
+
+
+def test_e001_target_gone_no_effect_no_event():
+    g = strict_game(book0=book(p2="E-001"))
+    a = slot0(g, 0)
+    b = give(g, 0, "M-002")
+    base_a = slot_power(g, 0, a)
+    _e001_use(g)
+    submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    g.state.players[0].slots.remove(b)  # 目標於待命期間離場
+    end_turn(g)
+    events = submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    assert not [e for e in events if e["type"] == "modifier_added"]
+    assert not [m for m in g.state.modifiers if m.source == "E-001"]
+    assert slot_power(g, 0, a) == base_a  # 未改選另一隻
+
+
+def test_e001_two_uses_target_different_slots():
+    """事件卡每回合限 1 張,故兩筆待命於不同回合建立,各自只影響自己選定的魔物。"""
+    g = strict_game(book0=book(p2="E-001", p3="E-001"))
+    a = slot0(g, 0)
+    b = give(g, 0, "M-002")
+    base_a, base_b = slot_power(g, 0, a), slot_power(g, 0, b)
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "choose", "player": 0, "value": a.uid})
+    end_turn(g)
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})  # 第一筆觸發
+    assert slot_power(g, 0, a) == base_a + 3000
+    assert slot_power(g, 0, b) == base_b
+    end_turn(g)  # 結束玩家 1 的回合
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    g.state.players[0].pos = 2  # 使第 2、3 頁再度翻開(第 2 頁的 E-001 已用過,改用第 3 頁)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 3})
+    submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    assert slot_power(g, 0, a) == base_a and slot_power(g, 0, b) == base_b
+    end_turn(g)
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})  # 第二筆觸發
+    assert slot_power(g, 0, b) == base_b + 3000
+    assert slot_power(g, 0, a) == base_a

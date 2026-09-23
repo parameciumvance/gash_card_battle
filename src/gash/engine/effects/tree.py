@@ -1,0 +1,416 @@
+"""效果樹:以不可變節點組合卡片效果,由直譯器逐層解決。
+
+- 節點是 frozen dataclass,樹在註冊時建好並存入 EFFECTS,對局期間不變。
+- 效果在停點(等玩家選擇 / 擲幣確認 / 待命)停下時,只把續體 (effect_id, path, ctx, floor)
+  這份純資料存進 PendingChoice / Standby,不存閉包;醒來時由 resume() 依 path 找回節點繼續。
+- path 是停點節點本身的位置(從根往下的子節點索引);節點完成後沿 path 上溯,
+  Sequence 依序解決其後尚未執行的兄弟節點。floor 是上溯的下界(Standby 觸發的子樹為脫離式,
+  不再上溯到排程它的祖先)。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, ClassVar
+
+from ..state import PendingChoice
+from . import registry as reg
+from .primitives import add_power, add_restriction, flip_coins, schedule_standby
+
+# 引擎內建的 pending kind,Choose.prompt 不得與之相同
+RESERVED_KINDS = frozenset({
+    "protect", "damage_order", "deploy_page", "injure_instead_target",
+    "coin_confirm", "opp_coin_redo",
+})
+
+CHOICE_KEY = "tree_choice"   # Choose 建立的 pending:引擎只依此鍵把回應交給 resume
+CONT_KEY = "tree_cont"       # Coin / Standby 的 callback payload,只由 effect_tree_resume 讀取
+TOKEN_KEY = "tree_token"
+
+EFFECTS: dict[str, "Effect"] = {}
+TREE_HOOKS: set[tuple[str, str]] = set()   # 已以效果樹註冊的 (卡號, 掛鉤)
+
+# Coin 同步 callback 用的行程內暫存(不進 state):token -> {"results": [...]}
+_INFLIGHT: dict[int, dict] = {}
+_next_token = 0
+
+
+@dataclass(frozen=True)
+class Run:
+    """一次直譯的執行環境(行程內暫存,不進 state)。"""
+    game: Any
+    batch: list
+    effect_id: str
+
+    def cont(self, ctx: dict, path: tuple, floor: int = 0) -> dict:
+        return {"effect_id": self.effect_id, "path": list(path), "ctx": dict(ctx), "floor": floor}
+
+
+# ================================================================ 節點基底
+
+@dataclass(frozen=True)
+class Effect:
+    """效果節點。run() 回傳 True=已完成、False=已停下(續體已存入 state)。"""
+
+    def children(self) -> tuple["Effect", ...]:
+        return ()
+
+    @property
+    def may_suspend(self) -> bool:
+        return any(c.may_suspend for c in self.children())
+
+    def run(self, rt: Run, ctx: dict, path: tuple) -> bool:
+        raise NotImplementedError
+
+    def resume(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
+        raise NotImplementedError(f"{type(self).__name__} 不是停點節點")
+
+
+@dataclass(frozen=True)
+class Nothing(Effect):
+    def run(self, rt, ctx, path):
+        return True
+
+
+@dataclass(frozen=True)
+class Sequence(Effect):
+    steps: tuple[Effect, ...] = ()
+
+    def children(self):
+        return self.steps
+
+    def run(self, rt, ctx, path):
+        for i, step in enumerate(self.steps):
+            if not step.run(rt, ctx, path + (i,)):
+                return False
+        return True
+
+
+@dataclass(frozen=True)
+class When(Effect):
+    cond: Any = None
+    then: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then,)
+
+    def run(self, rt, ctx, path):
+        if not self.cond.test(rt.game, ctx):
+            return True
+        return self.then.run(rt, ctx, path + (0,))
+
+
+@dataclass(frozen=True)
+class Ref:
+    """引用 ctx 中先前綁定的名稱(例如 Choose 綁定的 slot UID)。"""
+    name: str
+
+
+# ================================================================ 條件
+
+@dataclass(frozen=True)
+class SideIs:
+    side: str
+
+    def test(self, game, ctx) -> bool:
+        return ctx.get("side") == self.side
+
+
+@dataclass(frozen=True)
+class HeadsAtLeast:
+    count: int = 1
+
+    def test(self, game, ctx) -> bool:
+        return sum(ctx["results"]) >= self.count
+
+
+# ================================================================ 選項規格 / 觸發時機
+
+@dataclass(frozen=True)
+class OwnMamodo:
+    """自己場上的魔物;以穩定的 slot UID 作為選項值。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        return [{"value": s.uid, "card": s.top} for s in game.state.players[ctx["player"]].slots]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1) is None:
+            raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
+
+
+@dataclass(frozen=True)
+class NextStartPhase:
+    kind: ClassVar[str] = "start_phase"
+
+
+# ================================================================ 停點節點
+
+@dataclass(frozen=True)
+class Choose(Effect):
+    """玩家選擇:單一選項自動解決;多選項建立 pending,回應後把選到的值綁定到 bind。"""
+    target: Any = None
+    bind: str = "choice"
+    prompt: str = ""
+    then: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then,)
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        options = self.target.options(game, ctx)
+        if not options:
+            return True
+        if len(options) == 1:
+            ctx[self.bind] = options[0]["value"]
+            return self.then.run(rt, ctx, path + (0,))
+        game.state.pending = PendingChoice(
+            kind=self.prompt, player=ctx["player"], options=options, source=ctx["source"],
+            data={CHOICE_KEY: rt.cont(ctx, path)})
+        game.emit(rt.batch, "choice_required", kind=self.prompt, player=ctx["player"],
+                  options=options)
+        return False
+
+    def resume(self, rt, ctx, value, path, floor):
+        self.target.validate(rt.game, ctx, value)   # 驗證失敗拋出,引擎保留 pending
+        ctx[self.bind] = value
+        if self.then.run(rt, ctx, path + (0,)):
+            _ascend(rt, ctx, path, floor)
+
+
+@dataclass(frozen=True)
+class Standby(Effect):
+    """排程待命(脫離式):排程後立即完成;觸發時只解決 then,不再上溯。
+
+    then 只能同步完成(不含會停下的節點),由註冊時的 validate_tree 檢查。
+    """
+    at: Any = field(default_factory=NextStartPhase)
+    expires: str = "turn"
+    then: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then,)
+
+    @property
+    def may_suspend(self) -> bool:
+        return False
+
+    def run(self, rt, ctx, path):
+        schedule_standby(
+            rt.game, rt.batch, kind=self.at.kind, source=ctx["source"], owner=ctx["player"],
+            data={"callback": "effect_tree_resume", "expires": self.expires,
+                  CONT_KEY: rt.cont(ctx, path, floor=len(path) + 1)})
+        return True
+
+    def resume(self, rt, ctx, value, path, floor):
+        self.then.run(rt, ctx, path + (0,))
+
+
+@dataclass(frozen=True)
+class Coin(Effect):
+    """擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。"""
+    count: int = 1
+    on: Any = field(default_factory=HeadsAtLeast)
+    then: Effect = field(default_factory=Nothing)
+    otherwise: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then, self.otherwise)
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def run(self, rt, ctx, path):
+        global _next_token
+        _next_token += 1
+        token = _next_token
+        holder: dict = {}
+        _INFLIGHT[token] = holder
+        try:
+            flip_coins(rt.game, rt.batch, ctx["player"], self.count, ctx["source"],
+                       "effect_tree_resume",
+                       {CONT_KEY: rt.cont(ctx, path), TOKEN_KEY: token})
+        finally:
+            _INFLIGHT.pop(token, None)
+        if "results" not in holder:
+            return False    # 進入確認鏈 pending,之後由 resume 接手
+        return self._branch(rt, ctx, path, holder["results"])
+
+    def _branch(self, rt, ctx, path, results) -> bool:
+        ctx["results"] = [bool(r) for r in results]
+        idx = 0 if self.on.test(rt.game, ctx) else 1
+        return self.children()[idx].run(rt, ctx, path + (idx,))
+
+    def resume(self, rt, ctx, value, path, floor):
+        if self._branch(rt, ctx, path, value):
+            _ascend(rt, ctx, path, floor)
+
+
+# ================================================================ 葉節點(包裝 primitives)
+
+@dataclass(frozen=True)
+class AddPower(Effect):
+    """對 target 綁定的魔物加魔力。執行時才依 UID 重新查找;目標已離場則無效果、無事件。"""
+    amount: int = 0
+    duration: str = ""
+    target: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(player, ctx[self.target.name])
+        if slot is None:
+            return True
+        add_power(rt.game, rt.batch, source=ctx["source"], owner=player, target_player=player,
+                  target_slot=slot.uid, amount=self.amount, duration=self.duration)
+        return True
+
+
+@dataclass(frozen=True)
+class RestrictOpponent(Effect):
+    """對對手設置限制旗標(禁術卡等)。"""
+    flag: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                        target_player=1 - player, flag=self.flag, duration=self.duration)
+        return True
+
+
+@dataclass(frozen=True)
+class NegateAttack(Effect):
+    """使目前戰鬥的攻擊無效。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.attack_negated = True
+        rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class MakeNextAttackUndefendable(Effect):
+    """[待命] 本回合下一場戰鬥的攻擊不可被防禦。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
+                         source=ctx["source"], owner=ctx["player"])
+        return True
+
+
+# ================================================================ 直譯器
+
+def node_at(root: Effect, path) -> Effect:
+    node = root
+    for i in path:
+        kids = node.children()
+        if not 0 <= i < len(kids):
+            raise LookupError(f"效果樹路徑無效:{tuple(path)}")
+        node = kids[i]
+    return node
+
+
+def _ascend(rt: Run, ctx: dict, path: tuple, floor: int) -> None:
+    """path 指向的節點已完成:上溯,解決各層 Sequence 中其後尚未執行的兄弟節點。"""
+    root = EFFECTS[rt.effect_id]
+    while len(path) > floor:
+        parent_path, idx = path[:-1], path[-1]
+        parent = node_at(root, parent_path)
+        if isinstance(parent, Sequence):
+            for j in range(idx + 1, len(parent.steps)):
+                if not parent.steps[j].run(rt, ctx, parent_path + (j,)):
+                    return
+        path = parent_path
+
+
+def run_effect(game, batch, effect_id: str, ctx: dict) -> None:
+    """從根節點開始解決一個效果。"""
+    rt = Run(game, batch, effect_id)
+    EFFECTS[effect_id].run(rt, dict(ctx), ())
+
+
+def resume(game, batch, value, data: dict) -> None:
+    """依 data 中的續體從停點繼續。value:Choose 為玩家選擇、Coin 為擲幣結果、Standby 無用。"""
+    cont = data.get(CHOICE_KEY) or data[CONT_KEY]
+    rt = Run(game, batch, cont["effect_id"])
+    path = tuple(cont["path"])
+    node = node_at(EFFECTS[cont["effect_id"]], path)
+    node.resume(rt, dict(cont["ctx"]), value, path, cont["floor"])
+
+
+@reg.choice_resolver("effect_tree_resume")
+def _effect_tree_resume(game, batch, value, data):
+    holder = _INFLIGHT.get(data.get(TOKEN_KEY))
+    if holder is not None:      # Coin.run 尚在執行中(同步 callback):只回填結果,由 Coin.run 就地續行
+        holder["results"] = value
+        return
+    resume(game, batch, value, data)
+
+
+# ================================================================ 註冊
+
+def validate_tree(root: Effect) -> None:
+    """註冊時檢查:Choose.prompt 不可與引擎 pending kind 相同;Standby.then 不可含會停下的節點。"""
+    def walk(node: Effect):
+        if isinstance(node, Choose):
+            if node.prompt in RESERVED_KINDS or node.prompt in reg.CHOICE_RESOLVERS:
+                raise ValueError(f"Choose.prompt {node.prompt!r} 與既有 pending kind 相同")
+        if isinstance(node, Standby) and node.then.may_suspend:
+            raise ValueError("Standby.then 只能同步完成,不可包含 Choose / Coin")
+        for c in node.children():
+            walk(c)
+    walk(root)
+
+
+def _claim(number: str, hook: str, legacy_taken: bool) -> str:
+    if (number, hook) in TREE_HOOKS or legacy_taken:
+        raise ValueError(f"{number} 的 {hook} 掛鉤已被註冊")
+    TREE_HOOKS.add((number, hook))
+    effect_id = f"{number}:{hook}"
+    return effect_id
+
+
+def _install(effect_id: str, tree: Effect) -> None:
+    validate_tree(tree)
+    EFFECTS[effect_id] = tree
+
+
+def register_event(number: str, tree: Effect):
+    effect_id = _claim(number, "event", number in reg.EVENT)
+    _install(effect_id, tree)
+
+    def handler(game, batch, player, page):
+        run_effect(game, batch, effect_id, {"player": player, "page": page, "source": number})
+    return handler
+
+
+def register_spell_nonbattle(number: str, tree: Effect):
+    effect_id = _claim(number, "spell_nonbattle", number in reg.SPELL_NONBATTLE)
+    _install(effect_id, tree)
+
+    def handler(game, batch, player):
+        run_effect(game, batch, effect_id, {"player": player, "source": number})
+    return handler
+
+
+def rider_hook(number: str, hook: str, tree: Effect, legacy_taken: bool):
+    """hook: "on_damage" 或 "on_declare"。"""
+    effect_id = _claim(number, f"rider.{hook}", legacy_taken)
+    _install(effect_id, tree)
+    if hook == "on_declare":
+        def on_declare(game, batch, player, side):
+            run_effect(game, batch, effect_id, {"player": player, "side": side, "source": number})
+        return on_declare
+
+    def on_damage(game, batch, player):
+        run_effect(game, batch, effect_id, {"player": player, "source": number})
+    return on_damage

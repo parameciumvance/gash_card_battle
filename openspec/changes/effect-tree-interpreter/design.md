@@ -96,7 +96,7 @@ Sequence(A, Choose(..., then=B), C)      Choose 停下 → 存 path=(1,)
 | `Standby(at=<觸發時機>, expires=…, then=…)` | 排程待命(脫離式,見決策 3);觸發時只解決 `then`;`expires` 對應 `Standby.data["expires"]`(`"turn"` / `"next_start"`)。**`then` 子樹只能同步完成**(見決策 8) |
 | `Coin(count=…, on=<結果條件>, then=…, otherwise=…)` | 擲幣並包住 M-012 / M-019 確認鏈,結果寫入 `ctx["results"]`,依條件分支 |
 | `When(cond, then)` | 條件成立才解決 `then`;條件如 `SideIs("defense")` 讀 `ctx["side"]` |
-| `AddPower(target=Ref("slot"), …)` / `Restrict` / `MakeUndefendable` / `NegateAttack` | 包裝現有 `add_power` / `add_restriction` 等積木的葉節點;`AddPower` 執行時重新查找目標,見決策 9 |
+| `AddPower(target=Ref("slot"), …)` / `RestrictOpponent` / `MakeNextAttackUndefendable` / `NegateAttack` | 包裝現有 `add_power` / `add_restriction` 等積木的葉節點;`AddPower` 執行時重新查找目標,見決策 9 |
 
 每個節點宣告 `may_suspend`(是否可能停下):`Choose`、`Coin` 為真,葉節點為假,`Sequence` / `When` 依子節點推導。
 

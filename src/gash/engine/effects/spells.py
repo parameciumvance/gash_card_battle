@@ -17,26 +17,6 @@ from .primitives import (
 reg.spell_rider("S-003", counter=True)
 
 
-# ---- 傷害後禁術(擲硬幣):S-004 ジケルド / S-014 ジュロン
-def _coin_lock_spells(number):
-    def on_damage(game, batch, player):
-        flip_coins(game, batch, player, 1, number, "lock_spells_coin",
-                   {"player": player, "source": number})
-    return on_damage
-
-
-@reg.choice_resolver("lock_spells_coin")
-def lock_spells_coin(game, batch, results, data):
-    if results[0]:
-        add_restriction(game, batch, source=data["source"], owner=data["player"],
-                        target_player=1 - data["player"], flag=NO_SPELLS,
-                        duration=DUR_UNTIL_END_NEXT_TURN)
-
-
-reg.spell_rider("S-004", on_damage=_coin_lock_spells("S-004"))
-reg.spell_rider("S-014", on_damage=_coin_lock_spells("S-014"))
-
-
 # ---- 傷害後禁術(必定):S-009 グラビレイ / S-011 アイアン・グラビレイ
 def _lock_spells(number):
     def on_damage(game, batch, player):
@@ -99,43 +79,6 @@ def _s020_on_win(game, batch, player):
 
 
 reg.spell_rider("S-020", on_win=_s020_on_win, no_book_damage=True)
-
-
-# ---- 硬幣無效攻擊:S-021 コポルク(2枚,至少1正)/ S-025 逃げるぞ!(1枚)
-def _coin_negate(number, count, need_heads=1):
-    def on_declare(game, batch, player, side):
-        if side != "defense":
-            return
-        flip_coins(game, batch, player, count, number, "coin_negate_resolve",
-                   {"player": player, "source": number, "need": need_heads})
-    return on_declare
-
-
-@reg.choice_resolver("coin_negate_resolve")
-def coin_negate_resolve(game, batch, results, data):
-    b = game.state.battle
-    if b is None:
-        return
-    if sum(results) >= data["need"]:
-        b.attack_negated = True
-        game.emit(batch, "attack_negated", source=data["source"], player=data["player"])
-
-
-reg.spell_rider("S-021", on_declare=_coin_negate("S-021", 2))
-reg.spell_rider("S-025", on_declare=_coin_negate("S-025", 1))
-
-
-# ---- S-026 ＳＥＴ!(非戰鬥術):擲硬幣,正面→[待命] 本回合下一場戰鬥對手不能防禦
-@reg.spell_nonbattle("S-026")
-def s026(game, batch, player):
-    flip_coins(game, batch, player, 1, "S-026", "s026_resolve", {"player": player})
-
-
-@reg.choice_resolver("s026_resolve")
-def s026_resolve(game, batch, results, data):
-    if results[0]:
-        schedule_standby(game, batch, kind="attack_undefendable", source="S-026",
-                         owner=data["player"])
 
 
 # ---- S-027 耐えてくれよ!:擲2硬幣,至少1正→對手攻擊傷害 -1

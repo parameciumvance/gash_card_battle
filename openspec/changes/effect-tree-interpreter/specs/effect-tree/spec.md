@@ -142,8 +142,8 @@
 系統 SHALL 提供下列效果樹註冊入口,並沿用既有引擎入口與檢查:`reg.event(number, effect=…, when=…)`(事件卡)、`reg.spell_rider(number, on_damage=<樹>)`(`rider.on_damage`)、`reg.spell_rider(number, on_declare=<樹>)`(`rider.on_declare`,`ctx` 含 `side`)、`reg.spell_nonbattle(number, effect=<樹>)`(非戰鬥術)。重複註冊以 `(卡號, 掛鉤)` 判定。經 `spell_nonbattle` 註冊的卡 MUST 仍受非戰鬥術的費用、時機與使用次數檢查。
 
 #### Scenario: 宣告時效果僅防禦方生效
-- **WHEN** S-025 以效果樹註冊(`When(SideIs("defense"), Coin(…))`),攻擊方宣告 S-025
-- **THEN** 不擲幣、無任何效果;防禦方宣告時才擲幣
+- **WHEN** 以 `When(SideIs("defense"), Coin(…))` 註冊的 `on_declare` 效果,以 `side="attack"` 執行
+- **THEN** 不擲幣、無任何效果;以 `side="defense"` 執行時才擲幣(S-021 / S-025 為防禦專用術卡,引擎只會以防禦側呼叫)
 
 #### Scenario: 傷害後效果的擁有者
 - **WHEN** S-004 以 `rider.on_damage` 註冊並造成傷害

@@ -1114,10 +1114,14 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
         _continue_end_phase(game, batch, pending.data["stage"])
         return
     # 卡片效果的自訂決策:resolver 驗證失敗(拋出)時保留 pending,可重新選擇
-    resolver = reg.CHOICE_RESOLVERS.get(pending.kind)
-    if resolver is None:
-        raise IllegalCommand("choose.unknown", f"未知的決策類型 {pending.kind}")
-    resolver(game, batch, value, pending.data)
+    from .effects.tree import CHOICE_KEY, resume as resume_effect_tree
+    if CHOICE_KEY in pending.data:  # 效果樹 Choose 建立的 pending(僅此標記才交給樹;擲幣確認仍走原 resolver)
+        resume_effect_tree(game, batch, value, pending.data)
+    else:
+        resolver = reg.CHOICE_RESOLVERS.get(pending.kind)
+        if resolver is None:
+            raise IllegalCommand("choose.unknown", f"未知的決策類型 {pending.kind}")
+        resolver(game, batch, value, pending.data)
     if st.pending is pending:
         st.pending = None
     _check_victory(game, batch)

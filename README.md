@@ -211,6 +211,18 @@ git push origin v0.1.0
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
+## 卡片效果的寫法
+
+新卡片一律以**效果樹**註冊:效果由 `effects/tree.py` 的節點組合(節點名稱不含卡號),註冊檔
+`effects/tree_cards.py` 每張卡一行 `reg.xxx(...)`,依卡號排序。效果停下來等待(玩家選擇、擲幣確認、
+待命)時,只存 `(effect_id, path, ctx)` 這份純資料,不存閉包。註冊入口有四種:
+`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage=… / on_declare=…)`、
+`reg.spell_nonbattle(number, effect=…)`。
+
+- 舊的 `@reg.xxx` 裝飾器寫法遷移期間保留,逐卡搬到效果樹;同一張卡的同一掛鉤不能兩種都註冊。
+- `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。
+- 已遷移:E-001、S-004、S-014、S-021、S-025、S-026;其餘見 `openspec/changes/todo.md`。
+
 ## 測試
 
 ```bash
@@ -230,7 +242,9 @@ src/gash/
     effects/            效果系統
       registry.py       引擎 ↔ 卡片效果的掛鉤介面
       primitives.py     效果原語(加魔力、禁止旗標、待命、互動式硬幣…)
-      mamodo.py / partners.py / events.py / spells.py   逐卡 handler
+      tree.py           效果樹:不可變節點(Choose / Coin / Standby / AddPower…)+ 直譯器
+      tree_cards.py     以效果樹註冊的卡片,依卡號排序、每卡一行
+      mamodo.py / partners.py / events.py / spells.py   逐卡 handler(舊寫法,遷移期保留)
   api/
     app.py              FastAPI:房間端點、指令轉發、WebSocket 推送、逾時代打
     rooms.py            房間模型、token 身分、計時器(等待者推導與安全預設指令)
