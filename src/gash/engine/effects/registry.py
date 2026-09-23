@@ -148,15 +148,20 @@ def event(number: str, condition: Callable | None = None, *, effect=None, when: 
 
 
 def spell_rider(number: str, **kwargs):
-    """術卡附加效果。on_declare / on_damage 可傳可呼叫物件或效果樹。"""
+    """術卡附加效果,每張卡只能註冊一次(整筆記錄,不做部分更新)。
+
+    on_declare / on_damage 可傳可呼叫物件或效果樹。任何檢查失敗時,註冊表保持不變。
+    """
     from . import tree
-    for hook in ("on_declare", "on_damage"):
-        value = kwargs.get(hook)
-        if isinstance(value, tree.Effect):
-            legacy = number in SPELL_RIDERS and getattr(SPELL_RIDERS[number], hook) is not None
-            kwargs[hook] = tree.rider_hook(number, hook, value, legacy)
-        elif value is not None and _tree_claimed(number, f"rider.{hook}"):
-            raise ValueError(f"{number} 的 rider.{hook} 掛鉤已以效果樹註冊")
+    if number in SPELL_RIDERS:
+        raise ValueError(f"{number} 的術卡附加效果已註冊,每張卡只能註冊一次")
+    trees = {h: kwargs[h] for h in ("on_declare", "on_damage")
+             if isinstance(kwargs.get(h), tree.Effect)}
+    for hook, root in trees.items():        # 先全部驗證,再寫入
+        tree.validate_tree(root)
+        tree.check_free(number, f"rider.{hook}")
+    for hook, root in trees.items():
+        kwargs[hook] = tree.rider_hook(number, hook, root)
     SPELL_RIDERS[number] = SpellRider(**kwargs)
     return SPELL_RIDERS[number]
 

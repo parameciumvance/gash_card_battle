@@ -38,6 +38,8 @@ def isolated(monkeypatch):
     monkeypatch.setattr(tree, "TREE_HOOKS", set(tree.TREE_HOOKS))
     monkeypatch.setattr(reg, "EVENT", dict(reg.EVENT))
     monkeypatch.setattr(reg, "EVENT_CONDITION", dict(reg.EVENT_CONDITION))
+    monkeypatch.setattr(reg, "SPELL_RIDERS", dict(reg.SPELL_RIDERS))
+    monkeypatch.setattr(reg, "SPELL_NONBATTLE", dict(reg.SPELL_NONBATTLE))
 
 
 def run(g, root, **ctx):
@@ -351,3 +353,50 @@ def test_tree_and_decorator_cards_coexist_in_one_game():
     assert slot_power(g, 0, s) == base + 3000                      # 待命於下回合開始階段觸發
     submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-002(舊寫法)
     assert any(m.source == "E-002" and m.kind == "restriction" for m in g.state.modifiers)
+
+
+# ================================================================ 註冊表一致性(code review CR1)
+
+def snapshot():
+    return (dict(tree.EFFECTS), set(tree.TREE_HOOKS), dict(reg.SPELL_RIDERS))
+
+
+def test_rider_second_registration_rejected_and_registry_unchanged():
+    reg.spell_rider("T-910", on_damage=Nothing(), counter=True)
+    before = snapshot()
+    with pytest.raises(ValueError, match="只能註冊一次"):
+        reg.spell_rider("T-910", on_declare=Nothing())          # 不同掛鉤
+    with pytest.raises(ValueError, match="只能註冊一次"):
+        reg.spell_rider("T-910", counter=True)                  # 單純旗標
+    with pytest.raises(ValueError, match="只能註冊一次"):
+        reg.spell_rider("T-910", on_damage=Nothing())           # 同掛鉤
+    assert snapshot() == before
+    rider = reg.SPELL_RIDERS["T-910"]
+    assert rider.on_damage is not None and rider.counter is True
+
+
+def test_rider_legacy_call_after_tree_rejected_and_registry_unchanged():
+    reg.spell_rider("T-911", on_damage=Nothing())
+    before = snapshot()
+    with pytest.raises(ValueError, match="只能註冊一次"):
+        reg.spell_rider("T-911", on_damage=lambda game, batch, player: None)
+    assert snapshot() == before
+
+
+def test_rider_failed_validation_leaves_no_partial_state():
+    before = snapshot()
+    with pytest.raises(ValueError, match="Standby.then"):
+        reg.spell_rider("T-912", on_damage=Nothing(),
+                        on_declare=Standby(then=Coin()))        # 第二個掛鉤不合法
+    assert snapshot() == before
+    reg.spell_rider("T-912", on_damage=Nothing(), on_declare=Nothing())   # 之後仍可正常註冊
+    assert ("T-912", "rider.on_declare") in tree.TREE_HOOKS
+
+
+def test_event_failed_validation_leaves_no_claim():
+    before = snapshot()
+    with pytest.raises(ValueError):
+        reg.event("T-913", effect=Choose(target=OwnMamodo(), prompt="coin_confirm"))
+    assert snapshot() == before and "T-913" not in reg.EVENT
+    reg.event("T-913", effect=Nothing())                        # 未被殘留標記擋住
+    assert ("T-913", "event") in tree.TREE_HOOKS

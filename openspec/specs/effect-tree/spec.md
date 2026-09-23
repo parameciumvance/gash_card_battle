@@ -1,5 +1,9 @@
-## ADDED Requirements
+# effect-tree — 效果樹與直譯器
 
+## Purpose
+
+卡片效果以不可變節點組成的「效果樹」描述(`src/gash/engine/effects/tree.py`),由直譯器逐層解決。效果在停點(等玩家選擇、擲幣確認、待命)停下時,只把續體 `(effect_id, path, ctx)` 存為純資料,醒來時依 path 找回節點繼續。卡片以 `effects/tree_cards.py` 逐卡一行註冊,與既有裝飾器寫法並存,逐卡遷移。
+## Requirements
 ### Requirement: 效果以不可變節點樹描述
 系統 SHALL 提供效果樹:效果由不可變(frozen)節點組合而成,節點命名 MUST 以語意為主、不含卡號;卡號 MUST 僅出現在註冊處。效果樹 SHALL 在註冊時建立並存入 `EFFECTS[effect_id]`,對局期間不得被修改。
 
@@ -152,6 +156,17 @@
 #### Scenario: 非戰鬥術經引擎入口使用
 - **WHEN** 玩家透過 `use_book_card` 使用以 `reg.spell_nonbattle("S-026", …)` 註冊的 S-026
 - **THEN** 費用、時機與使用次數檢查與遷移前一致,不會得到 `spell.not_implemented`
+
+### Requirement: 註冊為原子操作且術卡附加效果每卡只註冊一次
+`reg.spell_rider` SHALL 對每張卡只接受一次呼叫;同一張卡再次呼叫(不論掛鉤或旗標,也不論新舊寫法)MUST 被拒絕。任何註冊在檢查失敗時 MUST NOT 留下部分寫入:`TREE_HOOKS`、`EFFECTS`、`SPELL_RIDERS` 等註冊表 MUST 保持呼叫前的內容。
+
+#### Scenario: 再次註冊同一張術卡被拒絕且不影響既有效果
+- **WHEN** 已以 `reg.spell_rider("X", on_damage=<樹>, counter=True)` 註冊,再呼叫 `reg.spell_rider("X", on_declare=<樹>)` 或 `reg.spell_rider("X", counter=True)`
+- **THEN** 拒絕並拋出錯誤,`X` 的 `on_damage` 效果與 `counter` 旗標仍在,註冊表內容不變
+
+#### Scenario: 驗證失敗不留下部分狀態
+- **WHEN** 一次註冊同時傳入合法的 `on_damage` 與不合法的 `on_declare`(如 `Standby.then` 含 `Coin`)
+- **THEN** 拒絕並拋出錯誤,`on_damage` 也沒有被寫入或標記為已註冊;修正後可正常註冊
 
 ### Requirement: 註冊檔逐卡一行
 以效果樹註冊的卡片,註冊檔 SHALL 每張卡一行 `reg.xxx(...)` 呼叫並依卡號排序;效果邏輯 MUST 位於節點與 primitives,不在註冊檔內定義。

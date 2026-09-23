@@ -371,22 +371,23 @@ def validate_tree(root: Effect) -> None:
     walk(root)
 
 
-def _claim(number: str, hook: str, legacy_taken: bool) -> str:
+def check_free(number: str, hook: str, legacy_taken: bool = False) -> None:
     if (number, hook) in TREE_HOOKS or legacy_taken:
         raise ValueError(f"{number} 的 {hook} 掛鉤已被註冊")
-    TREE_HOOKS.add((number, hook))
+
+
+def _install(number: str, hook: str, tree: Effect, legacy_taken: bool = False) -> str:
+    """先驗證樹與掛鉤未被佔用,通過後才寫入 TREE_HOOKS / EFFECTS(失敗時不留下部分狀態)。"""
+    validate_tree(tree)
+    check_free(number, hook, legacy_taken)
     effect_id = f"{number}:{hook}"
+    TREE_HOOKS.add((number, hook))
+    EFFECTS[effect_id] = tree
     return effect_id
 
 
-def _install(effect_id: str, tree: Effect) -> None:
-    validate_tree(tree)
-    EFFECTS[effect_id] = tree
-
-
 def register_event(number: str, tree: Effect):
-    effect_id = _claim(number, "event", number in reg.EVENT)
-    _install(effect_id, tree)
+    effect_id = _install(number, "event", tree, number in reg.EVENT)
 
     def handler(game, batch, player, page):
         run_effect(game, batch, effect_id, {"player": player, "page": page, "source": number})
@@ -394,18 +395,16 @@ def register_event(number: str, tree: Effect):
 
 
 def register_spell_nonbattle(number: str, tree: Effect):
-    effect_id = _claim(number, "spell_nonbattle", number in reg.SPELL_NONBATTLE)
-    _install(effect_id, tree)
+    effect_id = _install(number, "spell_nonbattle", tree, number in reg.SPELL_NONBATTLE)
 
     def handler(game, batch, player):
         run_effect(game, batch, effect_id, {"player": player, "source": number})
     return handler
 
 
-def rider_hook(number: str, hook: str, tree: Effect, legacy_taken: bool):
-    """hook: "on_damage" 或 "on_declare"。"""
-    effect_id = _claim(number, f"rider.{hook}", legacy_taken)
-    _install(effect_id, tree)
+def rider_hook(number: str, hook: str, tree: Effect):
+    """hook: "on_damage" 或 "on_declare"。呼叫前須已由 spell_rider 確認該卡尚未註冊 rider。"""
+    effect_id = _install(number, f"rider.{hook}", tree)
     if hook == "on_declare":
         def on_declare(game, batch, player, side):
             run_effect(game, batch, effect_id, {"player": player, "side": side, "source": number})
