@@ -224,6 +224,16 @@ class OpponentOpenPagesLackDefenseSpell:
 
 
 @dataclass(frozen=True)
+class DetachedFromSelf:
+    """觸發事件 stack_detached 是本魔物身上的 number 被分離入墓(M-028)。"""
+    number: str
+
+    def test(self, game, ctx) -> bool:
+        ev = ctx["event"]
+        return ev.get("slot") == ctx["self_slot"] and ev.get("detached") == self.number
+
+
+@dataclass(frozen=True)
 class OwnHasPartner:
     """自己場上至少有一隻魔物裝有夥伴(E-027)。"""
 
@@ -278,11 +288,27 @@ def opponent_has_partner(game, player) -> bool:
 
 @dataclass(frozen=True)
 class HasOptions:
-    """當作 when= 使用:選項規格至少有一個選項才能使用此卡。簽名 fn(game, player) -> bool。"""
+    """使用條件:選項規格至少有一個選項才能使用。可當事件卡的 when=(fn(game, player)),
+    也可當啟動型效果的 condition=(fn(game, player, slot),ctx 另含 self_slot)。"""
     spec: Any
 
-    def __call__(self, game, player) -> bool:
-        return bool(self.spec.options(game, {"player": player}))
+    def __call__(self, game, player, slot=None) -> bool:
+        ctx = {"player": player}
+        if slot is not None:
+            ctx["self_slot"] = slot.uid
+        return bool(self.spec.options(game, ctx))
+
+
+@dataclass(frozen=True)
+class All:
+    """所有使用條件都成立(參數原樣轉給每個條件)。"""
+    conds: tuple = ()
+
+    def __init__(self, *conds):
+        object.__setattr__(self, "conds", tuple(conds))
+
+    def __call__(self, *args) -> bool:
+        return all(c(*args) for c in self.conds)
 
 
 # ================================================================ 選項規格 / 觸發時機
@@ -329,6 +355,69 @@ class PlayablePartnerInDiscard:
         from ..engine import IllegalCommand
         if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
             raise IllegalCommand("choose.invalid", "須選擇棄牌區中可放出的夥伴卡")
+
+
+@dataclass(frozen=True)
+class OwnOpenPages:
+    """自己魔本目前翻開、且卡片仍在魔本中的頁(M-016)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        return [{"value": p, "card": ps.card_at(p)} for p in ps.open_pages()]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in game.state.players[ctx["player"]].open_pages():
+            raise IllegalCommand("choose.invalid", "須選擇目前翻開頁面的卡")
+
+
+@dataclass(frozen=True)
+class OwnEarlierPages:
+    """自己魔本中比目前翻開頁更前面、且卡片仍在魔本中的頁(M-016)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        return [{"value": p, "card": ps.card_at(p)}
+                for p in range(1, ps.pos) if p not in ps.consumed_pages]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇之前頁面的卡")
+
+
+@dataclass(frozen=True)
+class OwnBookPartnerNamed:
+    """自己魔本中(尚未離開的)名稱為 name 的夥伴卡頁(M-020 大海恵 / M-021 窪塚泳太)。"""
+    name: str
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        return [{"value": p, "card": ps.card_at(p), "page": p}
+                for p in range(1, 33)
+                if p not in ps.consumed_pages
+                and game.db[ps.card_at(p)].type == PARTNER
+                and game.db[ps.card_at(p)].name_ja == self.name]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔本中對應的夥伴卡")
+
+
+@dataclass(frozen=True)
+class OpponentInjuredMamodo:
+    """對手場上負傷的魔物(M-029)。選項值為 slot UID。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        return [{"value": s.uid, "card": s.top}
+                for s in game.state.players[1 - ctx["player"]].slots if s.injured]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
+        if slot is None or not slot.injured:
+            raise IllegalCommand("choose.invalid", "須選擇對手場上負傷的魔物")
 
 
 @dataclass(frozen=True)
@@ -1447,6 +1536,45 @@ class ScheduleSkipEndFlip(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class DiscardFromOpponentBook(Effect):
+    """棄掉對手魔本中 page 綁定的那頁卡(M-011)。"""
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        discard_from_book(rt.game, rt.batch, 1 - ctx["player"], ctx[self.page.name], ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class SwapBookPages(Effect):
+    """交換自己魔本 a、b 兩頁的卡(M-016)。"""
+    a: Ref = Ref("open")
+    b: Ref = Ref("earlier")
+
+    def run(self, rt, ctx, path):
+        ps = rt.game.state.players[ctx["player"]]
+        a, b = ctx[self.a.name], ctx[self.b.name]
+        ps.book[a - 1], ps.book[b - 1] = ps.book[b - 1], ps.book[a - 1]
+        rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], pages=[a, b])
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardChosenOpponentMamodo(Effect):
+    """把 target 綁定的對手魔物棄掉(M-029)。執行時依 UID 重新查找,已離場則無效果。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        from ..engine import _discard_slot
+        opp = 1 - ctx["player"]
+        slot = rt.game.state.slot_by_uid(opp, ctx[self.target.name])
+        if slot is None:
+            return True
+        _discard_slot(rt.game, rt.batch, opp, slot, reason=ctx["source"])
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
@@ -1473,6 +1601,14 @@ class SelfInjured:
 
     def __call__(self, game, player, slot) -> bool:
         return slot.injured
+
+
+@dataclass(frozen=True)
+class SelfHasNoPartner:
+    """這隻魔物尚未裝備夥伴(M-020 / M-021)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return slot.partner is None
 
 
 @dataclass(frozen=True)
@@ -1536,6 +1672,28 @@ class PowerBonus:
 
     def __call__(self, game, player, slot) -> int:
         return self.spec.bonus(game, player, slot, self.provider)
+
+
+@dataclass(frozen=True)
+class CanUseSpellsWithAttr:
+    """術相容:這隻魔物可使用其他魔物屬性為 attr 的術(M-023「木」)。fn(game, player, slot, spell) -> bool。"""
+    attr: str
+
+    def __call__(self, game, player, slot, spell_card) -> bool:
+        return spell_card.attr_name == self.attr
+
+
+@dataclass(frozen=True)
+class ImmuneToSpellDamageAtMost:
+    """傷害免疫:不受合計魔力 total 以下的術造成的傷害(無術攻擊不算術)(M-031)。
+    fn(game, player, slot, ctx) -> bool。"""
+    total: int
+
+    def __call__(self, game, player, slot, ctx) -> bool:
+        b = game.state.battle
+        if b is None or ctx.get("cause") != "battle_attack" or b.attack_spell is None:
+            return False
+        return b.data.get("attack_total", 0) <= self.total
 
 
 @dataclass(frozen=True)

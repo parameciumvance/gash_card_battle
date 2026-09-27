@@ -257,9 +257,10 @@ def test_register_rejects_reserved_prompt(prompt):
         tree.validate_tree(Choose(target=OwnMamodo(), prompt=prompt))
 
 
-def test_register_rejects_existing_resolver_key_as_prompt():
+def test_register_rejects_existing_resolver_key_as_prompt(monkeypatch):
+    monkeypatch.setattr(reg, "CHOICE_RESOLVERS", {**reg.CHOICE_RESOLVERS, "t_legacy_pick": print})
     with pytest.raises(ValueError, match="pending kind"):
-        tree.validate_tree(Choose(target=OwnMamodo(), prompt="m011_pick"))
+        tree.validate_tree(Choose(target=OwnMamodo(), prompt="t_legacy_pick"))
 
 
 def test_register_duplicate_tree_hook_rejected():
@@ -1220,3 +1221,88 @@ def test_self_slot_effect_nodes():
     assert [(sb.kind, sb.data) for sb in g.state.standby] == [
         ("spell_bonus", {"mamodo": "スギナ", "power_delta": -1000, "cost_delta": -1}),
         ("skip_end_flip", {})]
+
+
+# ================================================================ 魔物卡第二批(M-011 ~ M-031)
+
+def test_all_and_has_options_with_slot():
+    g = game()
+    s = slot0(g, 0)
+    cond = tree.All(tree.SelfHasNoPartner(), tree.HasOptions(tree.OwnOpenPages()))
+    assert cond(g, 0, s) is True
+    s.partner = "P-001"
+    assert cond(g, 0, s) is False
+    assert tree.All()(g, 0, s) is True
+
+
+def test_open_and_earlier_page_specs():
+    g = game()
+    ps = g.state.players[0]
+    ps.pos = 4
+    assert [o["value"] for o in tree.OwnOpenPages().options(g, {"player": 0})] == [4, 5]
+    earlier = [o["value"] for o in tree.OwnEarlierPages().options(g, {"player": 0})]
+    assert 1 not in earlier and earlier == [p for p in (2, 3) if p not in ps.consumed_pages]
+    with pytest.raises(IllegalCommand):
+        tree.OwnEarlierPages().validate(g, {"player": 0}, 4)
+
+
+def test_swap_book_pages_emits_effect_applied():
+    g = game()
+    ps = g.state.players[0]
+    ps.book = list(ps.book)
+    a, b = ps.card_at(2), ps.card_at(4)
+    events = run(g, tree.SwapBookPages(), open=4, earlier=2)
+    assert (ps.card_at(2), ps.card_at(4)) == (b, a)
+    assert without_seq(events) == [{"type": "effect_applied", "source": "T-000", "pages": [4, 2]}]
+
+
+def test_own_book_partner_named_matches_name_not_family():
+    from .test_cards import book
+    g = game(book0=book())
+    set_book(g, 0, p9="P-001", p10="P-010")              # 兩張都是「高嶺清麿」、同家族
+    spec = tree.OwnBookPartnerNamed("高嶺清麿")
+    assert [o["value"] for o in spec.options(g, {"player": 0})] == [9, 10]
+    assert tree.OwnBookPartnerNamed("大海恵").options(g, {"player": 0}) == []
+
+
+def test_opponent_injured_mamodo_and_discard():
+    g = game()
+    x = slot0(g, 1)
+    assert tree.OpponentInjuredMamodo().options(g, {"player": 0}) == []
+    x.injured = True
+    assert tree.OpponentInjuredMamodo().options(g, {"player": 0}) == [{"value": x.uid, "card": x.top}]
+    run(g, tree.DiscardChosenOpponentMamodo(), choice=x.uid)
+    assert x not in g.state.players[1].slots
+    assert run(g, tree.DiscardChosenOpponentMamodo(), choice=x.uid) == []
+
+
+def test_detached_from_self_condition():
+    cond = tree.DetachedFromSelf("M-027")
+    assert cond.test(None, {"self_slot": 5, "event": {"slot": 5, "detached": "M-027"}})
+    assert not cond.test(None, {"self_slot": 5, "event": {"slot": 6, "detached": "M-027"}})
+    assert not cond.test(None, {"self_slot": 5, "event": {"slot": 5, "detached": "M-001"}})
+
+
+def test_can_use_spells_with_attr():
+    g = game()
+    wood = next(c for c in g.db.values() if c.type == "spell" and c.attr_name == "木")
+    other = next(c for c in g.db.values() if c.type == "spell" and c.attr_name != "木")
+    spec = tree.CanUseSpellsWithAttr("木")
+    assert spec(g, 0, slot0(g, 0), wood) and not spec(g, 0, slot0(g, 0), other)
+
+
+def test_data_registrations_reject_duplicates(monkeypatch):
+    for name in ("STACK_ON", "MAX_COPIES", "MAMODO_ATTACK"):
+        monkeypatch.setattr(reg, name, dict(getattr(reg, name)))
+    monkeypatch.setattr(reg, "SPELL_ONLY_STACK", set(reg.SPELL_ONLY_STACK))
+    monkeypatch.setattr(reg, "DETACH_KEEP_UNDER", set(reg.DETACH_KEEP_UNDER))
+    reg.stack_on("T-960", base=("T-961",), spell_only=True, detach_keep_under=True)
+    assert reg.STACK_ON["T-960"] == {"T-961"}
+    assert "T-960" in reg.SPELL_ONLY_STACK and "T-960" in reg.DETACH_KEEP_UNDER
+    reg.max_copies("T-960", 2)
+    reg.mamodo_attack("T-960", mp_cost=1, power=5000, damage=2)
+    assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2}
+    for call in (lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
+                 lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):
+        with pytest.raises(ValueError):
+            call()

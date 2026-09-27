@@ -1,4 +1,5 @@
-"""卡片效果樹註冊檔:依卡號排序,每卡一個 reg.xxx(...),效果邏輯在 tree.py 的節點。
+"""卡片效果樹註冊檔:依卡號排序,每卡的登記集中一處(多個掛鉤各一個 reg.xxx(...) 且相鄰),
+效果邏輯在 tree.py 的節點。
 
 排版規則(讓巢狀層次一眼看得出來):
 - 第一行固定是 `reg.xxx("卡號", ...,`,方便依卡號掃描。
@@ -17,25 +18,27 @@ from ..state import (
 from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
-    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromBookPage,
+    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, All, Always, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner,
-    Bound, Choose, Coin, CoinWithPaidReflip, DamageBonusIfAttackTotalAtLeast,
+    Bound, CanUseSpellsWithAttr, Choose, Coin, CoinWithPaidReflip, DamageBonusIfAttackTotalAtLeast,
     DamageOpponentBookAndAllMamodo, DeployMamodoFromBook, DeployableMamodoInOwnBook,
-    DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
-    DiscardFromOpponentBookPayCost, DiscardOtherPartners, DiscardOwnMamodoByNumber, GainMp,
-    GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount,
-    HealFirstInjuredMamodo, HealSlot, IncreaseSelfDamage, LockChosenOpponentMamodo,
-    MakeAttackUndefendable, MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
-    Never, NextStartPhase, Nothing, OpponentBookCards, OpponentMamodo,
-    OpponentOpenPagesLackDefenseSpell, OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookCopiesOf,
-    OwnFieldHas, OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus,
-    OwnMpAtMost, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
-    PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard, PreventDamageToSelf,
-    ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers,
-    RestrictOpponent, RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
-    ScheduleNextSpellBonus, ScheduleNoProtectBookNextBattle, ScheduleSkipEndFlip, SelfHasPartner,
-    SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SideIs, SlotsForBookPartner,
-    StackFromBookOnto, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    DetachedFromSelf, DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
+    DiscardFromOpponentBook, DiscardFromOpponentBookPayCost, DiscardOtherPartners,
+    DiscardOwnMamodoByNumber, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions,
+    HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo, HealSlot, ImmuneToSpellDamageAtMost,
+    IncreaseSelfDamage, LockChosenOpponentMamodo, MakeAttackUndefendable,
+    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, Never, NextStartPhase,
+    Nothing, OpponentBookCards, OpponentMamodo, OpponentOpenPagesLackDefenseSpell,
+    OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookCopiesOf, OwnBookPartnerNamed,
+    OwnEarlierPages, OwnFieldHas, OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast,
+    OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages, OwnPartneredMamodo, PartnerDiscardedThisTurn,
+    PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard,
+    PreventDamageToSelf, ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    RestrictBothPlayers, RestrictOpponent, RevealOpponentBook, RobnosTransformMode,
+    ScheduleInjureInsteadNextWin, ScheduleNextSpellBonus, ScheduleNoProtectBookNextBattle,
+    ScheduleSkipEndFlip, SelfHasNoPartner, SelfHasPartner, SelfInBattleAs, SelfInjured,
+    SelfPowerBonus, Sequence, SideIs, SlotsForBookPartner, StackFromBookOnto, Standby,
+    SwapBookPages, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
     has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn,
     has_two_or_more_mamodo, opponent_has_mamodo, opponent_has_partner, opponent_then_self,
 )
@@ -206,14 +209,25 @@ reg.activated("M-005", mode="mp", mp_cost=2, timing="battle", condition=SelfInBa
 
 reg.on_play("M-006", effect=RestrictOpponent(flag=NO_SPELLS, duration=DUR_TURN))
 reg.on_play("M-007", effect=TurnPagesForward(leaves=1, target="opponent"))
+reg.stack_on("M-007", base=("M-006",))
 
 reg.activated("M-008", mode="declare", timing="nonbattle",
               effect=ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1))
 
 reg.on_discard("M-009", effect=GainMp(amount=4))
 
+reg.stack_on("M-010", base=("M-009",))
 reg.activated("M-010", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("defense"),
               effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
+
+reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True,
+              condition=HasOptions(OpponentBookCards("mamodo")), effect=Sequence(steps=(
+    RevealOpponentBook(),
+    Choose(
+        OpponentBookCards("mamodo"), bind="page", prompt="m011_pick",
+        then=DiscardFromOpponentBook(),
+    ),
+)))
 
 reg.activated("M-013", mode="mp", mp_cost=2, timing="battle", condition=SelfInjured(),
               effect=PreventDamageToSelf(duration=DUR_BATTLE))
@@ -222,6 +236,15 @@ reg.static_power("M-014", value=OwnMamodoPowerBonus(amount=1000, when=OwnMamodoA
 
 reg.activated("M-015", mode="mp", mp_cost=5, timing="battle",
               effect=PreventDamageToSelf(duration=DUR_BATTLE))
+
+reg.activated("M-016", mode="declare", timing="nonbattle", per_game=True,
+              condition=All(HasOptions(OwnOpenPages()), HasOptions(OwnEarlierPages())), effect=Choose(
+    OwnOpenPages(), bind="open", prompt="m016_open",
+    then=Choose(
+        OwnEarlierPages(), bind="earlier", prompt="m016_prev",
+        then=SwapBookPages(),
+    ),
+))
 
 reg.activated("M-017", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
               effect=AddPower(amount=2000, duration=DUR_BATTLE, target=Ref("self_slot")))
@@ -234,8 +257,39 @@ reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", effect=When(
 # M-019 的「令對手重擲」在擲幣確認鏈(primitives.flip_coins)中詢問,不由玩家主動宣告
 reg.activated("M-019", mode="declare", timing="any", condition=Never(), effect=Nothing())
 
+reg.activated("M-020", mode="mp", mp_cost=1, timing="nonbattle",
+              condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("大海恵"))), effect=Choose(
+    OwnBookPartnerNamed("大海恵"), bind="page", prompt="m020_pick",
+    then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
+))
+
+reg.activated("M-021", mode="mp", mp_cost=1, timing="nonbattle",
+              condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("窪塚泳太"))), effect=Choose(
+    OwnBookPartnerNamed("窪塚泳太"), bind="page", prompt="m021_pick",
+    then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
+))
+
+reg.activated("M-022", mode="mp", mp_cost=5, timing="nonbattle",
+              condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
+    OpponentPartneredMamodo(), bind="choice", prompt="m022_pick",
+    then=DiscardChosenPartner(),
+))
+
+reg.spell_compat("M-023", check=CanUseSpellsWithAttr("木"))
+reg.max_copies("M-024", 2)
+
+reg.stack_on("M-027", base=("M-028",), spell_only=True, detach_keep_under=True)
+reg.mamodo_attack("M-027", mp_cost=1, power=5000, damage=2)
+
+reg.trigger("M-028", "stack_detached", effect=When(
+    DetachedFromSelf("M-027"),
+    then=TurnPagesForward(leaves=2, target="opponent"),
+))
+
 reg.activated("M-030", mode="declare", timing="nonbattle", per_game=True, condition=OwnBookAtLastPage(),
               effect=ScheduleSkipEndFlip())
+
+reg.damage_immunity("M-031", check=ImmuneToSpellDamageAtMost(total=6000))
 
 # ================================================================ 術卡
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方

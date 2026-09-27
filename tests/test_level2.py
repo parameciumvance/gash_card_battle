@@ -1021,6 +1021,98 @@ def test_m030_skip_end_flip_on_last_page_once_per_game():
     assert e.value.code == "ability.per_game"
 
 
+def _use_ability(g, player, slot):
+    return submit(g, {"type": "use_field_ability", "player": player, "zone": "mamodo",
+                      "slot_uid": slot.uid})
+
+
+def test_m016_swap_open_page_with_earlier_page_once_per_game():
+    g, _ = mk(book("M-016", "E-003", "S-029", "E-004", "S-001"), book("M-001"))
+    ps = g.state.players[0]
+    to_battle(g, 0)
+    slot = ps.slots[0]
+    with pytest.raises(IllegalCommand) as e:                   # pos=2:沒有「之前的頁」
+        _use_ability(g, 0, slot)
+    assert e.value.code == "ability.condition"
+    ps.pos = 4                                                  # 翻開 4、5;之前頁為 2、3
+    _use_ability(g, 0, slot)
+    assert g.state.pending.kind == "m016_open"
+    assert [o["value"] for o in g.state.pending.options] == [4, 5]
+    submit(g, {"type": "choose", "player": 0, "value": 4})
+    assert g.state.pending.kind == "m016_prev"
+    assert [o["value"] for o in g.state.pending.options] == [2, 3]
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "choose", "player": 0, "value": 5})   # 不是之前的頁
+    submit(g, {"type": "choose", "player": 0, "value": 2})
+    assert (ps.card_at(2), ps.card_at(4)) == ("E-004", "E-003")
+    _end_turn(g)
+    _end_turn(g)
+    with pytest.raises(IllegalCommand) as e:
+        _use_ability(g, 0, slot)
+    assert e.value.code == "ability.per_game"
+
+
+def test_m022_discard_chosen_opponent_partner():
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-022"), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    slot = g.state.players[0].slots[0]
+    with pytest.raises(IllegalCommand) as e:                   # 對手沒有夥伴
+        _use_ability(g, 0, slot)
+    assert e.value.code == "ability.condition"
+    opp = g.state.players[1]
+    a = opp.slots[0]
+    a.partner = "P-001"
+    b = MamodoSlot(uid=g.state.next_uid(), stack=["M-004"], partner="P-002")
+    opp.slots.append(b)
+    _use_ability(g, 0, slot)
+    assert g.state.pending.kind == "m022_pick"
+    submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    assert b.partner is None and a.partner == "P-001" and "P-002" in opp.discard
+    assert g.state.players[0].mp == 10 - 5
+
+
+def test_m029_discards_injured_armor_and_m028_turns_attacker_pages():
+    # M-029:棄掉對手 1 隻負傷魔物。目標是疊著 M-027 的 M-028 → 只有裝甲入墓(本體留下),
+    # 觸發對手 M-028:「重なっているアーマー体が捨て札になったとき、相手の魔本を2枚めくる」
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-029"), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    slot = g.state.players[0].slots[0]
+    with pytest.raises(IllegalCommand) as e:                   # 對手沒有負傷魔物
+        _use_ability(g, 0, slot)
+    assert e.value.code == "ability.condition"
+    opp = g.state.players[1]
+    armored = MamodoSlot(uid=g.state.next_uid(), stack=["M-028", "M-027"], injured=True)
+    opp.slots.append(armored)
+    pos0 = g.state.players[0].pos
+    events = _use_ability(g, 0, slot)
+    assert armored in opp.slots and armored.stack == ["M-028"]
+    assert "M-027" in opp.discard
+    assert [e["type"] for e in events if e["type"] in ("stack_detached", "pages_turned")] == [
+        "stack_detached", "pages_turned"]
+    assert g.state.players[0].pos == pos0 + 4                   # 玩家 0 的魔本被翻 2 張
+
+
+@pytest.mark.parametrize("spell,immune", [("S-001", True), ("S-029", False)])
+def test_m031_immune_to_spell_damage_at_most_6000(spell, immune):
+    # 攻方 M-001(4000)+ S-001(+2000)= 6000 → 免疫;+ S-029(+3000)= 7000 → 受傷
+    g, _ = mk(book("M-001", spell), book("M-031"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    kyclops = g.state.players[1].slots[0]
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    _run_attack_to_damage(g, 0, 1)
+    assert g.state.pending.kind == "protect"
+    events = submit(g, {"type": "choose", "player": 1, "value": kyclops.uid})   # 以キクロプ保護魔本
+    prevented = [e for e in events if e["type"] == "damage_prevented" and e.get("reason") == "immunity"]
+    assert bool(prevented) is immune
+    assert kyclops.injured is (not immune)
+
+
 def test_full_regression_level1_deck_still_plays():
     """既有 level1 對局不受影響。"""
     from gash.engine.deck import load_deck

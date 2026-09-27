@@ -257,3 +257,31 @@ def damage_immunity(number: str, *, check=None):
 def spell_compat(number: str, *, check=None):
     """術相容性擴充查詢 fn(game, player, slot, spell_card) -> bool。"""
     return _value_hook(SPELL_COMPAT, number, "spell_compat", check)
+
+
+# ---------------------------------------------------------------- 純資料登記(不是效果)
+
+def stack_on(number: str, *, base, spell_only: bool = False, detach_keep_under: bool = False):
+    """number 為疊放魔物,可疊在 base(卡號組)上;spell_only=只能經卡片效果疊放;
+    detach_keep_under=單獨入墓時下層保留(發出 stack_detached)。"""
+    if number in STACK_ON:
+        raise ValueError(f"{number} 的 stack_on 已登記")
+    STACK_ON[number] = set(base)
+    if spell_only:
+        SPELL_ONLY_STACK.add(number)
+    if detach_keep_under:
+        DETACH_KEEP_UNDER.add(number)
+
+
+def max_copies(number: str, n: int):
+    """同名魔物同場上限(未登記 = 1)。"""
+    if number in MAX_COPIES:
+        raise ValueError(f"{number} 的 max_copies 已登記")
+    MAX_COPIES[number] = n
+
+
+def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
+    """無術攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
+    if number in MAMODO_ATTACK:
+        raise ValueError(f"{number} 的 mamodo_attack 已登記")
+    MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage}

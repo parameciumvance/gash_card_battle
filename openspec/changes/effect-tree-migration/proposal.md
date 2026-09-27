@@ -20,7 +20,7 @@
 (無)
 
 ### Modified Capabilities
-- `effect-tree`:「效果樹與既有註冊方式並存」補上逐批遷移的不變性;遷移過程新增的節點能力(Coin 由對手擲幣、付費重擲節點、以對手視角執行子樹、When 的 otherwise、rider 的 on_win / on_defense_damaged 樹入口、註冊檔逐卡一個呼叫的排版)寫成對應需求。
+- `effect-tree`:「效果樹與既有註冊方式並存」補上逐批遷移的不變性;遷移過程新增的節點能力(Coin 由對手擲幣、付費重擲節點、以對手視角執行子樹、When 的 otherwise、rider 的 on_win / on_defense_damaged 樹入口、註冊檔逐卡集中登記與排版)寫成對應需求。
 - `card-effects`:遷移中發現 E-018、E-027 的實作與日版效果文不一致(E-020 另有 MP 給錯人的 bug),經使用者同意依效果文修正;第二彈需求補上具體情境。
 
 ## Impact
