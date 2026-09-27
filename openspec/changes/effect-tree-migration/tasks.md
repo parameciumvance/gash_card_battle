@@ -90,25 +90,26 @@
 - [x] M-008 スギナ(activated) — `2b1be88`
 - [x] M-009 コルル(on_discard) — `2b1be88`
 - [x] M-010 コルル(変身後)(activated) — `2b1be88`
-- [ ] M-011 フェイン(activated)
+- [x] M-011 フェイン(activated) — `f87fc87`
 - [x] M-013 キャンチョメ(activated) — `2b1be88`
 - [x] M-014 ティオ(static_power) — `2b1be88`
 - [x] M-015 ティオ(activated) — `2b1be88`
-- [ ] M-016 ガッシュ・ベル(activated)
+- [x] M-016 ガッシュ・ベル(activated) — `f87fc87`
 - [x] M-017 ブラゴ(activated) — `2b1be88`
 - [x] M-018 ブラゴ(activated) — `2b1be88`
 - [x] M-019 キャンチョメ(activated) — `2b1be88`
-- [ ] M-020 ティオ(activated)
-- [ ] M-021 ハイド(activated)
-- [ ] M-022 ゾフィス(activated)
-- [ ] M-023 ポッケリオ(spell_compat)
-- [ ] M-025 ロブノス(完全体)(on_play)
-- [ ] M-026 マルス(activated)
-- [ ] M-027 バルトロ(アーマー体)(mamodo_attack)
-- [ ] M-028 バルトロ(本体)(trigger.stack_detached)
-- [ ] M-029 ゼオン(activated, spell_compat)
+- [x] M-020 ティオ(activated) — `f87fc87`
+- [x] M-021 ハイド(activated) — `f87fc87`
+- [x] M-022 ゾフィス(activated) — `f87fc87`
+- [x] M-023 ポッケリオ(spell_compat) — `f87fc87`
+- [x] M-025 ロブノス(完全体)(on_play) — `4e70210`(依效果文修正)
+- [ ] M-026 マルス(activated) — ジャマー效果,舊寫法與效果文差距大,待使用者決定做法(見 design.md 第 4 節)
+- [x] M-027 バルトロ(アーマー体)(mamodo_attack) — `f87fc87`
+- [x] M-028 バルトロ(本体)(trigger.stack_detached) — `f87fc87`
+- [x] M-029 ゼオン(activated, spell_compat) — `d995cc9`(依效果文修正)
 - [x] M-030 ヨポポ(activated) — `2b1be88`
-- [ ] M-031 キクロプ(damage_immunity)
+- [x] M-031 キクロプ(damage_immunity) — `f87fc87`
+另:M-024(`max_copies` 與「二身一体」)原本不在清單中(盤點時只看效果掛鉤),`f87fc87` 移入資料登記、`29e77c0` 補上原本缺漏的「二身一体」效果。
 
 ## 5. 夥伴卡(partners.py)19 卡
 
