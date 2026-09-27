@@ -17,8 +17,8 @@ from ..cards import PARTNER
 from ..state import DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
-    add_modifier, add_power, add_restriction, flip_coins, heal_slot, schedule_standby,
-    turn_back_pages, turn_pages,
+    add_modifier, add_power, add_restriction, discard_partner, flip_coins, heal_slot,
+    schedule_standby, turn_back_pages, turn_pages,
 )
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
@@ -187,6 +187,22 @@ class PartnerDiscardedThisTurn:
         from ..engine import IllegalCommand
         if not any(t["value"] == value for t in self._targets(game, ctx["player"])):
             raise IllegalCommand("choose.invalid", "須選擇可放回的夥伴")
+
+
+@dataclass(frozen=True)
+class OpponentPartneredMamodo:
+    """對手場上裝有夥伴的魔物;以 slot UID 作為選項值,顯示的卡為其夥伴。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = 1 - ctx["player"]
+        return [{"value": s.uid, "card": s.partner}
+                for s in game.state.players[opp].slots if s.partner]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
+        if slot is None or not slot.partner:
+            raise IllegalCommand("choose.invalid", "須選擇對手場上的夥伴卡")
 
 
 @dataclass(frozen=True)
@@ -497,6 +513,75 @@ class AttachPartnerFromDiscard(Effect):
         slot.partner = number
         game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                   zone="partner", from_discard=True)
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardChosenPartner(Effect):
+    """棄掉 Choose(OpponentPartneredMamodo()) 選中魔物身上的夥伴卡(S-039)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        opp = 1 - ctx["player"]
+        slot = rt.game.state.slot_by_uid(opp, ctx[self.target.name])
+        if slot is None or not slot.partner:
+            return True
+        discard_partner(rt.game, rt.batch, opp, slot, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class AddPowerToAllOpponentMamodo(Effect):
+    """對手場上每一隻魔物各加一筆魔力 modifier(S-033:-2000)。"""
+    amount: int = 0
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        opp = 1 - player
+        for s in rt.game.state.players[opp].slots:
+            add_modifier(rt.game, rt.batch, kind="power", source=ctx["source"], owner=player,
+                         duration=self.duration, target_player=opp, target_slot=s.uid,
+                         amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class MarkInjuredMamodoDiscarded(Effect):
+    """本場戰鬥中,因此術負傷的魔物直接入墓而非負傷(S-031)。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["injure_to_discard"] = True
+        return True
+
+
+@dataclass(frozen=True)
+class AddDefenseSelfBonus(Effect):
+    """以此術防禦時魔力加值(S-016)。事件 source 沿用遷移前的 "defense_bonus"。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.data["defense_self_bonus"] = battle.data.get("defense_self_bonus", 0) + self.amount
+        rt.game.emit(rt.batch, "effect_applied", source="defense_bonus", amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class AddAttackSelfBonus(Effect):
+    """以此術攻擊時魔力加值(S-017)。事件 source 沿用遷移前的 "attack_bonus"。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + self.amount
+        rt.game.emit(rt.batch, "effect_applied", source="attack_bonus", amount=self.amount)
         return True
 
 

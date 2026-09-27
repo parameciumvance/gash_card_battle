@@ -587,3 +587,67 @@ def test_attach_partner_from_discard_stale_choice_is_noop():
     g = game()
     batch = run(g, tree.AttachPartnerFromDiscard(), choice=0)   # 棄牌堆是空的
     assert batch == []
+
+
+# ================================================================ 術卡第二批節點(S-016/S-017/S-031/S-033/S-039)
+
+def test_add_defense_self_bonus_keeps_legacy_event_source():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.AddDefenseSelfBonus(amount=1000))
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "defense_bonus", "amount": 1000}]
+    assert g.state.battle.data["defense_self_bonus"] == 1000
+
+
+def test_add_attack_self_bonus_keeps_legacy_event_source():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.AddAttackSelfBonus(amount=2000))
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "attack_bonus", "amount": 2000}]
+    assert g.state.battle.data["attack_spell_bonus"] == 2000
+
+
+def test_self_bonus_nodes_without_battle_are_noop():
+    g = game()
+    assert run(g, tree.AddDefenseSelfBonus(amount=1000)) == []
+    assert run(g, tree.AddAttackSelfBonus(amount=2000)) == []
+
+
+def test_mark_injured_mamodo_discarded_sets_flag_without_event():
+    g = game()
+    start_battle_for_leaf_test(g)
+    assert run(g, tree.MarkInjuredMamodoDiscarded()) == []
+    assert g.state.battle.data["injure_to_discard"] is True
+
+
+def test_add_power_to_all_opponent_mamodo_one_modifier_per_slot():
+    from gash.engine.state import DUR_UNTIL_END_NEXT_TURN
+    g = game()
+    extra = give(g, 1, "M-002")
+    batch = run(g, tree.AddPowerToAllOpponentMamodo(amount=-2000, duration=DUR_UNTIL_END_NEXT_TURN))
+    assert [e["type"] for e in batch] == ["modifier_added", "modifier_added"]
+    mods = g.state.modifiers
+    assert sorted(m.target_slot for m in mods) == sorted([slot0(g, 1).uid, extra.uid])
+    assert all((m.kind, m.owner, m.target_player, m.amount, m.source)
+               == ("power", 0, 1, -2000, "T-000") for m in mods)
+
+
+def test_opponent_partnered_mamodo_options_and_validate():
+    g = game()
+    assert tree.OpponentPartneredMamodo().options(g, {"player": 0}) == []
+    target = slot0(g, 1)
+    target.partner = "P-001"
+    spec = tree.OpponentPartneredMamodo()
+    assert spec.options(g, {"player": 0}) == [{"value": target.uid, "card": "P-001"}]
+    spec.validate(g, {"player": 0}, target.uid)
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, slot0(g, 0).uid)   # 自己的魔物不是合法目標
+
+
+def test_discard_chosen_partner_and_stale_target_noop():
+    g = game()
+    target = slot0(g, 1)
+    target.partner = "P-001"
+    run(g, tree.DiscardChosenPartner(), choice=target.uid)
+    assert target.partner is None and "P-001" in g.state.players[1].discard
+    assert run(g, tree.DiscardChosenPartner(), choice=target.uid) == []   # 已無夥伴:無效果

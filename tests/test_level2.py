@@ -540,6 +540,102 @@ def test_s042_no_bonus_below_8000_power():
     assert g.state.players[1].pos == pos1 + 2 * 1  # 合計 6000 < 8000,傷害維持 1
 
 
+def _attack_until_damage(g, page=2):
+    """玩家 0 以第 page 頁的術攻擊,對手不防禦,雙方 pass 到傷害階段。"""
+    submit(g, {"type": "declare_attack", "player": 0, "page": page})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+
+
+def test_s030_counter_damages_attacker_book():
+    b0 = book("M-001", "S-029")
+    b1 = book("M-001", "S-030")
+    g, tp = mk(b0, b1)
+    g.state.players[0].mp = 10
+    g.state.players[1].mp = 10
+    to_battle(g, 0)
+    pos0 = g.state.players[0].pos
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    # 反擊:防方獲勝時對攻方魔本造成傷害(攻方可保護)
+    assert g.state.pending is not None and g.state.pending.kind == "protect"
+    assert g.state.pending.player == 0
+    submit(g, {"type": "choose", "player": 0, "value": None})
+    assert g.state.players[0].pos == pos0 + 2 * 1
+
+
+def test_s031_protecting_mamodo_goes_to_discard():
+    b0 = book("M-001", "S-031")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    protector = g.state.players[1].slots[0]
+    _attack_until_damage(g)
+    assert g.state.pending.kind == "protect"
+    submit(g, {"type": "choose", "player": 1, "value": protector.uid})  # 以魔物保護魔本
+    assert protector not in g.state.players[1].slots          # 直接入墓,不是負傷
+    assert "M-001" in g.state.players[1].discard
+
+
+def test_s033_weakens_all_opponent_mamodo_after_damage():
+    from gash.engine.state import MamodoSlot
+    b0 = book("M-005", "S-033")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    opp = g.state.players[1]
+    opp.slots.append(MamodoSlot(uid=g.state.next_uid(), stack=["M-002"]))
+    to_battle(g, 0)
+    _attack_until_damage(g)
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    mods = [m for m in g.state.modifiers if m.source == "S-033"]
+    assert sorted(m.target_slot for m in mods) == sorted(s.uid for s in opp.slots)
+    assert all(m.kind == "power" and m.amount == -2000 and m.owner == 0
+               and m.target_player == 1 for m in mods)
+
+
+def test_s038_full_immune_after_damage():
+    b0 = book("M-021", "S-038")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    _attack_until_damage(g)
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert any(m.kind == "full_immune" and m.owner == 0 and m.target_player == 0
+               for m in g.state.modifiers)
+
+
+def test_s039_discards_opponent_partner_after_damage():
+    b0 = book("M-022", "S-039")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    target = g.state.players[1].slots[0]
+    target.partner = "P-001"
+    to_battle(g, 0)
+    _attack_until_damage(g)
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert target.partner is None                 # 唯一目標自動棄掉
+    assert "P-001" in g.state.players[1].discard
+
+
+def test_s039_no_partner_no_effect():
+    b0 = book("M-022", "S-039")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    _attack_until_damage(g)
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert g.state.pending is None
+
+
 def test_s035_two_heads_no_protect():
     b0 = book("M-005", "S-035")
     g, tp = mk(b0, book("M-001"))

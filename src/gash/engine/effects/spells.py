@@ -5,63 +5,9 @@
 
 from __future__ import annotations
 
-from ..state import DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
 from . import registry as reg
-from .primitives import (
-    add_modifier, add_restriction, choose_or_auto, discard_partner,
-    play_mamodo_from_book, schedule_standby, take_from_book,
-)
+from .primitives import play_mamodo_from_book, schedule_standby, take_from_book
 
-
-# ---- S-003 ラシルド:【反擊】防禦方獲勝時對對手魔本造成傷害
-reg.spell_rider("S-003", counter=True)
-
-
-# ---- 傷害後禁術(必定):S-009 グラビレイ / S-011 アイアン・グラビレイ
-def _lock_spells(number):
-    def on_damage(game, batch, player):
-        add_restriction(game, batch, source=number, owner=player,
-                        target_player=1 - player, flag=NO_SPELLS,
-                        duration=DUR_UNTIL_END_NEXT_TURN)
-    return on_damage
-
-
-reg.spell_rider("S-009", on_damage=_lock_spells("S-009"))
-reg.spell_rider("S-011", on_damage=_lock_spells("S-011"))
-
-
-# ---- S-007 フリズド:傷害後,對手夥伴效果失效(至其下回合結束階段)
-def _s007_on_damage(game, batch, player):
-    add_restriction(game, batch, source="S-007", owner=player,
-                    target_player=1 - player, flag=NO_PARTNER_EFFECTS,
-                    duration=DUR_UNTIL_END_NEXT_TURN)
-
-
-reg.spell_rider("S-007", on_damage=_s007_on_damage)
-
-
-# ---- S-016 ゼルク:以此術防禦時魔力加值
-def _defense_self_bonus(amount):
-    def on_declare(game, batch, player, side):
-        if side == "defense":
-            b = game.state.battle
-            b.data["defense_self_bonus"] = b.data.get("defense_self_bonus", 0) + amount
-            game.emit(batch, "effect_applied", source="defense_bonus", amount=amount)
-    return on_declare
-
-
-# ---- S-017 ゼルセン:以此術攻擊時魔力加值(重用攻擊方通用的 attack_spell_bonus 累加欄位)
-def _attack_self_bonus(amount):
-    def on_declare(game, batch, player, side):
-        if side == "attack":
-            b = game.state.battle
-            b.data["attack_spell_bonus"] = b.data.get("attack_spell_bonus", 0) + amount
-            game.emit(batch, "effect_applied", source="attack_bonus", amount=amount)
-    return on_declare
-
-
-reg.spell_rider("S-016", on_declare=_defense_self_bonus(1000))
-reg.spell_rider("S-017", on_declare=_attack_self_bonus(2000))
 
 
 # ---- S-019 ウルク:攻擊獲勝時,[待命] 本回合下一次攻擊不可被防禦(無魔本傷害)
@@ -90,36 +36,6 @@ reg.spell_rider("S-020", on_win=_s020_on_win, no_book_damage=True)
 # S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
 # ======================================================================
 
-# ---- S-030 ラシルド:【反擊】防禦方獲勝時對對手魔本造成傷害(傷害 1)
-reg.spell_rider("S-030", counter=True)
-
-
-# ---- S-031 バオウ・ザケルガ:因此術負傷的魔物直接入墓
-def _s031_on_declare(game, batch, player, side):
-    if side == "attack" and game.state.battle is not None:
-        game.state.battle.data["injure_to_discard"] = True
-
-
-reg.spell_rider("S-031", on_declare=_s031_on_declare)
-
-
-# ---- S-032 レイス / S-034 ギガノ・レイス:傷害上限
-reg.spell_rider("S-032", damage_cap=3)
-reg.spell_rider("S-034", damage_cap=4)
-
-
-# ---- S-033 グラビレイ:造成傷害/負傷時,對手場上所有魔物 -2000(至對手下個結束階段)
-def _s033_on_damage(game, batch, player):
-    opp = 1 - player
-    for s in game.state.players[opp].slots:
-        add_modifier(game, batch, kind="power", source="S-033", owner=player,
-                     duration=DUR_UNTIL_END_NEXT_TURN, target_player=opp,
-                     target_slot=s.uid, amount=-2000)
-
-
-reg.spell_rider("S-033", on_damage=_s033_on_damage)
-
-
 # ---- S-036 ディオガ・グラビドン:獲勝時對防方魔本與場上所有魔物造成傷害
 def _s036_on_win(game, batch, player):
     from ..engine import _attack_damage_amount, _start_damage
@@ -137,42 +53,6 @@ def _s036_on_win(game, batch, player):
 
 
 reg.spell_rider("S-036", on_win=_s036_on_win, on_win_owns_damage=True)
-
-
-# ---- 自身免疫(至對手下個結束階段):S-038(必定)
-def _grant_full_immune(game, batch, player, source):
-    add_modifier(game, batch, kind="full_immune", source=source, owner=player,
-                 duration=DUR_UNTIL_END_NEXT_TURN, target_player=player)
-
-
-def _s038_on_damage(game, batch, player):
-    _grant_full_immune(game, batch, player, "S-038")
-
-
-reg.spell_rider("S-038", on_damage=_s038_on_damage)
-
-
-# ---- S-039 ラドム:造成傷害/負傷時,棄掉對手 1 張夥伴卡
-def _s039_on_damage(game, batch, player):
-    opp = game.state.players[1 - player]
-    options = [{"value": x.uid, "card": x.partner} for x in opp.slots if x.partner]
-    if not options:
-        return
-    choose_or_auto(game, batch, kind="s039_pick", player=player, options=options,
-                   data={"player": player}, source="S-039")
-
-
-@reg.choice_resolver("s039_pick")
-def s039_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    slot = game.state.slot_by_uid(1 - player, value if isinstance(value, int) else -1)
-    if slot is None or not slot.partner:
-        raise IllegalCommand("choose.invalid", "須選擇對手場上的夥伴卡")
-    discard_partner(game, batch, 1 - player, slot, "S-039")
-
-
-reg.spell_rider("S-039", on_damage=_s039_on_damage)
 
 
 # ---- S-043 レイ・ブルク(非戰鬥術):羅布諾斯雙向轉換
@@ -293,10 +173,6 @@ def _s056_on_defense_damaged(game, batch, defender, amount):
 
 
 reg.spell_rider("S-056", on_defense_damaged=_s056_on_defense_damaged)
-
-
-# ---- S-058 ザケル(ゼオン):獲勝時使對手 1 隻魔物負傷代替魔本傷害
-reg.spell_rider("S-058", injure_instead=True)
 
 
 # ---- S-042 ビライツ:攻擊時,自身合計魔力 8000 以上 → 此術傷害 +2
