@@ -6,53 +6,12 @@
 from __future__ import annotations
 
 from . import registry as reg
-from .primitives import play_mamodo_from_book, schedule_standby, take_from_book
+from .primitives import play_mamodo_from_book, take_from_book
 
-
-
-# ---- S-019 ウルク:攻擊獲勝時,[待命] 本回合下一次攻擊不可被防禦(無魔本傷害)
-def _s019_on_win(game, batch, player):
-    schedule_standby(game, batch, kind="attack_undefendable", source="S-019", owner=player)
-
-
-reg.spell_rider("S-019", on_win=_s019_on_win, no_book_damage=True)
-
-
-# ---- S-020 ポルク:攻擊獲勝時對手 MP-3(無魔本傷害)
-def _s020_on_win(game, batch, player):
-    from .primitives import reduce_mp
-    reduce_mp(game, batch, 1 - player, 3, "S-020")
-
-
-reg.spell_rider("S-020", on_win=_s020_on_win, no_book_damage=True)
-
-
-# ---- S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:
-#      防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方效果不解決,無需額外處理(純資料驅動)
-
-
-# ======================================================================
-# Level 2 術卡(S-029~S-058)。純香草(攻/防獲勝→魔本傷害)不需 handler:
+# S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
+# 效果不解決,無需額外處理(純資料驅動)。Level 2 純香草術卡(攻/防獲勝→魔本傷害)同樣不需註冊:
 # S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
-# ======================================================================
-
-# ---- S-036 ディオガ・グラビドン:獲勝時對防方魔本與場上所有魔物造成傷害
-def _s036_on_win(game, batch, player):
-    from ..engine import _attack_damage_amount, _start_damage
-    opp = 1 - player
-    battle = game.state.battle
-    amount = _attack_damage_amount(game, battle)
-    items = []
-    if amount > 0:
-        items.append({"kind": "book", "player": opp, "amount": amount})
-    items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
-              for s in list(game.state.players[opp].slots)]
-    _start_damage(game, batch, items,
-                  {"cause": "battle_attack", "source": battle.attack_spell,
-                   "source_player": player, "amount": amount})
-
-
-reg.spell_rider("S-036", on_win=_s036_on_win, on_win_owns_damage=True)
+# 其餘已遷移的術卡見 tree_cards.py;本檔只剩尚未遷移的 S-043 / S-048(待「書內選頁」節點)。
 
 
 # ---- S-043 レイ・ブルク(非戰鬥術):羅布諾斯雙向轉換
@@ -166,15 +125,3 @@ def s048_place(game, batch, value, data):
               zone="mamodo", stacked=True, from_book=True)
 
 
-# ---- S-056 しっかりしろ!:防禦獲勝→無效攻擊(自動);被造成傷害→ MP = 2×傷害
-def _s056_on_defense_damaged(game, batch, defender, amount):
-    from ..engine import gain_mp
-    gain_mp(game, batch, defender, 2 * amount, "S-056")
-
-
-reg.spell_rider("S-056", on_defense_damaged=_s056_on_defense_damaged)
-
-
-# ---- S-042 ビライツ:攻擊時,自身合計魔力 8000 以上 → 此術傷害 +2
-reg.spell_rider("S-042", damage_bonus=lambda game, battle: (
-    2 if battle.data.get("attack_total", 0) >= 8000 else 0))

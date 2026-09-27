@@ -651,3 +651,54 @@ def test_discard_chosen_partner_and_stale_target_noop():
     run(g, tree.DiscardChosenPartner(), choice=target.uid)
     assert target.partner is None and "P-001" in g.state.players[1].discard
     assert run(g, tree.DiscardChosenPartner(), choice=target.uid) == []   # 已無夥伴:無效果
+
+
+# ================================================================ rider 新掛鉤(on_win / on_defense_damaged)與 damage_bonus
+
+def test_reduce_opponent_mp_floors_at_zero():
+    g = game()
+    g.state.players[1].mp = 2
+    batch = run(g, tree.ReduceOpponentMp(amount=3))
+    assert g.state.players[1].mp == 0
+    assert [e["type"] for e in batch] == ["mp_changed"]
+
+
+def test_gain_mp_per_damage_scales_and_zero_is_silent():
+    g = game()
+    g.state.players[0].mp = 0
+    run(g, tree.GainMpPerDamage(per_point=2), amount=3)
+    assert g.state.players[0].mp == 6
+    assert run(g, tree.GainMpPerDamage(per_point=2), amount=0) == []
+
+
+def test_damage_bonus_spec_threshold():
+    from types import SimpleNamespace
+    spec = tree.DamageBonusIfAttackTotalAtLeast(threshold=8000, bonus=2)
+    assert spec(None, SimpleNamespace(data={"attack_total": 8000})) == 2
+    assert spec(None, SimpleNamespace(data={"attack_total": 7999})) == 0
+    assert spec(None, SimpleNamespace(data={})) == 0
+    with pytest.raises(FrozenInstanceError):
+        spec.bonus = 3
+
+
+def test_rider_on_win_and_on_defense_damaged_accept_trees():
+    reg.spell_rider("T-920", on_win=Record("WIN"), on_defense_damaged=Record("HURT", "amount"))
+    rider = reg.SPELL_RIDERS["T-920"]
+    g = game()
+    rider.on_win(g, [], 0)
+    rider.on_defense_damaged(g, [], 1, 3)
+    assert LOG == ["WIN", ("HURT", 3)]
+    assert {("T-920", "rider.on_win"), ("T-920", "rider.on_defense_damaged")} <= tree.TREE_HOOKS
+
+
+def test_rider_hook_rejects_unsupported_hook_name():
+    with pytest.raises(ValueError, match="不支援效果樹"):
+        tree.rider_hook("T-921", "damage_bonus", Nothing())
+    assert ("T-921", "rider.damage_bonus") not in tree.TREE_HOOKS
+
+
+def test_spell_rider_rejects_tree_in_non_effect_field_without_partial_state():
+    before = snapshot()
+    with pytest.raises(ValueError, match="不是效果掛鉤"):
+        reg.spell_rider("T-922", on_damage=Nothing(), damage_bonus=Nothing())
+    assert snapshot() == before and "T-922" not in reg.SPELL_RIDERS

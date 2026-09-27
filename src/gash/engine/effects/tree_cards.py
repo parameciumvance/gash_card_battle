@@ -15,10 +15,12 @@ from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard, Choose,
-    Coin, DisableBookProtection, DiscardChosenPartner, GainMpPerHeads, GrantFullImmune,
+    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DisableBookProtection,
+    DiscardChosenPartner, GainMpPerDamage, GainMpPerHeads, GrantFullImmune,
     HeadsAtLeast, HeadsCount, HealSlot, MakeAttackUndefendable, MakeNextAttackUndefendable,
     MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, OpponentPartneredMamodo, OwnMamodo,
-    PartnerDiscardedThisTurn, Ref, RestrictOpponent, ScheduleInjureInsteadNextWin, SideIs, Standby,
+    PartnerDiscardedThisTurn, ReduceOpponentMp, Ref, RestrictOpponent, ScheduleInjureInsteadNextWin,
+    SideIs, Standby,
     TurnPagesBack, TurnPagesForward, When, has_own_mamodo, has_partner_discarded_this_turn,
 )
 
@@ -96,6 +98,9 @@ reg.spell_rider("S-017", on_declare=When(
     then=AddAttackSelfBonus(amount=2000),
 ))
 
+reg.spell_rider("S-019", on_win=MakeNextAttackUndefendable(), no_book_damage=True)
+reg.spell_rider("S-020", on_win=ReduceOpponentMp(amount=3), no_book_damage=True)
+
 reg.spell_rider("S-021", on_declare=When(
     SideIs("defense"),
     then=Coin(
@@ -144,6 +149,8 @@ reg.spell_rider("S-035", on_declare=When(
     ),
 ))
 
+reg.spell_rider("S-036", on_win=DamageOpponentBookAndAllMamodo(), on_win_owns_damage=True)
+
 reg.spell_rider("S-037", on_damage=Coin(
     count=1, on=HeadsAtLeast(1),
     then=GrantFullImmune(),
@@ -169,6 +176,8 @@ reg.spell_nonbattle("S-041", effect=Coin(
     then=GrantFullImmune(),
 ))
 
+reg.spell_rider("S-042", damage_bonus=DamageBonusIfAttackTotalAtLeast(threshold=8000, bonus=2))
+
 reg.spell_rider("S-045", on_declare=When(
     SideIs("attack"),
     then=Coin(
@@ -184,6 +193,8 @@ reg.spell_rider("S-046", on_declare=When(
         then=MakeAttackUndefendable(),
     ),
 ))
+
+reg.spell_rider("S-056", on_defense_damaged=GainMpPerDamage(per_point=2))
 
 reg.spell_nonbattle("S-057", effect=Coin(
     count=1, on=HeadsAtLeast(1),

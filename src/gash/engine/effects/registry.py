@@ -150,12 +150,17 @@ def event(number: str, condition: Callable | None = None, *, effect=None, when: 
 def spell_rider(number: str, **kwargs):
     """術卡附加效果,每張卡只能註冊一次(整筆記錄,不做部分更新)。
 
-    on_declare / on_damage 可傳可呼叫物件或效果樹。任何檢查失敗時,註冊表保持不變。
+    on_declare / on_damage / on_win / on_defense_damaged 可傳可呼叫物件或效果樹。
+    任何檢查失敗時,註冊表保持不變。
     """
     from . import tree
     if number in SPELL_RIDERS:
         raise ValueError(f"{number} 的術卡附加效果已註冊,每張卡只能註冊一次")
-    trees = {h: kwargs[h] for h in ("on_declare", "on_damage")
+    misplaced = [k for k, v in kwargs.items()
+                 if isinstance(v, tree.Effect) and k not in tree.RIDER_TREE_HOOKS]
+    if misplaced:
+        raise ValueError(f"{number} 的 {', '.join(misplaced)} 不是效果掛鉤,不能傳效果樹")
+    trees = {h: kwargs[h] for h in tree.RIDER_TREE_HOOKS
              if isinstance(kwargs.get(h), tree.Effect)}
     for hook, root in trees.items():        # 先驗證樹與掛鉤是否被佔用
         tree.validate_tree(root)

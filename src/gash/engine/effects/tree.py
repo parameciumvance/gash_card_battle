@@ -18,7 +18,7 @@ from ..state import DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, discard_partner, flip_coins, heal_slot,
-    schedule_standby, turn_back_pages, turn_pages,
+    reduce_mp, schedule_standby, turn_back_pages, turn_pages,
 )
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
@@ -26,6 +26,9 @@ RESERVED_KINDS = frozenset({
     "protect", "damage_order", "deploy_page", "injure_instead_target",
     "coin_confirm", "opp_coin_redo",
 })
+
+# SpellRider 中可以傳效果樹的掛鉤(其餘欄位是旗標或數值查詢,不是效果)
+RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged")
 
 CHOICE_KEY = "tree_choice"   # Choose 建立的 pending:引擎只依此鍵把回應交給 resume
 CONT_KEY = "tree_cont"       # Coin / Standby 的 callback payload,只由 effect_tree_resume 讀取
@@ -596,6 +599,67 @@ class AddAttackSelfBonus(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class ReduceOpponentMp(Effect):
+    """對手 MP 減少(不足額時歸 0)(S-020)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        reduce_mp(rt.game, rt.batch, 1 - ctx["player"], self.amount, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class GainMpPerDamage(Effect):
+    """依 ctx["amount"](本次受到的傷害 = 翻頁數)為自己增加 MP(S-056:每點 +2)。"""
+    per_point: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        gain_mp(rt.game, rt.batch, ctx["player"], ctx["amount"] * self.per_point, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class DamageOpponentBookAndAllMamodo(Effect):
+    """獲勝時接管傷害流程:對防方魔本造成本術傷害,並對其場上每隻魔物各造成 1 點傷害(S-036)。
+
+    須搭配 SpellRider 的 on_win_owns_damage=True,引擎才不會再走預設的魔本傷害。
+    傷害流程可能進入引擎自己的 pending(保護 / 順序),那是引擎的停點,不是效果樹的停點。
+    """
+
+    def run(self, rt, ctx, path):
+        from ..engine import _attack_damage_amount, _start_damage
+        game = rt.game
+        player = ctx["player"]
+        opp = 1 - player
+        battle = game.state.battle
+        amount = _attack_damage_amount(game, battle)
+        items = []
+        if amount > 0:
+            items.append({"kind": "book", "player": opp, "amount": amount})
+        items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
+                  for s in list(game.state.players[opp].slots)]
+        _start_damage(game, rt.batch, items,
+                      {"cause": "battle_attack", "source": battle.attack_spell,
+                       "source_player": player, "amount": amount})
+        return True
+
+
+# ================================================================ 數值查詢(SpellRider.damage_bonus 等)
+# 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
+# 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
+
+@dataclass(frozen=True)
+class DamageBonusIfAttackTotalAtLeast:
+    """攻方合計魔力達 threshold 以上時,此術傷害 +bonus(S-042)。簽名 fn(game, battle) -> int。"""
+    threshold: int = 0
+    bonus: int = 0
+
+    def __call__(self, game, battle) -> int:
+        return self.bonus if battle.data.get("attack_total", 0) >= self.threshold else 0
+
+
 # ================================================================ 直譯器
 
 def node_at(root: Effect, path) -> Effect:
@@ -692,13 +756,24 @@ def register_spell_nonbattle(number: str, tree: Effect):
 
 
 def rider_hook(number: str, hook: str, tree: Effect):
-    """hook: "on_damage" 或 "on_declare"。呼叫前須已由 spell_rider 確認該卡尚未註冊 rider。"""
+    """hook 為 RIDER_TREE_HOOKS 之一。呼叫前須已由 spell_rider 確認該卡尚未註冊 rider。
+
+    各掛鉤沿用引擎原本的呼叫簽名,多出來的參數寫進 ctx:
+    on_declare(player, side) → ctx["side"];on_defense_damaged(defender, amount) → ctx["amount"]。
+    """
+    if hook not in RIDER_TREE_HOOKS:
+        raise ValueError(f"rider 掛鉤 {hook!r} 不支援效果樹")
     effect_id = _install(number, f"rider.{hook}", tree)
     if hook == "on_declare":
         def on_declare(game, batch, player, side):
             run_effect(game, batch, effect_id, {"player": player, "side": side, "source": number})
         return on_declare
+    if hook == "on_defense_damaged":
+        def on_defense_damaged(game, batch, defender, amount):
+            run_effect(game, batch, effect_id,
+                       {"player": defender, "amount": amount, "source": number})
+        return on_defense_damaged
 
-    def on_damage(game, batch, player):
+    def handler(game, batch, player):     # on_damage / on_win
         run_effect(game, batch, effect_id, {"player": player, "source": number})
-    return on_damage
+    return handler

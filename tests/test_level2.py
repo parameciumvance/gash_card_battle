@@ -636,6 +636,43 @@ def test_s039_no_partner_no_effect():
     assert g.state.pending is None
 
 
+def _s056_battle(defender_bonus=0):
+    """玩家 0 以 S-029 攻擊;玩家 1 以 S-056(指示術,MP 0)防禦,雙方 pass 到魔力勝負。"""
+    from gash.engine.effects.primitives import add_power
+    from gash.engine.state import DUR_TURN
+    g, tp = mk(book("M-001", "S-029"), book("M-001", "S-056"))
+    g.state.players[0].mp = 10
+    g.state.players[1].mp = 0
+    if defender_bonus:
+        d = g.state.players[1].slots[0]
+        add_power(g, [], source="test", owner=1, target_player=1, target_slot=d.uid,
+                  amount=defender_bonus, duration=DUR_TURN)
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2,
+               "slot_uid": g.state.players[1].slots[0].uid})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    return g
+
+
+def test_s056_defender_damaged_gains_mp_per_page():
+    g = _s056_battle()                          # 4000+3000 > 4000+0 → 攻方勝
+    pos1 = g.state.players[1].pos
+    assert g.state.pending is not None and g.state.pending.kind == "protect"
+    submit(g, {"type": "choose", "player": 1, "value": None})   # 不保護,魔本受傷
+    pages = (g.state.players[1].pos - pos1) // 2
+    assert pages > 0
+    assert g.state.players[1].mp == 2 * pages
+
+
+def test_s056_defense_wins_no_damage_no_mp():
+    g = _s056_battle(defender_bonus=5000)      # 4000+3000 < 9000+0 → 防方勝,攻擊無效
+    assert g.state.pending is None and g.state.battle is None   # 戰鬥已結束,沒有傷害
+    assert g.state.players[1].mp == 0
+
+
 def test_s035_two_heads_no_protect():
     b0 = book("M-005", "S-035")
     g, tp = mk(b0, book("M-001"))
