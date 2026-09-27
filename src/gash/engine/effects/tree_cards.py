@@ -6,13 +6,13 @@
   AsOpponent,以及 opponent_then_self(...))一律換行,子節點縮排一層;
   該容器的收尾括號獨立一行,與開頭對齊。
 - 沒有子節點的葉節點、條件、選項規格寫在同一行。
-- 整張卡只有一個葉節點(或只有旗標)時,整個註冊寫成一行。
+- 整張卡只有一個葉節點(或只有旗標 / 查詢規格)時,整個註冊寫成一行;參數太長時續行對齊。
 
 只有旗標、沒有邏輯的術卡(如 counter / damage_cap / injure_instead)也一併列在這裡,讓註冊集中。
 """
 
 from ..state import (
-    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
+    DUR_BATTLE, DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
 )
 from . import registry as reg
 from .tree import (
@@ -24,17 +24,20 @@ from .tree import (
     DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, DiscardOwnMamodoByNumber, GainMp,
     GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount,
-    HealFirstInjuredMamodo, HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable,
-    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase,
-    OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas,
-    OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
-    PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard,
+    HealFirstInjuredMamodo, HealSlot, IncreaseSelfDamage, LockChosenOpponentMamodo,
+    MakeAttackUndefendable, MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
+    Never, NextStartPhase, Nothing, OpponentBookCards, OpponentMamodo,
+    OpponentOpenPagesLackDefenseSpell, OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookCopiesOf,
+    OwnFieldHas, OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus,
+    OwnMpAtMost, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
+    PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard, PreventDamageToSelf,
     ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers,
     RestrictOpponent, RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
-    ScheduleNoProtectBookNextBattle, Sequence, SideIs, SlotsForBookPartner, StackFromBookOnto,
-    Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
-    has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
-    opponent_has_partner, opponent_then_self,
+    ScheduleNextSpellBonus, ScheduleNoProtectBookNextBattle, ScheduleSkipEndFlip, SelfHasPartner,
+    SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SideIs, SlotsForBookPartner,
+    StackFromBookOnto, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn,
+    has_two_or_more_mamodo, opponent_has_mamodo, opponent_has_partner, opponent_then_self,
 )
 
 # ================================================================ 事件卡
@@ -183,6 +186,56 @@ reg.event("E-027", effect=opponent_then_self(When(
         ),
     ),
 )))
+
+# ================================================================ 魔物卡
+# activated 的 mode / mp_cost / timing / per_game / condition 由引擎檢查,effect 只描述效果本身。
+
+reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("attack"),
+              effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
+
+reg.start_phase("M-002", effect=When(
+    OwnMpAtMost(2),
+    then=GainMp(amount=1),
+))
+
+reg.static_power("M-003", value=SelfPowerBonus(amount=1000, when=SelfInjured()))
+reg.static_power("M-004", value=SelfPowerBonus(amount=1000, when=SelfHasPartner()))
+
+reg.activated("M-005", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
+              effect=IncreaseSelfDamage(amount=1, duration=DUR_BATTLE))
+
+reg.on_play("M-006", effect=RestrictOpponent(flag=NO_SPELLS, duration=DUR_TURN))
+reg.on_play("M-007", effect=TurnPagesForward(leaves=1, target="opponent"))
+
+reg.activated("M-008", mode="declare", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1))
+
+reg.on_discard("M-009", effect=GainMp(amount=4))
+
+reg.activated("M-010", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("defense"),
+              effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
+
+reg.activated("M-013", mode="mp", mp_cost=2, timing="battle", condition=SelfInjured(),
+              effect=PreventDamageToSelf(duration=DUR_BATTLE))
+
+reg.static_power("M-014", value=OwnMamodoPowerBonus(amount=1000, when=OwnMamodoAtLeast(2)))
+
+reg.activated("M-015", mode="mp", mp_cost=5, timing="battle",
+              effect=PreventDamageToSelf(duration=DUR_BATTLE))
+
+reg.activated("M-017", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
+              effect=AddPower(amount=2000, duration=DUR_BATTLE, target=Ref("self_slot")))
+
+reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", effect=When(
+    OpponentOpenPagesLackDefenseSpell(),
+    then=GainMp(amount=2),
+))
+
+# M-019 的「令對手重擲」在擲幣確認鏈(primitives.flip_coins)中詢問,不由玩家主動宣告
+reg.activated("M-019", mode="declare", timing="any", condition=Never(), effect=Nothing())
+
+reg.activated("M-030", mode="declare", timing="nonbattle", per_game=True, condition=OwnBookAtLastPage(),
+              effect=ScheduleSkipEndFlip())
 
 # ================================================================ 術卡
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方

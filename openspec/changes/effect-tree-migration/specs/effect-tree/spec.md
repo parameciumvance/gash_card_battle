@@ -63,7 +63,7 @@
 - **THEN** 每個容器節點的子節點比該容器多縮排一層,容器的收尾括號獨立成行並與開頭對齊
 
 ### Requirement: 效果樹掛鉤入口
-系統 SHALL 提供下列效果樹註冊入口,並沿用既有引擎入口與檢查:`reg.event(number, effect=…, when=…)`(事件卡)、`reg.spell_rider(number, on_damage=<樹>)`(`rider.on_damage`)、`reg.spell_rider(number, on_declare=<樹>)`(`rider.on_declare`,`ctx` 含 `side`)、`reg.spell_rider(number, on_win=<樹>)`(`rider.on_win`,攻方獲勝時)、`reg.spell_rider(number, on_defense_damaged=<樹>)`(`rider.on_defense_damaged`,`ctx["player"]` 為防禦方、`ctx` 含 `amount`)、`reg.spell_nonbattle(number, effect=<樹>)`(非戰鬥術)。重複註冊以 `(卡號, 掛鉤)` 判定。經 `spell_nonbattle` 註冊的卡 MUST 仍受非戰鬥術的費用、時機與使用次數檢查。`SpellRider` 中要回傳數值的欄位(如 `damage_bonus(game, battle) -> int`)不是效果,MUST NOT 以效果樹註冊;其值 SHALL 以不可變、可呼叫的規格物件提供,不寫 lambda 於註冊檔。
+系統 SHALL 提供下列效果樹註冊入口,並沿用既有引擎入口與檢查:`reg.event(number, effect=…, when=…)`(事件卡)、`reg.spell_rider(number, on_damage=<樹>)`(`rider.on_damage`)、`reg.spell_rider(number, on_declare=<樹>)`(`rider.on_declare`,`ctx` 含 `side`)、`reg.spell_rider(number, on_win=<樹>)`(`rider.on_win`,攻方獲勝時)、`reg.spell_rider(number, on_defense_damaged=<樹>)`(`rider.on_defense_damaged`,`ctx["player"]` 為防禦方、`ctx` 含 `amount`)、`reg.spell_nonbattle(number, effect=<樹>)`(非戰鬥術)。重複註冊以 `(卡號, 掛鉤)` 判定。經 `spell_nonbattle` 註冊的卡 MUST 仍受非戰鬥術的費用、時機與使用次數檢查。`SpellRider` 中要回傳數值的欄位(如 `damage_bonus(game, battle) -> int`)不是效果,MUST NOT 以效果樹註冊;其值 SHALL 以不可變、可呼叫的規格物件提供,不寫 lambda 於註冊檔。魔物 / 夥伴卡 SHALL 另有下列效果樹入口:`reg.activated(number, mode=…, mp_cost=…, timing=…, per_game=…, condition=…, effect=<樹>)`(費用、時機、次數限制與使用條件照舊由引擎檢查)、`reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=<樹>)`、`reg.trigger(number, event_type, effect=<樹>)`;這些入口的 `ctx` MUST 含該卡所在魔物的 UID `self_slot`,觸發器另含觸發事件 `event`。只回傳值的查詢(`static_power(value=…)`、`damage_immunity(check=…)`、`spell_compat(check=…)`、`activated(condition=…)`)SHALL 以不可變、可呼叫的規格物件登記,不經效果樹;同卡重複登記 MUST 被拒絕。
 
 #### Scenario: 宣告時效果僅防禦方生效
 - **WHEN** 以 `When(SideIs("defense"), Coin(…))` 註冊的 `on_declare` 效果,以 `side="attack"` 執行
@@ -80,6 +80,14 @@
 #### Scenario: 防禦方被造成傷害時取得傷害量
 - **WHEN** 防禦方以 S-056 防禦,魔力勝負落敗且魔本受到 N 點傷害
 - **THEN** `on_defense_damaged` 效果的 `ctx["player"]` 為防禦方、`ctx["amount"]` 為 N,防禦方 MP 增加 2×N
+
+#### Scenario: 啟動型效果以效果樹註冊
+- **WHEN** M-001 以 `reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("attack"), effect=AddPower(…, target=Ref("self_slot")))` 註冊,玩家在攻擊的戰鬥中使用
+- **THEN** 引擎照舊檢查時機、MP、使用條件並扣費,效果樹以 `self_slot` 找到 M-001 所在魔物並加魔力;在防守的戰鬥中使用時以 `ability.condition` 拒絕
+
+#### Scenario: 啟動型效果註冊參數錯誤不留痕跡
+- **WHEN** `reg.activated` 傳入不存在的參數名並附效果樹
+- **THEN** 註冊時拋出錯誤,`ACTIVATED`、`TREE_HOOKS`、`EFFECTS` 皆不變
 
 #### Scenario: 不支援的 rider 欄位不能傳效果樹
 - **WHEN** 嘗試以效果樹註冊 `damage_bonus` 等非效果欄位

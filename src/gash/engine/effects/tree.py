@@ -205,6 +205,25 @@ class Bound:
 
 
 @dataclass(frozen=True)
+class OwnMpAtMost:
+    """自己 MP 不超過 n(M-002)。"""
+    n: int = 0
+
+    def test(self, game, ctx) -> bool:
+        return game.state.players[ctx["player"]].mp <= self.n
+
+
+@dataclass(frozen=True)
+class OpponentOpenPagesLackDefenseSpell:
+    """對手目前翻開的頁中,沒有可用來防禦的術卡(M-018)。"""
+
+    def test(self, game, ctx) -> bool:
+        opp = game.state.players[1 - ctx["player"]]
+        return not any(game.db[opp.card_at(p)].type == "spell" and game.db[opp.card_at(p)].can_defend()
+                       for p in opp.open_pages())
+
+
+@dataclass(frozen=True)
 class OwnHasPartner:
     """自己場上至少有一隻魔物裝有夥伴(E-027)。"""
 
@@ -1381,9 +1400,143 @@ class AttachPartnerFromBookPage(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class IncreaseSelfDamage(Effect):
+    """這隻魔物的魔物效果與術造成的傷害 +amount(M-005)。"""
+    amount: int = 0
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="damage_delta", source=ctx["source"], owner=ctx["player"],
+                     duration=self.duration, target_player=ctx["player"],
+                     target_slot=ctx["self_slot"], amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class PreventDamageToSelf(Effect):
+    """這隻魔物不受傷害(M-013 / M-015)。"""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="no_damage", source=ctx["source"], owner=ctx["player"],
+                     duration=self.duration, target_player=ctx["player"], target_slot=ctx["self_slot"])
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleNextSpellBonus(Effect):
+    """[待命] 本回合下一場戰鬥中,mamodo 使用的術費用 +cost_delta、魔力 +power_delta(M-008)。"""
+    mamodo: str = ""
+    power_delta: int = 0
+    cost_delta: int = 0
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="spell_bonus", source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": self.mamodo, "power_delta": self.power_delta,
+                               "cost_delta": self.cost_delta})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleSkipEndFlip(Effect):
+    """[待命] 本回合結束階段不翻魔本(M-030)。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="skip_end_flip", source=ctx["source"], owner=ctx["player"])
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
+
+# ---- 魔物 / 夥伴卡的查詢:啟動條件 fn(game, player, slot) -> bool、常駐魔力加成
+
+@dataclass(frozen=True)
+class SelfInBattleAs:
+    """這隻魔物正以 side("attack" / "defense")身分參與目前的戰鬥(M-001 / M-005 / M-010 / M-017)。"""
+    side: str
+
+    def __call__(self, game, player, slot) -> bool:
+        b = game.state.battle
+        if b is None:
+            return False
+        if self.side == "attack":
+            return b.attacker == player and b.attack_slot == slot.uid
+        return b.defender == player and b.defense_slot == slot.uid
+
+
+@dataclass(frozen=True)
+class SelfInjured:
+    """這隻魔物是負傷狀態(M-003 加成 / M-013 使用條件)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return slot.injured
+
+
+@dataclass(frozen=True)
+class SelfHasPartner:
+    """這隻魔物裝有夥伴(M-004)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return bool(slot.partner)
+
+
+@dataclass(frozen=True)
+class OwnMamodoAtLeast:
+    """自己場上至少 n 隻魔物(M-014)。"""
+    n: int = 1
+
+    def __call__(self, game, player, slot) -> bool:
+        return len(game.state.players[player].slots) >= self.n
+
+
+@dataclass(frozen=True)
+class OwnBookAtLastPage:
+    """自己的魔本翻到最後一頁(M-030)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return game.state.players[player].pos >= 32
+
+
+@dataclass(frozen=True)
+class Never:
+    """永遠不成立:效果不由玩家主動宣告,而由其他流程處理(M-019 於擲幣確認鏈中處理)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return False
+
+
+@dataclass(frozen=True)
+class SelfPowerBonus:
+    """只加給提供者本身(頂層為該卡的魔物),且 when 成立時 +amount(M-003 / M-004)。"""
+    amount: int = 0
+    when: Any = None
+
+    def bonus(self, game, player, slot, provider) -> int:
+        return self.amount if slot.top == provider and self.when(game, player, slot) else 0
+
+
+@dataclass(frozen=True)
+class OwnMamodoPowerBonus:
+    """提供者在場上時,自己場上每隻魔物在 when 成立時 +amount(M-014)。"""
+    amount: int = 0
+    when: Any = None
+
+    def bonus(self, game, player, slot, provider) -> int:
+        return self.amount if self.when(game, player, slot) else 0
+
+
+@dataclass(frozen=True)
+class PowerBonus:
+    """STATIC_POWER 的登記物件:綁定提供者卡號,引擎以 fn(game, player, slot) 查詢。"""
+    provider: str
+    spec: Any
+
+    def __call__(self, game, player, slot) -> int:
+        return self.spec.bonus(game, player, slot, self.provider)
+
 
 @dataclass(frozen=True)
 class DamageBonusIfAttackTotalAtLeast:
@@ -1490,6 +1643,27 @@ def register_spell_nonbattle(number: str, tree: Effect):
 
     def handler(game, batch, player):
         run_effect(game, batch, effect_id, {"player": player, "source": number})
+    return handler
+
+
+def register_slot_hook(number: str, hook: str, tree: Effect, legacy_taken: bool = False):
+    """魔物 / 夥伴卡的效果掛鉤(activated / on_play / on_discard / start_phase)。
+    handler 簽名 fn(game, batch, player, slot);ctx["self_slot"] 為該卡所在魔物的 UID。"""
+    effect_id = _install(number, hook, tree, legacy_taken)
+
+    def handler(game, batch, player, slot):
+        run_effect(game, batch, effect_id, {"player": player, "source": number, "self_slot": slot.uid})
+    return handler
+
+
+def register_trigger(number: str, event_type: str, tree: Effect, legacy_taken: bool = False):
+    """[IN PLAY] 事件型觸發器。handler 簽名 fn(game, batch, owner, slot, ev);
+    ctx["player"] 為該卡的持有者、ctx["event"] 為觸發事件。"""
+    effect_id = _install(number, f"trigger.{event_type}", tree, legacy_taken)
+
+    def handler(game, batch, owner, slot, ev):
+        run_effect(game, batch, effect_id,
+                   {"player": owner, "source": number, "self_slot": slot.uid, "event": dict(ev)})
     return handler
 
 

@@ -215,9 +215,14 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 
 新卡片一律以**效果樹**註冊:效果由 `effects/tree.py` 的節點組合(節點名稱不含卡號),註冊檔
 `effects/tree_cards.py` 每張卡一個 `reg.xxx(...)` 呼叫,依卡號排序,容器節點換行縮排以顯示巢狀層次。效果停下來等待(玩家選擇、擲幣確認、
-待命)時,只存 `(effect_id, path, ctx)` 這份純資料,不存閉包。註冊入口有四種:
-`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage=… / on_declare=…)`、
-`reg.spell_nonbattle(number, effect=…)`。
+待命)時,只存 `(effect_id, path, ctx)` 這份純資料,不存閉包。註冊入口:
+
+- 事件卡 / 術卡:`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage= / on_declare= /
+  on_win= / on_defense_damaged=…)`、`reg.spell_nonbattle(number, effect=…)`。
+- 魔物 / 夥伴卡:`reg.activated(number, mode=…, mp_cost=…, timing=…, condition=…, effect=…)`、
+  `reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=…)`、`reg.trigger(number, 事件型別, effect=…)`。
+- 只回傳值的查詢(常駐魔力加成、使用條件、傷害免疫、術相容、`damage_bonus`)不是效果,
+  用 `tree.py` 裡不可變、可呼叫的規格物件登記(如 `reg.static_power(number, value=…)`)。
 
 - 舊的 `@reg.xxx` 裝飾器寫法遷移期間保留,逐卡搬到效果樹;同一張卡的同一掛鉤不能兩種都註冊。
 - `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。

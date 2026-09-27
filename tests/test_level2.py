@@ -952,6 +952,75 @@ def test_e018_zero_after_passive_p019_reduced_opponent_mp_last_turn():
     assert _use_e018(g, 2) == 0
 
 
+def _m017_attack_total(use_ability):
+    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    slot = g.state.players[0].slots[0]
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    if use_ability:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": slot.uid})
+        submit(g, {"type": "pass", "player": 1})
+    events = submit(g, {"type": "pass", "player": 0})
+    if g.state.battle is not None and not any(e["type"] == "showdown" for e in events):
+        events += submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
+    return next(e for e in events if e["type"] == "showdown")["attacker_total"], g
+
+
+def test_m017_attack_power_plus_2000():
+    base, _ = _m017_attack_total(False)
+    boosted, g = _m017_attack_total(True)
+    assert boosted == base + 2000
+    assert g.state.players[0].mp == 10 - DB["S-009"].cost - 2
+
+
+def test_m017_not_usable_when_defending():
+    g, _ = mk(book("M-001", "S-029"), book("M-017", "S-009"))
+    g.state.players[0].mp = g.state.players[1].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})                   # 輪到防方行動
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_field_ability", "player": 1, "zone": "mamodo",
+                   "slot_uid": g.state.players[1].slots[0].uid})
+    assert e.value.code == "ability.condition"
+
+
+@pytest.mark.parametrize("opp_page3,gain", [("E-003", 2), ("S-029", 0)])
+def test_m018_gain_mp_if_opponent_open_pages_lack_defense(opp_page3, gain):
+    # 對手翻開第 2、3 頁;第 2 頁固定為事件卡,第 3 頁決定有無可防禦的術
+    g, _ = mk(book("M-018"), book("M-001", "E-003", opp_page3))
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+               "slot_uid": g.state.players[0].slots[0].uid})
+    assert g.state.players[0].mp == 5 - 1 + gain
+
+
+def test_m030_skip_end_flip_on_last_page_once_per_game():
+    g, _ = mk(book("M-030"), book("M-001"))
+    ps = g.state.players[0]
+    ps.pos = 30
+    to_battle(g, 0)
+    slot_uid = ps.slots[0].uid
+    with pytest.raises(IllegalCommand) as e:                   # 不在最後一頁
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": slot_uid})
+    assert e.value.code == "ability.condition"
+    ps.pos = 32
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": slot_uid})
+    submit(g, {"type": "pass", "player": g.state.action_player})
+    submit(g, {"type": "pass", "player": g.state.action_player})
+    assert g.state.phase == "start" and g.state.turn_player == 1 and ps.pos == 32   # 沒翻頁、沒敗北
+    _end_turn(g)                                                # 對手回合結束,回到玩家 0
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": slot_uid})
+    assert e.value.code == "ability.per_game"
+
+
 def test_full_regression_level1_deck_still_plays():
     """既有 level1 對局不受影響。"""
     from gash.engine.deck import load_deck

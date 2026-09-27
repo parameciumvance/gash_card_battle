@@ -40,6 +40,10 @@ def isolated(monkeypatch):
     monkeypatch.setattr(reg, "EVENT_CONDITION", dict(reg.EVENT_CONDITION))
     monkeypatch.setattr(reg, "SPELL_RIDERS", dict(reg.SPELL_RIDERS))
     monkeypatch.setattr(reg, "SPELL_NONBATTLE", dict(reg.SPELL_NONBATTLE))
+    for name in ("ACTIVATED", "ON_PLAY", "ON_DISCARD", "START_PHASE", "STATIC_POWER",
+                 "DAMAGE_IMMUNITY", "SPELL_COMPAT"):
+        monkeypatch.setattr(reg, name, dict(getattr(reg, name)))
+    monkeypatch.setattr(reg, "TRIGGERS", {k: list(v) for k, v in reg.TRIGGERS.items()})
 
 
 def without_seq(events):
@@ -343,22 +347,26 @@ def test_add_power_applies_to_bound_slot():
 # ================================================================ 新舊並存
 
 def test_tree_and_decorator_cards_coexist_in_one_game():
-    """同一局中效果樹註冊的卡(E-001)與仍是裝飾器註冊的卡(M-002 開始階段效果)都正常運作。"""
+    """同一局中效果樹註冊的卡(E-001)與仍是裝飾器註冊的卡(夥伴卡 P-002)都正常運作。
+    (夥伴卡排在遷移最後;全部遷完後此測試改用測試專用的舊寫法註冊。)"""
     from gash.engine.engine import slot_power
     from .test_cards import book
-    assert ("E-001", "event") in tree.TREE_HOOKS                # 效果樹註冊
-    assert "M-002" in reg.START_PHASE                          # 仍是裝飾器註冊(遷移後需換一張舊寫法的卡)
-    assert not any(n == "M-002" for n, _ in tree.TREE_HOOKS)
-    g = game(book0=book(first="M-002", p2="E-001"))
+    assert ("E-001", "event") in tree.TREE_HOOKS                 # 效果樹註冊
+    assert "P-002" in reg.ACTIVATED and ("P-002", "activated") not in tree.TREE_HOOKS
+    g = game(book0=book(p2="E-001"))
     s = slot0(g, 0)
+    s.partner = "P-002"
     base = slot_power(g, 0, s)
-    mp = g.state.players[0].mp
+    g.state.players[0].mp, g.state.players[1].mp = 0, 5
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
-    assert mp <= 2 and g.state.players[0].mp == mp + 1           # M-002(舊寫法):MP≤2 → +1
-    submit(g, {"type": "use_book_card", "player": 0, "page": 2})   # E-001(樹)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": s.uid})
+    assert (g.state.players[0].mp, g.state.players[1].mp) == (3, 2)   # P-002(舊寫法)
+    g.state.players[0].mp = 5
+    submit(g, {"type": "pass", "player": 1})                         # 行動權回到玩家 0
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})     # E-001(樹)
     end_turn(g)
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})
-    assert slot_power(g, 0, s) == base + 3000                      # 待命於下回合開始階段觸發
+    assert slot_power(g, 0, s) == base + 3000                        # 待命於下回合開始階段觸發
 
 
 # ================================================================ 註冊表一致性(code review CR1)
@@ -1111,3 +1119,104 @@ def test_when_condition_evaluated_once_even_if_then_changes_it():
     g = game()
     run(g, When(cond=tree.Bound("x", 1), then=SetCtx("x", 2), otherwise=Record("O")), x=1)
     assert LOG == [("SET", 2)]                               # otherwise 不會再被執行
+
+
+
+# ================================================================ 魔物 / 夥伴卡的掛鉤入口
+
+def test_activated_tree_keeps_engine_params_and_passes_self_slot():
+    reg.activated("T-930", mode="mp", mp_cost=2, timing="battle", effect=Record("ACT", "self_slot"))
+    spec = reg.ACTIVATED["T-930"]
+    assert (spec.mode, spec.mp_cost, spec.timing, spec.per_game) == ("mp", 2, "battle", False)
+    g = game()
+    spec.handler(g, [], 0, slot0(g, 0))
+    assert LOG == [("ACT", slot0(g, 0).uid)]
+    assert ("T-930", "activated") in tree.TREE_HOOKS
+
+
+def test_activated_invalid_kwarg_leaves_no_partial_state():
+    before = (dict(tree.EFFECTS), set(tree.TREE_HOOKS), dict(reg.ACTIVATED))
+    with pytest.raises(TypeError):
+        reg.activated("T-931", mode="mp", mp_cots=2, effect=Nothing())
+    assert (dict(tree.EFFECTS), set(tree.TREE_HOOKS), dict(reg.ACTIVATED)) == before
+
+
+def test_activated_tree_and_decorator_conflict_both_ways():
+    @reg.activated("T-932", mode="declare")
+    def legacy(game, batch, player, slot):
+        pass
+    with pytest.raises(ValueError):
+        reg.activated("T-932", mode="declare", effect=Nothing())
+    reg.activated("T-933", mode="declare", effect=Nothing())
+    with pytest.raises(ValueError, match="已以效果樹註冊"):
+        @reg.activated("T-933", mode="declare")
+        def legacy2(game, batch, player, slot):
+            pass
+
+
+@pytest.mark.parametrize("hook,table", [("on_play", "ON_PLAY"), ("on_discard", "ON_DISCARD"),
+                                        ("start_phase", "START_PHASE")])
+def test_slot_hooks_accept_trees(hook, table):
+    getattr(reg, hook)("T-934", effect=Record("H", "self_slot"))
+    g = game()
+    getattr(reg, table)["T-934"](g, [], 0, slot0(g, 0))
+    assert LOG == [("H", slot0(g, 0).uid)]
+    with pytest.raises(ValueError):
+        getattr(reg, hook)("T-934", effect=Nothing())
+
+
+def test_trigger_tree_gets_event_in_ctx():
+    reg.trigger("T-935", "t_event", effect=Record("TRIG", "event"))
+    number, handler = reg.TRIGGERS["t_event"][-1]
+    g = game()
+    handler(g, [], 0, slot0(g, 0), {"type": "t_event", "x": 1})
+    assert number == "T-935" and LOG == [("TRIG", {"type": "t_event", "x": 1})]
+    with pytest.raises(ValueError):
+        @reg.trigger("T-935", "t_event")
+        def legacy(game, batch, owner, slot, ev):
+            pass
+
+
+def test_value_hooks_register_specs_and_reject_duplicates():
+    reg.static_power("T-936", value=tree.SelfPowerBonus(amount=1000, when=tree.SelfInjured()))
+    fn = reg.STATIC_POWER["T-936"]
+    g = game()
+    s = slot0(g, 0)
+    assert fn(g, 0, s) == 0                               # 頂層不是 T-936
+    s.stack.append("T-936")
+    assert fn(g, 0, s) == 0
+    s.injured = True
+    assert fn(g, 0, s) == 1000
+    with pytest.raises(ValueError):
+        reg.static_power("T-936", value=tree.SelfPowerBonus(amount=1, when=tree.SelfInjured()))
+    reg.damage_immunity("T-937", check=tree.Never())
+    reg.spell_compat("T-937", check=tree.Never())
+    assert reg.DAMAGE_IMMUNITY["T-937"] == tree.Never() == reg.SPELL_COMPAT["T-937"]
+
+
+def test_self_in_battle_as_and_simple_slot_queries():
+    from gash.engine.state import BattleState
+    g = game()
+    s = slot0(g, 0)
+    assert not tree.SelfInBattleAs("attack")(g, 0, s)
+    g.state.battle = BattleState(attacker=0, step="defense", attack_page=1, attack_spell="S-001",
+                                 attack_slot=s.uid)
+    assert tree.SelfInBattleAs("attack")(g, 0, s) and not tree.SelfInBattleAs("defense")(g, 0, s)
+    assert tree.OwnMamodoAtLeast(1)(g, 0, s) and not tree.OwnMamodoAtLeast(2)(g, 0, s)
+    g.state.players[0].pos = 32
+    assert tree.OwnBookAtLastPage()(g, 0, s) and not tree.Never()(g, 0, s)
+
+
+def test_self_slot_effect_nodes():
+    from gash.engine.state import DUR_BATTLE
+    g = game()
+    s = slot0(g, 0)
+    run(g, tree.IncreaseSelfDamage(amount=1, duration=DUR_BATTLE), self_slot=s.uid)
+    run(g, tree.PreventDamageToSelf(duration=DUR_BATTLE), self_slot=s.uid)
+    assert [(m.kind, m.target_slot, m.amount) for m in g.state.modifiers] == [
+        ("damage_delta", s.uid, 1), ("no_damage", s.uid, 0)]
+    run(g, tree.ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1))
+    run(g, tree.ScheduleSkipEndFlip())
+    assert [(sb.kind, sb.data) for sb in g.state.standby] == [
+        ("spell_bonus", {"mamodo": "スギナ", "power_delta": -1000, "cost_delta": -1}),
+        ("skip_end_flip", {})]

@@ -88,39 +88,75 @@ MAMODO_ATTACK: dict[str, dict] = {}
 CHOICE_RESOLVERS: dict[str, Callable] = {}
 
 
-def on_play(number: str):
+def _slot_hook(table: dict, number: str, hook: str, effect):
+    """on_play / on_discard / start_phase 共用:effect= 註冊效果樹,否則回傳裝飾器。"""
+    if effect is not None:
+        from . import tree
+        table[number] = tree.register_slot_hook(number, hook, effect, number in table)
+        return None
+
     def deco(fn):
-        ON_PLAY[number] = fn
+        if _tree_claimed(number, hook):
+            raise ValueError(f"{number} 的 {hook} 掛鉤已以效果樹註冊")
+        table[number] = fn
         return fn
     return deco
 
 
-def on_discard(number: str):
+def on_play(number: str, *, effect=None):
+    return _slot_hook(ON_PLAY, number, "on_play", effect)
+
+
+def on_discard(number: str, *, effect=None):
+    return _slot_hook(ON_DISCARD, number, "on_discard", effect)
+
+
+def start_phase(number: str, *, effect=None):
+    return _slot_hook(START_PHASE, number, "start_phase", effect)
+
+
+def _value_hook(table: dict, number: str, hook: str, value):
+    """查詢型掛鉤(回傳數值 / 真假,不是效果):value= 直接登記可呼叫的規格物件,否則回傳裝飾器。"""
+    if value is not None:
+        if number in table:
+            raise ValueError(f"{number} 的 {hook} 已註冊")
+        table[number] = value
+        return None
+
     def deco(fn):
-        ON_DISCARD[number] = fn
+        table[number] = fn
         return fn
     return deco
 
 
-def static_power(number: str):
+def static_power(number: str, *, value=None):
+    """常駐魔力加成 fn(game, player, slot) -> int。value= 通常是 tree.PowerBonus(number, spec)。"""
+    if value is not None:
+        from . import tree
+        value = tree.PowerBonus(number, value)
+    return _value_hook(STATIC_POWER, number, "static_power", value)
+
+
+def activated(number: str, *, effect=None, **kwargs):
+    """啟動型效果。effect= 註冊效果樹(mode / mp_cost / timing / per_game / condition 照舊由引擎檢查);
+    否則回傳裝飾器。任何檢查失敗時,註冊表保持不變。"""
+    if effect is not None:
+        from . import tree
+        Activated(handler=_no_handler, **kwargs)      # 先驗證參數,失敗不留痕跡
+        handler = tree.register_slot_hook(number, "activated", effect, number in ACTIVATED)
+        ACTIVATED[number] = Activated(handler=handler, **kwargs)
+        return None
+
     def deco(fn):
-        STATIC_POWER[number] = fn
-        return fn
-    return deco
-
-
-def start_phase(number: str):
-    def deco(fn):
-        START_PHASE[number] = fn
-        return fn
-    return deco
-
-
-def activated(number: str, **kwargs):
-    def deco(fn):
+        if _tree_claimed(number, "activated"):
+            raise ValueError(f"{number} 的 activated 掛鉤已以效果樹註冊")
         ACTIVATED[number] = Activated(handler=fn, **kwargs)
         return fn
     return deco
+
+
+def _no_handler(game, batch, player, slot):
+    raise AssertionError("僅供驗證參數用")
 
 
 def _tree_claimed(number: str, hook: str) -> bool:
@@ -196,23 +232,28 @@ def choice_resolver(key: str):
     return deco
 
 
-def trigger(number: str, event_type: str):
-    """[IN PLAY] 事件型觸發器:該卡在場上且事件發生時執行。"""
+def trigger(number: str, event_type: str, *, effect=None):
+    """[IN PLAY] 事件型觸發器:該卡在場上且事件發生時執行。effect= 註冊效果樹(ctx 含 event)。"""
+    if effect is not None:
+        from . import tree
+        legacy = any(n == number for n, _ in TRIGGERS.get(event_type, []))
+        handler = tree.register_trigger(number, event_type, effect, legacy)
+        TRIGGERS.setdefault(event_type, []).append((number, handler))
+        return None
+
     def deco(fn):
+        if _tree_claimed(number, f"trigger.{event_type}"):
+            raise ValueError(f"{number} 的 trigger.{event_type} 掛鉤已以效果樹註冊")
         TRIGGERS.setdefault(event_type, []).append((number, fn))
         return fn
     return deco
 
 
-def damage_immunity(number: str):
-    def deco(fn):
-        DAMAGE_IMMUNITY[number] = fn
-        return fn
-    return deco
+def damage_immunity(number: str, *, check=None):
+    """傷害 / 負傷免疫查詢 fn(game, player, slot, ctx) -> bool。"""
+    return _value_hook(DAMAGE_IMMUNITY, number, "damage_immunity", check)
 
 
-def spell_compat(number: str):
-    def deco(fn):
-        SPELL_COMPAT[number] = fn
-        return fn
-    return deco
+def spell_compat(number: str, *, check=None):
+    """術相容性擴充查詢 fn(game, player, slot, spell_card) -> bool。"""
+    return _value_hook(SPELL_COMPAT, number, "spell_compat", check)
