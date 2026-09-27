@@ -78,7 +78,7 @@
 
 入口於 `2b1be88` 補齊並以 17 張魔物卡驗證。`trigger` / `damage_immunity` / `spell_compat` 的入口已有單元測試,實際卡片(M-023 / M-028 / M-029 / M-031)在下一批遷移。`STACK_ON` / `MAX_COPIES` / `MAMODO_ATTACK` 等純資料登記仍留在 `mamodo.py`,與 M-024 / M-027 一起處理。借用對手夥伴(E-010)時,夥伴效果的 `self_slot` 會是對手的魔物,遷移夥伴卡時要留意。
 
-## 4. 魔物卡(mamodo.py)29 卡
+## 4. 魔物卡(mamodo.py)29 卡 — 全部完成,`mamodo.py` 已於 `eb3daa1` 刪除
 
 - [x] M-001 ガッシュ・ベル(activated) — `2b1be88`
 - [x] M-002 ガッシュ・ベル(start_phase) — `2b1be88`
@@ -103,7 +103,7 @@
 - [x] M-022 ゾフィス(activated) — `f87fc87`
 - [x] M-023 ポッケリオ(spell_compat) — `f87fc87`
 - [x] M-025 ロブノス(完全体)(on_play) — `4e70210`(依效果文修正)
-- [ ] M-026 マルス(activated) — ジャマー效果,舊寫法與效果文差距大,待使用者決定做法(見 design.md 第 4 節)
+- [x] M-026 マルス(activated) — `eb3daa1`(依效果文改為ジャマー)
 - [x] M-027 バルトロ(アーマー体)(mamodo_attack) — `f87fc87`
 - [x] M-028 バルトロ(本体)(trigger.stack_detached) — `f87fc87`
 - [x] M-029 ゼオン(activated, spell_compat) — `d995cc9`(依效果文修正)
