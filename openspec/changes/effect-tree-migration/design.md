@@ -1,0 +1,49 @@
+## Context
+
+效果樹架構(節點、直譯器、續體、註冊入口)已在 `effect-tree-interpreter` 定案並歸檔,規格見 `openspec/specs/effect-tree/spec.md`。目前 18 張卡已用這套架構重寫(E-001、E-005、E-006、E-022、E-026;S-004、S-014、S-021、S-025、S-026、S-027、S-035、S-037、S-040、S-041、S-045、S-046、S-057),`python -m pytest` 335 個測試全過。
+
+剩餘 89 張卡的掛鉤分布(`tasks.md` 有逐卡清單):
+
+| 檔案 | 卡數 | 常見掛鉤 |
+|---|---|---|
+| `events.py` | 22 | `event` |
+| `mamodo.py` | 29 | `activated`、`static_power`、`on_play`、`start_phase`、`on_discard`、`spell_compat`、`mamodo_attack`、`trigger.*`、`damage_immunity` |
+| `partners.py` | 19 | `activated`、`trigger.*` |
+| `spells.py` | 19 | `rider.on_damage`、`rider.on_declare`、`rider.on_win`、`rider.counter`、`rider.damage_bonus`、`rider.injure_instead`、`rider.on_defense_damaged`、`spell_nonbattle` |
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- 把剩餘 89 張卡逐批遷移到效果樹,每批維持既有節奏:先確認/補齊該批卡的測試覆蓋(遷移前在舊實作上跑通),再遷移,新增節點都要有對應單元測試,全程 `python -m pytest` 保持全綠。
+- 通用節點優先:能用既有節點(`Choose`/`Coin`/`Standby`/`When`/`Sequence` + 現有葉節點)組出來的卡,不開新節點;組不出來時才新增語意化的專屬節點,原則同 `effect-tree` spec 的「並非每張卡都是乾淨的樹」。
+- `tasks.md` 是本次遷移的權威進度來源,每完成一批就勾選對應卡並記錄該批的 commit hash。
+
+**Non-Goals:**
+
+- 不要求每批遷移都各自開一個獨立 change/走完整 propose 流程——effect-tree 的架構決策已經定案,逐卡套用不再是新的架構決策,直接在本 change 底下累積 commit 即可;只有遇到需要新的架構性決定(例如要支援可停下的 `Standby.then`)時才另開 change。
+- 不修正遷移過程中順帶發現的既有邏輯缺陷(見下方「已知阻礙」),除非該缺陷正好是本批要遷移的卡且使用者已決定要修。
+- 不改前端 / i18n / API 格式;`choice.title.*` 依卡號命名的問題仍留到之後的 change。
+
+## Decisions
+
+### 1. 分批依「來源檔案 → 掛鉤複雜度」排序,不追求一次遷完
+
+`spells.py` 的 rider 類型(`on_damage`/`on_declare`/`on_win`/`counter`/`damage_bonus`/`injure_instead`/`on_defense_damaged`)已有現成的節點與掛鉤入口,是風險最低、最快能繼續累積進度的一批。`events.py` 多數是 `Choose`/`Coin` 的組合,難度與已遷移的 E-005/E-006/E-022 相近。`mamodo.py`/`partners.py` 的 `activated`(啟動型效果:宣告使用 / 減 MP / 棄卡)、`trigger.*`(事件型觸發器)、`static_power`(常在魔力加成)是效果樹目前完全沒有掛鉤入口的類型,需要先在 `registry.py`/`tree.py` 補上對應的樹註冊入口(仿照 `register_event`/`rider_hook` 的模式),這部分建議留到 `spells.py`/`events.py` 剩餘的都遷完、對節點慣用法更熟悉之後再做,降低一次引入太多新概念的風險。
+
+### 2. 每批沿用既有三步驟
+
+1. **補特徵測試**:檢查該批卡是否已有行為測試;沒有的話,先在舊實作上寫測試並確認通過,再動手改。
+2. **新增節點**:只新增這批卡實際會用到的節點/條件,不预先建可能用不到的通用能力(YAGNI,呼應 `effect-tree-interpreter` review 對「未使用的推測性節點」的疑慮)。
+3. **遷移 + 全量測試**:改寫 `tree_cards.py` 的註冊行、刪除舊 handler、跑 `python -m pytest` 確認全綠,再勾選 `tasks.md` 對應項目並記錄 commit。
+
+### 3. 已知阻礙,遷移到對應卡時處理
+
+- **E-020(對手擲幣正→對手 MP+3)**:現行 `flip_coins` 的 callback `data` 會用擲幣者覆寫呼叫端塞入的 `{"player": ...}`,E-020 因擲幣者是對手而導致 MP 沒有真正給到對手——這是遷移前既有的邏輯缺陷,不是效果樹造成。遷移此卡前 MUST 先讓使用者決定:維持現行(錯誤)行為原樣遷移,或連同 `flip_coins` 一併修正(修正會改變可觀察行為,超出本 change「行為不變」的範圍,需使用者明確同意)。
+- **E-011(擲幣反面可付 2MP 重擲,可重複)**:通用 `Coin` 節點沒有「失敗可付費重來、可能重複多次」的語意,需要專屬的遞迴/重試節點(或保留舊寫法)。遷移此卡前 MUST 先設計該節點的停點與續體規則(擲幣 → 確認鏈 → 玩家決定重擲與否 → 若重擲,消耗 MP 後重新進入擲幣,可能無限重複),不可用現有 `Coin` 硬套。
+
+## Risks / Trade-offs
+
+- **[89 張卡、跨多次工作階段]** 進度容易遺失或重工 → `tasks.md` 為權威進度來源,每次工作階段開始先讀 `tasks.md` 選未勾選項目,完成後立刻勾選並記錄 commit,不依賴記憶或 commit log 反查。
+- **[`activated`/`trigger.*` 尚無樹掛鉤入口]** 貿然遷移 `mamodo.py`/`partners.py` 可能需要一次補齊多種新入口,範圍不易控制 → 決策 1 已把這兩個檔案排在最後,累積足夠的節點使用經驗後再做。
+- **[專屬節點膨脹]** 每張特殊卡都可能催生一個只用一次的節點 → 遷移前先檢查能否用既有節點的組合(含新增條件/葉節點)表達,新節點命名 MUST 語意化、不含卡號,且要有單元測試,維持 `effect-tree` spec 的「節點與函式名不含卡號」要求。

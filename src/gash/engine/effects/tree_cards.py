@@ -32,6 +32,7 @@ reg.spell_nonbattle("S-057", effect=Coin(count=1, on=HeadsAtLeast(1), then=Sched
 # callback data 會把呼叫端塞入的 {"player": ...} 覆寫成擲幣者本人,E-020 呼叫端傳入的
 # 是「效果擁有者」語意卻被覆寫成「擲幣者」(此卡擲幣者剛好是對手),導致
 # e020_resolve 的 `1 - data["player"]` 算出來變成效果擁有者自己,MP 沒有真正給到對手
-# ——這是遷移前就存在的既有邏輯缺陷,不是本次改動造成,詳見程式碼審查說明,暫不遷移。
+# ——這是遷移前就存在的既有邏輯缺陷,不是本次改動造成。遷移方式待決定,見
+# openspec/changes/effect-tree-migration/design.md「已知阻礙」,暫不遷移。
 reg.event("E-022", when=lambda g, p: any(n in g.state.players[p].discarded_this_turn and g.db[n].type == PARTNER for n in g.state.players[p].discard), effect=Coin(count=1, on=HeadsAtLeast(1), then=Choose(PartnerDiscardedThisTurn(), bind="choice", prompt="e022_pick", then=AttachPartnerFromDiscard())))
 reg.event("E-026", effect=Coin(count=2, on=Always(), then=GainMpPerHeads(per_head=2)))
