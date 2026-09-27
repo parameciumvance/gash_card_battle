@@ -1684,6 +1684,17 @@ class CanUseSpellsWithAttr:
 
 
 @dataclass(frozen=True)
+class CanUseSpellNamed:
+    """術相容:這隻魔物可使用 mamodo 家族中名稱「完全等於」name 的術(M-029 可用賈修的「ザケル」;
+    「バオウ・ザケルガ」等名稱只是包含 ザケル 的術不算)。fn(game, player, slot, spell) -> bool。"""
+    mamodo: str
+    name: str
+
+    def __call__(self, game, player, slot, spell_card) -> bool:
+        return spell_card.related_mamodo == self.mamodo and spell_card.name_ja == self.name
+
+
+@dataclass(frozen=True)
 class ImmuneToSpellDamageAtMost:
     """傷害免疫:不受合計魔力 total 以下的術造成的傷害(無術攻擊不算術)(M-031)。
     fn(game, player, slot, ctx) -> bool。"""

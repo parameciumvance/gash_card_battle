@@ -854,6 +854,24 @@ def test_m029_zaker_compat():
     assert g.state.battle_in is not None
 
 
+@pytest.mark.parametrize("spell,allowed", [
+    ("S-001", True), ("S-002", True), ("S-029", True),   # 賈修的「ザケル」
+    ("S-005", False), ("S-031", False),                   # 「バオウ・ザケルガ」不是「ザケル」
+])
+def test_m029_can_use_only_gash_spell_named_zakeru(spell, allowed):
+    # 效果文:自分は、この魔物で「ガッシュ・ベル」の術「ザケル」を使える
+    g, tp = mk(book("M-029", spell), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    if allowed:
+        submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+        assert g.state.battle_in is not None
+    else:
+        with pytest.raises(IllegalCommand) as e:
+            submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+        assert e.value.code == "spell.no_mamodo"
+
+
 # ---------------------------------------------------------------- 事件卡 j 版差異(E-018)
 
 def test_e018_j_version_consecutive_limit():

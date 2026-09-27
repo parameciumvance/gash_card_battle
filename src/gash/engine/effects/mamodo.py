@@ -56,29 +56,3 @@ def m026(game, batch, player, slot):
             game.state.modifiers.remove(m)
             game.emit(batch, "effect_applied", source="M-026", negated=m.source)
             return
-
-
-# M-029 ゼオン:賈修的ザケル術可為此魔物使用;[7MP] 棄掉對手 1 隻負傷魔物
-@reg.spell_compat("M-029")
-def m029_compat(game, player, slot, spell_card):
-    return (slot.top == "M-029" and spell_card.related_mamodo == "ガッシュ・ベル"
-            and "ザケル" in (spell_card.name_ja or ""))
-
-
-@reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",
-               condition=lambda g, p, s: any(x.injured for x in g.state.players[1 - p].slots))
-def m029(game, batch, player, slot):
-    opp = game.state.players[1 - player]
-    options = [{"value": x.uid, "card": x.top} for x in opp.slots if x.injured]
-    choose_or_auto(game, batch, kind="m029_pick", player=player, options=options,
-                   data={"player": player}, source="M-029")
-
-
-@reg.choice_resolver("m029_pick")
-def m029_pick(game, batch, value, data):
-    from ..engine import IllegalCommand, _discard_slot
-    player = data["player"]
-    slot = game.state.slot_by_uid(1 - player, value if isinstance(value, int) else -1)
-    if slot is None or not slot.injured:
-        raise IllegalCommand("choose.invalid", "須選擇對手場上負傷的魔物")
-    _discard_slot(game, batch, 1 - player, slot, reason="M-029")

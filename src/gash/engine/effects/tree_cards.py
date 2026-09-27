@@ -20,15 +20,16 @@ from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, All, Always, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner,
-    Bound, CanUseSpellsWithAttr, Choose, Coin, CoinWithPaidReflip, DamageBonusIfAttackTotalAtLeast,
-    DamageOpponentBookAndAllMamodo, DeployMamodoFromBook, DeployableMamodoInOwnBook,
-    DetachedFromSelf, DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
-    DiscardFromOpponentBook, DiscardFromOpponentBookPayCost, DiscardOtherPartners,
-    DiscardOwnMamodoByNumber, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions,
-    HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo, HealSlot, ImmuneToSpellDamageAtMost,
-    IncreaseSelfDamage, LockChosenOpponentMamodo, MakeAttackUndefendable,
-    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, Never, NextStartPhase,
-    Nothing, OpponentBookCards, OpponentMamodo, OpponentOpenPagesLackDefenseSpell,
+    Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose, Coin, CoinWithPaidReflip,
+    DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DeployMamodoFromBook,
+    DeployableMamodoInOwnBook, DetachedFromSelf, DisableBookProtection, DiscardChosenMamodo,
+    DiscardChosenOpponentMamodo, DiscardChosenPartner, DiscardFromOpponentBook,
+    DiscardFromOpponentBookPayCost, DiscardOtherPartners, DiscardOwnMamodoByNumber, GainMp,
+    GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount,
+    HealFirstInjuredMamodo, HealSlot, ImmuneToSpellDamageAtMost, IncreaseSelfDamage,
+    LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
+    MarkInjuredMamodoDiscarded, NegateAttack, Never, NextStartPhase, Nothing, OpponentBookCards,
+    OpponentInjuredMamodo, OpponentMamodo, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookCopiesOf, OwnBookPartnerNamed,
     OwnEarlierPages, OwnFieldHas, OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast,
     OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages, OwnPartneredMamodo, PartnerDiscardedThisTurn,
@@ -284,6 +285,13 @@ reg.mamodo_attack("M-027", mp_cost=1, power=5000, damage=2)
 reg.trigger("M-028", "stack_detached", effect=When(
     DetachedFromSelf("M-027"),
     then=TurnPagesForward(leaves=2, target="opponent"),
+))
+
+reg.spell_compat("M-029", check=CanUseSpellNamed(mamodo="ガッシュ・ベル", name="ザケル"))
+reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",
+              condition=HasOptions(OpponentInjuredMamodo()), effect=Choose(
+    OpponentInjuredMamodo(), bind="choice", prompt="m029_pick",
+    then=DiscardChosenOpponentMamodo(),
 ))
 
 reg.activated("M-030", mode="declare", timing="nonbattle", per_game=True, condition=OwnBookAtLastPage(),
