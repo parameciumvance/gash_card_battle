@@ -460,6 +460,28 @@ def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
     return None
 
 
+def spell_use_limit(game: Game, player: int, card: CardDef) -> int:
+    """術卡每張每回合可用次數:預設 1;場上有登記 SPELL_USE_LIMIT 的卡時取其最大值(M-024 二身一体)。"""
+    limit = 1
+    for number, fn in reg.SPELL_USE_LIMIT.items():
+        if any(s.top == number for s in game.state.players[player].slots):
+            value = fn(game, player, card)
+            if value is not None:
+                limit = max(limit, value)
+    return limit
+
+
+def exhausted_spell_pages(game: Game, player: int) -> set[int]:
+    """本回合已達可用次數、不能再用的術卡頁(依目前場面判斷)。"""
+    ps = game.state.players[player]
+    return {page for page, uses in ps.spell_page_uses.items()
+            if uses >= spell_use_limit(game, player, game.db[ps.card_at(page)])}
+
+
+def _record_spell_use(ps, page: int) -> None:
+    ps.spell_page_uses[page] = ps.spell_page_uses.get(page, 0) + 1
+
+
 def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -> bool:
     """此術卡是否可由場上這隻魔物使用(家族相符或術相容性擴充,如 M-023/M-029)。"""
     if game.db[slot.top].related_mamodo == card.related_mamodo:
@@ -482,7 +504,7 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
         raise IllegalCommand("spell.no_attack_icon", "此術沒有攻擊圖示")
     if not attack and not card.can_defend():
         raise IllegalCommand("spell.no_defense_icon", "此術沒有防禦圖示")
-    if page in st.players[player].used_spell_pages:
+    if st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card):
         raise IllegalCommand("spell.used", "此術卡本回合已使用過")
     if restricted(game, player, NO_SPELLS):
         raise IllegalCommand("spell.restricted", "目前不能使用術卡")
@@ -590,7 +612,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
                                    lambda s: s.owner == attacker
                                    and s.data.get("spell_name") == card.name_ja):
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    st.players[attacker].used_spell_pages.add(page)
+    _record_spell_use(st.players[attacker], page)
     pay_mp(game, batch, attacker, cost, f"spell:{number}")
     battle = BattleState(attacker=attacker, step=STEP_DEFENSE,
                          attack_page=page, attack_spell=number, attack_slot=slot_uid)
@@ -670,7 +692,7 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
                                            lambda s: s.owner == player
                                            and s.data.get("spell_name") == card.name_ja):
                     game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-            st.players[player].used_spell_pages.add(page)
+            _record_spell_use(st.players[player], page)
             pay_mp(game, batch, player, cost, f"spell:{number}")
             battle.defense_page = page
             battle.defense_spell = number
@@ -1174,7 +1196,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
                   if not (s.data.get("expires", "turn") == "turn" and s.created_turn == st.turn_no)
                   and not (s.created_turn < st.turn_no)]
     for p in st.players:
-        p.used_spell_pages.clear()
+        p.spell_page_uses.clear()
         p.used_abilities.clear()
         p.used_nonbattle_spells.clear()
         p.used_event_this_turn = False

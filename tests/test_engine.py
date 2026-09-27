@@ -8,7 +8,7 @@ import pytest
 
 from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import load_deck
-from gash.engine.engine import IllegalCommand, new_game, submit
+from gash.engine.engine import IllegalCommand, exhausted_spell_pages, new_game, submit
 from gash.engine.state import BATTLE, GAME_OVER, START
 
 
@@ -377,7 +377,7 @@ def script_until_over(g, max_steps=2000):
             for page in ps.open_pages():
                 card = g.db[ps.card_at(page)]
                 if (card.type == "spell" and card.can_attack()
-                        and page not in ps.used_spell_pages
+                        and page not in exhausted_spell_pages(g, actor)
                         and not card.is_command_spell
                         and any(g.db[s.top].related_mamodo == card.related_mamodo
                                 for s in ps.slots)):

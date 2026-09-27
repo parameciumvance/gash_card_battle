@@ -1747,6 +1747,22 @@ class CanUseSpellNamed:
 
 
 @dataclass(frozen=True)
+class SpellUsesPerTurnWhileCopies:
+    """自己場上有 copies 隻以上 number 時,名為 spell 的術卡每張每回合可用 uses 次(M-024 二身一体)。
+    fn(game, player, spell_card) -> int | None(None = 不影響)。"""
+    spell: str
+    uses: int
+    number: str
+    copies: int
+
+    def __call__(self, game, player, spell_card):
+        if spell_card.name_ja != self.spell:
+            return None
+        count = sum(1 for s in game.state.players[player].slots if s.top == self.number)
+        return self.uses if count >= self.copies else None
+
+
+@dataclass(frozen=True)
 class ImmuneToSpellDamageAtMost:
     """傷害免疫:不受合計魔力 total 以下的術造成的傷害(無術攻擊不算術)(M-031)。
     fn(game, player, slot, ctx) -> bool。"""

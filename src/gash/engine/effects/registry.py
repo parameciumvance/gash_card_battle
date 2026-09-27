@@ -81,6 +81,9 @@ DAMAGE_IMMUNITY: dict[str, Callable] = {}
 # 術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此術)
 SPELL_COMPAT: dict[str, Callable] = {}
 
+# 術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
+SPELL_USE_LIMIT: dict[str, Callable] = {}
+
 # 無術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
 
@@ -252,6 +255,11 @@ def trigger(number: str, event_type: str, *, effect=None):
 def damage_immunity(number: str, *, check=None):
     """傷害 / 負傷免疫查詢 fn(game, player, slot, ctx) -> bool。"""
     return _value_hook(DAMAGE_IMMUNITY, number, "damage_immunity", check)
+
+
+def spell_use_limit(number: str, *, value=None):
+    """此卡在場上時,術卡每張每回合可用次數的查詢 fn(game, player, spell_card) -> int | None。"""
+    return _value_hook(SPELL_USE_LIMIT, number, "spell_use_limit", value)
 
 
 def spell_compat(number: str, *, check=None):

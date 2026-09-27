@@ -1334,3 +1334,14 @@ def test_return_discard_to_book_and_stale_noop():
     assert ps.card_at(9) == "M-024" and 9 not in ps.consumed_pages and ps.discard == []
     assert [e["type"] for e in events] == ["card_returned_to_book"]
     assert run(g, tree.ReturnDiscardToBook(), card=0, page=9) == []   # 已放回:無效果
+
+
+def test_spell_uses_per_turn_while_copies():
+    g = game()
+    spec = tree.SpellUsesPerTurnWhileCopies(spell="ビライツ", uses=2, number="M-024", copies=2)
+    biraitsu, other = g.db["S-042"], g.db["S-001"]
+    assert spec(g, 0, biraitsu) is None                       # 場上沒有分身體
+    give(g, 0, "M-024")
+    assert spec(g, 0, biraitsu) is None                       # 只有 1 隻
+    give(g, 0, "M-024")
+    assert spec(g, 0, biraitsu) == 2 and spec(g, 0, other) is None

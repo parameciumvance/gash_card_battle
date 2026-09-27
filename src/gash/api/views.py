@@ -8,7 +8,7 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 
 from __future__ import annotations
 
-from ..engine.engine import slot_power, spell_cost
+from ..engine.engine import exhausted_spell_pages, slot_power, spell_cost
 from ..engine.state import BOOK_SIZE, Game
 
 # 帶 viewer 欄位、內容僅該玩家可見的事件型別
@@ -88,7 +88,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "consumed_pages": sorted(ps.consumed_pages),
         "slots": [_slot_view(game, p, s) for s in ps.slots],
         "discard": list(ps.discard),
-        "used_spell_pages": sorted(ps.used_spell_pages),
+        "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的術卡頁
         "used_event_this_turn": ps.used_event_this_turn,
     }
     # 己方完整魔本只對持有者本人揭露(規則上本就已知);對手與觀戰者不含

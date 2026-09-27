@@ -911,6 +911,60 @@ def test_m025_no_robnos_in_discard_just_gains_mp():
     assert g.state.pending is None and ps.mp == 9
 
 
+def _attack_with_page(g, page, slot_uid):
+    """玩家 0 以第 page 頁的術、由 slot_uid 的魔物攻擊,推進到戰鬥結束(防方不防禦、不保護)。"""
+    submit(g, {"type": "declare_attack", "player": 0, "page": page, "slot_uid": slot_uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    _run_attack_to_damage(g, 0, 1)
+    while g.state.pending is not None and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert g.state.battle is None
+
+
+def _two_robnos_game(copies=2):
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-024", "S-042"), book("M-001", "S-029", "S-029"))
+    ps = g.state.players[0]
+    ps.mp = 20
+    for _ in range(copies - 1):
+        ps.slots.append(MamodoSlot(uid=g.state.next_uid(), stack=["M-024"]))
+    to_battle(g, 0)
+    return g, ps
+
+
+def test_m024_two_doubles_let_biraitsu_be_used_twice_per_turn():
+    # 效果文:自分の「ロブノス(分身体)」が2体いるとき、術カード「ビライツ」を1枚につき1ターンに2回使える
+    from gash.api.views import snapshot
+    g, ps = _two_robnos_game(copies=2)
+    uid = ps.slots[0].uid
+    _attack_with_page(g, 2, uid)
+    assert 2 not in snapshot(g, 0)["players"][0]["used_spell_pages"]   # 還能再用一次
+    _attack_with_page(g, 2, uid)
+    assert 2 in snapshot(g, 0)["players"][0]["used_spell_pages"]
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": uid})
+    assert e.value.code == "spell.used"
+
+
+def test_m024_single_double_biraitsu_once_per_turn():
+    g, ps = _two_robnos_game(copies=1)
+    uid = ps.slots[0].uid
+    _attack_with_page(g, 2, uid)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": uid})
+    assert e.value.code == "spell.used"
+
+
+def test_m024_second_use_needs_two_doubles_at_that_time():
+    g, ps = _two_robnos_game(copies=2)
+    uid = ps.slots[0].uid
+    _attack_with_page(g, 2, uid)
+    ps.slots.pop()                                             # 一隻分身體離場
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": uid})
+    assert e.value.code == "spell.used"
+
+
 # ---------------------------------------------------------------- 事件卡 j 版差異(E-018)
 
 def test_e018_j_version_consecutive_limit():

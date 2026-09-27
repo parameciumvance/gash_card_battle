@@ -39,9 +39,9 @@ from .tree import (
     ReturnDiscardToBook, RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
     ScheduleNextSpellBonus, ScheduleNoProtectBookNextBattle, ScheduleSkipEndFlip, SelfHasNoPartner,
     SelfHasPartner, SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SideIs,
-    SlotsForBookPartner, StackFromBookOnto, Standby, SwapBookPages, TurnPagesBack,
-    TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo, has_own_mamodo,
-    has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
+    SlotsForBookPartner, SpellUsesPerTurnWhileCopies, StackFromBookOnto, Standby, SwapBookPages,
+    TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
+    has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
     opponent_has_partner, opponent_then_self,
 )
 
@@ -279,6 +279,8 @@ reg.activated("M-022", mode="mp", mp_cost=5, timing="nonbattle",
 
 reg.spell_compat("M-023", check=CanUseSpellsWithAttr("木"))
 reg.max_copies("M-024", 2)
+reg.spell_use_limit("M-024",
+                    value=SpellUsesPerTurnWhileCopies(spell="ビライツ", uses=2, number="M-024", copies=2))
 
 reg.on_play("M-025", effect=Sequence(steps=(
     Choose(

@@ -95,7 +95,7 @@ class PlayerState:
     slots: list[MamodoSlot] = field(default_factory=list)
     discard: list[str] = field(default_factory=list)
     consumed_pages: set[int] = field(default_factory=set)   # 已離開魔本的頁(1-based)
-    used_spell_pages: set[int] = field(default_factory=set)  # 本回合已用術卡頁
+    spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各術卡頁已使用次數
     used_event_this_turn: bool = False
     used_abilities: set[str] = field(default_factory=set)   # 本回合已用啟動效果 key
     used_nonbattle_spells: set[str] = field(default_factory=set)  # 本回合已用非戰鬥術卡號
