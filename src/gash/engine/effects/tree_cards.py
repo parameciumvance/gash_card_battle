@@ -17,17 +17,20 @@ from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard,
-    BoostPartneredMamodo, BorrowPartner, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
-    DamageOpponentBookAndAllMamodo, DisableBookProtection, DiscardChosenMamodo,
-    DiscardChosenPartner, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HeadsAtLeast,
-    HeadsCount, HealFirstInjuredMamodo, HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable,
-    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase,
-    OpponentMamodo, OpponentPartneredMamodo, OwnInjuredMamodo, OwnMamodo, PartnerDiscardedThisTurn,
-    PeekOpponentOpenPages, ReduceOpponentMp, Ref, RestrictBothPlayers, RestrictOpponent,
-    ScheduleInjureInsteadNextWin, ScheduleNoProtectBookNextBattle, Sequence, SideIs, Standby,
-    TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
-    has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
-    opponent_has_partner,
+    BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
+    DamageOpponentBookAndAllMamodo, DeployMamodoFromBook, DeployableMamodoInOwnBook,
+    DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
+    DiscardFromOpponentBookPayCost, DiscardOwnMamodoByNumber, GainMp, GainMpPerDamage,
+    GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo,
+    HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
+    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, OpponentBookCards, OpponentMamodo,
+    OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas, OwnInjuredMamodo, OwnMamodo,
+    PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook,
+    ReduceOpponentMp, Ref, RestrictBothPlayers, RestrictOpponent, RevealOpponentBook,
+    RobnosTransformMode, ScheduleInjureInsteadNextWin, ScheduleNoProtectBookNextBattle, Sequence,
+    SideIs, StackFromBookOnto, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn,
+    has_two_or_more_mamodo, opponent_has_mamodo, opponent_has_partner,
 )
 
 # ================================================================ 事件卡
@@ -79,6 +82,11 @@ reg.event("E-010", when=opponent_has_partner, effect=Choose(
     then=BorrowPartner(),
 ))
 
+reg.event("E-012", when=HasOptions(DeployableMamodoInOwnBook()), effect=Choose(
+    DeployableMamodoInOwnBook(), bind="page", prompt="e012_pick",
+    then=DeployMamodoFromBook(),
+))
+
 reg.event("E-013", effect=ScheduleNoProtectBookNextBattle())
 
 reg.event("E-014", effect=Sequence(steps=(
@@ -90,6 +98,22 @@ reg.event("E-015", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="e015_pick",
     then=AddPower(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN, target=Ref("slot")),
 ))
+
+reg.event("E-016", when=HasOptions(OpponentBookCards("spell", exclude_last=True)), effect=Sequence(steps=(
+    RevealOpponentBook(),
+    Choose(
+        OpponentBookCards("spell", exclude_last=True), bind="page", prompt="e016_pick",
+        then=DiscardFromOpponentBookPayCost(),
+    ),
+)))
+
+reg.event("E-017", when=HasOptions(OpponentBookCards("event")), effect=Sequence(steps=(
+    RevealOpponentBook(),
+    Choose(
+        OpponentBookCards("event"), bind="page", prompt="e016_pick",
+        then=DiscardFromOpponentBookPayCost(),
+    ),
+)))
 
 reg.event("E-019", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="e019_pick",
@@ -132,6 +156,9 @@ reg.event("E-026", effect=Coin(
 ))
 
 # ================================================================ 術卡
+# S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
+# 效果不解決,不需註冊(純資料驅動)。純香草術卡(攻/防獲勝→魔本傷害)同樣不需註冊:
+# S-001 等第一彈香草術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
 
 reg.spell_rider("S-003", counter=True)
 
@@ -239,6 +266,29 @@ reg.spell_nonbattle("S-041", effect=Coin(
 
 reg.spell_rider("S-042", damage_bonus=DamageBonusIfAttackTotalAtLeast(threshold=8000, bonus=2))
 
+reg.spell_nonbattle("S-043", effect=Choose(
+    RobnosTransformMode(), bind="mode", prompt="s043_choice",
+    then=Sequence(steps=(
+        When(
+            Bound("mode", "fuse"),
+            then=Sequence(steps=(
+                DiscardOwnMamodoByNumber(number="M-024", count=2),
+                Choose(
+                    OwnBookCopiesOf("M-025"), bind="page", prompt="s043_place_complete",
+                    then=PlayMamodoFromBook(),
+                ),
+            )),
+        ),
+        When(
+            Bound("mode", "split"),
+            then=Sequence(steps=(
+                DiscardOwnMamodoByNumber(number="M-025", count=1),
+                PlaceMamodoFromBookUpTo(number="M-024", count=2),
+            )),
+        ),
+    )),
+))
+
 reg.spell_rider("S-045", on_declare=When(
     SideIs("attack"),
     then=Coin(
@@ -252,6 +302,14 @@ reg.spell_rider("S-046", on_declare=When(
     then=Coin(
         count=1, on=HeadsAtLeast(1),
         then=MakeAttackUndefendable(),
+    ),
+))
+
+reg.spell_nonbattle("S-048", effect=When(
+    OwnFieldHas("M-028"),
+    then=Choose(
+        OwnBookCopiesOf("M-027"), bind="page", prompt="s048_place",
+        then=StackFromBookOnto(base="M-028"),
     ),
 ))
 

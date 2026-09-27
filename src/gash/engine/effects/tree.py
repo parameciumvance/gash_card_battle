@@ -17,8 +17,9 @@ from ..cards import PARTNER
 from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
-    add_modifier, add_power, add_restriction, discard_partner, flip_coins, heal_slot,
-    reduce_mp, schedule_standby, turn_back_pages, turn_pages,
+    add_modifier, add_power, add_restriction, discard_from_book, discard_partner, flip_coins,
+    heal_slot, play_mamodo_from_book, reduce_mp, schedule_standby, take_from_book,
+    turn_back_pages, turn_pages,
 )
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
@@ -150,6 +151,25 @@ class Always:
 
 
 @dataclass(frozen=True)
+class Bound:
+    """ctx 中先前綁定的 name 等於 value(依 Choose 的選擇分支,如 S-043 融合 / 分裂)。"""
+    name: str
+    value: Any
+
+    def test(self, game, ctx) -> bool:
+        return ctx.get(self.name) == self.value
+
+
+@dataclass(frozen=True)
+class OwnFieldHas:
+    """自己場上有頂層為 number 的魔物(S-048 需要場上有巴爾特羅本體)。"""
+    number: str
+
+    def test(self, game, ctx) -> bool:
+        return any(s.top == self.number for s in game.state.players[ctx["player"]].slots)
+
+
+@dataclass(frozen=True)
 class HeadsCount:
     """恰好 count 次正面(E-005 的三分支需精確計數,而非門檻)。"""
     count: int = 0
@@ -183,6 +203,15 @@ def opponent_has_mamodo(game, player) -> bool:
 
 def opponent_has_partner(game, player) -> bool:
     return any(s.partner for s in game.state.players[1 - player].slots)
+
+
+@dataclass(frozen=True)
+class HasOptions:
+    """當作 when= 使用:選項規格至少有一個選項才能使用此卡。簽名 fn(game, player) -> bool。"""
+    spec: Any
+
+    def __call__(self, game, player) -> bool:
+        return bool(self.spec.options(game, {"player": player}))
 
 
 # ================================================================ 選項規格 / 觸發時機
@@ -271,6 +300,115 @@ class OpponentPartneredMamodo:
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
         if slot is None or not slot.partner:
             raise IllegalCommand("choose.invalid", "須選擇對手場上的夥伴卡")
+
+
+@dataclass(frozen=True)
+class DeployableMamodoInOwnBook:
+    """自己魔本中可放出的魔物頁(E-012):場上未滿;變身後的魔物需場上有其變身前魔物,
+    其餘不得與場上魔物同名。選項值為頁碼。"""
+
+    @staticmethod
+    def _targets(game, player) -> list[dict]:
+        from ..engine import MAX_FIELD_MAMODO, same_name_in_play
+        from ..cards import MAMODO
+        ps = game.state.players[player]
+        if len(ps.slots) >= MAX_FIELD_MAMODO:
+            return []
+        out = []
+        for p in range(1, 33):
+            if p in ps.consumed_pages:
+                continue
+            number = ps.card_at(p)
+            card = game.db[number]
+            if card.type != MAMODO:
+                continue
+            if number in reg.STACK_ON:
+                if not any(s.top in reg.STACK_ON[number] for s in ps.slots):
+                    continue
+            elif same_name_in_play(game, player, card):
+                continue
+            out.append({"value": p, "card": number})
+        return out
+
+    def options(self, game, ctx) -> list[dict]:
+        return self._targets(game, ctx["player"])
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
+            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的魔物卡")
+
+
+@dataclass(frozen=True)
+class OpponentBookCards:
+    """對手魔本中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 術 / E-017 事件)。"""
+    card_type: str
+    exclude_last: bool = False
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = game.state.players[1 - ctx["player"]]
+        out = []
+        for p in range(1, 33):
+            if p in opp.consumed_pages or (self.exclude_last and p == 32):
+                continue
+            if game.db[opp.card_at(p)].type == self.card_type:
+                out.append({"value": p, "card": opp.card_at(p), "page": p})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇對手書中對應類型的卡")
+
+
+@dataclass(frozen=True)
+class OwnBookCopiesOf:
+    """自己魔本中(尚未離開的)卡號為 number 的頁(S-043 / S-048)。"""
+    number: str
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        return [{"value": p, "card": ps.card_at(p), "page": p}
+                for p in range(1, 33)
+                if p not in ps.consumed_pages and ps.card_at(p) == self.number]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔本中的指定卡")
+
+
+@dataclass(frozen=True)
+class RobnosTransformMode:
+    """羅布諾斯雙向轉換的模式(S-043):場上二體 ≥2 可「融合」、有完全體可「分裂」。"""
+    double: str = "M-024"
+    complete: str = "M-025"
+
+    def _counts(self, game, ctx):
+        slots = game.state.players[ctx["player"]].slots
+        return (sum(1 for s in slots if s.top == self.double),
+                sum(1 for s in slots if s.top == self.complete))
+
+    def options(self, game, ctx) -> list[dict]:
+        doubles, completes = self._counts(game, ctx)
+        out = []
+        if doubles >= 2:
+            out.append({"value": "fuse", "label": "s043_fuse"})
+        if completes:
+            out.append({"value": "split", "label": "s043_split"})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        doubles, completes = self._counts(game, ctx)
+        if value == "fuse":
+            if doubles < 2:
+                raise IllegalCommand("choose.invalid", "場上羅布諾斯(二體)不足 2 隻")
+        elif value == "split":
+            if not completes:
+                raise IllegalCommand("choose.invalid", "場上沒有羅布諾斯(完全體)")
+        else:
+            raise IllegalCommand("choose.invalid", "無效的選擇")
 
 
 @dataclass(frozen=True)
@@ -850,6 +988,125 @@ class LockChosenOpponentMamodo(Effect):
         m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
                             target_player=1 - player, flag=MAMODO_LOCKED, duration=DUR_TURN)
         m.target_slot = slot.uid
+        return True
+
+
+@dataclass(frozen=True)
+class RevealOpponentBook(Effect):
+    """對使用者揭露對手魔本中尚未離開的所有頁(E-016 / E-017)。"""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        opp = rt.game.state.players[1 - player]
+        rt.game.emit(rt.batch, "book_revealed", player=1 - player, viewer=player,
+                     cards=[{"page": p, "card": opp.card_at(p)}
+                            for p in range(1, 33) if p not in opp.consumed_pages])
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardFromOpponentBookPayCost(Effect):
+    """棄掉對手魔本中 page 綁定的那頁卡,使用者 MP 減少該卡費用(不足額歸 0)(E-016 / E-017)。"""
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        player = ctx["player"]
+        page = ctx[self.page.name]
+        cost = game.db[game.state.players[1 - player].card_at(page)].cost or 0
+        discard_from_book(game, rt.batch, 1 - player, page, ctx["source"])
+        reduce_mp(game, rt.batch, player, cost, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class DeployMamodoFromBook(Effect):
+    """把自己魔本 page 綁定的魔物放到場上;變身後的魔物疊放到其變身前魔物上(E-012)。"""
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        from ..state import MamodoSlot
+        game = rt.game
+        player = ctx["player"]
+        page = ctx[self.page.name]
+        ps = game.state.players[player]
+        number = ps.card_at(page)
+        ps.consumed_pages.add(page)
+        if number in reg.STACK_ON:
+            slot = next(s for s in ps.slots if s.top in reg.STACK_ON[number])
+            slot.stack.append(number)
+            slot.injured = False
+            game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
+                      zone="mamodo", stacked=True)
+        else:
+            slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
+            ps.slots.append(slot)
+            game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
+                      zone="mamodo")
+        if number in reg.ON_PLAY:
+            reg.ON_PLAY[number](game, rt.batch, player, slot)
+        return True
+
+
+@dataclass(frozen=True)
+class PlayMamodoFromBook(Effect):
+    """經 play_mamodo_from_book 放出 page 綁定的魔物(受場上 / 同名上限約束)(S-043 融合)。"""
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        play_mamodo_from_book(rt.game, rt.batch, ctx["player"], ctx[self.page.name])
+        return True
+
+
+@dataclass(frozen=True)
+class StackFromBookOnto(Effect):
+    """把自己魔本 page 綁定的卡疊放到場上頂層為 base 的魔物上,並回復健康(S-048)。"""
+    base: str = ""
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        player = ctx["player"]
+        slot = next((s for s in game.state.players[player].slots if s.top == self.base), None)
+        if slot is None:
+            return True
+        number = take_from_book(game, rt.batch, player, ctx[self.page.name])
+        slot.stack.append(number)
+        slot.injured = False
+        game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
+                  zone="mamodo", stacked=True, from_book=True)
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardOwnMamodoByNumber(Effect):
+    """把自己場上頂層為 number 的魔物,依場上順序棄掉前 count 隻(S-043)。"""
+    number: str = ""
+    count: int = 1
+
+    def run(self, rt, ctx, path):
+        from ..engine import _discard_slot
+        player = ctx["player"]
+        targets = [s for s in rt.game.state.players[player].slots if s.top == self.number]
+        for s in targets[:self.count]:
+            _discard_slot(rt.game, rt.batch, player, s, reason=ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class PlaceMamodoFromBookUpTo(Effect):
+    """自魔本依頁序放出至多 count 張卡號為 number 的魔物;無頁可放或放不出(上限)即停(S-043 分裂)。"""
+    number: str = ""
+    count: int = 1
+
+    def run(self, rt, ctx, path):
+        spec = OwnBookCopiesOf(self.number)
+        for _ in range(self.count):
+            pages = spec.options(rt.game, ctx)
+            if not pages:
+                break
+            if play_mamodo_from_book(rt.game, rt.batch, ctx["player"], pages[0]["value"]) is None:
+                break
         return True
 
 

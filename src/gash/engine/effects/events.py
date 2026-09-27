@@ -1,13 +1,13 @@
 """尚未遷移到效果樹的事件卡(依日版 j 文意)。已遷移的事件卡見 tree_cards.py。
 
 剩下的卡各有待設計的節點,見 openspec/changes/effect-tree-migration/tasks.md 第 2 組:
-E-011(付費重擲)、E-012 / E-016 / E-017(從魔本選頁)、E-018、E-027。
+E-011(付費重擲)、E-018、E-027。
 """
 
 from __future__ import annotations
 
-from ..cards import MAMODO, PARTNER
-from ..state import MAX_FIELD_MAMODO, MamodoSlot, PendingChoice
+from ..cards import PARTNER
+from ..state import PendingChoice
 from . import registry as reg
 from .primitives import choose_or_auto, flip_coins
 
@@ -86,117 +86,11 @@ def e011_pick(game, batch, value, data):
         reg.ON_PLAY[number](game, batch, player, slot)
 
 
-# E-012 ガッシュ登場:從魔本任意頁放出 1 張魔物
-def _e012_targets(game, player):
-    ps = game.state.players[player]
-    if len(ps.slots) >= MAX_FIELD_MAMODO:
-        return []
-    out = []
-    for p in range(1, 33):
-        if p in ps.consumed_pages:
-            continue
-        number = ps.card_at(p)
-        card = game.db[number]
-        if card.type != MAMODO:
-            continue
-        if number in reg.STACK_ON:
-            if not any(s.top in reg.STACK_ON[number] for s in ps.slots):
-                continue
-        else:
-            from ..engine import same_name_in_play
-            if same_name_in_play(game, player, card):
-                continue
-        out.append({"value": p, "card": number})
-    return out
-
-
-@reg.event("E-012", condition=lambda g, p: bool(_e012_targets(g, p)))
-def e012(game, batch, player, page):
-    choose_or_auto(game, batch, kind="e012_pick", player=player,
-                   options=_e012_targets(game, player), data={"player": player}, source="E-012")
-
-
-@reg.choice_resolver("e012_pick")
-def e012_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    if value not in {t["value"] for t in _e012_targets(game, player)}:
-        raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的魔物卡")
-    ps = game.state.players[player]
-    number = ps.card_at(value)
-    ps.consumed_pages.add(value)
-    if number in reg.STACK_ON:
-        base = next(s for s in ps.slots if s.top in reg.STACK_ON[number])
-        base.stack.append(number)
-        base.injured = False
-        game.emit(batch, "card_played", player=player, card=number, slot=base.uid,
-                  zone="mamodo", stacked=True)
-        slot = base
-    else:
-        slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
-        ps.slots.append(slot)
-        game.emit(batch, "card_played", player=player, card=number, slot=slot.uid, zone="mamodo")
-    if number in reg.ON_PLAY:
-        reg.ON_PLAY[number](game, batch, player, slot)
-
-
 # ======================================================================
 # Level 2 事件卡(E-016~E-027)
 # ======================================================================
 
-from .primitives import discard_from_book, reduce_mp  # noqa: E402
-
-
-# E-016 高嶺清太郎:檢視對手書,選 1 術卡(末頁除外)棄掉,MP -該卡費用
-# E-017 高嶺花:檢視對手書,選 1 事件卡棄掉,MP -該卡費用
-def _opp_book_options(game, player, card_type, exclude_last):
-    opp = game.state.players[1 - player]
-    opts = []
-    for p in range(1, 33):
-        if p in opp.consumed_pages:
-            continue
-        if exclude_last and p == 32:
-            continue
-        if game.db[opp.card_at(p)].type == card_type:
-            opts.append({"value": p, "card": opp.card_at(p), "page": p})
-    return opts
-
-
-def _reveal_opp_book(game, batch, player):
-    opp = game.state.players[1 - player]
-    game.emit(batch, "book_revealed", player=1 - player, viewer=player,
-              cards=[{"page": p, "card": opp.card_at(p)}
-                     for p in range(1, 33) if p not in opp.consumed_pages])
-
-
-@reg.event("E-016", condition=lambda g, p: bool(_opp_book_options(g, p, "spell", True)))
-def e016(game, batch, player, page):
-    _reveal_opp_book(game, batch, player)
-    choose_or_auto(game, batch, kind="e016_pick", player=player,
-                   options=_opp_book_options(game, player, "spell", True),
-                   data={"player": player, "type": "spell", "exclude_last": True},
-                   source="E-016")
-
-
-@reg.event("E-017", condition=lambda g, p: bool(_opp_book_options(g, p, "event", False)))
-def e017(game, batch, player, page):
-    _reveal_opp_book(game, batch, player)
-    choose_or_auto(game, batch, kind="e016_pick", player=player,
-                   options=_opp_book_options(game, player, "event", False),
-                   data={"player": player, "type": "event", "exclude_last": False},
-                   source="E-017")
-
-
-@reg.choice_resolver("e016_pick")
-def e016_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    valid = {o["value"] for o in _opp_book_options(game, player, data["type"], data["exclude_last"])}
-    if value not in valid:
-        raise IllegalCommand("choose.invalid", "須選擇對手書中對應類型的卡")
-    cost = game.db[game.state.players[1 - player].card_at(value)].cost or 0
-    discard_from_book(game, batch, 1 - player, value, "E-016/017")
-    reduce_mp(game, batch, player, cost, "E-016/017")
+from .primitives import reduce_mp  # noqa: E402
 
 
 # E-018 フォルゴレのダンス:對手 MP-4(上一回合已減過對手 MP 則不減 — j 版)

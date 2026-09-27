@@ -673,6 +673,67 @@ def test_s056_defense_wins_no_damage_no_mp():
     assert g.state.players[1].mp == 0
 
 
+def test_e012_stacks_transformed_mamodo_onto_base():
+    # 場上 M-006(ゴフレ),魔本有 M-007(變身後,疊放於 M-006)→ E-012 唯一目標自動疊放
+    b0 = book("M-006", "E-012", "S-029", "S-029", "S-029", "S-029", "S-029", "S-029", "M-007")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    base = g.state.players[0].slots[0]
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert base.stack == ["M-006", "M-007"]
+    assert 9 in g.state.players[0].consumed_pages
+    played = [e for e in events if e["type"] == "card_played" and e["card"] == "M-007"]
+    assert played and played[0].get("stacked") is True
+
+
+def test_e016_reveal_opponent_book_discard_spell_pay_cost():
+    b0 = book("M-001", "E-016")
+    b1 = book("M-001", "S-001", "S-002")
+    g, tp = mk(b0, b1)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert any(e["type"] == "book_revealed" and e["viewer"] == 0 for e in events)
+    pend = g.state.pending
+    assert pend.kind == "e016_pick"
+    pages = [o["value"] for o in pend.options]
+    assert 1 not in pages and 32 not in pages and 3 in pages   # 魔物、末頁除外
+    mp = g.state.players[0].mp
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "choose", "player": 0, "value": 1})   # 魔物頁不合法
+    submit(g, {"type": "choose", "player": 0, "value": 3})
+    assert 3 in g.state.players[1].consumed_pages
+    assert "S-002" in g.state.players[1].discard
+    assert g.state.players[0].mp == mp - DB["S-002"].cost
+
+
+def test_e017_single_event_auto_discard_pay_cost():
+    b0 = book("M-001", "E-017")
+    b1 = book("M-001", "E-003")
+    g, tp = mk(b0, b1)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    mp_before_use = g.state.players[0].mp
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending is None                              # 唯一事件卡自動選
+    assert "E-003" in g.state.players[1].discard
+    assert g.state.players[0].mp == mp_before_use - DB["E-017"].cost - DB["E-003"].cost
+
+
+def test_s043_split_complete_into_two_doubles():
+    b0 = book("M-025", "S-043", "M-024", "M-024")
+    g, tp = mk(b0, book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    assert g.state.pending is None
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})   # 無二體可融合 → 唯一選項「分裂」
+    tops = [s.top for s in g.state.players[0].slots]
+    assert tops.count("M-024") == 2 and "M-025" not in tops
+    assert {3, 4} <= g.state.players[0].consumed_pages
+    assert "M-025" in g.state.players[0].discard
+
+
 def test_s035_two_heads_no_protect():
     b0 = book("M-005", "S-035")
     g, tp = mk(b0, book("M-001"))

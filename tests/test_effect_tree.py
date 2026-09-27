@@ -836,3 +836,99 @@ def test_lock_chosen_opponent_mamodo_keeps_legacy_event_shape():
     assert len(ev) == 1 and ev[0]["target_slot"] is None       # 事件沿用遷移前的形狀
     m = g.state.modifiers[-1]
     assert (m.flag, m.target_player, m.target_slot) == (MAMODO_LOCKED, 1, x.uid)
+
+
+# ================================================================ 從魔本選頁(E-012 / E-016 / E-017 / S-043 / S-048)
+
+def set_book(g, player, **pages):
+    """把 player 魔本的指定頁換成指定卡:set_book(g, 0, p5="M-024")。"""
+    ps = g.state.players[player]
+    b = list(ps.book)
+    for k, v in pages.items():
+        b[int(k[1:]) - 1] = v
+    ps.book = tuple(b)
+
+
+def test_has_options_as_when_condition():
+    g = game()
+    cond = tree.HasOptions(tree.OwnBookCopiesOf("M-025"))
+    assert cond(g, 0) is False
+    set_book(g, 0, p5="M-025")
+    assert cond(g, 0) is True
+
+
+def test_bound_and_own_field_has_conditions():
+    g = game()
+    assert tree.Bound("mode", "fuse").test(g, {"mode": "fuse"})
+    assert not tree.Bound("mode", "fuse").test(g, {"mode": "split"})
+    assert not tree.Bound("mode", "fuse").test(g, {})
+    assert tree.OwnFieldHas("M-001").test(g, {"player": 0})
+    assert not tree.OwnFieldHas("M-028").test(g, {"player": 0})
+
+
+def test_opponent_book_cards_excludes_last_and_consumed():
+    g = game()
+    set_book(g, 1, p3="S-002")
+    spec = tree.OpponentBookCards("spell", exclude_last=True)
+    pages = [o["value"] for o in spec.options(g, {"player": 0})]
+    assert 32 not in pages and 3 in pages
+    g.state.players[1].consumed_pages.add(3)
+    assert 3 not in [o["value"] for o in spec.options(g, {"player": 0})]
+    assert 32 in [o["value"] for o in tree.OpponentBookCards("spell").options(g, {"player": 0})]
+
+
+def test_own_book_copies_of_validate_rejects_other_pages():
+    g = game()
+    set_book(g, 0, p5="M-025")
+    spec = tree.OwnBookCopiesOf("M-025")
+    spec.validate(g, {"player": 0}, 5)
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, 6)
+
+
+def test_robnos_transform_mode_options_and_validate():
+    g = game()
+    spec = tree.RobnosTransformMode()
+    assert spec.options(g, {"player": 0}) == []
+    give(g, 0, "M-024")
+    give(g, 0, "M-024")
+    assert [o["value"] for o in spec.options(g, {"player": 0})] == ["fuse"]
+    with pytest.raises(IllegalCommand, match="完全體"):
+        spec.validate(g, {"player": 0}, "split")
+    with pytest.raises(IllegalCommand, match="無效"):
+        spec.validate(g, {"player": 0}, "other")
+    give(g, 0, "M-025")
+    assert [o["value"] for o in spec.options(g, {"player": 0})] == ["fuse", "split"]
+
+
+def test_discard_own_mamodo_by_number_takes_first_n():
+    g = game()
+    a, b, c = give(g, 0, "M-024"), give(g, 0, "M-024"), give(g, 0, "M-024")
+    run(g, tree.DiscardOwnMamodoByNumber(number="M-024", count=2))
+    assert c in g.state.players[0].slots and a not in g.state.players[0].slots
+    assert b not in g.state.players[0].slots
+
+
+def test_place_mamodo_from_book_up_to_stops_when_book_runs_out():
+    g = game()
+    set_book(g, 0, p5="M-024")
+    run(g, tree.PlaceMamodoFromBookUpTo(number="M-024", count=2))
+    assert [s.top for s in g.state.players[0].slots].count("M-024") == 1
+    assert 5 in g.state.players[0].consumed_pages
+
+
+def test_stack_from_book_onto_missing_base_is_noop():
+    g = game()
+    set_book(g, 0, p5="M-027")
+    assert run(g, tree.StackFromBookOnto(base="M-028"), page=5) == []
+    assert 5 not in g.state.players[0].consumed_pages
+
+
+def test_discard_from_opponent_book_pay_cost_uses_card_source():
+    g = game()
+    set_book(g, 1, p3="S-002")
+    g.state.players[0].mp = 5
+    events = run(g, tree.DiscardFromOpponentBookPayCost(), page=3)
+    assert "S-002" in g.state.players[1].discard and 3 in g.state.players[1].consumed_pages
+    assert g.state.players[0].mp == 5 - g.db["S-002"].cost
+    assert {e["reason"] for e in events if "reason" in e} == {"T-000"}
