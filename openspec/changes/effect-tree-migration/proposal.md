@@ -27,4 +27,4 @@
 
 - 程式:`src/gash/engine/effects/{mamodo,partners,events,spells}.py` 逐步清空,對應內容搬進 `tree.py`(新節點)與 `tree_cards.py`(逐卡註冊)。
 - 測試:每批遷移前為缺測試的卡補特徵測試,遷移後新增節點單元測試;現有測試數量會隨每批增加。
-- 無新增外部依賴、無 API / 前端格式變動。
+- 無新增外部依賴、無 API 格式變動;前端只新增新選擇種類的 i18n 標題(`frontend/i18n/zh-TW.json`)。
