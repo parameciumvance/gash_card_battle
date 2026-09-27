@@ -151,6 +151,8 @@ def default_command(game: Game) -> dict | None:
             return {"type": "choose", "value": False}      # 放棄付費重擲
         if kind == "damage_order":
             return {"type": "choose", "value": 0}
+        if any(o.get("label") == "skip" for o in st.pending.options):
+            return {"type": "choose", "value": None}       # 可選擇不使用的效果:不使用
         opt = st.pending.options[0]
         return {"type": "choose", "value": opt.get("value", opt.get("page"))}
     if st.phase == START:

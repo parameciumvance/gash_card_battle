@@ -201,6 +201,8 @@ class Game:
     db: dict[str, CardDef]
     events: list[dict] = field(default_factory=list)   # 全部歷史事件(含序號)
     _trigger_depth: int = 0
+    # 待提供的ジャマー回應(M-026):{"player", "negated", "snapshot"};snapshot 為效果解決前的 GameState
+    jammer: dict | None = None
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}

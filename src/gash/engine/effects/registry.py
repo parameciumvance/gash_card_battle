@@ -81,6 +81,9 @@ DAMAGE_IMMUNITY: dict[str, Callable] = {}
 # 術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此術)
 SPELL_COMPAT: dict[str, Callable] = {}
 
+# ジャマー(妨礙者):場上魔物卡號 -> {"mp_cost": int};對手用完魔物的啟動效果後立即詢問是否使其無效(M-026)
+JAMMER: dict[str, dict] = {}
+
 # 術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
 SPELL_USE_LIMIT: dict[str, Callable] = {}
 
@@ -286,6 +289,14 @@ def max_copies(number: str, n: int):
     if number in MAX_COPIES:
         raise ValueError(f"{number} 的 max_copies 已登記")
     MAX_COPIES[number] = n
+
+
+def jammer(number: str, *, mp_cost: int):
+    """ジャマー效果:對手用完「魔物的效果」(啟動型)後立即詢問是否支付 mp_cost 使其無效。
+    不能主動宣告(不登記為 activated)。"""
+    if number in JAMMER:
+        raise ValueError(f"{number} 的 jammer 已登記")
+    JAMMER[number] = {"mp_cost": mp_cost}
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):

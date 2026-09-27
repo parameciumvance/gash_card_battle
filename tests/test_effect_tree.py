@@ -1292,7 +1292,7 @@ def test_can_use_spells_with_attr():
 
 
 def test_data_registrations_reject_duplicates(monkeypatch):
-    for name in ("STACK_ON", "MAX_COPIES", "MAMODO_ATTACK"):
+    for name in ("STACK_ON", "MAX_COPIES", "MAMODO_ATTACK", "JAMMER"):
         monkeypatch.setattr(reg, name, dict(getattr(reg, name)))
     monkeypatch.setattr(reg, "SPELL_ONLY_STACK", set(reg.SPELL_ONLY_STACK))
     monkeypatch.setattr(reg, "DETACH_KEEP_UNDER", set(reg.DETACH_KEEP_UNDER))
@@ -1302,7 +1302,10 @@ def test_data_registrations_reject_duplicates(monkeypatch):
     reg.max_copies("T-960", 2)
     reg.mamodo_attack("T-960", mp_cost=1, power=5000, damage=2)
     assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2}
-    for call in (lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
+    reg.jammer("T-960", mp_cost=2)
+    assert reg.JAMMER["T-960"] == {"mp_cost": 2}
+    for call in (lambda: reg.jammer("T-960", mp_cost=1),
+                 lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
                  lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):
         with pytest.raises(ValueError):
             call()

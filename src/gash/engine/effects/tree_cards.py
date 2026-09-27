@@ -296,6 +296,9 @@ reg.on_play("M-025", effect=Sequence(steps=(
     GainMp(amount=2),
 )))
 
+# M-026 為ジャマー:不能主動宣告,對手用完魔物的啟動效果後由引擎詢問是否支付 2MP 使其無效
+reg.jammer("M-026", mp_cost=2)
+
 reg.stack_on("M-027", base=("M-028",), spell_only=True, detach_keep_under=True)
 reg.mamodo_attack("M-027", mp_cost=1, power=5000, damage=2)
 
