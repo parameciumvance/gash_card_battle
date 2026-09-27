@@ -1045,12 +1045,69 @@ def test_zero_both_players_mp_counts_as_reduction_only_if_opponent_had_mp():
     assert st.players[0].opp_mp_reduced_turns == {st.turn_no}
 
 
-def test_keep_one_partner_or_fetch_from_book_targets():
+def test_when_otherwise_branch_and_condition_checked_once():
     g = game()
-    a = slot0(g, 1)
+    run(g, When(cond=tree.Bound("x", 1), then=Record("T"), otherwise=Record("O")), x=2)
+    assert LOG == ["O"]
+
+
+def test_as_opponent_swaps_player_for_subtree_only():
+    g = game()
+    run(g, Sequence(steps=(
+        tree.AsOpponent(then=Record("IN", "player")),
+        Record("OUT", "player"),
+    )))
+    assert LOG == [("IN", 1), ("OUT", 0)]
+
+
+def test_as_opponent_restores_player_after_async_resume():
+    g = game()
+    x = slot0(g, 1)
+    give(g, 1, "M-004")
+    run(g, Sequence(steps=(
+        tree.AsOpponent(then=Choose(target=OwnMamodo(), bind="s", prompt="t_pick",
+                                    then=Record("IN", "player"))),
+        Record("OUT", "player"),
+    )))
+    assert pending(g)[:2] == ("t_pick", 1)                  # 對手決定
+    roundtrip_pending(g, CHOICE_KEY)
+    submit(g, {"type": "choose", "player": 1, "value": x.uid})
+    assert LOG == [("IN", 1), ("OUT", 0)]                   # 恢復後外層仍是效果擁有者
+
+
+def test_discard_other_partners_keeps_chosen():
+    g = game()
+    a = slot0(g, 0)
     a.partner = "P-001"
-    b = give(g, 1, "M-004", partner="P-002")
-    run(g, tree.KeepOnePartnerOrFetchFromBook(target="opponent"))
-    assert a.partner == "P-001" and b.partner is None
-    with pytest.raises(ValueError):
-        tree.KeepOnePartnerOrFetchFromBook(target="both")
+    b = give(g, 0, "M-004", partner="P-002")
+    run(g, tree.DiscardOtherPartners(), keep=b.uid)
+    assert a.partner is None and b.partner == "P-002"
+
+
+def test_attachable_partner_pages_and_slots_specs():
+    from .test_cards import book
+    g = game(book0=book())                                  # 預設牌組本身就有夥伴卡,改用空白魔本
+    set_book(g, 0, p9="P-001", p10="P-002")               # P-002 為レイコム家族,場上沒有 → 不可裝
+    assert [o["value"] for o in tree.AttachablePartnerPagesInOwnBook().options(g, {"player": 0})] == [9]
+    m16 = give(g, 0, "M-016")
+    slots = tree.SlotsForBookPartner().options(g, {"player": 0, "page": 9})
+    assert [o["value"] for o in slots] == [slot0(g, 0).uid, m16.uid]
+    with pytest.raises(IllegalCommand):
+        tree.SlotsForBookPartner().validate(g, {"player": 0, "page": 9}, slot0(g, 1).uid)
+
+@dataclass(frozen=True)
+class SetCtx(tree.Effect):
+    """測試用:把 ctx[key] 設成 value(模擬 then 分支改變了條件依據的狀態)。"""
+    key: str = ""
+    value: object = None
+
+    def run(self, rt, ctx, path):
+        ctx[self.key] = self.value
+        LOG.append(("SET", self.value))
+        return True
+
+
+def test_when_condition_evaluated_once_even_if_then_changes_it():
+    g = game()
+    run(g, When(cond=tree.Bound("x", 1), then=SetCtx("x", 2), otherwise=Record("O")), x=1)
+    assert LOG == [("SET", 2)]                               # otherwise 不會再被執行

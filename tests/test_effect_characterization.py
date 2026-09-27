@@ -465,20 +465,55 @@ def test_e018_reduces_again_when_previous_turn_had_no_reduction():
     assert g.state.players[1].mp == before - 4
 
 
-def test_e027_opponent_first_keep_one_partner_self_fetch_from_book():
+def test_e027_opponent_chooses_partner_to_keep_then_self_fetches():
+    # 效果文:相手は…パートナーカードを1枚残してすべて選び、捨て札にする(由對手選擇保留哪張)
     g = strict_game(book0=book(p2="E-027", p9="P-001"))
     g.state.players[0].mp = 10
     opp_a = slot0(g, 1)
     opp_a.partner = "P-001"
     opp_b = give(g, 1, "M-004", partner="P-002")
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
-    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert opp_a.partner == "P-001" and opp_b.partner is None          # 對手只留第 1 張
-    assert "P-002" in g.state.players[1].discard
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert pending(g) == ("e027_keep", 1, [opp_a.uid, opp_b.uid])   # 決策者是對手
+    assert [o["card"] for o in g.state.pending.options] == ["P-001", "P-002"]
+    assert slot0(g, 0).partner is None                               # 自己這側尚未處理
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "choose", "player": 1, "value": slot0(g, 0).uid})
+    events = submit(g, {"type": "choose", "player": 1, "value": opp_b.uid})   # 保留第 2 張
+    assert opp_a.partner is None and opp_b.partner == "P-002"
+    assert "P-001" in g.state.players[1].discard
     assert slot0(g, 0).partner == "P-001" and 9 in g.state.players[0].consumed_pages
     order = [(e["type"], e["player"]) for e in events
              if e["type"] in ("card_discarded", "card_played") and e.get("zone") == "partner"]
     assert order == [("card_discarded", 1), ("card_played", 0)]      # 先對手後自己
+
+
+def test_e027_self_chooses_page_then_mamodo():
+    # 自己沒有夥伴:自己選魔本哪一頁的夥伴,可裝的魔物有多隻時再選裝到哪一隻
+    g = strict_game(book0=book(p2="E-027", p9="P-001", p10="P-010"), book1=book())
+    g.state.players[0].mp = 10
+    gash = slot0(g, 0)
+    gash2 = give(g, 0, "M-016")
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert pending(g) == ("e027_fetch", 0, [9, 10])
+    submit(g, {"type": "choose", "player": 0, "value": 10})
+    assert pending(g) == ("e027_slot", 0, [gash.uid, gash2.uid])
+    submit(g, {"type": "choose", "player": 0, "value": gash2.uid})
+    assert gash2.partner == "P-010" and gash.partner is None
+    assert 10 in g.state.players[0].consumed_pages and 9 not in g.state.players[0].consumed_pages
+
+
+def test_e027_single_partner_kept_without_asking():
+    g = strict_game(book0=book(p2="E-027"), book1=book())
+    g.state.players[0].mp = 10
+    slot0(g, 0).partner = "P-001"
+    slot0(g, 1).partner = "P-001"
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending is None
+    assert slot0(g, 0).partner == "P-001" and slot0(g, 1).partner == "P-001"
+    assert not [e for e in events if e["type"] == "card_discarded"]
 
 
 def test_e027_side_without_partner_and_none_in_book_does_nothing():

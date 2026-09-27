@@ -85,6 +85,11 @@ class Effect:
     def resume(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
         raise NotImplementedError(f"{type(self).__name__} 不是停點節點")
 
+    def leave(self, ctx: dict) -> dict:
+        """子樹非同步完成、上溯經過本節點時呼叫,回傳繼續往外層使用的 ctx。預設不變;
+        AsOpponent 用它把 ctx["player"] 換回原本的效果擁有者。"""
+        return ctx
+
     def resume_choice(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
         """由 CHOICE_KEY 續體恢復(玩家回應了此節點建立的 pending)。預設與 resume 相同;
         同時會停在「擲幣確認鏈」與「玩家選擇」兩種停點的節點(CoinWithPaidReflip)才需要區分。"""
@@ -113,16 +118,48 @@ class Sequence(Effect):
 
 @dataclass(frozen=True)
 class When(Effect):
+    """條件成立解決 then,否則解決 otherwise(預設無效果)。條件只在進入時判斷一次。"""
     cond: Any = None
+    then: Effect = field(default_factory=Nothing)
+    otherwise: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then, self.otherwise)
+
+    def run(self, rt, ctx, path):
+        idx = 0 if self.cond.test(rt.game, ctx) else 1
+        return self.children()[idx].run(rt, ctx, path + (idx,))
+
+
+@dataclass(frozen=True)
+class AsOpponent(Effect):
+    """以對手的視角解決 then:子樹內 ctx["player"] 為對手,選擇由對手決定、「自己」指對手。
+
+    完成後外層的 ctx["player"] 仍是效果擁有者(同步完成時外層 ctx 本來就沒被換;
+    非同步恢復時由 leave 換回)。子樹綁定的名稱(Choose 的 bind 等)會留在 ctx 中。
+    """
     then: Effect = field(default_factory=Nothing)
 
     def children(self):
         return (self.then,)
 
     def run(self, rt, ctx, path):
-        if not self.cond.test(rt.game, ctx):
-            return True
-        return self.then.run(rt, ctx, path + (0,))
+        inner = dict(ctx)
+        inner["player"] = 1 - ctx["player"]
+        done = self.then.run(rt, inner, path + (0,))
+        if done:
+            ctx.update({k: v for k, v in inner.items() if k != "player"})
+        return done
+
+    def leave(self, ctx):
+        out = dict(ctx)
+        out["player"] = 1 - ctx["player"]
+        return out
+
+
+def opponent_then_self(effect: Effect) -> "Sequence":
+    """效果文「相手は…。自分は…。(この順で)」:先以對手視角、再以自己視角各解決一次 effect。"""
+    return Sequence(steps=(AsOpponent(then=effect), effect))
 
 
 @dataclass(frozen=True)
@@ -165,6 +202,14 @@ class Bound:
 
     def test(self, game, ctx) -> bool:
         return ctx.get(self.name) == self.value
+
+
+@dataclass(frozen=True)
+class OwnHasPartner:
+    """自己場上至少有一隻魔物裝有夥伴(E-027)。"""
+
+    def test(self, game, ctx) -> bool:
+        return any(s.partner for s in game.state.players[ctx["player"]].slots)
 
 
 @dataclass(frozen=True)
@@ -265,6 +310,65 @@ class PlayablePartnerInDiscard:
         from ..engine import IllegalCommand
         if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
             raise IllegalCommand("choose.invalid", "須選擇棄牌區中可放出的夥伴卡")
+
+
+@dataclass(frozen=True)
+class OwnPartneredMamodo:
+    """自己場上裝有夥伴的魔物;選項值為 slot UID,顯示的卡為其夥伴(E-027 選保留哪張)。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        return [{"value": s.uid, "card": s.partner}
+                for s in game.state.players[ctx["player"]].slots if s.partner]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        slot = game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1)
+        if slot is None or not slot.partner:
+            raise IllegalCommand("choose.invalid", "須選擇自己場上裝有夥伴的魔物")
+
+
+def _partner_slots(game, player, card) -> list:
+    """player 場上可裝備 card(夥伴卡)的魔物:同家族、尚未裝備夥伴。"""
+    return [s for s in game.state.players[player].slots
+            if game.db[s.top].related_mamodo == card.related_mamodo and s.partner is None]
+
+
+@dataclass(frozen=True)
+class AttachablePartnerPagesInOwnBook:
+    """自己魔本中(尚未離開的)夥伴卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        player = ctx["player"]
+        ps = game.state.players[player]
+        out = []
+        for p in range(1, 33):
+            if p in ps.consumed_pages:
+                continue
+            card = game.db[ps.card_at(p)]
+            if card.type == PARTNER and _partner_slots(game, player, card):
+                out.append({"value": p, "card": card.number, "page": p})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的夥伴卡")
+
+
+@dataclass(frozen=True)
+class SlotsForBookPartner:
+    """可裝備自己魔本 page 綁定那頁夥伴卡的魔物(E-027)。選項值為 slot UID。"""
+    page: Ref = Ref("page")
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        card = game.db[ps.card_at(ctx[self.page.name])]
+        return [{"value": s.uid, "card": s.top} for s in _partner_slots(game, ctx["player"], card)]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇可裝備此夥伴的魔物")
 
 
 @dataclass(frozen=True)
@@ -1249,35 +1353,31 @@ class ReduceOpponentMpUnlessReducedLastTurn(Effect):
 
 
 @dataclass(frozen=True)
-class KeepOnePartnerOrFetchFromBook(Effect):
-    """target 方:場上有夥伴時只留第一張、其餘棄掉;沒有夥伴時,自魔本依頁序取第一張
-    可裝備的夥伴卡裝到對應魔物(E-027;目前為自動選擇,不詢問玩家)。"""
-    target: str = "self"
-
-    def __post_init__(self):
-        _check_who(self.target)
+class DiscardOtherPartners(Effect):
+    """自己場上的夥伴卡只保留 keep 綁定那隻魔物身上的,其餘依場上順序棄掉(E-027)。"""
+    keep: Ref = Ref("keep")
 
     def run(self, rt, ctx, path):
-        game = rt.game
-        side = _who(ctx, self.target)
-        ps = game.state.players[side]
-        partnered = [s for s in ps.slots if s.partner]
-        if partnered:
-            for s in partnered[1:]:
-                discard_partner(game, rt.batch, side, s, ctx["source"])
+        player = ctx["player"]
+        keep = ctx[self.keep.name]
+        for s in list(rt.game.state.players[player].slots):
+            if s.partner and s.uid != keep:
+                discard_partner(rt.game, rt.batch, player, s, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class AttachPartnerFromBookPage(Effect):
+    """把自己魔本 page 綁定那頁的夥伴卡裝到 slot 綁定的魔物上(觸發登場效果)(E-027)。"""
+    page: Ref = Ref("page")
+    slot: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(player, ctx[self.slot.name])
+        if slot is None:
             return True
-        for p in range(1, 33):
-            if p in ps.consumed_pages:
-                continue
-            card = game.db[ps.card_at(p)]
-            if card.type != PARTNER:
-                continue
-            slot = next((s for s in ps.slots
-                         if game.db[s.top].related_mamodo == card.related_mamodo
-                         and s.partner is None), None)
-            if slot is not None:
-                attach_partner_from_book(game, rt.batch, side, p, slot)
-                break
+        attach_partner_from_book(rt.game, rt.batch, player, ctx[self.page.name], slot)
         return True
 
 
@@ -1317,6 +1417,7 @@ def _ascend(rt: Run, ctx: dict, path: tuple, floor: int) -> None:
             for j in range(idx + 1, len(parent.steps)):
                 if not parent.steps[j].run(rt, ctx, parent_path + (j,)):
                     return
+        ctx = parent.leave(ctx)
         path = parent_path
 
 

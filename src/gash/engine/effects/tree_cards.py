@@ -2,7 +2,8 @@
 
 排版規則(讓巢狀層次一眼看得出來):
 - 第一行固定是 `reg.xxx("卡號", ...,`,方便依卡號掃描。
-- 有子節點的容器節點(Choose / Coin / CoinWithPaidReflip / When / Standby / Sequence)一律換行,子節點縮排一層;
+- 有子節點的容器節點(Choose / Coin / CoinWithPaidReflip / When / Standby / Sequence /
+  AsOpponent,以及 opponent_then_self(...))一律換行,子節點縮排一層;
   該容器的收尾括號獨立一行,與開頭對齊。
 - 沒有子節點的葉節點、條件、選項規格寫在同一行。
 - 整張卡只有一個葉節點(或只有旗標)時,整個註冊寫成一行。
@@ -16,23 +17,24 @@ from ..state import (
 from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
-    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard,
-    BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin, CoinWithPaidReflip,
-    DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DeployMamodoFromBook,
-    DeployableMamodoInOwnBook, DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
-    DiscardFromOpponentBookPayCost, DiscardOwnMamodoByNumber, GainMp, GainMpPerDamage,
-    GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo,
-    HealSlot, KeepOnePartnerOrFetchFromBook, LockChosenOpponentMamodo, MakeAttackUndefendable,
+    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromBookPage,
+    AttachPartnerFromDiscard, AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner,
+    Bound, Choose, Coin, CoinWithPaidReflip, DamageBonusIfAttackTotalAtLeast,
+    DamageOpponentBookAndAllMamodo, DeployMamodoFromBook, DeployableMamodoInOwnBook,
+    DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
+    DiscardFromOpponentBookPayCost, DiscardOtherPartners, DiscardOwnMamodoByNumber, GainMp,
+    GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount,
+    HealFirstInjuredMamodo, HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable,
     MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase,
     OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas,
-    OwnInjuredMamodo, OwnMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
-    PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard, ReduceOpponentMp,
-    ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers, RestrictOpponent,
-    RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
-    ScheduleNoProtectBookNextBattle, Sequence, SideIs, StackFromBookOnto, Standby, TurnPagesBack,
-    TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo, has_own_mamodo,
-    has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
-    opponent_has_partner,
+    OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
+    PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard,
+    ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers,
+    RestrictOpponent, RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
+    ScheduleNoProtectBookNextBattle, Sequence, SideIs, SlotsForBookPartner, StackFromBookOnto,
+    Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
+    has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
+    opponent_has_partner, opponent_then_self,
 )
 
 # ================================================================ 事件卡
@@ -167,9 +169,19 @@ reg.event("E-026", effect=Coin(
     then=GainMpPerHeads(per_head=2),
 ))
 
-reg.event("E-027", effect=Sequence(steps=(
-    KeepOnePartnerOrFetchFromBook(target="opponent"),
-    KeepOnePartnerOrFetchFromBook(target="self"),
+reg.event("E-027", effect=opponent_then_self(When(
+    OwnHasPartner(),
+    then=Choose(
+        OwnPartneredMamodo(), bind="keep", prompt="e027_keep",
+        then=DiscardOtherPartners(),
+    ),
+    otherwise=Choose(
+        AttachablePartnerPagesInOwnBook(), bind="page", prompt="e027_fetch",
+        then=Choose(
+            SlotsForBookPartner(), bind="slot", prompt="e027_slot",
+            then=AttachPartnerFromBookPage(),
+        ),
+    ),
 )))
 
 # ================================================================ 術卡

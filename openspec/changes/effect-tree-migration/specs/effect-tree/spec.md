@@ -1,5 +1,16 @@
 ## ADDED Requirements
 
+### Requirement: 以對手視角執行子樹
+`AsOpponent` 節點 SHALL 以對手的視角解決其子樹:子樹內 `ctx["player"]` 為對手,因此子樹中 `Choose` 的決策者與「自己」相關的選項規格、葉節點都指對手。子樹完成後,外層節點的 `ctx["player"]` MUST 仍為效果擁有者,不論子樹是同步完成或停下後恢復(上溯經過 `AsOpponent` 時換回)。`When` 節點 SHALL 支援 `otherwise` 分支,條件只在進入時判斷一次。
+
+#### Scenario: 對手決策後外層仍是效果擁有者
+- **WHEN** `Sequence(AsOpponent(Choose(…, then=A)), B)` 中的 `Choose` 停下
+- **THEN** pending 的決策者為對手;對手回應後 A 以對手視角執行,B 以效果擁有者視角執行
+
+#### Scenario: 條件分支只判斷一次
+- **WHEN** `When(cond, then=X, otherwise=Y)` 的 X 執行後改變了 cond 的結果
+- **THEN** 不會再執行 Y
+
 ### Requirement: 付費重擲節點在節點內部迴圈
 `CoinWithPaidReflip` 節點 SHALL 擲幣並沿用既有確認鏈;結果符合條件時解決其 `then`,不符合且擁有者 MP 不少於費用時,建立詢問 pending(選項為付費重擲 / 停止),玩家選擇重擲時付費後由同一節點重新擲幣,可重複任意次。迴圈 MUST 只發生在該節點內部:節點只在最終完成(結果符合且 `then` 完成、玩家停止、或 MP 不足)時上溯一次,外層節點的副作用恰好執行一次。玩家回應詢問的值 MUST 為 `True` 或 `False`,否則拒絕並保留 pending;選擇重擲但 MP 不足時同樣拒絕;驗證 MUST 先於任何狀態變更。確認鏈的停點以 `CONT_KEY` 續體恢復,詢問的停點以 `CHOICE_KEY` 續體恢復,兩者分別由節點的 `resume` 與 `resume_choice` 處理。
 
