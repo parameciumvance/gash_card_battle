@@ -72,30 +72,32 @@
 
 ## 3. 術卡以外的掛鉤入口先補齊(進 mamodo.py/partners.py 之前)
 
-- [ ] 3.1 `registry.py`/`tree.py` 補 `activated` 的樹入口(仿 `register_event`:mode=declare/mp/discard、timing、per_game、condition 皆需保留)。
-- [ ] 3.2 補 `static_power`、`on_play`、`start_phase`、`on_discard` 的樹入口。
-- [ ] 3.3 補 `trigger.<event_type>`、`damage_immunity`、`spell_compat`、`mamodo_attack` 的樹入口(這幾種較少見,視 mamodo.py/partners.py 實際需求決定要不要先做)。
+- [x] 3.1 `registry.py`/`tree.py` 補 `activated` 的樹入口(仿 `register_event`:mode=declare/mp/discard、timing、per_game、condition 皆需保留)。
+- [x] 3.2 補 `static_power`、`on_play`、`start_phase`、`on_discard` 的樹入口。
+- [x] 3.3 補 `trigger.<event_type>`、`damage_immunity`、`spell_compat`、`mamodo_attack` 的樹入口(這幾種較少見,視 mamodo.py/partners.py 實際需求決定要不要先做)。
+
+入口於 `2b1be88` 補齊並以 17 張魔物卡驗證。`trigger` / `damage_immunity` / `spell_compat` 的入口已有單元測試,實際卡片(M-023 / M-028 / M-029 / M-031)在下一批遷移。`STACK_ON` / `MAX_COPIES` / `MAMODO_ATTACK` 等純資料登記仍留在 `mamodo.py`,與 M-024 / M-027 一起處理。借用對手夥伴(E-010)時,夥伴效果的 `self_slot` 會是對手的魔物,遷移夥伴卡時要留意。
 
 ## 4. 魔物卡(mamodo.py)29 卡
 
-- [ ] M-001 ガッシュ・ベル(activated)
-- [ ] M-002 ガッシュ・ベル(start_phase)
-- [ ] M-003 ガッシュ・ベル(static_power)
-- [ ] M-004 レイコム(static_power)
-- [ ] M-005 ブラゴ(activated)
-- [ ] M-006 ゴフレ(on_play)
-- [ ] M-007 ゴフレ(変身後)(on_play)
-- [ ] M-008 スギナ(activated)
-- [ ] M-009 コルル(on_discard)
-- [ ] M-010 コルル(変身後)(activated)
+- [x] M-001 ガッシュ・ベル(activated) — `2b1be88`
+- [x] M-002 ガッシュ・ベル(start_phase) — `2b1be88`
+- [x] M-003 ガッシュ・ベル(static_power) — `2b1be88`
+- [x] M-004 レイコム(static_power) — `2b1be88`
+- [x] M-005 ブラゴ(activated) — `2b1be88`
+- [x] M-006 ゴフレ(on_play) — `2b1be88`
+- [x] M-007 ゴフレ(変身後)(on_play) — `2b1be88`
+- [x] M-008 スギナ(activated) — `2b1be88`
+- [x] M-009 コルル(on_discard) — `2b1be88`
+- [x] M-010 コルル(変身後)(activated) — `2b1be88`
 - [ ] M-011 フェイン(activated)
-- [ ] M-013 キャンチョメ(activated)
-- [ ] M-014 ティオ(static_power)
-- [ ] M-015 ティオ(activated)
+- [x] M-013 キャンチョメ(activated) — `2b1be88`
+- [x] M-014 ティオ(static_power) — `2b1be88`
+- [x] M-015 ティオ(activated) — `2b1be88`
 - [ ] M-016 ガッシュ・ベル(activated)
-- [ ] M-017 ブラゴ(activated)
-- [ ] M-018 ブラゴ(activated)
-- [ ] M-019 キャンチョメ(activated)
+- [x] M-017 ブラゴ(activated) — `2b1be88`
+- [x] M-018 ブラゴ(activated) — `2b1be88`
+- [x] M-019 キャンチョメ(activated) — `2b1be88`
 - [ ] M-020 ティオ(activated)
 - [ ] M-021 ハイド(activated)
 - [ ] M-022 ゾフィス(activated)
@@ -105,7 +107,7 @@
 - [ ] M-027 バルトロ(アーマー体)(mamodo_attack)
 - [ ] M-028 バルトロ(本体)(trigger.stack_detached)
 - [ ] M-029 ゼオン(activated, spell_compat)
-- [ ] M-030 ヨポポ(activated)
+- [x] M-030 ヨポポ(activated) — `2b1be88`
 - [ ] M-031 キクロプ(damage_immunity)
 
 ## 5. 夥伴卡(partners.py)19 卡
