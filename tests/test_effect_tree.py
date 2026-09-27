@@ -1306,3 +1306,31 @@ def test_data_registrations_reject_duplicates(monkeypatch):
                  lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):
         with pytest.raises(ValueError):
             call()
+
+
+def test_discarded_cards_to_return_spec_offers_skip_only_with_targets():
+    g = game()
+    ps = g.state.players[0]
+    spec = tree.DiscardedCardsToReturn(numbers=("M-024", "M-025"))
+    ps.discard[:] = ["M-001", "M-024"]
+    ps.consumed_pages.clear()
+    assert spec.options(g, {"player": 0}) == []                      # 沒有空頁
+    ps.consumed_pages.add(5)
+    assert spec.options(g, {"player": 0}) == [{"value": 1, "card": "M-024"},
+                                              {"value": None, "label": "skip"}]
+    spec.validate(g, {"player": 0}, None)
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, 0)                          # M-001 不是羅布諾斯
+
+
+def test_return_discard_to_book_and_stale_noop():
+    g = game()
+    ps = g.state.players[0]
+    ps.book = list(ps.book)
+    ps.discard[:] = ["M-024"]
+    ps.consumed_pages.add(9)
+    assert [o["value"] for o in tree.OwnEmptyBookPages().options(g, {"player": 0})][-1] == 9
+    events = run(g, tree.ReturnDiscardToBook(), card=0, page=9)
+    assert ps.card_at(9) == "M-024" and 9 not in ps.consumed_pages and ps.discard == []
+    assert [e["type"] for e in events] == ["card_returned_to_book"]
+    assert run(g, tree.ReturnDiscardToBook(), card=0, page=9) == []   # 已放回:無效果

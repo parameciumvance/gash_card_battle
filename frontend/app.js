@@ -1352,6 +1352,7 @@ function renderPendingDialog() {
     if (opt.label === "reflip") return { label: t("choice.reflip", { n: opt.value + 1 }), onpick: () => choose(opt.value) };
     if (opt.label === "pay_reflip") return { label: t("choice.pay_reflip"), onpick: () => choose(true) };
     if (opt.label === "stop") return { label: t("choice.stop"), onpick: () => choose(false) };
+    if (opt.label === "skip") return { label: t("choice.skip"), onpick: () => choose(null) };
     if (opt.label === "s043_fuse") return { label: t("choice.s043_fuse"), onpick: () => choose("fuse") };
     if (opt.label === "s043_split") return { label: t("choice.s043_split"), onpick: () => choose("split") };
     if (opt.card) {

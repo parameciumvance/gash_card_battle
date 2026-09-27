@@ -245,8 +245,8 @@ def test_s043_fuse_two_doubles_into_complete():
     submit(g, {"type": "pass", "player": 1})
     assert sum(1 for s in g.state.players[0].slots if s.top == "M-024") == 2
     submit(g, {"type": "use_book_card", "player": 0, "page": 7})  # S-043 合體
-    if g.state.pending is not None:  # M-025 登場觸發:選一張墓地羅布諾斯放回書空頁
-        submit(g, {"type": "choose", "player": 0, "value": g.state.pending.options[0]["value"]})
+    assert g.state.pending.kind == "m025_pick"   # M-025 登場:可選擇把墓地羅布諾斯放回魔本空頁
+    submit(g, {"type": "choose", "player": 0, "value": None})   # 不使用
     submit(g, {"type": "pass", "player": 1})
     assert any(s.top == "M-025" for s in g.state.players[0].slots)
     assert not any(s.top == "M-024" for s in g.state.players[0].slots)
@@ -870,6 +870,45 @@ def test_m029_can_use_only_gash_spell_named_zakeru(spell, allowed):
         with pytest.raises(IllegalCommand) as e:
             submit(g, {"type": "declare_attack", "player": 0, "page": 2})
         assert e.value.code == "spell.no_mamodo"
+
+
+def _deploy_m025(discard=("M-024",)):
+    """以 E-012 從第 9 頁放出 M-025(登場效果觸發)。回傳 (g, ps)。"""
+    g, _ = mk(book("M-001", "E-012", "S-029", "S-029", "S-029", "S-029", "S-029", "S-029", "M-025"),
+              book("M-001"))
+    ps = g.state.players[0]
+    ps.mp = 10
+    ps.discard.extend(discard)
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})   # E-012 費用 3
+    return g, ps
+
+
+def test_m025_return_is_optional_and_mp_comes_after():
+    # 效果文:①捨て札のロブノス1枚を…もどすことができる ②MPを2ふやす(この順で)
+    g, ps = _deploy_m025()
+    assert g.state.pending.kind == "m025_pick"
+    assert [o["value"] for o in g.state.pending.options] == [0, None]     # 可選擇不放回
+    assert ps.mp == 7                                                      # ② 還沒執行
+    submit(g, {"type": "choose", "player": 0, "value": None})
+    assert ps.discard == ["M-024"] and 1 in ps.consumed_pages
+    assert ps.mp == 9
+
+
+def test_m025_player_chooses_card_then_empty_page():
+    g, ps = _deploy_m025()
+    submit(g, {"type": "choose", "player": 0, "value": 0})
+    assert g.state.pending.kind == "m025_page"
+    assert [o["value"] for o in g.state.pending.options] == [1, 9]        # 兩個空頁
+    assert ps.mp == 7
+    submit(g, {"type": "choose", "player": 0, "value": 9})
+    assert ps.card_at(9) == "M-024" and 9 not in ps.consumed_pages and 1 in ps.consumed_pages
+    assert ps.discard == [] and ps.mp == 9
+
+
+def test_m025_no_robnos_in_discard_just_gains_mp():
+    g, ps = _deploy_m025(discard=("M-001",))
+    assert g.state.pending is None and ps.mp == 9
 
 
 # ---------------------------------------------------------------- 事件卡 j 版差異(E-018)

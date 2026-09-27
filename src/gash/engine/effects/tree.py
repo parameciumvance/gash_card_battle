@@ -20,6 +20,7 @@ from .primitives import (
     add_modifier, add_power, add_restriction, attach_partner_from_book, discard_from_book,
     discard_partner, flip_coins,
     heal_slot, mark_opp_mp_reduced, play_mamodo_from_book, reduce_mp, reduce_opponent_mp,
+    return_to_book,
     schedule_standby, take_from_book,
     turn_back_pages, turn_pages,
 )
@@ -418,6 +419,41 @@ class OpponentInjuredMamodo:
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
         if slot is None or not slot.injured:
             raise IllegalCommand("choose.invalid", "須選擇對手場上負傷的魔物")
+
+
+@dataclass(frozen=True)
+class DiscardedCardsToReturn:
+    """可選擇放回魔本空頁的自己棄牌堆卡(卡號屬於 numbers);魔本沒有空頁時沒有選項。
+    選項值為棄牌索引,另附一個「不使用」(value=None, label="skip")——效果文為「…できる」(M-025)。"""
+    numbers: tuple = ()
+
+    def _targets(self, game, player) -> list[dict]:
+        ps = game.state.players[player]
+        if not ps.consumed_pages:
+            return []
+        return [{"value": i, "card": n} for i, n in enumerate(ps.discard) if n in self.numbers]
+
+    def options(self, game, ctx) -> list[dict]:
+        targets = self._targets(game, ctx["player"])
+        return targets + [{"value": None, "label": "skip"}] if targets else []
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value is not None and value not in {t["value"] for t in self._targets(game, ctx["player"])}:
+            raise IllegalCommand("choose.invalid", "須選擇棄牌區的羅布諾斯卡")
+
+
+@dataclass(frozen=True)
+class OwnEmptyBookPages:
+    """自己魔本的空頁(卡片已離開的頁),依頁序(M-025 放回)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        return [{"value": p, "page": p} for p in sorted(game.state.players[ctx["player"]].consumed_pages)]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in game.state.players[ctx["player"]].consumed_pages:
+            raise IllegalCommand("choose.invalid", "須選擇魔本的空頁")
 
 
 @dataclass(frozen=True)
@@ -1572,6 +1608,22 @@ class DiscardChosenOpponentMamodo(Effect):
         if slot is None:
             return True
         _discard_slot(rt.game, rt.batch, opp, slot, reason=ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class ReturnDiscardToBook(Effect):
+    """把自己棄牌堆 card 綁定索引的那張卡放回魔本 page 綁定的空頁(M-025)。"""
+    card: Ref = Ref("card")
+    page: Ref = Ref("page")
+
+    def run(self, rt, ctx, path):
+        ps = rt.game.state.players[ctx["player"]]
+        idx, page = ctx[self.card.name], ctx[self.page.name]
+        if not 0 <= idx < len(ps.discard) or page not in ps.consumed_pages:
+            return True
+        number = ps.discard.pop(idx)
+        return_to_book(rt.game, rt.batch, ctx["player"], number, page)
         return True
 
 
