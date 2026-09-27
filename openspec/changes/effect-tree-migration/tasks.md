@@ -30,8 +30,8 @@
 - [x] S-038 ジキルガ(rider.on_damage)— `10af584`
 - [x] S-039 ラドム(rider.on_damage)— `10af584`
 - [x] S-042 ビライツ(rider.damage_bonus)— `f15915e`
-- [ ] S-043 レリ・ブルク(spell_nonbattle)— 書內選頁 + 融合/分裂二選一,見下方說明
-- [ ] S-048 ゼベルオン(spell_nonbattle)— 書內選頁,見下方說明
+- [x] S-043 レリ・ブルク(spell_nonbattle) — `972a5fe`
+- [x] S-048 ゼベルオン(spell_nonbattle) — `972a5fe`
 - [x] S-056 目をそらすな!(rider.on_defense_damaged)— `f15915e`
 - [x] S-058 ザケル(rider.injure_instead,純旗標)— `10af584`
 
@@ -40,9 +40,7 @@
 沒列入。它們和 S-003/S-030/S-058 一樣只有旗標、沒有邏輯,不需要樹節點,直接把原本那一行
 `reg.spell_rider(...)` 搬到 `tree_cards.py` 即可(讓所有卡的註冊集中在一個檔案)。
 
-**術卡剩下的 S-043 / S-048**:兩張都是「從自己魔本任意頁選卡 → 放到場上」(S-043 另外還有
-融合 / 分裂二選一)。mamodo.py / partners.py 的 M-020 / M-021 / M-022 等也有相同模式,
-等做那批時一起設計「書內選頁」節點,不要只為這兩張先做。
+**術卡已全部遷完**:S-043 / S-048 於 `972a5fe` 與 E-012 / E-016 / E-017 一起以「從魔本選頁」的選項規格遷移,`spells.py` 已刪除。
 
 `f15915e` 補上了 `rider.on_win` / `rider.on_defense_damaged` 的樹入口;`damage_bonus` 因為要回傳
 數值、不是效果,改用不可變可呼叫的規格物件(`DamageBonusIfAttackTotalAtLeast`),不經效果樹。
@@ -57,12 +55,12 @@
 - [x] E-009 やさしい王様 — `ebb4027`
 - [x] E-010 やさしい清麿 — `ebb4027`
 - [ ] E-011 鉄のフォルゴレ — 需要專屬的付費重擲節點(設計見 design.md「已知阻礙」)
-- [ ] E-012 ガッシュ登場 — 從魔本任意頁放出魔物,等「書內選頁」節點
+- [x] E-012 ガッシュ登場 — `972a5fe`
 - [x] E-013 ナオミちゃん — `ebb4027`
 - [x] E-014 ウマゴン — `ebb4027`
 - [x] E-015 バルカン300 — `ebb4027`
-- [ ] E-016 高嶺清太郎 — 檢視對手魔本選術卡棄掉,等「書內選頁」節點(對手魔本版)
-- [ ] E-017 高嶺華 — 同 E-016(事件卡),與 E-016 共用選擇 kind `e016_pick`
+- [x] E-016 高嶺清太郎 — `972a5fe`
+- [x] E-017 高嶺華 — `972a5fe`
 - [ ] E-018 フォルゴレのダンス — 現行用 `players[p].__dict__["_mp_reduce_turn"]` 在狀態上塞隱藏欄位記錄上次減 MP 的回合,遷移前要先決定這個狀態放哪
 - [x] E-019 清麿の怒り — `ebb4027`
 - [x] E-020 恵のコンサート — bug 修正 `71a699c`、遷移 `1a97b92`
@@ -134,6 +132,6 @@
 
 ## 6. 收尾(全部遷完之後)
 
-- [ ] 6.1 確認 `mamodo.py`/`partners.py`/`events.py`/`spells.py` 只剩檔案說明註解(或整個檔案可以刪除),`tree_cards.py` 是唯一的逐卡註冊檔。
+- [ ] 6.1 確認 `mamodo.py`/`partners.py`/`events.py` 只剩檔案說明註解(或整個檔案可以刪除),`tree_cards.py` 是唯一的逐卡註冊檔(`spells.py` 已於 `972a5fe` 刪除)。
 - [ ] 6.2 更新 README「卡片效果的寫法」段落與 `openspec/changes/todo.md`,移除「其餘卡片遷移」項目。
 - [ ] 6.3 依 AGENTS.md 流程:`/opsx:sync` 同步 delta spec 回主 spec,再 `/opsx:archive` 歸檔本 change。
