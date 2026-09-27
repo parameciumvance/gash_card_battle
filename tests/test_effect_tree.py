@@ -499,3 +499,91 @@ def test_rider_invalid_kwarg_leaves_no_partial_state_and_allows_retry():
     assert snapshot() == before
     reg.spell_rider("T-914", on_damage=Nothing(), counter=True)      # 修正後可重試
     assert reg.SPELL_RIDERS["T-914"].counter is True
+
+
+# ================================================================ 第三批新增節點(E-005/E-006/E-022/E-026)
+
+def test_heads_count_exact_match():
+    assert tree.HeadsCount(0).test(None, {"results": [False, False]}) is True
+    assert tree.HeadsCount(0).test(None, {"results": [True, False]}) is False
+    assert tree.HeadsCount(2).test(None, {"results": [True, True]}) is True
+    assert tree.HeadsCount(2).test(None, {"results": [True, False]}) is False
+
+
+def test_turn_pages_forward_matches_primitive():
+    g = game()
+    pos0 = g.state.players[0].pos
+    batch = run(g, tree.TurnPagesForward(leaves=2))
+    assert g.state.players[0].pos == pos0 + 4
+    assert [e["type"] for e in batch] == ["pages_turned"]
+
+
+def test_turn_pages_back_matches_primitive():
+    g = game()
+    g.state.players[0].pos = 10
+    batch = run(g, tree.TurnPagesBack(leaves=2))
+    assert g.state.players[0].pos == 6
+    assert [e["type"] for e in batch] == ["pages_turned"]
+
+
+def test_heal_slot_applies_and_ignores_missing_target():
+    g = game()
+    a = slot0(g, 0)
+    a.injured = True
+    run(g, tree.HealSlot(), slot=a.uid)
+    assert a.injured is False
+
+    g2 = game()
+    batch = run(g2, tree.HealSlot(), slot=9999)   # 目標不存在:無效果、無例外
+    assert batch == []
+
+
+def test_gain_mp_per_heads_scales_and_zero_is_silent():
+    g = game()
+    g.state.players[0].mp = 0
+    batch = run(g, tree.GainMpPerHeads(per_head=2), results=[True, False])
+    assert g.state.players[0].mp == 2
+    assert [e["type"] for e in batch] == ["mp_changed"]
+
+    g2 = game()
+    g2.state.players[0].mp = 0
+    batch = run(g2, tree.GainMpPerHeads(per_head=2), results=[False, False])
+    assert g2.state.players[0].mp == 0
+    assert batch == []   # gain_mp(amount=0) 不發事件,與遷移前一致
+
+
+def test_partner_discarded_this_turn_options_and_validate():
+    g = game()
+    g.state.players[0].discard.append("P-001")
+    g.state.players[0].discarded_this_turn.append("P-001")
+    spec = tree.PartnerDiscardedThisTurn()
+    opts = spec.options(g, {"player": 0})
+    assert opts == [{"value": 0, "card": "P-001", "slot_uid": slot0(g, 0).uid}]
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, 99)
+    spec.validate(g, {"player": 0}, 0)   # 不拋出
+
+
+def test_partner_discarded_this_turn_excludes_earlier_turn_discards():
+    g = game()
+    g.state.players[0].discard.append("P-001")   # 不在 discarded_this_turn
+    assert tree.PartnerDiscardedThisTurn().options(g, {"player": 0}) == []
+
+
+def test_attach_partner_from_discard_matches_old_behavior():
+    g = game()
+    g.state.players[0].discard.append("P-001")
+    g.state.players[0].discarded_this_turn.append("P-001")
+    a = slot0(g, 0)
+    batch = run(g, tree.AttachPartnerFromDiscard(), choice=0)
+    assert a.partner == "P-001"
+    assert "P-001" not in g.state.players[0].discard
+    ev = without_seq([e for e in batch if e["type"] == "card_played"])
+    assert ev == [{"type": "card_played", "player": 0, "card": "P-001",
+                   "slot": a.uid, "zone": "partner", "from_discard": True}]
+
+
+def test_attach_partner_from_discard_stale_choice_is_noop():
+    g = game()
+    batch = run(g, tree.AttachPartnerFromDiscard(), choice=0)   # 棄牌堆是空的
+    assert batch == []

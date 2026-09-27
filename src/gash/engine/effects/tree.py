@@ -13,9 +13,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from ..cards import PARTNER
 from ..state import DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
-from .primitives import add_modifier, add_power, add_restriction, flip_coins, schedule_standby
+from .primitives import (
+    add_modifier, add_power, add_restriction, flip_coins, heal_slot, schedule_standby,
+    turn_back_pages, turn_pages,
+)
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
 RESERVED_KINDS = frozenset({
@@ -132,6 +136,15 @@ class Always:
         return True
 
 
+@dataclass(frozen=True)
+class HeadsCount:
+    """恰好 count 次正面(E-005 的三分支需精確計數,而非門檻)。"""
+    count: int = 0
+
+    def test(self, game, ctx) -> bool:
+        return sum(ctx["results"]) == self.count
+
+
 # ================================================================ 選項規格 / 觸發時機
 
 @dataclass(frozen=True)
@@ -145,6 +158,35 @@ class OwnMamodo:
         from ..engine import IllegalCommand
         if game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1) is None:
             raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
+
+
+@dataclass(frozen=True)
+class PartnerDiscardedThisTurn:
+    """棄牌堆中本回合入墓的夥伴卡,且其家族魔物在場上尚有空位(尚未裝備夥伴)。"""
+
+    @staticmethod
+    def _targets(game, player) -> list[dict]:
+        ps = game.state.players[player]
+        out = []
+        for i, number in enumerate(ps.discard):
+            card = game.db[number]
+            if card.type != PARTNER or number not in ps.discarded_this_turn:
+                continue
+            slot = next((s for s in ps.slots
+                         if game.db[s.top].related_mamodo == card.related_mamodo
+                         and s.partner is None), None)
+            if slot is None:
+                continue
+            out.append({"value": i, "card": number, "slot_uid": slot.uid})
+        return out
+
+    def options(self, game, ctx) -> list[dict]:
+        return self._targets(game, ctx["player"])
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if not any(t["value"] == value for t in self._targets(game, ctx["player"])):
+            raise IllegalCommand("choose.invalid", "須選擇可放回的夥伴")
 
 
 @dataclass(frozen=True)
@@ -387,6 +429,74 @@ class AddAttackBonusPerHeads(Effect):
         amount = sum(ctx["results"]) * self.per_head
         battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + amount
         rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=amount)
+        return True
+
+
+@dataclass(frozen=True)
+class HealSlot(Effect):
+    """令 target 綁定的魔物回復健康狀態(E-006)。執行時才依 UID 重新查找,目標已離場則無效果。"""
+    target: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(player, ctx[self.target.name])
+        if slot is None:
+            return True
+        heal_slot(rt.game, rt.batch, player, slot, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class TurnPagesForward(Effect):
+    """自己魔本翻頁(效果造成,不獲得 MP);翻完即敗(E-005 反反)。"""
+    leaves: int = 1
+
+    def run(self, rt, ctx, path):
+        turn_pages(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class TurnPagesBack(Effect):
+    """自己魔本回翻頁(E-005 正正)。"""
+    leaves: int = 1
+
+    def run(self, rt, ctx, path):
+        turn_back_pages(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class GainMpPerHeads(Effect):
+    """依 ctx["results"] 的正面數量,為自己增加 MP(E-026:每正面 +2)。"""
+    per_head: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        amount = sum(ctx["results"]) * self.per_head
+        gain_mp(rt.game, rt.batch, ctx["player"], amount, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class AttachPartnerFromDiscard(Effect):
+    """把 Choose(PartnerDiscardedThisTurn()) 選中的夥伴卡從棄牌堆裝到對應魔物上(E-022)。"""
+    index: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        player = ctx["player"]
+        ps = game.state.players[player]
+        idx = ctx[self.index.name]
+        targets = {t["value"]: t for t in PartnerDiscardedThisTurn._targets(game, player)}
+        t = targets.get(idx)
+        if t is None:      # 場面已變化(Choose 已驗證過,理論上不會發生),防禦性放棄
+            return True
+        number = ps.discard.pop(idx)
+        slot = game.state.slot_by_uid(player, t["slot_uid"])
+        slot.partner = number
+        game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
+                  zone="partner", from_discard=True)
         return True
 
 

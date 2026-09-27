@@ -686,6 +686,50 @@ def test_e015_power_until_end_next_turn():
     assert slot_power(g, 0, s) == 4000  # 下回合結束階段後失效
 
 
+def test_e005_one_head_one_tail_no_effect():
+    g = game(book0=book(p2="E-005"), coins=(HEADS, TAILS))
+    pos = g.state.players[0].pos
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.players[0].pos == pos  # 一正一反 → 無效
+
+
+def test_e022_heads_returns_partner_discarded_this_turn():
+    g = game(book0=book(p2="E-022"), coins=(HEADS,))
+    g.state.players[0].discard.append("P-001")
+    g.state.players[0].discarded_this_turn.append("P-001")
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})  # 唯一目標自動放出
+    assert slot0(g, 0).partner == "P-001"
+    assert "P-001" not in g.state.players[0].discard
+
+
+def test_e022_tails_no_effect():
+    g = game(book0=book(p2="E-022"), coins=(TAILS,))
+    g.state.players[0].discard.append("P-001")
+    g.state.players[0].discarded_this_turn.append("P-001")
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert slot0(g, 0).partner is None
+    assert "P-001" in g.state.players[0].discard
+
+
+def test_e026_mp_scales_with_heads():
+    g = game(book0=book(p2="E-026"), coins=(HEADS, TAILS))
+    g.state.players[0].mp = 0
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.players[0].mp == 2  # 1 正 × 2
+
+
+def test_e026_two_tails_no_mp_gain():
+    g = game(book0=book(p2="E-026"), coins=(TAILS, TAILS))
+    g.state.players[0].mp = 0
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.players[0].mp == 0
+
+
 # ================================================================ 術
 
 def test_s003_rashield_counter():

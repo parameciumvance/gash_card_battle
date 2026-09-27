@@ -221,8 +221,8 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 
 - 舊的 `@reg.xxx` 裝飾器寫法遷移期間保留,逐卡搬到效果樹;同一張卡的同一掛鉤不能兩種都註冊。
 - `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。
-- 已遷移:E-001;S-004、S-014、S-021、S-025、S-026、S-027、S-035、S-037、S-040、S-041、S-045、S-046、S-057;
-  其餘見 `openspec/changes/todo.md`。
+- 已遷移:E-001、E-005、E-006、E-022、E-026;S-004、S-014、S-021、S-025、S-026、S-027、
+  S-035、S-037、S-040、S-041、S-045、S-046、S-057;其餘見 `openspec/changes/todo.md`。
 
 ## 測試
 

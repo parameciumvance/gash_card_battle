@@ -10,7 +10,7 @@ from ..state import (
 from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, choose_or_auto, flip_coins,
-    heal_slot, schedule_standby, turn_back_pages, turn_pages,
+    heal_slot, schedule_standby, turn_pages,
 )
 
 
@@ -45,54 +45,6 @@ def e004(game, batch, player, page):
         if ps.mp:
             game.emit(batch, "mp_changed", player=p, delta=-ps.mp, mp=0, reason="E-004")
             ps.mp = 0
-
-
-# E-005 鈴芽のお見舞い:擲2硬幣 正正→魔本回翻2張 / 正反→無效 / 反反→翻2張
-@reg.event("E-005")
-def e005(game, batch, player, page):
-    flip_coins(game, batch, player, 2, "E-005", "e005_resolve", {"player": player})
-
-
-@reg.choice_resolver("e005_resolve")
-def e005_resolve(game, batch, results, data):
-    player = data["player"]
-    heads = sum(results)
-    if heads == 2:
-        turn_back_pages(game, batch, player, 2, "E-005")
-    elif heads == 0:
-        turn_pages(game, batch, player, 2, "E-005")
-
-
-# E-006 秋山勇太:選1隻魔物擲硬幣 正→回復健康 / 反→本回合+1000
-@reg.event("E-006", condition=lambda g, p: bool(g.state.players[p].slots))
-def e006(game, batch, player, page):
-    choose_or_auto(game, batch, kind="e006_pick", player=player,
-                   options=_slot_options(game, player), data={"player": player}, source="E-006")
-
-
-@reg.choice_resolver("e006_pick")
-def e006_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    slot = game.state.slot_by_uid(player, value if isinstance(value, int) else -1)
-    if slot is None:
-        raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
-    game.state.pending = None
-    flip_coins(game, batch, player, 1, "E-006", "e006_resolve",
-               {"player": player, "slot_uid": slot.uid})
-
-
-@reg.choice_resolver("e006_resolve")
-def e006_resolve(game, batch, results, data):
-    player = data["player"]
-    slot = game.state.slot_by_uid(player, data["slot_uid"])
-    if slot is None:
-        return
-    if results[0]:
-        heal_slot(game, batch, player, slot, "E-006")
-    else:
-        add_power(game, batch, source="E-006", owner=player, target_player=player,
-                  target_slot=slot.uid, amount=1000, duration=DUR_TURN)
 
 
 # E-007 木山つくし:1隻負傷魔物回復健康
@@ -440,57 +392,6 @@ def e021(game, batch, player, page):
     gain_mp(game, batch, player, 2, "E-021")
 
 
-# E-022 コリー:擲幣正→從棄牌區選本回合入墓的夥伴放到場上
-def _e022_targets(game, player):
-    ps = game.state.players[player]
-    out = []
-    for i, number in enumerate(ps.discard):
-        card = game.db[number]
-        if card.type != PARTNER or number not in ps.discarded_this_turn:
-            continue
-        slot = next((s for s in ps.slots
-                     if game.db[s.top].related_mamodo == card.related_mamodo
-                     and s.partner is None), None)
-        if slot is None:
-            continue
-        out.append({"value": i, "card": number, "slot_uid": slot.uid})
-    return out
-
-
-@reg.event("E-022", condition=lambda g, p: any(n in g.state.players[p].discarded_this_turn
-                                               and g.db[n].type == PARTNER
-                                               for n in g.state.players[p].discard))
-def e022(game, batch, player, page):
-    flip_coins(game, batch, player, 1, "E-022", "e022_resolve", {"player": player})
-
-
-@reg.choice_resolver("e022_resolve")
-def e022_resolve(game, batch, results, data):
-    player = data["player"]
-    if not results[0]:
-        return
-    targets = _e022_targets(game, player)
-    if not targets:
-        return
-    choose_or_auto(game, batch, kind="e022_pick", player=player, options=targets,
-                   data={"player": player}, source="E-022")
-
-
-@reg.choice_resolver("e022_pick")
-def e022_pick(game, batch, value, data):
-    from ..engine import IllegalCommand
-    player = data["player"]
-    ps = game.state.players[player]
-    targets = {t["value"]: t for t in _e022_targets(game, player)}
-    if value not in targets:
-        raise IllegalCommand("choose.invalid", "須選擇可放回的夥伴")
-    number = ps.discard.pop(value)
-    slot = game.state.slot_by_uid(player, targets[value]["slot_uid"])
-    slot.partner = number
-    game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
-              zone="partner", from_discard=True)
-
-
 # E-023 戦いの目的:[持續] 所有裝夥伴的魔物 +2000(至下回合結束階段)
 @reg.event("E-023")
 def e023(game, batch, player, page):
@@ -524,18 +425,6 @@ def e024_pick(game, batch, value, data):
 def e025(game, batch, player, page):
     add_restriction(game, batch, source="E-025", owner=player,
                     target_player=1 - player, flag=NO_MAMODO_EFFECTS, duration=DUR_TURN)
-
-
-# E-026 魚を頼んだのに!:擲2硬幣,MP = 正面數×2
-@reg.event("E-026")
-def e026(game, batch, player, page):
-    flip_coins(game, batch, player, 2, "E-026", "e026_resolve", {"player": player})
-
-
-@reg.choice_resolver("e026_resolve")
-def e026_resolve(game, batch, results, data):
-    from ..engine import gain_mp
-    gain_mp(game, batch, data["player"], sum(results) * 2, "E-026")
 
 
 # E-027 親友:雙方場上夥伴只留 1 張,無夥伴者自書取 1 張(先對手後自己)
