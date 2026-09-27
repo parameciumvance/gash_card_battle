@@ -10,18 +10,24 @@
 只有旗標、沒有邏輯的術卡(如 counter / damage_cap / injure_instead)也一併列在這裡,讓註冊集中。
 """
 
-from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
+from ..state import (
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
+)
 from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
-    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard, Choose,
-    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DisableBookProtection,
-    DiscardChosenPartner, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune,
-    HeadsAtLeast, HeadsCount, HealSlot, MakeAttackUndefendable, MakeNextAttackUndefendable,
-    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, OpponentPartneredMamodo, OwnMamodo,
-    PartnerDiscardedThisTurn, ReduceOpponentMp, Ref, RestrictOpponent, ScheduleInjureInsteadNextWin,
-    Sequence, SideIs, Standby,
-    TurnPagesBack, TurnPagesForward, When, has_own_mamodo, has_partner_discarded_this_turn,
+    AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard,
+    BoostPartneredMamodo, BorrowPartner, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
+    DamageOpponentBookAndAllMamodo, DisableBookProtection, DiscardChosenMamodo,
+    DiscardChosenPartner, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HeadsAtLeast,
+    HeadsCount, HealFirstInjuredMamodo, HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable,
+    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase,
+    OpponentMamodo, OpponentPartneredMamodo, OwnInjuredMamodo, OwnMamodo, PartnerDiscardedThisTurn,
+    PeekOpponentOpenPages, ReduceOpponentMp, Ref, RestrictBothPlayers, RestrictOpponent,
+    ScheduleInjureInsteadNextWin, ScheduleNoProtectBookNextBattle, Sequence, SideIs, Standby,
+    TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
+    has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
+    opponent_has_partner,
 )
 
 # ================================================================ 事件卡
@@ -33,6 +39,10 @@ reg.event("E-001", when=has_own_mamodo, effect=Choose(
         then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
     ),
 ))
+
+reg.event("E-002", effect=RestrictBothPlayers(flag=NO_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
+reg.event("E-003", effect=GainMp(amount=2))
+reg.event("E-004", effect=ZeroBothPlayersMp())
 
 reg.event("E-005", effect=Coin(
     count=2, on=HeadsCount(2),
@@ -52,12 +62,51 @@ reg.event("E-006", when=has_own_mamodo, effect=Choose(
     ),
 ))
 
+reg.event("E-007", when=has_own_injured_mamodo, effect=Choose(
+    OwnInjuredMamodo(), bind="slot", prompt="e007_pick",
+    then=HealSlot(target=Ref("slot")),
+))
+
+reg.event("E-008", effect=RestrictBothPlayers(flag=NO_PARTNER_EFFECTS, duration=DUR_TURN))
+
+reg.event("E-009", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="e009_pick",
+    then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
+))
+
+reg.event("E-010", when=opponent_has_partner, effect=Choose(
+    OpponentPartneredMamodo(), bind="choice", prompt="e010_pick",
+    then=BorrowPartner(),
+))
+
+reg.event("E-013", effect=ScheduleNoProtectBookNextBattle())
+
+reg.event("E-014", effect=Sequence(steps=(
+    TurnPagesForward(leaves=1, target="opponent"),
+    PeekOpponentOpenPages(),
+)))
+
+reg.event("E-015", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="e015_pick",
+    then=AddPower(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN, target=Ref("slot")),
+))
+
+reg.event("E-019", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="e019_pick",
+    then=DiscardChosenMamodo(),
+))
+
 reg.event("E-020", effect=Sequence(steps=(
     GainMp(amount=3),
     Coin(
         count=1, flipper="opponent", on=HeadsAtLeast(1),
         then=GainMp(amount=3, target="opponent"),
     ),
+)))
+
+reg.event("E-021", when=has_two_or_more_mamodo, effect=Sequence(steps=(
+    HealFirstInjuredMamodo(),
+    GainMp(amount=2),
 )))
 
 reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(
@@ -67,6 +116,15 @@ reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(
         then=AttachPartnerFromDiscard(),
     ),
 ))
+
+reg.event("E-023", effect=BoostPartneredMamodo(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN))
+
+reg.event("E-024", when=opponent_has_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="e024_pick",
+    then=LockChosenOpponentMamodo(),
+))
+
+reg.event("E-025", effect=RestrictOpponent(flag=NO_MAMODO_EFFECTS, duration=DUR_TURN))
 
 reg.event("E-026", effect=Coin(
     count=2, on=Always(),

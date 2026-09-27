@@ -346,8 +346,9 @@ def test_tree_and_decorator_cards_coexist_in_one_game():
     from gash.engine.engine import slot_power
     from .test_cards import book
     assert ("E-001", "event") in tree.TREE_HOOKS       # 效果樹註冊
-    assert ("E-002", "event") not in tree.TREE_HOOKS    # 仍是裝飾器註冊
-    g = game(book0=book(p2="E-001"), book1=book(p2="E-002"))
+    assert ("E-018", "event") not in tree.TREE_HOOKS    # 仍是裝飾器註冊(遷移後需換一張舊寫法的卡)
+    assert "E-018" in reg.EVENT
+    g = game(book0=book(p2="E-001"), book1=book(p2="E-018"))
     s = slot0(g, 0)
     base = slot_power(g, 0, s)
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
@@ -355,8 +356,9 @@ def test_tree_and_decorator_cards_coexist_in_one_game():
     end_turn(g)
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})
     assert slot_power(g, 0, s) == base + 3000                      # 待命於下回合開始階段觸發
-    submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-002(舊寫法)
-    assert any(m.source == "E-002" and m.kind == "restriction" for m in g.state.modifiers)
+    g.state.players[0].mp = 5
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-018(舊寫法):對手 MP-4
+    assert g.state.players[0].mp == 1
 
 
 # ================================================================ 註冊表一致性(code review CR1)
@@ -744,3 +746,93 @@ def test_gain_mp_targets():
 def test_invalid_who_rejected_at_construction(make):
     with pytest.raises(ValueError, match="'self' 或 'opponent'"):
         make()
+
+
+# ================================================================ 事件卡第二批節點(E-002~E-025)
+
+def test_restrict_both_players_order_is_player0_then_player1():
+    from gash.engine.state import DUR_TURN, NO_SPELLS
+    g = game()
+    g.state.turn_player = 1
+    events = run(g, tree.RestrictBothPlayers(flag=NO_SPELLS, duration=DUR_TURN), player=1)
+    assert [e["target_player"] for e in events] == [0, 1]
+    assert all(m.owner == 1 and m.flag == NO_SPELLS for m in g.state.modifiers)
+
+
+def test_zero_both_players_mp_skips_event_for_zero():
+    g = game()
+    g.state.players[0].mp, g.state.players[1].mp = 5, 0
+    events = run(g, tree.ZeroBothPlayersMp())
+    assert without_seq(events) == [{"type": "mp_changed", "player": 0, "delta": -5, "mp": 0,
+                                    "reason": "T-000"}]
+    assert (g.state.players[0].mp, g.state.players[1].mp) == (0, 0)
+
+
+def test_turn_pages_forward_opponent_and_peek():
+    g = game()
+    pos1 = g.state.players[1].pos
+    events = run(g, Sequence(steps=(tree.TurnPagesForward(leaves=1, target="opponent"),
+                                    tree.PeekOpponentOpenPages())))
+    assert g.state.players[1].pos == pos1 + 2
+    peek = [e for e in events if e["type"] == "pages_peeked"]
+    assert len(peek) == 1 and peek[0]["viewer"] == 0 and peek[0]["player"] == 1
+
+
+def test_own_injured_mamodo_spec():
+    g = game()
+    a = slot0(g, 0)
+    spec = tree.OwnInjuredMamodo()
+    assert spec.options(g, {"player": 0}) == []
+    a.injured = True
+    assert spec.options(g, {"player": 0}) == [{"value": a.uid, "card": a.top}]
+    b = give(g, 0, "M-004")
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, b.uid)          # 健康的魔物不合法
+
+
+def test_opponent_mamodo_spec():
+    g = game()
+    x = slot0(g, 1)
+    spec = tree.OpponentMamodo()
+    assert spec.options(g, {"player": 0}) == [{"value": x.uid, "card": x.top}]
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, slot0(g, 0).uid)  # 自己的魔物不合法
+
+
+def test_borrow_partner_records_opponent_partner():
+    g = game()
+    x = slot0(g, 1)
+    x.partner = "P-002"
+    run(g, tree.BorrowPartner(), choice=x.uid)
+    m = g.state.modifiers[-1]
+    assert (m.kind, m.owner, m.target_player, m.data) == (
+        "borrow_partner", 0, 0, {"slot_uid": x.uid, "card": "P-002"})
+
+
+def test_discard_chosen_mamodo_and_gone_target_noop():
+    g = game()
+    b = give(g, 0, "M-004")
+    run(g, tree.DiscardChosenMamodo(), slot=b.uid)
+    assert b not in g.state.players[0].slots
+    assert run(g, tree.DiscardChosenMamodo(), slot=b.uid) == []
+
+
+def test_heal_first_injured_mamodo():
+    g = game()
+    assert run(g, tree.HealFirstInjuredMamodo()) == []
+    a = slot0(g, 0)
+    b = give(g, 0, "M-004", injured=True)
+    c = give(g, 0, "M-002", injured=True)
+    run(g, tree.HealFirstInjuredMamodo())
+    assert (a.injured, b.injured, c.injured) == (False, False, True)
+
+
+def test_lock_chosen_opponent_mamodo_keeps_legacy_event_shape():
+    from gash.engine.state import MAMODO_LOCKED
+    g = game()
+    x = slot0(g, 1)
+    events = run(g, tree.LockChosenOpponentMamodo(), choice=x.uid)
+    ev = [e for e in events if e["type"] == "modifier_added"]
+    assert len(ev) == 1 and ev[0]["target_slot"] is None       # 事件沿用遷移前的形狀
+    m = g.state.modifiers[-1]
+    assert (m.flag, m.target_player, m.target_slot) == (MAMODO_LOCKED, 1, x.uid)

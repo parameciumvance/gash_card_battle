@@ -738,6 +738,91 @@ def test_e020_caster_m019_forces_opponent_reflip():
     assert g.state.players[1].mp == 0
 
 
+def _use_event(g, page=2, player=0):
+    submit(g, {"type": "flip_pages", "player": player, "count": 0})
+    return submit(g, {"type": "use_book_card", "player": player, "page": page})
+
+
+def test_e019_discard_own_mamodo_chosen():
+    g = game(book0=book(p2="E-019"))
+    a = slot0(g, 0)
+    b = give(g, 0, "M-002")
+    _use_event(g)
+    assert g.state.pending.kind == "e019_pick"
+    submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    assert b not in g.state.players[0].slots and a in g.state.players[0].slots
+    assert "M-002" in g.state.players[0].discard
+
+
+def test_e021_heals_first_injured_and_gains_2mp():
+    g = game(book0=book(p2="E-021"))
+    a = slot0(g, 0)
+    b = give(g, 0, "M-004", injured=True)   # M-002 有開始階段 MP+1,會干擾 MP 斷言
+    g.state.players[0].mp = 0
+    _use_event(g)
+    assert b.injured is False and a.injured is False
+    assert g.state.players[0].mp == 2
+
+
+def test_e021_no_injured_only_mp():
+    g = game(book0=book(p2="E-021"))
+    give(g, 0, "M-004")
+    g.state.players[0].mp = 0
+    events = _use_event(g)
+    assert g.state.players[0].mp == 2
+    assert not [e for e in events if e["type"] == "mamodo_healed"]
+
+
+def test_e021_needs_two_mamodo():
+    g = game(book0=book(p2="E-021"))
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+
+
+def test_e023_partnered_mamodo_plus_2000_until_end_next_turn():
+    g = game(book0=book(p2="E-023"))
+    a = slot0(g, 0)
+    a.partner = "P-001"
+    b = give(g, 0, "M-002")
+    base_a, base_b = slot_power(g, 0, a), slot_power(g, 0, b)
+    _use_event(g)
+    assert slot_power(g, 0, a) == base_a + 2000
+    assert slot_power(g, 0, b) == base_b          # 無夥伴不受影響
+    end_turn(g)
+    assert slot_power(g, 0, a) == base_a + 2000   # 下回合仍有效
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    assert slot_power(g, 0, a) == base_a          # 下回合結束階段後失效
+
+
+def test_e024_locks_chosen_opponent_mamodo_this_turn():
+    from gash.engine.engine import slot_restricted
+    from gash.engine.state import MAMODO_LOCKED
+    g = game(book0=book(p2="E-024"))
+    x = slot0(g, 1)
+    y = give(g, 1, "M-002")
+    _use_event(g)
+    assert g.state.pending.kind == "e024_pick"
+    submit(g, {"type": "choose", "player": 0, "value": y.uid})
+    assert slot_restricted(g, 1, MAMODO_LOCKED, y.uid)
+    assert not slot_restricted(g, 1, MAMODO_LOCKED, x.uid)
+    end_turn(g)
+    assert not slot_restricted(g, 1, MAMODO_LOCKED, y.uid)   # 只到本回合
+
+
+def test_e025_opponent_no_mamodo_effects_this_turn():
+    from gash.engine.engine import restricted
+    from gash.engine.state import NO_MAMODO_EFFECTS
+    g = game(book0=book(p2="E-025"))
+    _use_event(g)
+    assert restricted(g, 1, NO_MAMODO_EFFECTS)
+    assert not restricted(g, 0, NO_MAMODO_EFFECTS)
+    end_turn(g)
+    assert not restricted(g, 1, NO_MAMODO_EFFECTS)
+
+
 def test_e022_heads_returns_partner_discarded_this_turn():
     g = game(book0=book(p2="E-022"), coins=(HEADS,))
     g.state.players[0].discard.append("P-001")
