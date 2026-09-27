@@ -866,7 +866,90 @@ def test_e018_j_version_consecutive_limit():
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     assert g.state.players[1].mp == 6  # 10 - 4
     # 記錄本回合已減(PlayerState 的正式欄位;直前回合限制的行為測試見 test_effect_characterization)
-    assert g.state.players[0].opp_mp_reduced_turn == g.state.turn_no
+    assert g.state.turn_no in g.state.players[0].opp_mp_reduced_turns
+
+
+def _end_turn(g):
+    st = g.state
+    if st.phase == "start":
+        submit(g, {"type": "flip_pages", "player": st.turn_player, "count": 0})
+    submit(g, {"type": "pass", "player": st.action_player})
+    submit(g, {"type": "pass", "player": st.action_player})
+    submit(g, {"type": "flip_pages", "player": st.turn_player, "count": 0})
+
+
+def _give_action_to(g, player):
+    if g.state.action_player != player:
+        submit(g, {"type": "pass", "player": g.state.action_player})
+
+
+def _use_e018(g, page, opp_mp=10):
+    """玩家 0 使用第 page 頁的 E-018(必要時調整 pos 讓該頁翻開),回傳對手 MP 的變化量。"""
+    ps = g.state.players[0]
+    ps.mp = max(ps.mp, 5)
+    if page not in ps.open_pages():
+        ps.pos = page
+    g.state.players[1].mp = opp_mp
+    _give_action_to(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": page})
+    return g.state.players[1].mp - opp_mp
+
+
+def test_e018_zero_after_partner_p002_reduced_opponent_mp_last_turn():
+    # 效果文:直前回合用過「任何」減少對手 MP 的效果 → 減 0(不限 E-018 自己)
+    g, _ = mk(book("M-004", "E-018"), book("M-001"))
+    g.state.players[0].slots[0].partner = "P-002"
+    g.state.players[1].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner",
+               "slot_uid": g.state.players[0].slots[0].uid})
+    assert g.state.players[1].mp == 2                         # P-002:對手 MP-3
+    _end_turn(g)                                               # 進入對手回合(直前回合 = 用了 P-002)
+    assert _use_e018(g, 2) == 0
+
+
+def test_e018_zero_after_e004_zeroed_opponent_mp_last_turn():
+    # E-004 註記:MP 為 1 以上時視為「減少 MP」的效果
+    g, _ = mk(book("M-001", "E-004", "E-018"), book("M-001"))
+    g.state.players[0].mp, g.state.players[1].mp = 10, 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    _end_turn(g)
+    assert _use_e018(g, 3) == 0
+
+
+def test_e018_e004_on_zero_opponent_mp_does_not_count():
+    g, _ = mk(book("M-001", "E-004", "E-018"), book("M-001"))
+    g.state.players[0].mp, g.state.players[1].mp = 10, 0
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    _end_turn(g)
+    assert _use_e018(g, 3) == -4
+
+
+def test_e018_used_but_limited_to_zero_still_counts_as_reducing_effect():
+    # 第 1 回合減 4;第 2 回合因限制減 0,但仍「使用了減少對手 MP 的效果」→ 第 3 回合也減 0
+    g, _ = mk(book("M-001", "E-018", "E-018", "E-018"), book("M-001"))
+    to_battle(g, 0)
+    assert _use_e018(g, 2) == -4
+    _end_turn(g)
+    assert _use_e018(g, 3) == 0
+    _end_turn(g)
+    assert _use_e018(g, 4) == 0
+
+
+def test_e018_zero_after_passive_p019_reduced_opponent_mp_last_turn():
+    # 規則書:「此卡在場上→」效果的使用為自動進行 → P-019 的被動效果也算「使用了」
+    g, _ = mk(book("M-001", "E-018"), book("M-001", "E-005"))
+    g.state.players[0].slots[0].partner = "P-019"
+    to_battle(g, 0)
+    _end_turn(g)                                               # 對手回合
+    g.rng = Rng(HEADS, HEADS)
+    g.state.players[1].mp, g.state.players[1].pos = 5, 1
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-005 正正 → 對手自己回翻 2 張
+    assert g.state.players[1].mp < 5                           # P-019 觸發:對手 MP-2
+    _end_turn(g)                                               # 回到玩家 0(直前回合 = P-019 觸發的回合)
+    assert _use_e018(g, 2) == 0
 
 
 def test_full_regression_level1_deck_still_plays():

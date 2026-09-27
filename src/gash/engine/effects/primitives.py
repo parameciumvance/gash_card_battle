@@ -71,6 +71,21 @@ def reduce_mp(game, batch, player, amount, source) -> int:
     return actual
 
 
+def mark_opp_mp_reduced(game, player):
+    """記錄 player 本回合用了「減少對手 MP」的效果(不論實際減少多少),供 E-018 判定直前回合。"""
+    st = game.state
+    ps = st.players[player]
+    ps.opp_mp_reduced_turns = {t for t in ps.opp_mp_reduced_turns if t >= st.turn_no - 1}
+    ps.opp_mp_reduced_turns.add(st.turn_no)
+
+
+def reduce_opponent_mp(game, batch, player, amount, source) -> int:
+    """player 的效果使對手 MP 減少(不低於 0),並記錄為「減少對手 MP」的效果。回傳實際減少量。"""
+    actual = reduce_mp(game, batch, 1 - player, amount, source)
+    mark_opp_mp_reduced(game, player)
+    return actual
+
+
 def heal_slot(game, batch, player, slot, source):
     if slot.injured:
         slot.injured = False

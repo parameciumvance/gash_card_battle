@@ -1006,17 +1006,43 @@ def test_validate_tree_checks_prompt_on_any_node():
 def test_reduce_opponent_mp_unless_reduced_last_turn():
     g = game()
     st = g.state
+    st.turn_no = 5
     st.players[1].mp = 20
     node = tree.ReduceOpponentMpUnlessReducedLastTurn(amount=4)
     run(g, node)
-    assert st.players[1].mp == 16 and st.players[0].opp_mp_reduced_turn == st.turn_no
-    st.turn_no += 1
-    events = run(g, node)
+    assert st.players[1].mp == 16 and st.players[0].opp_mp_reduced_turns == {5}
+    st.turn_no = 6
+    events = run(g, node)                              # 直前回合(5)減過 → 減 0
     assert st.players[1].mp == 16
     assert without_seq(events) == [{"type": "effect_applied", "source": "T-000", "skipped": True}]
-    st.turn_no += 1                                  # 直前回合沒減過 → 再減
-    run(g, node)
-    assert st.players[1].mp == 12
+    assert st.players[0].opp_mp_reduced_turns == {5, 6}   # 減 0 也算使用過
+    st.turn_no = 8
+    run(g, node)                                       # 直前回合(7)沒用過 → 減 4
+    assert st.players[1].mp == 12 and st.players[0].opp_mp_reduced_turns == {8}
+
+
+def test_same_turn_reduction_does_not_erase_previous_turn_record():
+    g = game()
+    st = g.state
+    st.players[1].mp = 20
+    st.turn_no = 5
+    run(g, tree.ReduceOpponentMp(amount=3))            # 第 5 回合用 S-020 之類的效果
+    st.turn_no = 6
+    run(g, tree.ReduceOpponentMp(amount=3))            # 第 6 回合又用一次
+    before = st.players[1].mp
+    run(g, tree.ReduceOpponentMpUnlessReducedLastTurn(amount=4))
+    assert st.players[1].mp == before                   # 第 5 回合的紀錄仍在 → 減 0
+
+
+def test_zero_both_players_mp_counts_as_reduction_only_if_opponent_had_mp():
+    g = game()
+    st = g.state
+    st.players[1].mp = 0
+    run(g, tree.ZeroBothPlayersMp())
+    assert st.players[0].opp_mp_reduced_turns == set()
+    st.players[1].mp = 1
+    run(g, tree.ZeroBothPlayersMp())
+    assert st.players[0].opp_mp_reduced_turns == {st.turn_no}
 
 
 def test_keep_one_partner_or_fetch_from_book_targets():

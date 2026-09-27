@@ -19,7 +19,8 @@ from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, attach_partner_from_book, discard_from_book,
     discard_partner, flip_coins,
-    heal_slot, play_mamodo_from_book, reduce_mp, schedule_standby, take_from_book,
+    heal_slot, mark_opp_mp_reduced, play_mamodo_from_book, reduce_mp, reduce_opponent_mp,
+    schedule_standby, take_from_book,
     turn_back_pages, turn_pages,
 )
 
@@ -938,7 +939,7 @@ class ReduceOpponentMp(Effect):
     amount: int = 0
 
     def run(self, rt, ctx, path):
-        reduce_mp(rt.game, rt.batch, 1 - ctx["player"], self.amount, ctx["source"])
+        reduce_opponent_mp(rt.game, rt.batch, ctx["player"], self.amount, ctx["source"])
         return True
 
 
@@ -994,9 +995,11 @@ class RestrictBothPlayers(Effect):
 
 @dataclass(frozen=True)
 class ZeroBothPlayersMp(Effect):
-    """雙方 MP 歸 0;MP 本來就是 0 的一方不發事件(E-004)。"""
+    """雙方 MP 歸 0;MP 本來就是 0 的一方不發事件(E-004)。對手 MP≥1 時記錄為「減少對手 MP」的效果。"""
 
     def run(self, rt, ctx, path):
+        if rt.game.state.players[1 - ctx["player"]].mp >= 1:   # 效果文註記:MP≥1 時視為「減少 MP」
+            mark_opp_mp_reduced(rt.game, ctx["player"])
         for p in (0, 1):
             ps = rt.game.state.players[p]
             if ps.mp:
@@ -1226,20 +1229,22 @@ class PlaceMamodoFromBookUpTo(Effect):
 
 @dataclass(frozen=True)
 class ReduceOpponentMpUnlessReducedLastTurn(Effect):
-    """對手 MP 減少 amount;若直前的回合自己已用本效果減過對手 MP,則減 0(E-018 日版)。
+    """對手 MP 減少 amount;若直前的回合自己用過任何「減少對手 MP」的效果,則減 0(E-018 日版)。
 
-    記錄存在 PlayerState.opp_mp_reduced_turn。目前只有本節點會寫入這個記錄。
+    被限制成減 0 時,本次仍算「使用了減少對手 MP 的效果」,一樣記錄。
+    記錄存在 PlayerState.opp_mp_reduced_turns,由 primitives.reduce_opponent_mp /
+    mark_opp_mp_reduced 寫入(S-020、P-002、P-019、E-004 等都會寫)。
     """
     amount: int = 0
 
     def run(self, rt, ctx, path):
         st = rt.game.state
-        ps = st.players[ctx["player"]]
-        if ps.opp_mp_reduced_turn == st.turn_no - 1:
+        player = ctx["player"]
+        if st.turn_no - 1 in st.players[player].opp_mp_reduced_turns:
             rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], skipped=True)
+            mark_opp_mp_reduced(rt.game, player)
             return True
-        reduce_mp(rt.game, rt.batch, 1 - ctx["player"], self.amount, ctx["source"])
-        ps.opp_mp_reduced_turn = st.turn_no
+        reduce_opponent_mp(rt.game, rt.batch, player, self.amount, ctx["source"])
         return True
 
 

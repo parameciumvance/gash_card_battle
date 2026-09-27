@@ -18,8 +18,8 @@ def p001(game, batch, player, slot):
 @reg.activated("P-002", mode="discard", timing="nonbattle")
 def p002(game, batch, player, slot):
     from ..engine import gain_mp
-    from .primitives import reduce_mp
-    actual = reduce_mp(game, batch, 1 - player, 3, "P-002")
+    from .primitives import reduce_opponent_mp
+    actual = reduce_opponent_mp(game, batch, player, 3, "P-002")
     gain_mp(game, batch, player, actual, "P-002")
 
 
@@ -241,5 +241,5 @@ def p019(game, batch, owner, slot, ev):
     opp = 1 - owner
     # 對手回翻自己的書(count<0 且 player==對手)
     if ev.get("player") == opp and ev.get("count", 0) < 0:
-        from .primitives import reduce_mp
-        reduce_mp(game, batch, opp, 2, "P-019")
+        from .primitives import reduce_opponent_mp
+        reduce_opponent_mp(game, batch, owner, 2, "P-019")
