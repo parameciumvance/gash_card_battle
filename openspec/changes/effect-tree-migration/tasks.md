@@ -19,20 +19,20 @@
 - [x] S-011 アイアン・グラビレイ(rider.on_damage)— `10af584`
 - [x] S-016 ゼルク(rider.on_declare)— `10af584`
 - [x] S-017 ゼルセン(rider.on_declare)— `10af584`
-- [ ] S-019 ウルク(rider.on_win)
-- [ ] S-020 ポルク(rider.on_win)
+- [x] S-019 ウルク(rider.on_win)— `f15915e`
+- [x] S-020 ポルク(rider.on_win)— `f15915e`
 - [x] S-030 ラシルド(rider.counter,純旗標)— `10af584`
 - [x] S-031 バオウ・ザケルガ(rider.on_declare)— `10af584`
 - [x] S-032 レイス(damage_cap,純旗標;初次盤點漏列)— `10af584`
 - [x] S-033 グラビレイ(rider.on_damage)— `10af584`
 - [x] S-034 ギガノ・レイス(damage_cap,純旗標;初次盤點漏列)— `10af584`
-- [ ] S-036 ディオガ・グラビドン(rider.on_win)
+- [x] S-036 ディオガ・グラビドン(rider.on_win)— `f15915e`
 - [x] S-038 ジキルガ(rider.on_damage)— `10af584`
 - [x] S-039 ラドム(rider.on_damage)— `10af584`
-- [ ] S-042 ビライツ(rider.damage_bonus)
+- [x] S-042 ビライツ(rider.damage_bonus)— `f15915e`
 - [ ] S-043 レリ・ブルク(spell_nonbattle)— 書內選頁 + 融合/分裂二選一,見下方說明
 - [ ] S-048 ゼベルオン(spell_nonbattle)— 書內選頁,見下方說明
-- [ ] S-056 目をそらすな!(rider.on_defense_damaged)
+- [x] S-056 目をそらすな!(rider.on_defense_damaged)— `f15915e`
 - [x] S-058 ザケル(rider.injure_instead,純旗標)— `10af584`
 
 **盤點修正**:初次用程式盤點剩餘卡時,只計入 `SpellRider` 的 `on_declare`/`on_damage`/`on_win`/
@@ -40,17 +40,12 @@
 沒列入。它們和 S-003/S-030/S-058 一樣只有旗標、沒有邏輯,不需要樹節點,直接把原本那一行
 `reg.spell_rider(...)` 搬到 `tree_cards.py` 即可(讓所有卡的註冊集中在一個檔案)。
 
-**剩下 7 張需要的前置工作**:
+**術卡剩下的 S-043 / S-048**:兩張都是「從自己魔本任意頁選卡 → 放到場上」(S-043 另外還有
+融合 / 分裂二選一)。mamodo.py / partners.py 的 M-020 / M-021 / M-022 等也有相同模式,
+等做那批時一起設計「書內選頁」節點,不要只為這兩張先做。
 
-- `rider.on_win`(S-019/S-020/S-036)、`rider.damage_bonus`(S-042)、`rider.on_defense_damaged`(S-056):
-  `registry.spell_rider` 目前只把 `on_damage`/`on_declare` 當成樹處理,這三種要先仿照 `rider_hook`
-  補上樹入口(注意各自的呼叫簽名不同:`on_win(game, batch, player)`、`damage_bonus(game, battle) -> int`
-  有回傳值、`on_defense_damaged(game, batch, defender, amount)` 多一個 amount)。`damage_bonus` 要回傳
-  數值,和其他「執行副作用」的節點性質不同,需要先想清楚要用節點還是保留 lambda。
-- S-036 的 `on_win` 會自行呼叫引擎內部的 `_start_damage`,且搭配 `on_win_owns_damage=True`,
-  屬於「接管整個傷害流程」的特殊節點,不是一般葉節點。
-- S-043/S-048(以及之後 mamodo.py/partners.py 的 M-020/M-021/M-022 等)都有「從自己魔本任意頁選卡 →
-  放到場上」的模式,建議等到要做那批時一起設計「書內選頁」節點,不要只為這兩張先做。
+`f15915e` 補上了 `rider.on_win` / `rider.on_defense_damaged` 的樹入口;`damage_bonus` 因為要回傳
+數值、不是效果,改用不可變可呼叫的規格物件(`DamageBonusIfAttackTotalAtLeast`),不經效果樹。
 
 ## 2. 事件卡(events.py)剩餘 22 卡
 
