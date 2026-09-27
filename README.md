@@ -244,7 +244,7 @@ src/gash/
       primitives.py     效果原語(加魔力、禁止旗標、待命、互動式硬幣…)
       tree.py           效果樹:不可變節點(Choose / Coin / Standby / AddPower…)+ 直譯器
       tree_cards.py     以效果樹註冊的卡片,依卡號排序、每卡一個呼叫
-      mamodo.py / partners.py / events.py   尚未遷移的逐卡 handler(舊寫法,遷移期保留)
+      mamodo.py / partners.py   尚未遷移的魔物 / 夥伴卡 handler(舊寫法,遷移期保留)
   api/
     app.py              FastAPI:房間端點、指令轉發、WebSocket 推送、逾時代打
     rooms.py            房間模型、token 身分、計時器(等待者推導與安全預設指令)

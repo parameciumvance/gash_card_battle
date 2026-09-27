@@ -103,6 +103,7 @@ class PlayerState:
     discarded_this_turn: list[str] = field(default_factory=list)  # 本回合入墓的卡(E-022)
     page_effect_used: bool = False        # 本回合已用「翻自己書頁」效果(P-010 條款)
     page_back_effect_used: bool = False   # 本回合已用「回翻自己書頁」效果(P-018 條款)
+    opp_mp_reduced_turn: int | None = None  # 最近一次以效果減少對手 MP 的回合(E-018 直前回合限制)
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔本中的頁碼。"""

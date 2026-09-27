@@ -1,3 +1,28 @@
+## ADDED Requirements
+
+### Requirement: 付費重擲節點在節點內部迴圈
+`CoinWithPaidReflip` 節點 SHALL 擲幣並沿用既有確認鏈;結果符合條件時解決其 `then`,不符合且擁有者 MP 不少於費用時,建立詢問 pending(選項為付費重擲 / 停止),玩家選擇重擲時付費後由同一節點重新擲幣,可重複任意次。迴圈 MUST 只發生在該節點內部:節點只在最終完成(結果符合且 `then` 完成、玩家停止、或 MP 不足)時上溯一次,外層節點的副作用恰好執行一次。玩家回應詢問的值 MUST 為 `True` 或 `False`,否則拒絕並保留 pending;選擇重擲但 MP 不足時同樣拒絕;驗證 MUST 先於任何狀態變更。確認鏈的停點以 `CONT_KEY` 續體恢復,詢問的停點以 `CHOICE_KEY` 續體恢復,兩者分別由節點的 `resume` 與 `resume_choice` 處理。
+
+#### Scenario: 重擲兩次後外層節點只執行一次
+- **WHEN** `Sequence(A, CoinWithPaidReflip(cost=2, then=H), B)` 連續擲出反面、反面、正面,玩家兩次都選擇付費重擲
+- **THEN** A、H、B 各執行一次,擁有者 MP 減少 4,RNG 呼叫 3 次
+
+#### Scenario: 停止重擲仍續行外層
+- **WHEN** 擲出反面,玩家選擇停止
+- **THEN** `then` 不執行,外層後續節點照常執行
+
+#### Scenario: MP 不足時不詢問
+- **WHEN** 擲出反面且擁有者 MP 少於費用
+- **THEN** 不建立詢問 pending,節點直接完成
+
+#### Scenario: 確認鏈先於重擲詢問
+- **WHEN** 擁有者場上有可用 M-012,擲出反面
+- **THEN** 先出現 `coin_confirm` pending;玩家保留結果後才出現重擲詢問
+
+#### Scenario: 不合法的回應被拒絕
+- **WHEN** 玩家對重擲詢問回應 `True` / `False` 以外的值
+- **THEN** 指令被拒絕,pending 與 MP 不變
+
 ## MODIFIED Requirements
 
 ### Requirement: 效果樹與既有註冊方式並存
@@ -67,6 +92,21 @@
 #### Scenario: 由對手擲幣
 - **WHEN** 玩家使用 E-020,由對手擲 1 枚硬幣為正面
 - **THEN** `coin_flipped` 事件的擲幣者為對手;使用者 MP +3、對手 MP +3;對手場上的 M-012 由對手決定是否重擲,使用者場上的 M-019 由使用者決定是否令對手重擲
+
+### Requirement: pending 依專屬標記分派
+系統 SHALL 僅在 `PendingChoice` 由效果樹節點建立(`Choose`、`CoinWithPaidReflip` 的詢問;`pending.data` 含專屬鍵 `tree_choice`)時,把玩家回應交給效果樹,並呼叫建立該 pending 之節點的 `resume_choice`(預設等同 `resume`)。`Coin` 與 `Standby` 攜帶的續體 MUST 使用不同的鍵(`tree_cont`),只作為 callback payload,恢復時呼叫節點的 `resume`;內部確認 pending(`coin_confirm`、`opp_coin_redo`)MUST 依 `pending.kind` 交給原 resolver。任何節點的 `prompt` MUST NOT 與引擎保留的 pending kind 或既有 resolver key 相同,註冊時檢查並拒絕。
+
+#### Scenario: 確認 pending 不被誤送進樹
+- **WHEN** 效果樹的 `Coin` 造成 `coin_confirm` pending,玩家回應保留(`None`)或重擲第幾枚(整數)
+- **THEN** 由既有 M-012 resolver 處理(含能力消耗與重擲事件),確認鏈結束後才回到樹
+
+#### Scenario: M-019 串接 M-012
+- **WHEN** 對手場上有可用 M-019、玩家場上有可用 M-012,效果樹擲幣
+- **THEN** 依序出現 `opp_coin_redo`(決策者為對手)與 `coin_confirm`(決策者為玩家)兩個 pending,各自依原流程解決,最後才進入樹的分支
+
+#### Scenario: 保留 kind 被拒絕
+- **WHEN** 註冊一個 `Choose(prompt="coin_confirm")` 或 `CoinWithPaidReflip(prompt="coin_confirm")`
+- **THEN** 註冊時拋出錯誤
 
 ## RENAMED Requirements
 

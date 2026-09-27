@@ -352,3 +352,140 @@ def test_e001_two_uses_target_different_slots():
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})  # 第二筆觸發
     assert slot_power(g, 0, b) == base_b + 3000
     assert slot_power(g, 0, a) == base_a
+
+
+# ================================================================ E-011 / E-018 / E-027(遷移前固定行為)
+
+def _e011_game(*coins, mp=10, discard=("P-001",)):
+    g = strict_game(*coins, book0=book(p2="E-011"))
+    g.state.players[0].mp = mp
+    g.state.players[0].discard.extend(discard)
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    return g
+
+
+def test_e011_heads_attaches_partner_from_discard():
+    g = _e011_game(HEADS)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert slot0(g, 0).partner == "P-001" and "P-001" not in g.state.players[0].discard
+    assert [e for e in events if e["type"] == "card_played" and e.get("from_discard")]
+    assert g.state.players[0].mp == 10 - 3 and g.rng.calls == 1
+
+
+def test_e011_tails_offer_retry_and_stop():
+    g = _e011_game(TAILS)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert pending(g) == ("e011_retry", 0, [True, False])
+    req = [e for e in events if e["type"] == "choice_required"][-1]
+    assert (req["kind"], req["player"]) == ("e011_retry", 0) and "options" not in req
+    submit(g, {"type": "choose", "player": 0, "value": False})
+    assert g.state.pending is None and slot0(g, 0).partner is None
+    assert g.state.players[0].mp == 10 - 3 and g.rng.calls == 1
+
+
+def test_e011_tails_without_mp_for_retry_just_ends():
+    g = _e011_game(TAILS, mp=4)                 # 付完費用剩 1 MP,不足以重擲
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending is None and slot0(g, 0).partner is None
+    assert g.state.players[0].mp == 1 and g.rng.calls == 1
+
+
+def test_e011_retry_twice_then_heads():
+    g = _e011_game(TAILS, TAILS, HEADS)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "choose", "player": 0, "value": True})
+    assert pending(g) == ("e011_retry", 0, [True, False])
+    submit(g, {"type": "choose", "player": 0, "value": True})
+    assert slot0(g, 0).partner == "P-001"
+    assert g.state.players[0].mp == 10 - 3 - 2 - 2 and g.rng.calls == 3
+
+
+def test_e011_m012_confirm_comes_before_retry_offer():
+    g = _e011_game(TAILS)
+    give(g, 0, "M-012")
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert pending(g) == ("coin_confirm", 0, [None, 0])
+    submit(g, {"type": "choose", "player": 0, "value": None})       # 保留反面
+    assert pending(g) == ("e011_retry", 0, [True, False])
+    assert g.rng.calls == 1
+
+
+def test_e011_multiple_targets_pick():
+    g = _e011_game(HEADS, discard=("P-001", "P-002"))
+    reycom = give(g, 0, "M-004")
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending.kind == "e011_pick"
+    assert [(o["card"], o["slot_uid"]) for o in g.state.pending.options] == [
+        ("P-001", slot0(g, 0).uid), ("P-002", reycom.uid)]
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "choose", "player": 0, "value": 7})
+    submit(g, {"type": "choose", "player": 0, "value": 1})
+    assert reycom.partner == "P-002" and slot0(g, 0).partner is None
+
+
+def test_e011_same_name_partner_on_field_is_not_a_target():
+    g = strict_game(book0=book(p2="E-011"))
+    g.state.players[0].mp = 10
+    give(g, 0, "M-016", partner="P-001")         # 場上已有「高嶺清麿」
+    g.state.players[0].discard.append("P-010")   # 同名「高嶺清麿」→ 不是目標
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    with pytest.raises(IllegalCommand):
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+
+
+def _e018_second_use(turns_later):
+    from .test_level2 import book as lbook, mk, to_battle
+    g, _ = mk(lbook("M-001", "E-018", "E-018"), lbook("M-001"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 20
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    for _ in range(turns_later):
+        submit(g, {"type": "pass", "player": st.action_player})
+        submit(g, {"type": "pass", "player": st.action_player})
+        submit(g, {"type": "flip_pages", "player": st.turn_player, "count": 0})
+    if st.action_player != 0:
+        submit(g, {"type": "pass", "player": st.action_player})
+    st.players[0].pos = 3                         # 翻開第 3 頁的第二張 E-018
+    before = st.players[1].mp
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 3})
+    return g, before, events
+
+
+def test_e018_zero_when_reduced_opponent_mp_in_previous_turn():
+    g, before, events = _e018_second_use(turns_later=1)   # 對手回合 = 直前回合剛減過
+    assert g.state.players[1].mp == before
+    applied = [e for e in events if e["type"] == "effect_applied"]
+    assert len(applied) == 1
+    assert (applied[0]["source"], applied[0]["skipped"]) == ("E-018", True)
+
+
+def test_e018_reduces_again_when_previous_turn_had_no_reduction():
+    g, before, _ = _e018_second_use(turns_later=2)        # 直前回合(對手回合)沒減過
+    assert g.state.players[1].mp == before - 4
+
+
+def test_e027_opponent_first_keep_one_partner_self_fetch_from_book():
+    g = strict_game(book0=book(p2="E-027", p9="P-001"))
+    g.state.players[0].mp = 10
+    opp_a = slot0(g, 1)
+    opp_a.partner = "P-001"
+    opp_b = give(g, 1, "M-004", partner="P-002")
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert opp_a.partner == "P-001" and opp_b.partner is None          # 對手只留第 1 張
+    assert "P-002" in g.state.players[1].discard
+    assert slot0(g, 0).partner == "P-001" and 9 in g.state.players[0].consumed_pages
+    order = [(e["type"], e["player"]) for e in events
+             if e["type"] in ("card_discarded", "card_played") and e.get("zone") == "partner"]
+    assert order == [("card_discarded", 1), ("card_played", 0)]      # 先對手後自己
+
+
+def test_e027_side_without_partner_and_none_in_book_does_nothing():
+    g = strict_game(book0=book(p2="E-027"), book1=book())   # 對手魔本沒有夥伴卡
+    g.state.players[0].mp = 10
+    slot0(g, 0).partner = "P-001"
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert slot0(g, 1).partner is None and slot0(g, 0).partner == "P-001"
+    assert not [e for e in events if e.get("zone") == "partner"]

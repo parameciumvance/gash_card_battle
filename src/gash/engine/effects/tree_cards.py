@@ -2,7 +2,7 @@
 
 排版規則(讓巢狀層次一眼看得出來):
 - 第一行固定是 `reg.xxx("卡號", ...,`,方便依卡號掃描。
-- 有子節點的容器節點(Choose / Coin / When / Standby / Sequence)一律換行,子節點縮排一層;
+- 有子節點的容器節點(Choose / Coin / CoinWithPaidReflip / When / Standby / Sequence)一律換行,子節點縮排一層;
   該容器的收尾括號獨立一行,與開頭對齊。
 - 沒有子節點的葉節點、條件、選項規格寫在同一行。
 - 整張卡只有一個葉節點(或只有旗標)時,整個註冊寫成一行。
@@ -17,20 +17,22 @@ from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard,
-    BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
-    DamageOpponentBookAndAllMamodo, DeployMamodoFromBook, DeployableMamodoInOwnBook,
-    DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
+    BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin, CoinWithPaidReflip,
+    DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DeployMamodoFromBook,
+    DeployableMamodoInOwnBook, DisableBookProtection, DiscardChosenMamodo, DiscardChosenPartner,
     DiscardFromOpponentBookPayCost, DiscardOwnMamodoByNumber, GainMp, GainMpPerDamage,
     GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo,
-    HealSlot, LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
-    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, OpponentBookCards, OpponentMamodo,
-    OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas, OwnInjuredMamodo, OwnMamodo,
-    PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook,
-    ReduceOpponentMp, Ref, RestrictBothPlayers, RestrictOpponent, RevealOpponentBook,
-    RobnosTransformMode, ScheduleInjureInsteadNextWin, ScheduleNoProtectBookNextBattle, Sequence,
-    SideIs, StackFromBookOnto, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
-    has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn,
-    has_two_or_more_mamodo, opponent_has_mamodo, opponent_has_partner,
+    HealSlot, KeepOnePartnerOrFetchFromBook, LockChosenOpponentMamodo, MakeAttackUndefendable,
+    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase,
+    OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas,
+    OwnInjuredMamodo, OwnMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
+    PlaceMamodoFromBookUpTo, PlayMamodoFromBook, PlayablePartnerInDiscard, ReduceOpponentMp,
+    ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers, RestrictOpponent,
+    RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
+    ScheduleNoProtectBookNextBattle, Sequence, SideIs, StackFromBookOnto, Standby, TurnPagesBack,
+    TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo, has_own_mamodo,
+    has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
+    opponent_has_partner,
 )
 
 # ================================================================ 事件卡
@@ -82,6 +84,14 @@ reg.event("E-010", when=opponent_has_partner, effect=Choose(
     then=BorrowPartner(),
 ))
 
+reg.event("E-011", when=HasOptions(PlayablePartnerInDiscard()), effect=CoinWithPaidReflip(
+    count=1, on=HeadsAtLeast(1), cost=2, prompt="e011_retry",
+    then=Choose(
+        PlayablePartnerInDiscard(), bind="choice", prompt="e011_pick",
+        then=AttachPartnerFromDiscard(spec=PlayablePartnerInDiscard()),
+    ),
+))
+
 reg.event("E-012", when=HasOptions(DeployableMamodoInOwnBook()), effect=Choose(
     DeployableMamodoInOwnBook(), bind="page", prompt="e012_pick",
     then=DeployMamodoFromBook(),
@@ -114,6 +124,8 @@ reg.event("E-017", when=HasOptions(OpponentBookCards("event")), effect=Sequence(
         then=DiscardFromOpponentBookPayCost(),
     ),
 )))
+
+reg.event("E-018", effect=ReduceOpponentMpUnlessReducedLastTurn(amount=4))
 
 reg.event("E-019", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="e019_pick",
@@ -154,6 +166,11 @@ reg.event("E-026", effect=Coin(
     count=2, on=Always(),
     then=GainMpPerHeads(per_head=2),
 ))
+
+reg.event("E-027", effect=Sequence(steps=(
+    KeepOnePartnerOrFetchFromBook(target="opponent"),
+    KeepOnePartnerOrFetchFromBook(target="self"),
+)))
 
 # ================================================================ 術卡
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方

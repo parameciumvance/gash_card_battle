@@ -17,7 +17,8 @@ from ..cards import PARTNER
 from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
-    add_modifier, add_power, add_restriction, discard_from_book, discard_partner, flip_coins,
+    add_modifier, add_power, add_restriction, attach_partner_from_book, discard_from_book,
+    discard_partner, flip_coins,
     heal_slot, play_mamodo_from_book, reduce_mp, schedule_standby, take_from_book,
     turn_back_pages, turn_pages,
 )
@@ -82,6 +83,11 @@ class Effect:
 
     def resume(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
         raise NotImplementedError(f"{type(self).__name__} 不是停點節點")
+
+    def resume_choice(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
+        """由 CHOICE_KEY 續體恢復(玩家回應了此節點建立的 pending)。預設與 resume 相同;
+        同時會停在「擲幣確認鏈」與「玩家選擇」兩種停點的節點(CoinWithPaidReflip)才需要區分。"""
+        self.resume(rt, ctx, value, path, floor)
 
 
 @dataclass(frozen=True)
@@ -227,6 +233,37 @@ class OwnMamodo:
         from ..engine import IllegalCommand
         if game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1) is None:
             raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
+
+
+@dataclass(frozen=True)
+class PlayablePartnerInDiscard:
+    """棄牌堆中的夥伴卡:其家族魔物在場上尚有空位,且場上沒有同名夥伴(E-011)。"""
+
+    @staticmethod
+    def _targets(game, player) -> list[dict]:
+        ps = game.state.players[player]
+        out = []
+        for i, number in enumerate(ps.discard):
+            card = game.db[number]
+            if card.type != PARTNER:
+                continue
+            slot = next((s for s in ps.slots
+                         if game.db[s.top].related_mamodo == card.related_mamodo
+                         and s.partner is None), None)
+            if slot is None:
+                continue
+            if any(game.db[s.partner].name_ja == card.name_ja for s in ps.slots if s.partner):
+                continue
+            out.append({"value": i, "card": number, "slot_uid": slot.uid})
+        return out
+
+    def options(self, game, ctx) -> list[dict]:
+        return self._targets(game, ctx["player"])
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
+            raise IllegalCommand("choose.invalid", "須選擇棄牌區中可放出的夥伴卡")
 
 
 @dataclass(frozen=True)
@@ -483,6 +520,22 @@ class Standby(Effect):
         self.then.run(rt, ctx, path + (0,))
 
 
+def _flip(rt: Run, ctx: dict, path: tuple, count: int, flipper: int):
+    """擲幣並走 M-012 / M-019 確認鏈。確認鏈同步結束時回傳結果;停在確認 pending 時回傳 None,
+    之後由 effect_tree_resume 以 CONT_KEY 續體呼叫 path 節點的 resume(value=結果)。"""
+    global _next_token
+    _next_token += 1
+    token = _next_token
+    holder: dict = {}
+    _INFLIGHT[token] = holder
+    try:
+        flip_coins(rt.game, rt.batch, flipper, count, ctx["source"], "effect_tree_resume",
+                   {CONT_KEY: rt.cont(ctx, path), TOKEN_KEY: token})
+    finally:
+        _INFLIGHT.pop(token, None)
+    return holder.get("results")
+
+
 @dataclass(frozen=True)
 class Coin(Effect):
     """由 flipper 擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。
@@ -507,20 +560,10 @@ class Coin(Effect):
         return True
 
     def run(self, rt, ctx, path):
-        global _next_token
-        _next_token += 1
-        token = _next_token
-        holder: dict = {}
-        _INFLIGHT[token] = holder
-        try:
-            flip_coins(rt.game, rt.batch, _who(ctx, self.flipper), self.count, ctx["source"],
-                       "effect_tree_resume",
-                       {CONT_KEY: rt.cont(ctx, path), TOKEN_KEY: token})
-        finally:
-            _INFLIGHT.pop(token, None)
-        if "results" not in holder:
+        results = _flip(rt, ctx, path, self.count, _who(ctx, self.flipper))
+        if results is None:
             return False    # 進入確認鏈 pending,之後由 resume 接手
-        return self._branch(rt, ctx, path, holder["results"])
+        return self._branch(rt, ctx, path, results)
 
     def _branch(self, rt, ctx, path, results) -> bool:
         ctx["results"] = [bool(r) for r in results]
@@ -530,6 +573,71 @@ class Coin(Effect):
     def resume(self, rt, ctx, value, path, floor):
         if self._branch(rt, ctx, path, value):
             _ascend(rt, ctx, path, floor)
+
+
+@dataclass(frozen=True)
+class CoinWithPaidReflip(Effect):
+    """擲 count 枚硬幣;符合 on 則解決 then。不符合時,若 MP ≥ cost 就詢問是否付 cost 重擲,
+    可重複任意次(E-011)。
+
+    迴圈只發生在本節點內部:玩家選擇重擲時付費後重新執行本節點(同一個 path),
+    直到結果符合、玩家停止或 MP 不足時,本節點才算完成並上溯一次。
+    兩種停點:擲幣確認鏈(CONT_KEY → resume)、重擲詢問(CHOICE_KEY → resume_choice)。
+    """
+    count: int = 1
+    on: Any = field(default_factory=HeadsAtLeast)
+    cost: int = 0
+    prompt: str = ""
+    then: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then,)
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def run(self, rt, ctx, path):
+        return self._flip_and_branch(rt, ctx, path, floor=0)
+
+    def _flip_and_branch(self, rt, ctx, path, floor) -> bool:
+        results = _flip(rt, ctx, path, self.count, ctx["player"])
+        if results is None:
+            return False
+        return self._after_results(rt, ctx, path, floor, results)
+
+    def _after_results(self, rt, ctx, path, floor, results) -> bool:
+        ctx["results"] = [bool(r) for r in results]
+        if self.on.test(rt.game, ctx):
+            return self.then.run(rt, ctx, path + (0,))
+        player = ctx["player"]
+        if rt.game.state.players[player].mp < self.cost:
+            return True     # 無法重擲:本節點結束,無效果
+        rt.game.state.pending = PendingChoice(
+            kind=self.prompt, player=player, source=ctx["source"],
+            options=[{"value": True, "label": "pay_reflip"}, {"value": False, "label": "stop"}],
+            data={CHOICE_KEY: rt.cont(ctx, path, floor)})
+        rt.game.emit(rt.batch, "choice_required", kind=self.prompt, player=player)
+        return False
+
+    def resume(self, rt, ctx, value, path, floor):
+        """擲幣確認鏈結束,value 為結果。"""
+        if self._after_results(rt, ctx, path, floor, value):
+            _ascend(rt, ctx, path, floor)
+
+    def resume_choice(self, rt, ctx, value, path, floor):
+        """玩家回應重擲詢問:True 付費重擲、False 停止。驗證先於任何狀態變更。"""
+        from ..engine import IllegalCommand, pay_mp
+        if value is not True and value is not False:
+            raise IllegalCommand("choose.invalid", "須選擇是否重擲")
+        player = ctx["player"]
+        if value and rt.game.state.players[player].mp < self.cost:
+            raise IllegalCommand("choose.invalid", "MP 不足以重擲")
+        if value:
+            pay_mp(rt.game, rt.batch, player, self.cost, ctx["source"])
+            if not self._flip_and_branch(rt, ctx, path, floor):
+                return
+        _ascend(rt, ctx, path, floor)
 
 
 # ================================================================ 葉節點(包裝 primitives)
@@ -729,7 +837,11 @@ class GainMpPerHeads(Effect):
 
 @dataclass(frozen=True)
 class AttachPartnerFromDiscard(Effect):
-    """把 Choose(PartnerDiscardedThisTurn()) 選中的夥伴卡從棄牌堆裝到對應魔物上(E-022)。"""
+    """把 Choose(spec) 選中的夥伴卡從棄牌堆裝到對應魔物上,並觸發其登場效果(E-011 / E-022)。
+
+    spec 須提供 _targets(game, player) → [{"value": 棄牌索引, "slot_uid": ...}],與 Choose 用的相同。
+    """
+    spec: Any = field(default_factory=PartnerDiscardedThisTurn)
     index: Ref = Ref("choice")
 
     def run(self, rt, ctx, path):
@@ -737,7 +849,7 @@ class AttachPartnerFromDiscard(Effect):
         player = ctx["player"]
         ps = game.state.players[player]
         idx = ctx[self.index.name]
-        targets = {t["value"]: t for t in PartnerDiscardedThisTurn._targets(game, player)}
+        targets = {t["value"]: t for t in self.spec._targets(game, player)}
         t = targets.get(idx)
         if t is None:      # 場面已變化(Choose 已驗證過,理論上不會發生),防禦性放棄
             return True
@@ -746,6 +858,8 @@ class AttachPartnerFromDiscard(Effect):
         slot.partner = number
         game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                   zone="partner", from_discard=True)
+        if number in reg.ON_PLAY:
+            reg.ON_PLAY[number](game, rt.batch, player, slot)
         return True
 
 
@@ -1110,6 +1224,58 @@ class PlaceMamodoFromBookUpTo(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class ReduceOpponentMpUnlessReducedLastTurn(Effect):
+    """對手 MP 減少 amount;若直前的回合自己已用本效果減過對手 MP,則減 0(E-018 日版)。
+
+    記錄存在 PlayerState.opp_mp_reduced_turn。目前只有本節點會寫入這個記錄。
+    """
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        st = rt.game.state
+        ps = st.players[ctx["player"]]
+        if ps.opp_mp_reduced_turn == st.turn_no - 1:
+            rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], skipped=True)
+            return True
+        reduce_mp(rt.game, rt.batch, 1 - ctx["player"], self.amount, ctx["source"])
+        ps.opp_mp_reduced_turn = st.turn_no
+        return True
+
+
+@dataclass(frozen=True)
+class KeepOnePartnerOrFetchFromBook(Effect):
+    """target 方:場上有夥伴時只留第一張、其餘棄掉;沒有夥伴時,自魔本依頁序取第一張
+    可裝備的夥伴卡裝到對應魔物(E-027;目前為自動選擇,不詢問玩家)。"""
+    target: str = "self"
+
+    def __post_init__(self):
+        _check_who(self.target)
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        side = _who(ctx, self.target)
+        ps = game.state.players[side]
+        partnered = [s for s in ps.slots if s.partner]
+        if partnered:
+            for s in partnered[1:]:
+                discard_partner(game, rt.batch, side, s, ctx["source"])
+            return True
+        for p in range(1, 33):
+            if p in ps.consumed_pages:
+                continue
+            card = game.db[ps.card_at(p)]
+            if card.type != PARTNER:
+                continue
+            slot = next((s for s in ps.slots
+                         if game.db[s.top].related_mamodo == card.related_mamodo
+                         and s.partner is None), None)
+            if slot is not None:
+                attach_partner_from_book(game, rt.batch, side, p, slot)
+                break
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
@@ -1157,11 +1323,13 @@ def run_effect(game, batch, effect_id: str, ctx: dict) -> None:
 
 def resume(game, batch, value, data: dict) -> None:
     """依 data 中的續體從停點繼續。value:Choose 為玩家選擇、Coin 為擲幣結果、Standby 無用。"""
-    cont = data.get(CHOICE_KEY) or data[CONT_KEY]
+    via_choice = CHOICE_KEY in data
+    cont = data[CHOICE_KEY] if via_choice else data[CONT_KEY]
     rt = Run(game, batch, cont["effect_id"])
     path = tuple(cont["path"])
     node = node_at(EFFECTS[cont["effect_id"]], path)
-    node.resume(rt, dict(cont["ctx"]), value, path, cont["floor"])
+    handler = node.resume_choice if via_choice else node.resume
+    handler(rt, dict(cont["ctx"]), value, path, cont["floor"])
 
 
 @reg.choice_resolver("effect_tree_resume")
@@ -1176,11 +1344,11 @@ def _effect_tree_resume(game, batch, value, data):
 # ================================================================ 註冊
 
 def validate_tree(root: Effect) -> None:
-    """註冊時檢查:Choose.prompt 不可與引擎 pending kind 相同;Standby.then 不可含會停下的節點。"""
+    """註冊時檢查:節點的 prompt 不可與引擎 pending kind 相同;Standby.then 不可含會停下的節點。"""
     def walk(node: Effect):
-        if isinstance(node, Choose):
-            if node.prompt in RESERVED_KINDS or node.prompt in reg.CHOICE_RESOLVERS:
-                raise ValueError(f"Choose.prompt {node.prompt!r} 與既有 pending kind 相同")
+        prompt = getattr(node, "prompt", None)
+        if prompt is not None and (prompt in RESERVED_KINDS or prompt in reg.CHOICE_RESOLVERS):
+            raise ValueError(f"{type(node).__name__}.prompt {prompt!r} 與既有 pending kind 相同")
         if isinstance(node, Standby) and node.then.may_suspend:
             raise ValueError("Standby.then 只能同步完成,不可包含 Choose / Coin")
         for c in node.children():

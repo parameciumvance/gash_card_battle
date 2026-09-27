@@ -343,22 +343,22 @@ def test_add_power_applies_to_bound_slot():
 # ================================================================ 新舊並存
 
 def test_tree_and_decorator_cards_coexist_in_one_game():
+    """同一局中效果樹註冊的卡(E-001)與仍是裝飾器註冊的卡(M-002 開始階段效果)都正常運作。"""
     from gash.engine.engine import slot_power
     from .test_cards import book
-    assert ("E-001", "event") in tree.TREE_HOOKS       # 效果樹註冊
-    assert ("E-018", "event") not in tree.TREE_HOOKS    # 仍是裝飾器註冊(遷移後需換一張舊寫法的卡)
-    assert "E-018" in reg.EVENT
-    g = game(book0=book(p2="E-001"), book1=book(p2="E-018"))
+    assert ("E-001", "event") in tree.TREE_HOOKS                # 效果樹註冊
+    assert "M-002" in reg.START_PHASE                          # 仍是裝飾器註冊(遷移後需換一張舊寫法的卡)
+    assert not any(n == "M-002" for n, _ in tree.TREE_HOOKS)
+    g = game(book0=book(first="M-002", p2="E-001"))
     s = slot0(g, 0)
     base = slot_power(g, 0, s)
+    mp = g.state.players[0].mp
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    assert mp <= 2 and g.state.players[0].mp == mp + 1           # M-002(舊寫法):MP≤2 → +1
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})   # E-001(樹)
     end_turn(g)
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})
     assert slot_power(g, 0, s) == base + 3000                      # 待命於下回合開始階段觸發
-    g.state.players[0].mp = 5
-    submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-018(舊寫法):對手 MP-4
-    assert g.state.players[0].mp == 1
 
 
 # ================================================================ 註冊表一致性(code review CR1)
@@ -932,3 +932,99 @@ def test_discard_from_opponent_book_pay_cost_uses_card_source():
     assert "S-002" in g.state.players[1].discard and 3 in g.state.players[1].consumed_pages
     assert g.state.players[0].mp == 5 - g.db["S-002"].cost
     assert {e["reason"] for e in events if "reason" in e} == {"T-000"}
+
+
+# ================================================================ E-011 / E-018 / E-027 節點
+
+def paid_reflip_root():
+    return Sequence(steps=(
+        Record("A"),
+        tree.CoinWithPaidReflip(count=1, on=HeadsAtLeast(1), cost=2, prompt="t_retry",
+                                then=Record("HEADS")),
+        Record("B"),
+    ))
+
+
+def test_paid_reflip_loops_inside_node_and_ascends_once():
+    g = game()
+    g.state.players[0].mp = 10
+    g.rng = StrictRng(TAILS, TAILS, HEADS)
+    run(g, paid_reflip_root())
+    assert LOG == ["A"] and pending(g) == ("t_retry", 0, [True, False])
+    roundtrip_pending(g, CHOICE_KEY)
+    submit(g, {"type": "choose", "player": 0, "value": True})
+    assert LOG == ["A"] and pending(g)[0] == "t_retry"          # 第二次仍是反面
+    submit(g, {"type": "choose", "player": 0, "value": True})
+    assert LOG == ["A", "HEADS", "B"]                          # B 只執行一次
+    assert g.state.players[0].mp == 10 - 2 - 2 and g.rng.calls == 3
+
+
+def test_paid_reflip_stop_still_continues_siblings():
+    g = game()
+    g.state.players[0].mp = 10
+    g.rng = StrictRng(TAILS)
+    run(g, paid_reflip_root())
+    submit(g, {"type": "choose", "player": 0, "value": False})
+    assert LOG == ["A", "B"] and g.state.pending is None
+
+
+def test_paid_reflip_without_mp_completes_immediately():
+    g = game()
+    g.state.players[0].mp = 1
+    g.rng = StrictRng(TAILS)
+    run(g, paid_reflip_root())
+    assert LOG == ["A", "B"] and g.state.pending is None
+
+
+def test_paid_reflip_rejects_invalid_value_and_keeps_pending():
+    g = game()
+    g.state.players[0].mp = 10
+    g.rng = StrictRng(TAILS)
+    run(g, paid_reflip_root())
+    for bad in (1, "yes", None):
+        with pytest.raises(IllegalCommand):
+            submit(g, {"type": "choose", "player": 0, "value": bad})
+        assert pending(g)[0] == "t_retry" and g.state.players[0].mp == 10
+
+
+def test_paid_reflip_confirm_chain_then_retry_offer():
+    g = game()
+    g.state.players[0].mp = 10
+    give(g, 0, "M-012")
+    g.rng = StrictRng(TAILS)
+    run(g, paid_reflip_root())
+    assert pending(g)[0] == "coin_confirm"
+    submit(g, {"type": "choose", "player": 0, "value": None})
+    assert pending(g)[0] == "t_retry" and LOG == ["A"]
+
+
+def test_validate_tree_checks_prompt_on_any_node():
+    with pytest.raises(ValueError, match="CoinWithPaidReflip.prompt"):
+        tree.validate_tree(tree.CoinWithPaidReflip(prompt="coin_confirm"))
+
+
+def test_reduce_opponent_mp_unless_reduced_last_turn():
+    g = game()
+    st = g.state
+    st.players[1].mp = 20
+    node = tree.ReduceOpponentMpUnlessReducedLastTurn(amount=4)
+    run(g, node)
+    assert st.players[1].mp == 16 and st.players[0].opp_mp_reduced_turn == st.turn_no
+    st.turn_no += 1
+    events = run(g, node)
+    assert st.players[1].mp == 16
+    assert without_seq(events) == [{"type": "effect_applied", "source": "T-000", "skipped": True}]
+    st.turn_no += 1                                  # 直前回合沒減過 → 再減
+    run(g, node)
+    assert st.players[1].mp == 12
+
+
+def test_keep_one_partner_or_fetch_from_book_targets():
+    g = game()
+    a = slot0(g, 1)
+    a.partner = "P-001"
+    b = give(g, 1, "M-004", partner="P-002")
+    run(g, tree.KeepOnePartnerOrFetchFromBook(target="opponent"))
+    assert a.partner == "P-001" and b.partner is None
+    with pytest.raises(ValueError):
+        tree.KeepOnePartnerOrFetchFromBook(target="both")

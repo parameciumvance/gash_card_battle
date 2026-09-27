@@ -865,8 +865,8 @@ def test_e018_j_version_consecutive_limit():
     to_battle(g, 0)
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     assert g.state.players[1].mp == 6  # 10 - 4
-    # 標記本回合已減
-    assert g.state.players[0].__dict__.get("_mp_reduce_turn") == g.state.turn_no
+    # 記錄本回合已減(PlayerState 的正式欄位;直前回合限制的行為測試見 test_effect_characterization)
+    assert g.state.players[0].opp_mp_reduced_turn == g.state.turn_no
 
 
 def test_full_regression_level1_deck_still_plays():
