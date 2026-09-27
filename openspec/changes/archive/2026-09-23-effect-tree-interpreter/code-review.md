@@ -6,7 +6,7 @@
 
 ## CR1 · P2：再次註冊不同 rider 掛鉤會靜默清除既有樹效果
 
-**位置：** [registry.py:153–160](../../../src/gash/engine/effects/registry.py#L153-L160)，核心問題為第 160 行整筆替換 `SpellRider`。
+**位置：** [registry.py:153–160](../../../../src/gash/engine/effects/registry.py#L153-L160)，核心問題為第 160 行整筆替換 `SpellRider`。
 
 新的註冊檢查以 `(卡號, 掛鉤)` 判定衝突，但只檢查此次 `kwargs` 有傳入、且值非 `None` 的掛鉤。迴圈結束後卻用 `SpellRider(**kwargs)` 替換整張卡的記錄，因此對同一卡片註冊另一個掛鉤或旗標時，未傳入的既有掛鉤與旗標會被重設。
 

@@ -489,3 +489,13 @@ def test_add_attack_bonus_per_heads_all_tails_is_zero_but_recorded():
 
 def test_always_condition_is_true():
     assert tree.Always().test(None, {}) is True
+
+
+def test_rider_invalid_kwarg_leaves_no_partial_state_and_allows_retry():
+    """review R1(2026-09-27):拼錯的 keyword 在任何 TREE_HOOKS / EFFECTS 寫入前就被拒絕。"""
+    before = snapshot()
+    with pytest.raises(TypeError):
+        reg.spell_rider("T-914", on_damage=Nothing(), countr=True)   # 拼字錯誤
+    assert snapshot() == before
+    reg.spell_rider("T-914", on_damage=Nothing(), counter=True)      # 修正後可重試
+    assert reg.SPELL_RIDERS["T-914"].counter is True

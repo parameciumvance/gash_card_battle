@@ -19,7 +19,7 @@
 
 因此玩家的 `None`（保留）、整數（重擲第幾枚）或 `True`（令整組重擲）會被誤當成樹停點的回覆；真正的重擲、能力使用標記、M-019 → M-012 串接都不會依原流程執行。
 
-**程式依據：** [primitives.py:218–254](../../../src/gash/engine/effects/primitives.py#L218-L254) 保留並傳遞資料；[primitives.py:257–306](../../../src/gash/engine/effects/primitives.py#L257-L306) 才負責確認與重擲；現有分派位於 [engine.py:1116–1127](../../../src/gash/engine/engine.py#L1116-L1127)。
+**程式依據：** [primitives.py:218–254](../../../../src/gash/engine/effects/primitives.py#L218-L254) 保留並傳遞資料；[primitives.py:257–306](../../../../src/gash/engine/effects/primitives.py#L257-L306) 才負責確認與重擲；現有分派位於 [engine.py:1116–1127](../../../../src/gash/engine/engine.py#L1116-L1127)。
 
 已以現有 `flip_coins` 傳入假續體驗證，得到：
 
@@ -48,7 +48,7 @@ Sequence(
 
 `Choose` 進入 pending 後，原本的 Python 呼叫堆疊已結束。若 `resume` 只是找回 `Choose` 並執行 `B`，便會漏掉 `C`。這不代表三欄位續體無法實現，而是提案缺少利用 `path` 重建執行位置的規則。
 
-另需處理同步 callback：沒有 M-012／M-019 時，`flip_coins` 會立即呼叫 callback（[primitives.py:254](../../../src/gash/engine/effects/primitives.py#L254)）。若 callback 的 `resume` 接著執行剩餘 siblings，原本尚在執行的 `Sequence` 又繼續迴圈，就可能重複執行後續效果。
+另需處理同步 callback：沒有 M-012／M-019 時，`flip_coins` 會立即呼叫 callback（[primitives.py:254](../../../../src/gash/engine/effects/primitives.py#L254)）。若 callback 的 `resume` 接著執行剩餘 siblings，原本尚在執行的 `Sequence` 又繼續迴圈，就可能重複執行後續效果。
 
 **建議修正：** 補上控制流程契約，包含節點子索引順序、`path` 指向停點或下一步、祖先 `Sequence` 如何續行，以及同步 callback 與非同步恢復如何保證每個效果僅執行一次。也需決定 `Standby` 排程完成後，外層 `Sequence` 是立即續行還是等待觸發，避免把兩種生命週期混在一起。
 
@@ -66,7 +66,7 @@ Sequence(
 | S-021、S-025 | `on_declare(game, batch, player, side)` | 四參數簽名及防禦方條件 |
 | S-026 | `SPELL_NONBATTLE[number](game, batch, player)` | 獨立註冊表及非戰鬥使用入口 |
 
-S-021／S-025 的現有 handler 明確檢查 `side == "defense"`（[spells.py:105–125](../../../src/gash/engine/effects/spells.py#L105-L125)），引擎也實際傳入第四個參數（[engine.py:687–688](../../../src/gash/engine/engine.py#L687-L688)）。S-026 則必須出現在 `SPELL_NONBATTLE`，否則使用時會得到 `spell.not_implemented`（[engine.py:434–443](../../../src/gash/engine/engine.py#L434-L443)）。
+S-021／S-025 的現有 handler 明確檢查 `side == "defense"`（[spells.py:105–125](../../../../src/gash/engine/effects/spells.py#L105-L125)），引擎也實際傳入第四個參數（[engine.py:687–688](../../../../src/gash/engine/engine.py#L687-L688)）。S-026 則必須出現在 `SPELL_NONBATTLE`，否則使用時會得到 `spell.not_implemented`（[engine.py:434–443](../../../../src/gash/engine/engine.py#L434-L443)）。
 
 **建議修正：** 在設計與任務 1.4 明列 `on_declare` 的包裝簽名、`side` 如何進入 `ctx`、防禦條件如何表達，以及 `reg.spell_nonbattle(number, effect=…)` 入口。一起定義這些掛鉤的 `effect_id` 與重複註冊檢查，讓任務 3.4 有完整的前置支援。
 
@@ -76,19 +76,19 @@ S-021／S-025 的現有 handler 明確檢查 `side == "defense"`（[spells.py:10
 
 **提案位置：** [design.md:76](design.md#L76)、[tasks.md:13–14](tasks.md#L13-L14)、[specs/effect-tree/spec.md:43–45](specs/effect-tree/spec.md#L43-L45)。
 
-提案將 `AddPower` 描述為包裝 `add_power`，並刪除 `e001_fire`。但原本的 `e001_fire` 會在待命觸發時，以玩家與 slot UID 重新查找目標；若目標已離場，直接結束，不建立 modifier，也不發出加魔力事件（[events.py:44–51](../../../src/gash/engine/effects/events.py#L44-L51)）。
+提案將 `AddPower` 描述為包裝 `add_power`，並刪除 `e001_fire`。但原本的 `e001_fire` 會在待命觸發時，以玩家與 slot UID 重新查找目標；若目標已離場，直接結束，不建立 modifier，也不發出加魔力事件（[events.py:44–51](../../../../src/gash/engine/effects/events.py#L44-L51)）。
 
-`add_power` 本身沒有這個檢查，會直接加入 modifier 並發出 `modifier_added`（[primitives.py:15–30](../../../src/gash/engine/effects/primitives.py#L15-L30)）。如果只照提案包裝 primitive，便會對已不存在的 slot 留下效果與事件，違反可觀察行為不變的要求。
+`add_power` 本身沒有這個檢查，會直接加入 modifier 並發出 `modifier_added`（[primitives.py:15–30](../../../../src/gash/engine/effects/primitives.py#L15-L30)）。如果只照提案包裝 primitive，便會對已不存在的 slot 留下效果與事件，違反可觀察行為不變的要求。
 
 **建議修正：** 明定 `Choose` 綁定的是穩定 slot UID，並明確指定 `AddPower` 的目標參照（例如 `Ref("slot")`）或預設讀取規則。延遲效果執行時重新檢查目標；UID 不存在時無效果且不發事件。不可改選另一隻魔物。
 
-**驗收：** E-001 選定後目標離場、目標仍在，以及兩筆待命分別指定不同 UID 的情境。現有 [test_e001_next_turn_power](../../../tests/test_cards.py#L473-L485) 只覆蓋單一魔物存活到下回合。
+**驗收：** E-001 選定後目標離場、目標仍在，以及兩筆待命分別指定不同 UID 的情境。現有 [test_e001_next_turn_power](../../../../tests/test_cards.py#L473-L485) 只覆蓋單一魔物存活到下回合。
 
 ## R5 · P2：`Standby.then` 能否再次建立 pending 必須界定
 
 **提案位置：** [design.md:62](design.md#L62)、[design.md:74](design.md#L74)、[specs/effect-tree/spec.md:40–45](specs/effect-tree/spec.md#L40-L45)。
 
-設計將 `Standby.then` 描述為可繼續解決的效果子樹，並宣稱開始階段引擎不需修改。然而現有開始階段會直接遍歷、移除並觸發所有到期待命，不檢查 callback 是否建立 pending，之後也直接切換到戰鬥階段（[engine.py:254–260](../../../src/gash/engine/engine.py#L254-L260)）。
+設計將 `Standby.then` 描述為可繼續解決的效果子樹，並宣稱開始階段引擎不需修改。然而現有開始階段會直接遍歷、移除並觸發所有到期待命，不檢查 callback 是否建立 pending，之後也直接切換到戰鬥階段（[engine.py:254–260](../../../../src/gash/engine/engine.py#L254-L260)）。
 
 若同時有兩筆 `Standby(..., then=Choose(...))` 到期，第二次觸發會覆寫第一次的 pending，第一筆續體便遺失。`then=Coin(...)` 遇到重擲確認也有相同組合風險。
 
@@ -105,11 +105,11 @@ S-021／S-025 的現有 handler 明確檢查 `side == "defense"`（[spells.py:10
 提案稱可用既有 M-012／M-019 測試回歸，且任務 2.4 將 E-001 多魔物選擇列為既有測試。實際盤點如下：
 
 - `tests/` 沒有 M-019／`opp_coin_redo` 的專門案例。
-- M-012 既有測試覆蓋 S-025 重擲與 S-021 保留結果（[test_cards.py:251–262](../../../tests/test_cards.py#L251-L262)、[796–808](../../../tests/test_cards.py#L796-L808)）。
+- M-012 既有測試覆蓋 S-025 重擲與 S-021 保留結果（[test_cards.py:251–262](../../../../tests/test_cards.py#L251-L262)、[796–808](../../../../tests/test_cards.py#L796-L808)）。
 - E-001 現有案例只走單魔物自動指定；任務 2.1 雖有新增 Choose 單元測試，仍需明列透過引擎的多目標選擇與重試整合驗收。
-- S-004／S-014、S-026 的現有測試只覆蓋無重擲確認的正面結果（[test_cards.py:706–726](../../../tests/test_cards.py#L706-L726)、[811–820](../../../tests/test_cards.py#L811-L820)）。
+- S-004／S-014、S-026 的現有測試只覆蓋無重擲確認的正面結果（[test_cards.py:706–726](../../../../tests/test_cards.py#L706-L726)、[811–820](../../../../tests/test_cards.py#L811-L820)）。
 
-另外，現有腳本 RNG 在序列用完後固定回傳反面（[test_cards.py:12–19](../../../tests/test_cards.py#L12-L19)），不一定能抓到額外 RNG 消耗；`test_seed_reproducibility` 比較的是同一實作跑兩次的結果（[test_engine.py:403–408](../../../tests/test_engine.py#L403-L408)），也不等同遷移前後的事件序列比較。
+另外，現有腳本 RNG 在序列用完後固定回傳反面（[test_cards.py:12–19](../../../../tests/test_cards.py#L12-L19)），不一定能抓到額外 RNG 消耗；`test_seed_reproducibility` 比較的是同一實作跑兩次的結果（[test_engine.py:403–408](../../../../tests/test_engine.py#L403-L408)），也不等同遷移前後的事件序列比較。
 
 **建議修正：** 將缺少的情境列為新增任務，並在遷移前固定相關指令序列的預期事件與公開 pending 快照。至少涵蓋 M-019 保留／重擲、M-019 → M-012 串接、兩枚硬幣的結果分支，以及三種擲幣入口（傷害後、宣告時、非戰鬥）的恢復。以會在超額呼叫時失敗的 RNG 或呼叫計數驗證消耗次數。
 

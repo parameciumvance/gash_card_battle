@@ -157,10 +157,13 @@ def spell_rider(number: str, **kwargs):
         raise ValueError(f"{number} 的術卡附加效果已註冊,每張卡只能註冊一次")
     trees = {h: kwargs[h] for h in ("on_declare", "on_damage")
              if isinstance(kwargs.get(h), tree.Effect)}
-    for hook, root in trees.items():        # 先全部驗證,再寫入
+    for hook, root in trees.items():        # 先驗證樹與掛鉤是否被佔用
         tree.validate_tree(root)
         tree.check_free(number, f"rider.{hook}")
-    for hook, root in trees.items():
+    # 用佔位值試建構,確認 kwargs 對 SpellRider 合法(拼錯的關鍵字在此就被拒絕)——
+    # 此時尚未寫入 TREE_HOOKS / EFFECTS,失敗不留下任何痕跡。
+    SpellRider(**{**kwargs, **{h: None for h in trees}})
+    for hook, root in trees.items():        # 通過後才真正安裝樹,換成包裝後的 handler
         kwargs[hook] = tree.rider_hook(number, hook, root)
     SPELL_RIDERS[number] = SpellRider(**kwargs)
     return SPELL_RIDERS[number]
