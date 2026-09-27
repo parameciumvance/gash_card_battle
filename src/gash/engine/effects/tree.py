@@ -53,6 +53,16 @@ class Run:
         return {"effect_id": self.effect_id, "path": list(path), "ctx": dict(ctx), "floor": floor}
 
 
+def _check_who(who: str) -> None:
+    if who not in ("self", "opponent"):
+        raise ValueError(f"對象須為 'self' 或 'opponent',收到 {who!r}")
+
+
+def _who(ctx: dict, who: str) -> int:
+    """把 "self" / "opponent" 換成玩家編號(相對於效果擁有者 ctx["player"])。"""
+    return ctx["player"] if who == "self" else 1 - ctx["player"]
+
+
 # ================================================================ 節點基底
 
 @dataclass(frozen=True)
@@ -293,11 +303,19 @@ class Standby(Effect):
 
 @dataclass(frozen=True)
 class Coin(Effect):
-    """擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。"""
+    """由 flipper 擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。
+
+    flipper="opponent" 時由對手擲(E-020):M-012 由對手決定、M-019 由效果擁有者決定。
+    ctx["player"] 始終是效果擁有者,不因擲幣者改變。
+    """
     count: int = 1
     on: Any = field(default_factory=HeadsAtLeast)
     then: Effect = field(default_factory=Nothing)
     otherwise: Effect = field(default_factory=Nothing)
+    flipper: str = "self"
+
+    def __post_init__(self):
+        _check_who(self.flipper)
 
     def children(self):
         return (self.then, self.otherwise)
@@ -313,7 +331,7 @@ class Coin(Effect):
         holder: dict = {}
         _INFLIGHT[token] = holder
         try:
-            flip_coins(rt.game, rt.batch, ctx["player"], self.count, ctx["source"],
+            flip_coins(rt.game, rt.batch, _who(ctx, self.flipper), self.count, ctx["source"],
                        "effect_tree_resume",
                        {CONT_KEY: rt.cont(ctx, path), TOKEN_KEY: token})
         finally:
@@ -493,6 +511,21 @@ class TurnPagesBack(Effect):
 
     def run(self, rt, ctx, path):
         turn_back_pages(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class GainMp(Effect):
+    """target("self" / "opponent")的 MP 增加固定值(E-020)。"""
+    amount: int = 0
+    target: str = "self"
+
+    def __post_init__(self):
+        _check_who(self.target)
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        gain_mp(rt.game, rt.batch, _who(ctx, self.target), self.amount, ctx["source"])
         return True
 
 

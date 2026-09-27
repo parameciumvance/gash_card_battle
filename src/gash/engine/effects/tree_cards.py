@@ -2,7 +2,7 @@
 
 排版規則(讓巢狀層次一眼看得出來):
 - 第一行固定是 `reg.xxx("卡號", ...,`,方便依卡號掃描。
-- 有子節點的容器節點(Choose / Coin / When / Standby)一律換行,子節點縮排一層;
+- 有子節點的容器節點(Choose / Coin / When / Standby / Sequence)一律換行,子節點縮排一層;
   該容器的收尾括號獨立一行,與開頭對齊。
 - 沒有子節點的葉節點、條件、選項規格寫在同一行。
 - 整張卡只有一個葉節點(或只有旗標)時,整個註冊寫成一行。
@@ -16,11 +16,11 @@ from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, Always, AttachPartnerFromDiscard, Choose,
     Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DisableBookProtection,
-    DiscardChosenPartner, GainMpPerDamage, GainMpPerHeads, GrantFullImmune,
+    DiscardChosenPartner, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune,
     HeadsAtLeast, HeadsCount, HealSlot, MakeAttackUndefendable, MakeNextAttackUndefendable,
     MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, OpponentPartneredMamodo, OwnMamodo,
     PartnerDiscardedThisTurn, ReduceOpponentMp, Ref, RestrictOpponent, ScheduleInjureInsteadNextWin,
-    SideIs, Standby,
+    Sequence, SideIs, Standby,
     TurnPagesBack, TurnPagesForward, When, has_own_mamodo, has_partner_discarded_this_turn,
 )
 
@@ -52,10 +52,13 @@ reg.event("E-006", when=has_own_mamodo, effect=Choose(
     ),
 ))
 
-# E-020 恵のコンサート(對手擲幣正→對手 MP+3)暫不遷移:現行 flip_coins 的 callback data 會把
-# 呼叫端塞入的 {"player": ...} 覆寫成擲幣者本人(此卡擲幣者剛好是對手),導致 e020_resolve 的
-# `1 - data["player"]` 算成效果擁有者自己,MP 沒有真正給到對手——遷移前就存在的既有缺陷。
-# 遷移方式待決定,見 openspec/changes/effect-tree-migration/design.md「已知阻礙」。
+reg.event("E-020", effect=Sequence(steps=(
+    GainMp(amount=3),
+    Coin(
+        count=1, flipper="opponent", on=HeadsAtLeast(1),
+        then=GainMp(amount=3, target="opponent"),
+    ),
+)))
 
 reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(
     count=1, on=HeadsAtLeast(1),

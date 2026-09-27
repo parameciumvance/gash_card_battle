@@ -702,3 +702,45 @@ def test_spell_rider_rejects_tree_in_non_effect_field_without_partial_state():
     with pytest.raises(ValueError, match="不是效果掛鉤"):
         reg.spell_rider("T-922", on_damage=Nothing(), damage_bonus=Nothing())
     assert snapshot() == before and "T-922" not in reg.SPELL_RIDERS
+
+
+# ================================================================ E-020:對手擲幣 / 指定 MP 對象
+
+def test_coin_flipper_opponent_flips_but_ctx_player_is_owner():
+    g = game()
+    g.state.players[0].mp = g.state.players[1].mp = 0
+    g.rng = StrictRng(HEADS)
+    batch = run(g, Coin(flipper="opponent", then=tree.GainMp(amount=3, target="opponent")))
+    assert [e["player"] for e in batch if e["type"] == "coin_flipped"] == [1]
+    assert (g.state.players[0].mp, g.state.players[1].mp) == (0, 3)
+
+
+def test_coin_flipper_opponent_m012_is_asked_to_opponent():
+    g = game()
+    give(g, 1, "M-012")
+    g.rng = StrictRng(TAILS)
+    run(g, coin_root_with_flipper("opponent"))
+    assert g.state.pending.kind == "coin_confirm" and g.state.pending.player == 1
+
+
+def coin_root_with_flipper(flipper):
+    return Sequence(steps=(Record("A"),
+                           Coin(count=1, flipper=flipper, then=Record("HEADS"), otherwise=Record("TAILS")),
+                           Record("B")))
+
+
+def test_gain_mp_targets():
+    g = game()
+    g.state.players[0].mp = g.state.players[1].mp = 0
+    run(g, tree.GainMp(amount=3))
+    run(g, tree.GainMp(amount=2, target="opponent"))
+    assert (g.state.players[0].mp, g.state.players[1].mp) == (3, 2)
+
+
+@pytest.mark.parametrize("make", [
+    lambda: Coin(flipper="enemy"),
+    lambda: tree.GainMp(amount=1, target="both"),
+])
+def test_invalid_who_rejected_at_construction(make):
+    with pytest.raises(ValueError, match="'self' 或 'opponent'"):
+        make()

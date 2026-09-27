@@ -367,21 +367,6 @@ def e019_pick(game, batch, value, data):
     _discard_slot(game, batch, player, slot, reason="E-019")
 
 
-# E-020 恵のコンサート:MP+3;對手擲幣正→對手 MP+3
-@reg.event("E-020")
-def e020(game, batch, player, page):
-    from ..engine import gain_mp
-    gain_mp(game, batch, player, 3, "E-020")
-    flip_coins(game, batch, 1 - player, 1, "E-020", "e020_resolve", {"player": player})
-
-
-@reg.choice_resolver("e020_resolve")
-def e020_resolve(game, batch, results, data):
-    from ..engine import gain_mp
-    if results[0]:
-        gain_mp(game, batch, 1 - data["player"], 3, "E-020")
-
-
 # E-021 ひと安心!:場上≥2魔物時,回復1隻負傷 和/或 MP+2(j 版)
 @reg.event("E-021", condition=lambda g, p: len(g.state.players[p].slots) >= 2)
 def e021(game, batch, player, page):
