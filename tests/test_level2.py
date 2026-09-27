@@ -540,6 +540,63 @@ def test_s042_no_bonus_below_8000_power():
     assert g.state.players[1].pos == pos1 + 2 * 1  # 合計 6000 < 8000,傷害維持 1
 
 
+def test_s035_two_heads_no_protect():
+    b0 = book("M-005", "S-035")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS, HEADS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    pos1 = g.state.players[1].pos
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    assert g.state.pending is None  # 2 正 → 不能保護,傷害直接生效
+    assert g.state.players[1].pos == pos1 + 2 * 3
+
+
+def test_s035_not_both_heads_can_still_protect():
+    b0 = book("M-005", "S-035")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS, TAILS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    assert g.state.pending is not None and g.state.pending.kind == "protect"
+
+
+def test_s037_full_immune_after_damage():
+    b0 = book("M-021", "S-037")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS)
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    if g.state.pending and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert any(m.kind == "full_immune" and m.owner == 0 for m in g.state.modifiers)
+
+
+def test_s040_bonus_scales_with_heads():
+    b0 = book("M-023", "S-040")
+    g, tp = mk(b0, book("M-001"))
+    g.rng = Rng(HEADS, HEADS, TAILS)
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert g.state.battle.data.get("attack_spell_bonus") == 4000  # 2 正 × 2000
+
+
 def test_s045_two_heads_undefendable():
     b0 = book("M-026", "S-045")
     g, tp = mk(b0, book("M-001"))

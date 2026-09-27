@@ -8,7 +8,7 @@ from __future__ import annotations
 from ..state import DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
 from . import registry as reg
 from .primitives import (
-    add_modifier, add_restriction, choose_or_auto, discard_partner, flip_coins,
+    add_modifier, add_restriction, choose_or_auto, discard_partner,
     play_mamodo_from_book, schedule_standby, take_from_book,
 )
 
@@ -81,25 +81,6 @@ def _s020_on_win(game, batch, player):
 reg.spell_rider("S-020", on_win=_s020_on_win, no_book_damage=True)
 
 
-# ---- S-027 耐えてくれよ!:擲2硬幣,至少1正→對手攻擊傷害 -1
-def _s027_on_declare(game, batch, player, side):
-    if side != "defense":
-        return
-    flip_coins(game, batch, player, 2, "S-027", "s027_resolve", {"player": player})
-
-
-@reg.choice_resolver("s027_resolve")
-def s027_resolve(game, batch, results, data):
-    b = game.state.battle
-    if b is None:
-        return
-    if sum(results) >= 1:
-        b.data["defense_damage_delta"] = b.data.get("defense_damage_delta", 0) - 1
-        game.emit(batch, "effect_applied", source="S-027", amount=-1)
-
-
-reg.spell_rider("S-027", on_declare=_s027_on_declare)
-
 # ---- S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:
 #      防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方效果不解決,無需額外處理(純資料驅動)
 
@@ -139,24 +120,6 @@ def _s033_on_damage(game, batch, player):
 reg.spell_rider("S-033", on_damage=_s033_on_damage)
 
 
-# ---- S-035 イオン・グラビレイ:擲2硬幣,2正→對手不能犧牲/保護魔本
-def _s035_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    flip_coins(game, batch, player, 2, "S-035", "s035_resolve", {"player": player})
-
-
-@reg.choice_resolver("s035_resolve")
-def s035_resolve(game, batch, results, data):
-    b = game.state.battle
-    if b is not None and sum(results) >= 2:
-        b.data["no_protect_book"] = True
-        game.emit(batch, "effect_applied", source="S-035")
-
-
-reg.spell_rider("S-035", on_declare=_s035_on_declare)
-
-
 # ---- S-036 ディオガ・グラビドン:獲勝時對防方魔本與場上所有魔物造成傷害
 def _s036_on_win(game, batch, player):
     from ..engine import _attack_damage_amount, _start_damage
@@ -176,23 +139,10 @@ def _s036_on_win(game, batch, player):
 reg.spell_rider("S-036", on_win=_s036_on_win, on_win_owns_damage=True)
 
 
-# ---- 自身免疫(至對手下個結束階段):S-037(擲幣)/ S-038(必定)/ S-041(擲幣)
+# ---- 自身免疫(至對手下個結束階段):S-038(必定)
 def _grant_full_immune(game, batch, player, source):
     add_modifier(game, batch, kind="full_immune", source=source, owner=player,
                  duration=DUR_UNTIL_END_NEXT_TURN, target_player=player)
-
-
-def _s037_on_damage(game, batch, player):
-    flip_coins(game, batch, player, 1, "S-037", "s037_resolve", {"player": player})
-
-
-@reg.choice_resolver("s037_resolve")
-def s037_resolve(game, batch, results, data):
-    if results[0]:
-        _grant_full_immune(game, batch, data["player"], "S-037")
-
-
-reg.spell_rider("S-037", on_damage=_s037_on_damage)
 
 
 def _s038_on_damage(game, batch, player):
@@ -223,36 +173,6 @@ def s039_pick(game, batch, value, data):
 
 
 reg.spell_rider("S-039", on_damage=_s039_on_damage)
-
-
-# ---- S-040 バルジュロン:擲3硬幣,術魔力 = 正面數 ×2000(香草傷害 1)
-def _s040_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    flip_coins(game, batch, player, 3, "S-040", "s040_resolve", {"player": player})
-
-
-@reg.choice_resolver("s040_resolve")
-def s040_resolve(game, batch, results, data):
-    b = game.state.battle
-    if b is not None:
-        b.data["attack_spell_bonus"] = b.data.get("attack_spell_bonus", 0) + sum(results) * 2000
-        game.emit(batch, "effect_applied", source="S-040", amount=sum(results) * 2000)
-
-
-reg.spell_rider("S-040", on_declare=_s040_on_declare)
-
-
-# ---- S-041 ジュルク(非戰鬥術):擲幣正→自身免疫(至對手下個結束階段)
-@reg.spell_nonbattle("S-041")
-def s041(game, batch, player):
-    flip_coins(game, batch, player, 1, "S-041", "s041_resolve", {"player": player})
-
-
-@reg.choice_resolver("s041_resolve")
-def s041_resolve(game, batch, results, data):
-    if results[0]:
-        _grant_full_immune(game, batch, data["player"], "S-041")
 
 
 # ---- S-043 レイ・ブルク(非戰鬥術):羅布諾斯雙向轉換
@@ -375,19 +295,6 @@ def _s056_on_defense_damaged(game, batch, defender, amount):
 reg.spell_rider("S-056", on_defense_damaged=_s056_on_defense_damaged)
 
 
-# ---- S-057 チェックメイト!(非戰鬥術):擲幣正→[待命] 本回合下一場戰鬥獲勝改為負傷代替傷害
-@reg.spell_nonbattle("S-057")
-def s057(game, batch, player):
-    flip_coins(game, batch, player, 1, "S-057", "s057_resolve", {"player": player})
-
-
-@reg.choice_resolver("s057_resolve")
-def s057_resolve(game, batch, results, data):
-    if results[0]:
-        schedule_standby(game, batch, kind="injure_instead", source="S-057",
-                         owner=data["player"])
-
-
 # ---- S-058 ザケル(ゼオン):獲勝時使對手 1 隻魔物負傷代替魔本傷害
 reg.spell_rider("S-058", injure_instead=True)
 
@@ -395,39 +302,3 @@ reg.spell_rider("S-058", injure_instead=True)
 # ---- S-042 ビライツ:攻擊時,自身合計魔力 8000 以上 → 此術傷害 +2
 reg.spell_rider("S-042", damage_bonus=lambda game, battle: (
     2 if battle.data.get("attack_total", 0) >= 8000 else 0))
-
-
-# ---- S-045 ガンズ・ガロン:擲2硬幣,2 正 → 不可被防禦
-def _s045_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    flip_coins(game, batch, player, 2, "S-045", "s045_resolve", {"player": player})
-
-
-@reg.choice_resolver("s045_resolve")
-def s045_resolve(game, batch, results, data):
-    if sum(results) >= 2:
-        b = game.state.battle
-        if b is not None:
-            b.attack_undefendable = True
-
-
-reg.spell_rider("S-045", on_declare=_s045_on_declare)
-
-
-# ---- S-046 エイジャス・ガロン:擲1硬幣,正 → 不可被防禦
-def _s046_on_declare(game, batch, player, side):
-    if side != "attack":
-        return
-    flip_coins(game, batch, player, 1, "S-046", "s046_resolve", {"player": player})
-
-
-@reg.choice_resolver("s046_resolve")
-def s046_resolve(game, batch, results, data):
-    if results[0]:
-        b = game.state.battle
-        if b is not None:
-            b.attack_undefendable = True
-
-
-reg.spell_rider("S-046", on_declare=_s046_on_declare)

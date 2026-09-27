@@ -42,6 +42,10 @@ def isolated(monkeypatch):
     monkeypatch.setattr(reg, "SPELL_NONBATTLE", dict(reg.SPELL_NONBATTLE))
 
 
+def without_seq(events):
+    return [{k: v for k, v in e.items() if k != "seq"} for e in events]
+
+
 def run(g, root, **ctx):
     tree.EFFECTS["T-000:test"] = root
     base = {"player": 0, "source": "T-000"}
@@ -400,3 +404,88 @@ def test_event_failed_validation_leaves_no_claim():
     assert snapshot() == before and "T-913" not in reg.EVENT
     reg.event("T-913", effect=Nothing())                        # 未被殘留標記擋住
     assert ("T-913", "event") in tree.TREE_HOOKS
+
+
+# ================================================================ 新增葉節點(S-027/S-035/S-037/S-040/S-041/S-045/S-046/S-057 共用)
+
+def start_battle_for_leaf_test(g):
+    """建立一場戰鬥(不透過 declare_attack,只為了讓葉節點有 game.state.battle 可寫)。"""
+    from gash.engine.state import BattleState
+    g.state.battle = BattleState(attacker=0, step="defense", attack_page=1,
+                                 attack_spell="T-000", attack_slot=slot0(g, 0).uid)
+    return g.state.battle
+
+
+def test_grant_full_immune_matches_primitive():
+    from gash.engine.state import DUR_UNTIL_END_NEXT_TURN
+    g = game()
+    batch = run(g, tree.GrantFullImmune())
+    ev = [e for e in batch if e["type"] == "modifier_added"]
+    assert len(ev) == 1 and ev[0]["kind"] == "full_immune"
+    m = g.state.modifiers[-1]
+    assert (m.owner, m.target_player, m.duration, m.source) == (0, 0, DUR_UNTIL_END_NEXT_TURN, "T-000")
+
+
+def test_schedule_injure_instead_next_win():
+    g = game()
+    batch = run(g, tree.ScheduleInjureInsteadNextWin())
+    assert [e["type"] for e in batch] == ["standby_set"]
+    sb = g.state.standby[0]
+    assert (sb.kind, sb.source, sb.owner) == ("injure_instead", "T-000", 0)
+
+
+def test_make_attack_undefendable_sets_current_battle_directly():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.MakeAttackUndefendable())
+    assert batch == []  # 直接作用,不像 MakeNextAttackUndefendable 會發 standby_set
+    assert g.state.battle.attack_undefendable is True
+
+
+def test_make_attack_undefendable_without_battle_is_noop():
+    g = game()
+    batch = run(g, tree.MakeAttackUndefendable())
+    assert batch == [] and g.state.battle is None
+
+
+def test_adjust_defense_damage_without_battle_is_noop():
+    g = game()
+    batch = run(g, tree.AdjustDefenseDamage(amount=-1))
+    assert batch == []
+
+
+def test_adjust_defense_damage_matches_old_event_shape():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.AdjustDefenseDamage(amount=-1))
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": -1}]
+    assert g.state.battle.data["defense_damage_delta"] == -1
+    run(g, tree.AdjustDefenseDamage(amount=-1))  # 可累加
+    assert g.state.battle.data["defense_damage_delta"] == -2
+
+
+def test_disable_book_protection_matches_old_event_shape():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.DisableBookProtection())
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000"}]
+    assert g.state.battle.data["no_protect_book"] is True
+
+
+def test_add_attack_bonus_per_heads_scales_with_results():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.AddAttackBonusPerHeads(per_head=2000), results=[True, True, False])
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": 4000}]
+    assert g.state.battle.data["attack_spell_bonus"] == 4000
+
+
+def test_add_attack_bonus_per_heads_all_tails_is_zero_but_recorded():
+    g = game()
+    start_battle_for_leaf_test(g)
+    batch = run(g, tree.AddAttackBonusPerHeads(per_head=2000), results=[False, False])
+    assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": 0}]
+
+
+def test_always_condition_is_true():
+    assert tree.Always().test(None, {}) is True

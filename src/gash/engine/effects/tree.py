@@ -13,9 +13,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ..state import PendingChoice
+from ..state import DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
-from .primitives import add_power, add_restriction, flip_coins, schedule_standby
+from .primitives import add_modifier, add_power, add_restriction, flip_coins, schedule_standby
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
 RESERVED_KINDS = frozenset({
@@ -122,6 +122,14 @@ class HeadsAtLeast:
 
     def test(self, game, ctx) -> bool:
         return sum(ctx["results"]) >= self.count
+
+
+@dataclass(frozen=True)
+class Always:
+    """恆真條件:用於「不分支,只是需要先擲幣」的效果(如依正面數量計算數值)。"""
+
+    def test(self, game, ctx) -> bool:
+        return True
 
 
 # ================================================================ 選項規格 / 觸發時機
@@ -304,6 +312,81 @@ class MakeNextAttackUndefendable(Effect):
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
                          source=ctx["source"], owner=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class MakeAttackUndefendable(Effect):
+    """使目前這場戰鬥的攻擊立即不可被防禦(與 MakeNextAttackUndefendable 不同:
+    後者是排程給下一場戰鬥的待命,這裡是宣告時直接作用於當前戰鬥)。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.attack_undefendable = True
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleInjureInsteadNextWin(Effect):
+    """[待命] 本回合下一場戰鬥獲勝時,改為負傷對手 1 隻魔物代替魔本傷害(S-057)。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="injure_instead",
+                         source=ctx["source"], owner=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class GrantFullImmune(Effect):
+    """令自己的魔本與魔物至對手下個結束階段前不受傷害(S-037 / S-041)。"""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="full_immune", source=ctx["source"], owner=player,
+                     duration=DUR_UNTIL_END_NEXT_TURN, target_player=player)
+        return True
+
+
+@dataclass(frozen=True)
+class AdjustDefenseDamage(Effect):
+    """調整目前戰鬥中防禦方承受的傷害值(S-027:-1)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.data["defense_damage_delta"] = battle.data.get("defense_damage_delta", 0) + self.amount
+        rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class DisableBookProtection(Effect):
+    """本場戰鬥中,防禦方不能保護魔本(S-035)。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.data["no_protect_book"] = True
+        rt.game.emit(rt.batch, "effect_applied", source=ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class AddAttackBonusPerHeads(Effect):
+    """依 ctx["results"](Coin 擲出的結果)的正面數量,為本場戰鬥的攻擊魔力加值(S-040)。"""
+    per_head: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        amount = sum(ctx["results"]) * self.per_head
+        battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + amount
+        rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=amount)
         return True
 
 
