@@ -145,6 +145,17 @@ class HeadsCount:
         return sum(ctx["results"]) == self.count
 
 
+# ================================================================ 使用前置條件(reg.event 的 when=,簽名 fn(game, player))
+
+def has_own_mamodo(game, player) -> bool:
+    return bool(game.state.players[player].slots)
+
+
+def has_partner_discarded_this_turn(game, player) -> bool:
+    ps = game.state.players[player]
+    return any(n in ps.discarded_this_turn and game.db[n].type == PARTNER for n in ps.discard)
+
+
 # ================================================================ 選項規格 / 觸發時機
 
 @dataclass(frozen=True)
