@@ -694,6 +694,50 @@ def test_e005_one_head_one_tail_no_effect():
     assert g.state.players[0].pos == pos  # 一正一反 → 無效
 
 
+def _e020_use(coins, **kw):
+    g = game(book0=book(p2="E-020"), coins=coins)
+    g.state.players[0].mp = 0
+    g.state.players[1].mp = 0
+    for p, card in kw.items():          # p0="M-019" 等:在該玩家場上放魔物
+        give(g, int(p[1]), card)
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    return g, events
+
+
+def test_e020_opponent_flips_and_gains_on_heads():
+    # 效果文:自己 MP+3;對手擲幣,正面則「對手」MP+3
+    g, events = _e020_use((HEADS,))
+    flips = [e for e in events if e["type"] == "coin_flipped"]
+    assert [f["player"] for f in flips] == [1]          # 由對手擲
+    assert g.state.players[0].mp == 3
+    assert g.state.players[1].mp == 3
+
+
+def test_e020_opponent_tails_only_self_gains():
+    g, _ = _e020_use((TAILS,))
+    assert g.state.players[0].mp == 3
+    assert g.state.players[1].mp == 0
+
+
+def test_e020_opponent_m012_decides_reflip():
+    # 擲幣者是對手 → 對手自己的 M-012 可重擲,確認決策者是對手
+    g, _ = _e020_use((TAILS, HEADS), p1="M-012")
+    assert g.state.pending.kind == "coin_confirm" and g.state.pending.player == 1
+    submit(g, {"type": "choose", "player": 1, "value": 0})
+    assert g.state.players[0].mp == 3
+    assert g.state.players[1].mp == 3
+
+
+def test_e020_caster_m019_forces_opponent_reflip():
+    # 擲幣者是對手 → 使用者(擲幣者的對手)的 M-019 可令其重擲,決策者是使用者
+    g, _ = _e020_use((HEADS, TAILS), p0="M-019")
+    assert g.state.pending.kind == "opp_coin_redo" and g.state.pending.player == 0
+    submit(g, {"type": "choose", "player": 0, "value": True})
+    assert g.state.players[0].mp == 3
+    assert g.state.players[1].mp == 0
+
+
 def test_e022_heads_returns_partner_discarded_this_turn():
     g = game(book0=book(p2="E-022"), coins=(HEADS,))
     g.state.players[0].discard.append("P-001")

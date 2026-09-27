@@ -216,8 +216,11 @@ def _opp_redo_available(game, opp) -> bool:
 
 
 def flip_coins(game, batch, player, count, source, callback, data=None):
-    """擲 count 次硬幣;結果確定後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
-    確認鏈:對手可用 M-019 時先問是否令整組重擲;玩家有可用 M-012 時再進重擲確認。"""
+    """由 player 擲 count 次硬幣;結果確定後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
+    確認鏈:擲幣者的對手可用 M-019 時先問是否令整組重擲;擲幣者有可用 M-012 時再進重擲確認。
+
+    擲幣者記在 data["flipper"]。呼叫端放進 data 的 "player" 會原樣保留(E-020 由對手擲幣,
+    callback 需要的是效果擁有者);沒有放時才預設為擲幣者。"""
     results = []
     for _ in range(count):
         heads = game.rng.random() < 0.5
@@ -225,12 +228,13 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
         game.emit(batch, "coin_flipped", player=player,
                   result="heads" if heads else "tails", source=source)
     data = dict(data or {})
-    data.update({"results": results, "callback": callback, "player": player, "source": source})
+    data.setdefault("player", player)
+    data.update({"results": results, "callback": callback, "flipper": player, "source": source})
     _coin_confirm_chain(game, batch, data)
 
 
 def _coin_confirm_chain(game, batch, data):
-    player = data["player"]
+    player = data["flipper"]
     results = data["results"]
     source = data["source"]
     opp = 1 - player
@@ -256,7 +260,7 @@ def _coin_confirm_chain(game, batch, data):
 
 @reg.choice_resolver("opp_coin_redo")
 def _opp_coin_redo(game, batch, value, data):
-    opp = 1 - data["player"]
+    opp = 1 - data["flipper"]
     data["m019_done"] = True
     game.state.pending = None
     if value:
@@ -267,7 +271,7 @@ def _opp_coin_redo(game, batch, value, data):
         for i in range(len(data["results"])):
             heads = game.rng.random() < 0.5
             data["results"][i] = heads
-            game.emit(batch, "coin_flipped", player=data["player"],
+            game.emit(batch, "coin_flipped", player=data["flipper"],
                       result="heads" if heads else "tails", source=data["source"], reflip=True)
     _coin_confirm_chain(game, batch, data)
 
@@ -275,7 +279,7 @@ def _opp_coin_redo(game, batch, value, data):
 @reg.choice_resolver("coin_confirm")
 def _coin_confirm(game, batch, value, data):
     from ..engine import IllegalCommand
-    player = data["player"]
+    player = data["flipper"]
     results = data["results"]
     if value is None:
         game.state.pending = None
