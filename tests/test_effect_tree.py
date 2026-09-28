@@ -1481,3 +1481,10 @@ def test_set_power_zero_this_turn_gone_target_noop():
     assert [(m.kind, m.target_slot) for m in g.state.modifiers] == [("power_zero", x.uid)]
     g.state.players[1].slots.remove(x)
     assert run(g, tree.SetPowerZeroThisTurn(), choice=x.uid) == []
+
+
+def test_schedule_next_spell_bonus_optional_flag():
+    g = game()
+    run(g, tree.ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1, optional=True))
+    run(g, tree.ScheduleNextSpellBonus(mamodo="フェイン", power_delta=4000))
+    assert [sb.data.get("optional") for sb in g.state.standby] == [True, None]

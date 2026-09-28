@@ -1617,6 +1617,112 @@ def test_next_battle_standby_expires_at_turn_end_without_battle():
     assert st.battle.defense_declared is True
 
 
+# ---------------------------------------------------------------- M-008「1低いコストで使うことができる」:可選
+
+def _m008_declared_attack(mp, partner=None):
+    """玩家 0 的 M-008 スギナ 宣告使用後,以第 2 頁的 S-014(費用 2、魔力 2000)宣告攻擊。"""
+    g, _ = mk(book("M-008", "S-014"), book("M-001"))
+    st = g.state
+    st.players[0].mp = mp
+    sugina = st.players[0].slots[0]
+    sugina.partner = partner
+    to_battle(g, 0)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": sugina.uid})
+    submit(g, {"type": "pass", "player": 1})
+    if partner:
+        _use_partner(g, 0, sugina)
+        submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    return g
+
+
+def _showdown(g, defend_page=None):
+    from .test_cards import showdown_of
+    st = g.state
+    events = []
+    if st.battle.step == "defense":
+        if defend_page is None:
+            events += submit(g, {"type": "no_defense", "player": st.battle.defender})
+        else:
+            events += submit(g, {"type": "declare_defense", "player": st.battle.defender, "page": defend_page})
+    while st.battle is not None and st.battle.step == "effects" and st.pending is None:
+        events += submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
+    return showdown_of(events)
+
+
+@pytest.mark.parametrize("value,paid,total", [
+    (True, 1, 3500 + 2000 - 1000),          # 使用:少付 1、術的魔力 -1000
+    (None, 2, 3500 + 2000),                 # 不使用:付原價、魔力不變
+])
+def test_m008_discount_is_chosen_when_declaring(value, paid, total):
+    g = _m008_declared_attack(mp=5)
+    st = g.state
+    assert st.pending.kind == "spell_discount" and st.pending.player == 0
+    assert [o["label"] for o in st.pending.options] == ["spell_discount_use", "skip"]
+    with pytest.raises(IllegalCommand) as e:                           # 對手不能代選
+        submit(g, {"type": "choose", "player": 1, "value": True})
+    assert e.value.code == "choice.required"
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "choose", "player": 0, "value": 3})
+    assert e.value.code == "choose.invalid" and st.pending.kind == "spell_discount"
+    submit(g, {"type": "choose", "player": 0, "value": value})
+    assert st.pending is None and st.battle_in is not None and st.action_player == 0
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert st.players[0].mp == 5 - paid
+    assert _showdown(g)["attacker_total"] == total
+
+
+def test_m008_discount_applied_without_asking_when_mp_only_covers_it():
+    g = _m008_declared_attack(mp=1)
+    st = g.state
+    assert st.pending is None and st.battle_in is not None
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert st.players[0].mp == 0
+    assert _showdown(g)["attacker_total"] == 3500 + 2000 - 1000
+
+
+def test_m008_not_offered_when_base_cost_is_zero():
+    # P-005 使スギナ的術「本来のコスト」為 0 → 無法「本来より1低い」,不詢問、魔力不減
+    g = _m008_declared_attack(mp=5, partner="P-005")
+    st = g.state
+    assert st.pending is None
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert st.players[0].mp == 5
+    assert _showdown(g)["attacker_total"] == 3500 + 2000
+
+
+def test_m008_discount_chosen_when_defending():
+    g, _ = mk(book("M-001", "S-001"), book("M-008", "S-014"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 5
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "use_field_ability", "player": 1, "zone": "mamodo",
+               "slot_uid": st.players[1].slots[0].uid})
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    assert st.pending.kind == "spell_discount" and st.pending.player == 1
+    assert st.battle.defense_declared is False                          # 決定前尚未宣告完成
+    submit(g, {"type": "choose", "player": 1, "value": True})
+    assert st.players[1].mp == 4 and st.battle.step == "effects"
+    assert _showdown(g)["defender_total"] == 3500 + 2000 - 1000
+
+
+def test_spell_power_cut_not_below_zero():
+    # M-008:その術の魔力は-1000される(0より小さくはならない)→ 只減術的魔力,不影響魔物本身
+    from gash.engine.engine import _side_total
+    from gash.engine.state import BattleState
+    g, _ = mk(book("M-001"), book("M-008"))
+    st = g.state
+    sugina = st.players[1].slots[0]
+    st.battle = BattleState(attacker=0, step="effects", attack_page=2, attack_spell="S-001",
+                            attack_slot=st.players[0].slots[0].uid, defense_page=2,
+                            defense_spell="S-056", defense_slot=sugina.uid,
+                            data={"defense_spell_bonus": -1000})
+    assert _side_total(g, st.battle, "defense") == 3500 + 0
+
+
 # ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果を合計1回(P-010 / P-018 與 E-005)
 
 def _own_book_game(pos, e005_page, coins, partner):

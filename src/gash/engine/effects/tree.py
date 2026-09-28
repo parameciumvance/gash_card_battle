@@ -1592,15 +1592,18 @@ class PreventDamageToSelf(Effect):
 
 @dataclass(frozen=True)
 class ScheduleNextSpellBonus(Effect):
-    """[待命] 本回合下一場戰鬥中,mamodo 使用的術費用 +cost_delta、魔力 +power_delta(M-008)。"""
+    """[待命] 本回合下一場戰鬥中,mamodo 使用的術費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
+    optional:由使用者在宣告術時選擇是否套用(M-008「1低いコストで使うことができる。そうしたなら…」)。"""
     mamodo: str = ""
     power_delta: int = 0
     cost_delta: int = 0
+    optional: bool = False
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="spell_bonus", source=ctx["source"], owner=ctx["player"],
                          data={"mamodo": self.mamodo, "power_delta": self.power_delta,
-                               "cost_delta": self.cost_delta, "expires": "next_battle"})
+                               "cost_delta": self.cost_delta, "expires": "next_battle",
+                               **({"optional": True} if self.optional else {})})
         return True
 
 

@@ -1354,6 +1354,7 @@ function renderPendingDialog() {
     if (opt.label === "stop") return { label: t("choice.stop"), onpick: () => choose(false) };
     if (opt.label === "skip") return { label: t("choice.skip"), onpick: () => choose(null) };
     if (opt.label === "jammer_use") return { label: t("choice.jammer_use", { card: cname(opt.card) }), onpick: () => choose(true) };
+    if (opt.label === "spell_discount_use") return { label: t("choice.spell_discount_use"), onpick: () => choose(true) };
     if (opt.label === "s043_fuse") return { label: t("choice.s043_fuse"), onpick: () => choose("fuse") };
     if (opt.label === "s043_split") return { label: t("choice.s043_split"), onpick: () => choose("split") };
     if (opt.card) {

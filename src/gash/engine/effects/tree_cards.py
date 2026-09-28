@@ -221,7 +221,7 @@ reg.on_play("M-007", effect=TurnPagesForward(leaves=1, target="opponent"))
 reg.stack_on("M-007", base=("M-006",))
 
 reg.activated("M-008", mode="declare", timing="nonbattle",
-              effect=ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1))
+              effect=ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1, optional=True))
 
 reg.on_discard("M-009", effect=GainMp(amount=4))
 

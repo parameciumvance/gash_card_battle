@@ -236,6 +236,8 @@
   "choice.title.injure_instead_target": "選擇要使其負傷的對手魔物",
   "choice.title.opp_coin_redo": "是否用奇妙動物令對手重擲?",
   "choice.title.jammer_negate": "對手剛使用了魔物效果 — 是否用《裏切り者》使其無效?",
+  "choice.title.spell_discount": "《策士》:是否以少 1 的費用使用此術?(該術魔力 -1000)",
+  "choice.spell_discount_use": "少付 1 MP(魔力 -1000)",
   "choice.s043_fuse": "合體:2 隻二體 → 完全體",
   "choice.s043_split": "分裂:完全體 → 2 隻二體",
   "ui.name.p1": "玩家1 暱稱",

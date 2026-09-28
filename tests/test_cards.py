@@ -189,6 +189,8 @@ def test_m008_spell_discount_and_power_cut():
     assert spell_cost(g, tp, 3, card) == 1  # 2-1
     submit(g, {"type": "pass", "player": 1})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
+    assert g.state.pending.kind == "spell_discount"   # 1低いコストで使うことが「できる」
+    submit(g, {"type": "choose", "player": tp, "value": True})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     assert g.state.players[tp].mp == 1  # 2-1
     submit(g, {"type": "no_defense", "player": 1})
