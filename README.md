@@ -211,6 +211,15 @@ git push origin v0.1.0
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
+## 規格與設計文件
+
+規格與設計知識的組織方式、維護原則與變更流程定義在 [`docs/specification-guide.md`](docs/specification-guide.md),
+進行規格驅動的開發(OpenSpec change)前先讀它。理解目前系統時依指南 §15「文件導航」的順序閱讀;
+開始一個 change 前依 §11「Required Reading Procedure」。
+
+- `openspec/specs/<capability>/spec.md`:目前的可觀察行為(現行 WHAT)。
+- `openspec/changes/archive/`:歷史變更的理由與過程。
+
 ## 卡片效果的寫法
 
 新卡片一律以**效果樹**註冊:效果由 `effects/tree.py` 的節點組合(節點名稱不含卡號),註冊檔
