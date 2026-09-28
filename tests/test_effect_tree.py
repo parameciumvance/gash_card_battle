@@ -497,7 +497,8 @@ def test_add_attack_bonus_per_heads_scales_with_results():
     start_battle_for_leaf_test(g)
     batch = run(g, tree.AddAttackBonusPerHeads(per_head=2000), results=[True, True, False])
     assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": 4000}]
-    assert g.state.battle.data["attack_spell_bonus"] == 4000
+    assert g.state.battle.data["attack_spell_power"] == [
+        {"kind": "spell_bonus", "source": "T-000", "amount": 4000}]
 
 
 def test_add_attack_bonus_per_heads_all_tails_is_zero_but_recorded():
@@ -616,7 +617,8 @@ def test_add_defense_self_bonus_keeps_legacy_event_source():
     start_battle_for_leaf_test(g)
     batch = run(g, tree.AddDefenseSelfBonus(amount=1000))
     assert without_seq(batch) == [{"type": "effect_applied", "source": "defense_bonus", "amount": 1000}]
-    assert g.state.battle.data["defense_self_bonus"] == 1000
+    assert g.state.battle.data["defense_spell_power"] == [
+        {"kind": "defense_self", "source": "T-000", "amount": 1000}]
 
 
 def test_add_attack_self_bonus_keeps_legacy_event_source():
@@ -624,7 +626,8 @@ def test_add_attack_self_bonus_keeps_legacy_event_source():
     start_battle_for_leaf_test(g)
     batch = run(g, tree.AddAttackSelfBonus(amount=2000))
     assert without_seq(batch) == [{"type": "effect_applied", "source": "attack_bonus", "amount": 2000}]
-    assert g.state.battle.data["attack_spell_bonus"] == 2000
+    assert g.state.battle.data["attack_spell_power"] == [
+        {"kind": "spell_bonus", "source": "T-000", "amount": 2000}]
 
 
 def test_self_bonus_nodes_without_battle_are_noop():

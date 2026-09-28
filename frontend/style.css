@@ -365,6 +365,7 @@ body {
   background: rgba(255, 255, 255, .05); border-left: 3px solid var(--glow); border-radius: 4px;
 }
 #dialog-source .src-name { font-weight: bold; margin-bottom: 4px; }
+#dialog-notes { font-size: 14px; margin-bottom: 12px; color: var(--glow); }
 #dialog-options { display: flex; gap: 10px; flex-wrap: wrap; }
 #dialog-options button { font-size: 13px; padding: 8px 14px; }
 #dialog-options .card { cursor: pointer; }
@@ -383,6 +384,32 @@ body {
 #zoom-card .card .cmeta { font-size: 13px; }
 #zoom-card .card .ceffect { font-size: 13px; -webkit-line-clamp: unset; line-clamp: none; }
 #zoom-card .card img.art { height: 250px; }
+
+/* 純展示資訊對話框(魔力明細、作用中效果) */
+#info-overlay {
+  position: fixed; inset: 0; background: rgba(8, 10, 18, .72);
+  display: flex; align-items: center; justify-content: center; z-index: 52;
+}
+#info-dialog {
+  background: #202a42; border: 1px solid #4a5a80; border-radius: 10px;
+  padding: 16px 18px; width: min(460px, 94vw); max-height: 80vh; overflow-y: auto;
+}
+#info-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+#info-head h3 { font-size: 15px; color: var(--glow); }
+#info-close { padding: 5px 14px; border-radius: 6px; cursor: pointer; min-height: 32px;
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
+.info-section { margin-bottom: 12px; }
+.info-section h4 { font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+.info-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px;
+  padding: 3px 0; border-bottom: 1px dashed #2e3a55; }
+.info-row .info-amount { color: var(--accent-blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.info-row .info-when { color: var(--ink-dim); white-space: nowrap; }
+.info-empty { font-size: 13px; color: var(--ink-dim); }
+.info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
+.breakdown-ref { color: var(--accent-blue); cursor: pointer; text-decoration: underline dotted; margin-left: 4px; }
+#stage-content .side-total { cursor: pointer; text-decoration: underline dotted; }
+#effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
+  color: var(--ink); border-radius: 6px; cursor: pointer; }
 
 #toast {
   position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);

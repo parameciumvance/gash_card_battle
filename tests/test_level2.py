@@ -7,7 +7,7 @@
 import pytest
 
 from gash.engine.cards import card_db
-from gash.engine.engine import IllegalCommand, new_game, submit
+from gash.engine.engine import IllegalCommand, new_game, side_breakdown, submit
 from gash.engine.state import BATTLE, GAME_OVER
 
 DB = card_db()
@@ -790,7 +790,8 @@ def test_s040_bonus_scales_with_heads():
     to_battle(g, 0)
     submit(g, {"type": "declare_attack", "player": 0, "page": 2})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    assert g.state.battle.data.get("attack_spell_bonus") == 4000  # 2 正 × 2000
+    _, items = side_breakdown(g, g.state.battle, "attack")
+    assert {"kind": "spell_bonus", "source": "S-040", "amount": 4000} in items   # 2 正 × 2000
 
 
 def test_s045_two_heads_undefendable():
@@ -1140,7 +1141,8 @@ def test_m008_bonus_only_when_sugina_uses_the_spell():
     submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": pokkerio.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     assert g.state.players[0].mp == mp - card.cost                    # 不減費
-    assert g.state.battle.data.get("attack_spell_bonus", 0) == 0     # 不減魔力
+    _, items = side_breakdown(g, g.state.battle, "attack")
+    assert not any(i["kind"] == "spell_bonus" for i in items)          # 不減魔力
 
 
 def test_p006_only_usable_in_battle():
@@ -1745,8 +1747,12 @@ def test_spell_power_cut_not_below_zero():
     st.battle = BattleState(attacker=0, step="effects", attack_page=2, attack_spell="S-001",
                             attack_slot=st.players[0].slots[0].uid, defense_page=2,
                             defense_spell="S-056", defense_slot=sugina.uid,
-                            data={"defense_spell_bonus": -1000})
+                            data={"defense_spell_power": [
+                                {"kind": "spell_bonus", "source": "M-008", "amount": -1000}]})
     assert _side_total(g, st.battle, "defense") == 3500 + 0
+    total, items = side_breakdown(g, st.battle, "defense")
+    assert sum(i["amount"] for i in items) == total
+    assert any(i["kind"] == "spell_floor" for i in items)            # 不低於 0 的調整項
 
 
 # ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果を合計1回(P-010 / P-018 與 E-005)

@@ -17,8 +17,8 @@ from ..cards import PARTNER
 from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
-    add_modifier, add_power, add_restriction, attach_partner_from_book, discard_from_book,
-    discard_partner, flip_coins,
+    add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
+    discard_from_book, discard_partner, flip_coins,
     heal_slot, mark_opp_mp_reduced, own_book_turn_effect, play_mamodo_from_book, reduce_mp,
     reduce_opponent_mp, return_to_book,
     schedule_standby, take_from_book,
@@ -897,7 +897,7 @@ class CoinWithPaidReflip(Effect):
         rt.game.state.pending = PendingChoice(
             kind=self.prompt, player=player, source=ctx["source"],
             options=[{"value": True, "label": "pay_reflip"}, {"value": False, "label": "stop"}],
-            data={CHOICE_KEY: rt.cont(ctx, path, floor)})
+            data={CHOICE_KEY: rt.cont(ctx, path, floor)}, info=coin_info(results))
         rt.game.emit(rt.batch, "choice_required", kind=self.prompt, player=player)
         return False
 
@@ -962,6 +962,7 @@ class NegateAttack(Effect):
         if battle is None:
             return True
         battle.attack_negated = True
+        battle.data["attack_negated_by"] = ctx["source"]
         rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
         return True
 
@@ -1051,7 +1052,7 @@ class AddAttackBonusPerHeads(Effect):
         if battle is None:
             return True
         amount = sum(ctx["results"]) * self.per_head
-        battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + amount
+        add_spell_power(battle, "attack", ctx["source"], amount)
         rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=amount)
         return True
 
@@ -1203,7 +1204,7 @@ class AddDefenseSelfBonus(Effect):
         battle = rt.game.state.battle
         if battle is None:
             return True
-        battle.data["defense_self_bonus"] = battle.data.get("defense_self_bonus", 0) + self.amount
+        add_spell_power(battle, "defense", ctx["source"], self.amount, kind="defense_self")
         rt.game.emit(rt.batch, "effect_applied", source="defense_bonus", amount=self.amount)
         return True
 
@@ -1217,7 +1218,7 @@ class AddAttackSelfBonus(Effect):
         battle = rt.game.state.battle
         if battle is None:
             return True
-        battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + self.amount
+        add_spell_power(battle, "attack", ctx["source"], self.amount)
         rt.game.emit(rt.batch, "effect_applied", source="attack_bonus", amount=self.amount)
         return True
 
@@ -1749,9 +1750,11 @@ class NegateOpponentSpell(Effect):
         side = _negatable_opponent_spell(rt.game, ctx["player"], self.which)
         if side == "attack":
             b.attack_negated = True
+            b.data["attack_negated_by"] = ctx["source"]
             rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
         elif side == "defense":
             b.defense_negated = True
+            b.data["defense_negated_by"] = ctx["source"]
             rt.game.emit(rt.batch, "defense_negated", source=ctx["source"], player=ctx["player"])
         return True
 

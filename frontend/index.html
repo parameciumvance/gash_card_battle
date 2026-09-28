@@ -15,6 +15,7 @@
     <span id="acting-info"></span>
     <span id="countdown"></span>
     <span id="conn-status"></span>
+    <button id="effects-toggle" class="hidden"></button>
     <button id="cheat-toggle" class="hidden"></button>
     <button id="leave-room" class="hidden"></button>
   </header>
@@ -169,7 +170,16 @@
     <div id="dialog">
       <h3 id="dialog-title"></h3>
       <div id="dialog-source" class="hidden"></div>
+      <div id="dialog-notes" class="hidden"></div>
       <div id="dialog-options"></div>
+    </div>
+  </div>
+
+  <!-- 純展示資訊(魔力明細、作用中效果),不影響決策對話框 -->
+  <div id="info-overlay" class="hidden">
+    <div id="info-dialog">
+      <div id="info-head"><h3 id="info-title"></h3><button id="info-close"></button></div>
+      <div id="info-body"></div>
     </div>
   </div>
 

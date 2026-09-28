@@ -10,6 +10,7 @@ import random
 
 from .cards import EVENT, MAMODO, PARTNER, SPELL, CardDef, card_db
 from .effects import registry as reg
+from .effects.primitives import add_spell_power
 from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
@@ -63,27 +64,43 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
 # ---------------------------------------------------------------- 共用查詢
 
 def slot_power(game: Game, player: int, slot: MamodoSlot) -> int:
-    # P-011:魔力視為 0(優先於一切加成)
-    if any(m.kind == "power_zero" and m.active(game.state.turn_no)
-           and m.target_player == player and m.target_slot == slot.uid
-           for m in game.state.modifiers):
-        return 0
-    base = game.db[slot.top].power_base or 0
-    total = base
+    return power_breakdown(game, player, slot)[0]
+
+
+def _item(kind: str, source: str | None, amount: int) -> dict:
+    return {"kind": kind, "source": source, "amount": amount}
+
+
+def power_breakdown(game: Game, player: int, slot: MamodoSlot) -> tuple[int, list[dict]]:
+    """魔物魔力與逐項明細;各項 amount 加總恆等於魔力(「視為 0」「不低於 0」寫成調整項)。"""
+    st = game.state
+    items = [_item("mamodo", slot.top, game.db[slot.top].power_base or 0)]
     for number, fn in reg.STATIC_POWER.items():
-        for s in game.state.players[player].slots:
+        for s in st.players[player].slots:
             if s.top == number:
-                total += fn(game, player, slot)
+                amount = fn(game, player, slot)
+                if amount:
+                    items.append(_item("static", number, amount))
                 break
-    for m in game.state.modifiers:
-        if (m.kind == "power" and m.active(game.state.turn_no)
+    for m in st.modifiers:
+        if (m.kind == "power" and m.active(st.turn_no)
                 and m.target_player == player and m.target_slot == slot.uid):
-            total += m.amount
+            items.append(_item("modifier", m.source, m.amount))
         # E-023:所有裝有夥伴的魔物 +N
-        if (m.kind == "power_partnered" and m.active(game.state.turn_no)
+        if (m.kind == "power_partnered" and m.active(st.turn_no)
                 and m.target_player == player and slot.partner):
-            total += m.amount
-    return max(0, total)  # S-033 等減值效果不使魔力低於 0
+            items.append(_item("partnered", m.source, m.amount))
+    raw = sum(i["amount"] for i in items)
+    # P-011:魔力視為 0(優先於一切加成)
+    zero = next((m for m in st.modifiers
+                 if m.kind == "power_zero" and m.active(st.turn_no)
+                 and m.target_player == player and m.target_slot == slot.uid), None)
+    if zero is not None:
+        items.append(_item("power_zero", zero.source, -raw))
+        return 0, items
+    if raw < 0:  # S-033 等減值效果不使魔力低於 0
+        items.append(_item("mamodo_floor", None, -raw))
+    return max(0, raw), items
 
 
 def restricted(game: Game, player: int, flag: str) -> bool:
@@ -719,7 +736,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
                                lambda s: s.owner == attacker and (
                                    s.data.get("mamodo") in (None, mamodo_name))
                                and (discount or not s.data.get("optional"))):
-        battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + sb.data.get("power_delta", 0)
+        add_spell_power(battle, "attack", sb.source, sb.data.get("power_delta", 0))
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     # 待命:攻擊不可被防禦(P-001 / S-019 / S-026)
     for sb in _consume_standby(game, "attack_undefendable",
@@ -750,6 +767,7 @@ def _start_mamodo_battle(game: Game, batch: list[dict], bi: dict) -> None:
     battle = BattleState(attacker=attacker, step=STEP_DEFENSE,
                          attack_page=None, attack_spell=None, attack_slot=slot_uid)
     battle.data["attack_fixed_power"] = spec["power"]
+    battle.data["attack_fixed_source"] = slot.top
     battle.data["attack_fixed_damage"] = spec["damage"]
     st.battle = battle
     _arm_next_battle_standbys(game)
@@ -838,7 +856,7 @@ def _finish_defense_declaration(game: Game, batch: list[dict], decl: dict) -> No
                                lambda s: s.owner == player and (
                                    s.data.get("mamodo") in (None, mamodo_name))
                                and (discount or not s.data.get("optional"))):
-        battle.data["defense_spell_bonus"] = battle.data.get("defense_spell_bonus", 0) + sb.data.get("power_delta", 0)
+        add_spell_power(battle, "defense", sb.source, sb.data.get("power_delta", 0))
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     rider = reg.SPELL_RIDERS.get(number)
     if rider and rider.on_declare:
@@ -855,26 +873,40 @@ def _enter_effects_step(game: Game, batch: list[dict]) -> None:
 
 
 def _side_total(game: Game, battle: BattleState, side: str) -> int:
+    return side_breakdown(game, battle, side)[0]
+
+
+def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, list[dict]]:
+    """一方(attack / defense)的合計魔力與逐項明細;各項 amount 加總恆等於合計。
+    不防禦時明細為空、合計 0;被無效化時以「無效化」調整項把合計歸 0。"""
     if side == "attack":
-        if battle.attack_negated:
-            return 0
+        negated, negated_by = battle.attack_negated, battle.data.get("attack_negated_by")
         if battle.attack_spell is None:  # 無術攻擊:固定合計魔力
-            return battle.data.get("attack_fixed_power", 0)
+            total = battle.data.get("attack_fixed_power", 0)
+            items = [_item("fixed", battle.data.get("attack_fixed_source"), total)]
+            return _negate(total, items, negated, negated_by)
         player, slot_uid, spell = battle.attacker, battle.attack_slot, battle.attack_spell
-        bonus = battle.data.get("attack_spell_bonus", 0)
     else:
-        if not battle.defense_spell or battle.defense_negated:
-            return 0
+        if not battle.defense_spell:
+            return 0, []
+        negated, negated_by = battle.defense_negated, battle.data.get("defense_negated_by")
         player, slot_uid, spell = battle.defender, battle.defense_slot, battle.defense_spell
-        bonus = battle.data.get("defense_spell_bonus", 0)
     card = game.db[spell]
     slot = game.state.slot_by_uid(player, slot_uid)
-    mamodo = slot_power(game, player, slot) if slot else 0
-    spell_pw = 0 if card.power_special else (card.power_bonus or 0)
-    # 術自身的防禦加值(S-016/S-017)
-    if side == "defense":
-        spell_pw += battle.data.get("defense_self_bonus", 0)
-    return mamodo + max(0, spell_pw + bonus)   # 術的魔力加減不低於 0(M-008「0より小さくはならない」)
+    mamodo, items = power_breakdown(game, player, slot) if slot else (0, [])
+    # 術的魔力(特殊為 0),加上術自身的加值與待命 / 效果的加成(S-016 / S-017 / S-040 / M-008 / P-007)
+    spell_items = [_item("spell", spell, 0 if card.power_special else (card.power_bonus or 0))]
+    spell_items += [dict(i) for i in battle.data.get(f"{side}_spell_power", [])]
+    spell_pw = sum(i["amount"] for i in spell_items)
+    if spell_pw < 0:  # 術的魔力加減不低於 0(M-008「0より小さくはならない」)
+        spell_items.append(_item("spell_floor", None, -spell_pw))
+    return _negate(mamodo + max(0, spell_pw), items + spell_items, negated, negated_by)
+
+
+def _negate(total: int, items: list[dict], negated: bool, source: str | None) -> tuple[int, list[dict]]:
+    if not negated:
+        return total, items
+    return 0, items + [_item("negated", source, -total)]
 
 
 def _attack_damage_amount(game: Game, battle: BattleState) -> int:
@@ -908,13 +940,14 @@ def _attack_damage_amount(game: Game, battle: BattleState) -> int:
 def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     st = game.state
     battle = st.battle
-    att = _side_total(game, battle, "attack")
-    deff = _side_total(game, battle, "defense")
+    att, att_items = side_breakdown(game, battle, "attack")
+    deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
     attacker_wins = (not battle.attack_negated) and att > deff
-    game.emit(batch, "showdown", attacker_total=att, defender_total=deff,
+    game.emit(batch, "showdown", attacker=battle.attacker, attacker_total=att, defender_total=deff,
               winner="attacker" if attacker_wins else "defender",
-              attack_negated=battle.attack_negated)
+              attack_negated=battle.attack_negated,
+              attacker_breakdown=att_items, defender_breakdown=def_items)
     rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if attacker_wins:
         if rider and rider.on_win:

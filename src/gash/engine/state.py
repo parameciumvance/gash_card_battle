@@ -152,7 +152,8 @@ class PendingChoice:
     player: int
     options: list[dict]
     source: str | None = None
-    data: dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)      # 私有:續體等內部資料,不送出
+    info: dict[str, Any] = field(default_factory=dict)      # 公開的決策脈絡(如目前擲幣結果),對所有視角可見
 
 
 @dataclass

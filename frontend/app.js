@@ -357,6 +357,7 @@ async function resumeRoom(code) {
 
 function leaveRoom() {
   closeCheat();
+  closeInfo();
   wsWanted = false;
   if (ws) ws.close();
   SESSION = null; S = null; R = null;
@@ -861,6 +862,10 @@ function renderTopbar() {
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  const effectsToggle = document.getElementById("effects-toggle");
+  effectsToggle.classList.toggle("hidden", !(SESSION && S));
+  effectsToggle.textContent = t("ui.effects.toggle", { n: S && S.effects ? S.effects.length : 0 });
+  if (INFO && INFO.kind === "effects") renderEffectsInfo();   // 開啟中的清單隨狀態刷新
   const cheatToggle = document.getElementById("cheat-toggle");
   cheatToggle.textContent = t("ui.cheat.toggle");
   cheatToggle.classList.toggle("hidden", !canCheat());
@@ -893,9 +898,10 @@ function renderTopbar() {
       "(" + t(`ui.reason.${S.end_reason}`) + ")" +
       (R && R.npc && R.npc.deck ? "|" + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
   } else if (S.pending) {
-    acting.textContent = iControl(S.pending.player)
+    const results = (S.pending.info && S.pending.info.results) || [];
+    acting.textContent = (iControl(S.pending.player)
       ? t("ui.waiting_choice", { player: pname(S.pending.player) })
-      : t("ui.opponent_choosing");
+      : t("ui.opponent_choosing")) + (results.length ? "|" + coinResultsText(results) : "");
   } else if (S.battle) {
     acting.textContent = S.battle.step === "defense"
       ? t("ui.battle_no_defense_yet")
@@ -1275,6 +1281,7 @@ function renderBattleStage() {
   attTotal.className = "side-total";
   attTotal.id = "stage-att-total";
   attTotal.textContent = b.attacker_total;
+  attTotal.onclick = () => showBreakdown({ ...b, live: true });
   att.appendChild(attTotal);
   const mid = document.createElement("div");
   mid.className = "stage-vs";
@@ -1291,6 +1298,7 @@ function renderBattleStage() {
   defTotal.className = "side-total";
   defTotal.id = "stage-def-total";
   defTotal.textContent = b.defender_total;
+  defTotal.onclick = () => showBreakdown({ ...b, live: true });
   def.appendChild(defTotal);
   content.appendChild(att);
   content.appendChild(mid);
@@ -1368,9 +1376,16 @@ function renderActionBar() {
 
 // ---------------------------------------------------------------- 決策對話框
 
-function showDialog(title, options, sourceNum = null) {
+function showDialog(title, options, sourceNum = null, notes = []) {
   const overlay = document.getElementById("dialog-overlay");
   document.getElementById("dialog-title").textContent = title;
+  const notesEl = document.getElementById("dialog-notes");   // 決策的公開脈絡(如目前擲幣結果)
+  notesEl.replaceChildren(...notes.map((text) => {
+    const line = document.createElement("div");
+    line.textContent = text;
+    return line;
+  }));
+  notesEl.classList.toggle("hidden", !notes.length);
   // 來源卡:通用標題之外,以來源卡的名稱與效果文提供脈絡(效果文為中譯,只供閱讀)
   const source = document.getElementById("dialog-source");
   source.innerHTML = "";
@@ -1413,11 +1428,15 @@ function renderPendingDialog() {
   const titleKey = `choice.title.${pd.kind}`;
   const title = pname(p) + ":" + (DICT[titleKey] ? t(titleKey) : pd.kind);
   const choose = (value) => send({ type: "choose", player: p, value });
+  const results = (pd.info && pd.info.results) || [];
 
   const options = pd.options.map((opt) => {
     if (opt.label === "no_protect") return { label: t("choice.no_protect"), onpick: () => choose(null) };
     if (opt.label === "keep") return { label: t("choice.keep"), onpick: () => choose(null) };
-    if (opt.label === "reflip") return { label: t("choice.reflip", { n: opt.value + 1 }), onpick: () => choose(opt.value) };
+    if (opt.label === "reflip") {
+      const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
+      return { label: t("choice.reflip", { n: opt.value + 1, face }), onpick: () => choose(opt.value) };
+    }
     if (opt.label === "pay_reflip") return { label: t("choice.pay_reflip"), onpick: () => choose(true) };
     if (opt.label === "stop") return { label: t("choice.stop"), onpick: () => choose(false) };
     if (opt.label === "skip") return { label: t("choice.skip"), onpick: () => choose(null) };
@@ -1443,8 +1462,142 @@ function renderPendingDialog() {
     }
     return { label: String(opt.value), onpick: () => choose(opt.value) };
   });
-  showDialog(title, options, pd.source);
+  showDialog(title, options, pd.source, results.length ? [coinResultsText(results)] : []);
 }
+
+// 目前擲幣結果:「第 1 枚:正面、第 2 枚:反面」
+function coinResultsText(results) {
+  return t("ui.coin_results", { list: results.map((r, i) =>
+    t("ui.coin_n", { n: i + 1, face: t(`ui.coin_face.${r}`) })).join("、") });
+}
+
+// ---------------------------------------------------------------- 純展示資訊(魔力明細、作用中效果)
+
+let INFO = null;   // 開啟中的資訊對話框 {kind}
+
+function showInfo(kind, title, body) {
+  INFO = { kind };
+  document.getElementById("info-title").textContent = title;
+  const close = document.getElementById("info-close");
+  close.textContent = t("ui.close");
+  close.onclick = closeInfo;
+  document.getElementById("info-body").replaceChildren(...body);
+  document.getElementById("info-overlay").classList.remove("hidden");
+}
+
+function closeInfo() {
+  INFO = null;
+  document.getElementById("info-overlay").classList.add("hidden");
+}
+document.getElementById("info-overlay").onclick = (e) => {
+  if (e.target.id === "info-overlay") closeInfo();
+};
+
+function signed(n) { return n > 0 ? `+${n}` : String(n); }
+
+// 一列:說明(卡名可點)+ 右側數值或時效
+function infoRow(text, nums, right, rightCls) {
+  const row = document.createElement("div");
+  row.className = "info-row";
+  const label = document.createElement("span");
+  label.textContent = text;
+  linkCardNames(label, nums);
+  const value = document.createElement("span");
+  value.className = rightCls;
+  value.textContent = right;
+  row.append(label, value);
+  return row;
+}
+
+function infoSection(title, rows, emptyText) {
+  const sec = document.createElement("div");
+  sec.className = "info-section";
+  const h = document.createElement("h4");
+  h.textContent = title;
+  sec.appendChild(h);
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "info-empty";
+    empty.textContent = emptyText;
+    sec.appendChild(empty);
+  }
+  sec.append(...rows);
+  return sec;
+}
+
+const BREAKDOWN_BASE = new Set(["mamodo", "spell", "fixed"]);   // 基礎值不帶正負號
+
+// 魔力勝負明細:ev 為 showdown 事件或快照的 battle(live=true 為即時明細)
+function showBreakdown(ev) {
+  const side = (who, total, items) => infoSection(
+    t(who === "attack" ? "ui.breakdown.attack" : "ui.breakdown.defense",
+      { player: pname(who === "attack" ? ev.attacker : 1 - ev.attacker), total }),
+    items.map((i) => infoRow(
+      t(`breakdown.${i.kind}`, { card: i.source ? cname(i.source) : "" }),
+      i.source ? [i.source] : [],
+      BREAKDOWN_BASE.has(i.kind) ? String(i.amount) : signed(i.amount), "info-amount")),
+    t("ui.breakdown.no_defense"));
+  const body = [side("attack", ev.attacker_total, ev.attacker_breakdown),
+                side("defense", ev.defender_total, ev.defender_breakdown)];
+  if (!ev.live) {
+    const result = document.createElement("div");
+    result.className = "info-result";
+    result.textContent = t(`log.showdown.${ev.winner}`);
+    body.push(result);
+  }
+  showInfo("breakdown", t(ev.live ? "ui.breakdown.live_title" : "ui.breakdown.title"), body);
+}
+
+// 作用中效果:依擁有者分組;說明依種類取 i18n,沒有專屬文字時退回來源卡效果文
+function renderEffectsInfo() {
+  const effects = (S && S.effects) || [];
+  const body = [0, 1].map((p) => infoSection(pname(p),
+    effects.filter((e) => e.owner === p).map((e) =>
+      infoRow(t("ui.effects.item", { card: cname(e.source), text: effectText(e) }), [e.source],
+              effectWhen(e), "info-when")),
+    t("ui.effects.none")));
+  showInfo("effects", t("ui.effects.title"), body);
+}
+
+function mamodoName(family) {
+  const num = Object.keys(CARDS).find((n) => CARDS[n].type === "mamodo" && CARDS[n].related_mamodo === family);
+  return num && ZH[num] ? ZH[num].name : family;
+}
+
+function effectTarget(e) {
+  if (e.target_slot !== null && e.target_slot !== undefined) {
+    const owner = e.target_player !== null && e.target_player !== undefined ? e.target_player : e.owner;
+    const slot = S.players[owner].slots.find((sl) => sl.uid === e.target_slot);
+    return slot ? cname(slot.top) : t("ui.effects.gone_mamodo");
+  }
+  return e.target_player !== null && e.target_player !== undefined ? pname(e.target_player) : pname(e.owner);
+}
+
+function effectText(e) {
+  let key = e.type === "modifier" && e.kind === "restriction"
+    ? `effect.restriction.${e.flag}` : `effect.${e.type}.${e.kind}`;
+  if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
+  if (DICT[key] === undefined) return (ZH[e.source] && ZH[e.source].effect) || e.source;
+  const changes = [];
+  if (e.power_delta) changes.push(t("effect.piece.power", { n: signed(e.power_delta) }));
+  if (e.cost_delta) changes.push(t("effect.piece.cost", { n: signed(e.cost_delta) }));
+  if (e.optional) changes.push(t("effect.piece.optional"));
+  return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
+    mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
+    card: e.card ? cname(e.card) : "", changes: changes.join("、") });
+}
+
+// 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
+function effectWhen(e) {
+  if (e.type === "standby") return t(`effect.expires.${e.expires}`);
+  const later = e.created_turn === S.turn_no;
+  if (e.duration === "until_end_next_turn" || e.duration === "next_turn") {
+    return t(later ? `effect.duration.${e.duration}` : "effect.duration.turn");
+  }
+  return t(`effect.duration.${e.duration}`);
+}
+
+document.getElementById("effects-toggle").onclick = () => renderEffectsInfo();
 
 function showDiscard(p) {
   const ps = S.players[p];
@@ -1589,6 +1742,13 @@ function appendLog(events) {
     }
     el.textContent = line;
     linkCardNames(el, cardRefs(ev));  // 卡名可點開檢視
+    if (ev.type === "showdown" && ev.attacker_breakdown) {
+      const ref = document.createElement("span");
+      ref.className = "breakdown-ref";
+      ref.textContent = t("ui.breakdown.open");
+      ref.onclick = () => showBreakdown(ev);
+      el.appendChild(ref);
+    }
     holder.appendChild(el);
   }
   holder.scrollTop = holder.scrollHeight;

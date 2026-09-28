@@ -35,6 +35,18 @@ def add_restriction(game, batch, *, source, owner, target_player, flag, duration
                         duration=duration, target_player=target_player, flag=flag)
 
 
+def add_spell_power(battle, side, source, amount, kind="spell_bonus"):
+    """本場戰鬥中 side("attack" / "defense")所用術的魔力加減,連同來源卡記下(供魔力勝負明細)。
+    kind:"spell_bonus"(待命或效果的加值)/ "defense_self"(術自身的防禦加值)。"""
+    battle.data.setdefault(f"{side}_spell_power", []).append(
+        {"kind": kind, "source": source, "amount": amount})
+
+
+def coin_info(results) -> dict:
+    """擲幣詢問的公開脈絡:目前各枚的結果(依擲出順序)。"""
+    return {"results": ["heads" if r else "tails" for r in results]}
+
+
 def schedule_standby(game, batch, *, kind, source, owner, data=None):
     sb = Standby(kind=kind, source=source, owner=owner,
                  created_turn=game.state.turn_no, data=data or {})
@@ -280,7 +292,7 @@ def _coin_confirm_chain(game, batch, data):
         game.state.pending = PendingChoice(
             kind="opp_coin_redo", player=opp, source="M-019",
             options=[{"value": None, "label": "keep"}, {"value": True, "label": "pay_reflip"}],
-            data=data)
+            data=data, info=coin_info(results))
         game.emit(batch, "choice_required", kind="opp_coin_redo", player=opp,
                   results=["heads" if r else "tails" for r in results])
         return
@@ -289,7 +301,7 @@ def _coin_confirm_chain(game, batch, data):
             kind="coin_confirm", player=player, source=source,
             options=[{"value": None, "label": "keep"}]
             + [{"value": i, "label": "reflip"} for i in range(len(results))],
-            data=data)
+            data=data, info=coin_info(results))
         game.emit(batch, "choice_required", kind="coin_confirm", player=player,
                   results=["heads" if r else "tails" for r in results])
         return
@@ -341,7 +353,7 @@ def _coin_confirm(game, batch, value, data):
             kind="coin_confirm", player=player, source=data["source"],
             options=[{"value": None, "label": "keep"}]
             + [{"value": i, "label": "reflip"} for i in range(len(results))],
-            data=data)
+            data=data, info=coin_info(results))
         game.emit(batch, "choice_required", kind="coin_confirm", player=player,
                   results=["heads" if r else "tails" for r in results])
         return

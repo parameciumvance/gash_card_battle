@@ -8,7 +8,7 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 
 from __future__ import annotations
 
-from ..engine.engine import exhausted_spell_pages, slot_power, spell_cost
+from ..engine.engine import exhausted_spell_pages, side_breakdown, slot_power, spell_cost
 from ..engine.state import BOOK_SIZE, Game
 
 # 帶 viewer 欄位、內容僅該玩家可見的事件型別
@@ -109,12 +109,14 @@ def snapshot(game: Game, viewer) -> dict:
         "winner": st.winner,
         "end_reason": st.end_reason,
         "event_count": len(game.events),
+        "effects": _effects_view(game),
     }
     if st.battle_in is not None:
         view["battle_in"] = dict(st.battle_in)  # 已宣告的攻擊為公開資訊
     if st.battle is not None:
         b = st.battle
-        from ..engine.engine import _side_total
+        att_total, att_items = side_breakdown(game, b, "attack")
+        def_total, def_items = side_breakdown(game, b, "defense")
         view["battle"] = {
             "attacker": b.attacker,
             "step": b.step,
@@ -126,19 +128,47 @@ def snapshot(game: Game, viewer) -> dict:
             "defense_slot": b.defense_slot,
             "defense_negated": b.defense_negated,
             "effect_turn": b.data.get("effect_turn"),
-            "attacker_total": _side_total(game, b, "attack"),
-            "defender_total": _side_total(game, b, "defense"),
+            "attacker_total": att_total,
+            "defender_total": def_total,
+            "attacker_breakdown": att_items,     # 合計魔力的逐項明細(公開)
+            "defender_breakdown": def_items,
         }
     if st.pending is not None:
         pending: dict = {
             "kind": st.pending.kind,
             "player": st.pending.player,
             "source": st.pending.source,
+            "info": st.pending.info,             # 公開的決策脈絡(如目前擲幣結果)
         }
         if can_see_player(viewer, st.pending.player):
             pending["options"] = st.pending.options  # 選項細節只給決策者
         view["pending"] = pending
     return view
+
+
+def _effects_view(game: Game) -> list[dict]:
+    """作用中的待命與持續效果:只送整理過的公開欄位(建立時已發公開事件),不送 data 內部資料。
+    待命在前、持續效果在後,各自依建立順序;戰鬥開始時被消耗的待命已不在 state.standby。"""
+    st = game.state
+    out = []
+    for sb in st.standby:
+        out.append({"type": "standby", "kind": sb.kind, "source": sb.source, "owner": sb.owner,
+                    "expires": sb.data.get("expires", "turn"), "created_turn": sb.created_turn,
+                    "target_slot": sb.data.get("slot_uid"), **_public_data(sb.data)})
+    for m in st.modifiers:
+        out.append({"type": "modifier", "kind": m.kind, "source": m.source, "owner": m.owner,
+                    "duration": m.duration, "created_turn": m.created_turn,
+                    "target_player": m.target_player, "target_slot": m.target_slot,
+                    "amount": m.amount, "flag": m.flag, **_public_data(m.data)})
+    return out
+
+
+# 效果 data 中可公開、供顯示的欄位(白名單;其餘如續體一律不送)
+_PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_delta": int, "optional": bool}
+
+
+def _public_data(data: dict) -> dict:
+    return {k: data[k] for k, t in _PUBLIC_EFFECT_DATA.items() if isinstance(data.get(k), t)}
 
 
 def filter_event(ev: dict, viewer) -> dict | None:
