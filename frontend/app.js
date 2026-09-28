@@ -567,7 +567,7 @@ function spellUsable(p, entry, forAttack) {
 function pickSlotThen(p, isCommand, cb) {
   const slots = S.players[p].slots;
   if (!isCommand || slots.length === 1) { cb(isCommand ? slots[0].uid : undefined); return; }
-  showDialog(t("choice.title.e009_pick"), slots.map((s) => ({
+  showDialog(t("ui.pick_command_user"), slots.map((s) => ({
     cardNum: s.top, onpick: () => cb(s.uid),
   })));
 }
@@ -1314,9 +1314,23 @@ function renderActionBar() {
 
 // ---------------------------------------------------------------- 決策對話框
 
-function showDialog(title, options) {
+function showDialog(title, options, sourceNum = null) {
   const overlay = document.getElementById("dialog-overlay");
   document.getElementById("dialog-title").textContent = title;
+  // 來源卡:通用標題之外,以來源卡的名稱與效果文提供脈絡(效果文為中譯,只供閱讀)
+  const source = document.getElementById("dialog-source");
+  source.innerHTML = "";
+  const z = sourceNum ? ZH[sourceNum] : null;
+  if (z) {
+    const name = document.createElement("div");
+    name.className = "src-name";
+    name.textContent = t("ui.choice_source", { card: cname(sourceNum) });
+    const effect = document.createElement("div");
+    effect.className = "src-effect";
+    effect.textContent = z.effect || "";
+    source.append(name, effect);
+  }
+  source.classList.toggle("hidden", !z);
   const holder = document.getElementById("dialog-options");
   holder.innerHTML = "";
   for (const opt of options) {
@@ -1375,7 +1389,7 @@ function renderPendingDialog() {
     }
     return { label: String(opt.value), onpick: () => choose(opt.value) };
   });
-  showDialog(title, options);
+  showDialog(title, options, pd.source);
 }
 
 function showDiscard(p) {

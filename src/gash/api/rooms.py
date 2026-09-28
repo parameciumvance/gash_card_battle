@@ -147,7 +147,7 @@ def default_command(game: Game) -> dict | None:
         kind = st.pending.kind
         if kind == "protect" or kind == "coin_confirm":
             return {"type": "choose", "value": None}       # 不保護 / 保留硬幣
-        if kind == "e011_retry":
+        if kind == "paid_reflip":
             return {"type": "choose", "value": False}      # 放棄付費重擲
         if kind == "damage_order":
             return {"type": "choose", "value": 0}

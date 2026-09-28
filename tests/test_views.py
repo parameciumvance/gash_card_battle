@@ -54,7 +54,7 @@ def test_pending_options_only_for_decider():
     ssp = snapshot(g, "spectator")
     assert "options" in s0["pending"]
     assert "options" not in s1["pending"] and "options" not in ssp["pending"]
-    assert s1["pending"]["kind"] == "m011_pick"  # 「誰在決策」是公開的
+    assert s1["pending"]["kind"] == "pick_opponent_book_card"  # 「誰在決策」是公開的
 
 
 def test_book_revealed_event_filtered():

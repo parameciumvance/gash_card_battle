@@ -348,6 +348,11 @@ body {
   padding: 18px; max-width: 640px; max-height: 80vh; overflow-y: auto;
 }
 #dialog h3 { font-size: 15px; margin-bottom: 12px; color: var(--glow); }
+#dialog-source {
+  font-size: 13px; line-height: 1.5; margin-bottom: 12px; padding: 8px 10px;
+  background: rgba(255, 255, 255, .05); border-left: 3px solid var(--glow); border-radius: 4px;
+}
+#dialog-source .src-name { font-weight: bold; margin-bottom: 4px; }
 #dialog-options { display: flex; gap: 10px; flex-wrap: wrap; }
 #dialog-options button { font-size: 13px; padding: 8px 14px; }
 #dialog-options .card { cursor: pointer; }

@@ -245,7 +245,7 @@ def test_s043_fuse_two_doubles_into_complete():
     submit(g, {"type": "pass", "player": 1})
     assert sum(1 for s in g.state.players[0].slots if s.top == "M-024") == 2
     submit(g, {"type": "use_book_card", "player": 0, "page": 7})  # S-043 合體
-    assert g.state.pending.kind == "m025_pick"   # M-025 登場:可選擇把墓地羅布諾斯放回魔本空頁
+    assert g.state.pending.kind == "pick_card_in_own_discard"   # M-025 登場:可選擇把墓地羅布諾斯放回魔本空頁
     submit(g, {"type": "choose", "player": 0, "value": None})   # 不使用
     submit(g, {"type": "pass", "player": 1})
     assert any(s.top == "M-025" for s in g.state.players[0].slots)
@@ -698,7 +698,7 @@ def test_e016_reveal_opponent_book_discard_spell_pay_cost():
     events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     assert any(e["type"] == "book_revealed" and e["viewer"] == 0 for e in events)
     pend = g.state.pending
-    assert pend.kind == "e016_pick"
+    assert pend.kind == "pick_opponent_book_card"
     pages = [o["value"] for o in pend.options]
     assert 1 not in pages and 32 not in pages and 3 in pages   # 魔物、末頁除外
     mp = g.state.players[0].mp
@@ -889,7 +889,7 @@ def _deploy_m025(discard=("M-024",)):
 def test_m025_return_is_optional_and_mp_comes_after():
     # 效果文:①捨て札のロブノス1枚を…もどすことができる ②MPを2ふやす(この順で)
     g, ps = _deploy_m025()
-    assert g.state.pending.kind == "m025_pick"
+    assert g.state.pending.kind == "pick_card_in_own_discard"
     assert [o["value"] for o in g.state.pending.options] == [0, None]     # 可選擇不放回
     assert ps.mp == 7                                                      # ② 還沒執行
     submit(g, {"type": "choose", "player": 0, "value": None})
@@ -900,7 +900,7 @@ def test_m025_return_is_optional_and_mp_comes_after():
 def test_m025_player_chooses_card_then_empty_page():
     g, ps = _deploy_m025()
     submit(g, {"type": "choose", "player": 0, "value": 0})
-    assert g.state.pending.kind == "m025_page"
+    assert g.state.pending.kind == "pick_own_empty_page"
     assert [o["value"] for o in g.state.pending.options] == [1, 9]        # 兩個空頁
     assert ps.mp == 7
     submit(g, {"type": "choose", "player": 0, "value": 9})
@@ -1068,7 +1068,7 @@ def test_m026_waits_for_opponent_effect_choices_then_restores():
     to_battle(g, 0)
     submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
                "slot_uid": st.players[0].slots[0].uid})
-    assert st.pending.kind == "m022_pick"                                # 先完成對手效果的選擇
+    assert st.pending.kind == "pick_opponent_partner"                                # 先完成對手效果的選擇
     submit(g, {"type": "choose", "player": 0, "value": b.uid})
     assert b.partner is None and st.pending.kind == "jammer_negate"
     submit(g, {"type": "choose", "player": 1, "value": True})
@@ -1336,10 +1336,10 @@ def test_p011_player_chooses_opponent_mamodo_power_zero_this_turn():
     st.players[1].slots.append(b)
     to_battle(g, 0)
     _use_partner(g, 0, me)
-    assert st.pending.kind == "p011_pick" and st.pending.player == 0
+    assert st.pending.kind == "pick_opponent_mamodo" and st.pending.player == 0
     with pytest.raises(IllegalCommand) as e:                           # 對手不能代選
         submit(g, {"type": "choose", "player": 1, "value": b.uid})
-    assert e.value.code == "choice.required" and st.pending.kind == "p011_pick"
+    assert e.value.code == "choice.required" and st.pending.kind == "pick_opponent_mamodo"
     submit(g, {"type": "choose", "player": 0, "value": b.uid})
     assert slot_power(g, 1, b) == 0 and slot_power(g, 1, a) == 4000
     _end_turn(g)
@@ -1991,10 +1991,10 @@ def test_m016_swap_open_page_with_earlier_page_once_per_game():
     assert e.value.code == "ability.condition"
     ps.pos = 4                                                  # 翻開 4、5;之前頁為 2、3
     _use_ability(g, 0, slot)
-    assert g.state.pending.kind == "m016_open"
+    assert g.state.pending.kind == "pick_own_open_page"
     assert [o["value"] for o in g.state.pending.options] == [4, 5]
     submit(g, {"type": "choose", "player": 0, "value": 4})
-    assert g.state.pending.kind == "m016_prev"
+    assert g.state.pending.kind == "pick_own_earlier_page"
     assert [o["value"] for o in g.state.pending.options] == [2, 3]
     with pytest.raises(IllegalCommand):
         submit(g, {"type": "choose", "player": 0, "value": 5})   # 不是之前的頁
@@ -2022,7 +2022,7 @@ def test_m022_discard_chosen_opponent_partner():
     b = MamodoSlot(uid=g.state.next_uid(), stack=["M-004"], partner="P-002")
     opp.slots.append(b)
     _use_ability(g, 0, slot)
-    assert g.state.pending.kind == "m022_pick"
+    assert g.state.pending.kind == "pick_opponent_partner"
     submit(g, {"type": "choose", "player": 0, "value": b.uid})
     assert b.partner is None and a.partner == "P-001" and "P-002" in opp.discard
     assert g.state.players[0].mp == 10 - 5

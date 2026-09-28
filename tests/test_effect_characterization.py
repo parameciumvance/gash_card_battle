@@ -298,11 +298,11 @@ def test_e001_multi_slot_choose_and_retry():
     a = slot0(g, 0)
     b = give(g, 0, "M-002")
     tp, events = _e001_use(g)
-    assert pending(g) == ("e001_pick", 0, [a.uid, b.uid])
+    assert pending(g) == ("pick_own_mamodo", 0, [a.uid, b.uid])
     with pytest.raises(IllegalCommand) as exc:
         submit(g, {"type": "choose", "player": 0, "value": 9999})
     assert exc.value.code == "choose.invalid"
-    assert pending(g) == ("e001_pick", 0, [a.uid, b.uid])  # 保留,可重選
+    assert pending(g) == ("pick_own_mamodo", 0, [a.uid, b.uid])  # 保留,可重選
     events = submit(g, {"type": "choose", "player": 0, "value": b.uid})
     assert kinds(events) == [("standby_set", "start_phase")]
     assert pending(g) is None
@@ -375,9 +375,9 @@ def test_e011_heads_attaches_partner_from_discard():
 def test_e011_tails_offer_retry_and_stop():
     g = _e011_game(TAILS)
     events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert pending(g) == ("e011_retry", 0, [True, False])
+    assert pending(g) == ("paid_reflip", 0, [True, False])
     req = [e for e in events if e["type"] == "choice_required"][-1]
-    assert (req["kind"], req["player"]) == ("e011_retry", 0) and "options" not in req
+    assert (req["kind"], req["player"]) == ("paid_reflip", 0) and "options" not in req
     submit(g, {"type": "choose", "player": 0, "value": False})
     assert g.state.pending is None and slot0(g, 0).partner is None
     assert g.state.players[0].mp == 10 - 3 and g.rng.calls == 1
@@ -394,7 +394,7 @@ def test_e011_retry_twice_then_heads():
     g = _e011_game(TAILS, TAILS, HEADS)
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     submit(g, {"type": "choose", "player": 0, "value": True})
-    assert pending(g) == ("e011_retry", 0, [True, False])
+    assert pending(g) == ("paid_reflip", 0, [True, False])
     submit(g, {"type": "choose", "player": 0, "value": True})
     assert slot0(g, 0).partner == "P-001"
     assert g.state.players[0].mp == 10 - 3 - 2 - 2 and g.rng.calls == 3
@@ -406,7 +406,7 @@ def test_e011_m012_confirm_comes_before_retry_offer():
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     assert pending(g) == ("coin_confirm", 0, [None, 0])
     submit(g, {"type": "choose", "player": 0, "value": None})       # 保留反面
-    assert pending(g) == ("e011_retry", 0, [True, False])
+    assert pending(g) == ("paid_reflip", 0, [True, False])
     assert g.rng.calls == 1
 
 
@@ -414,7 +414,7 @@ def test_e011_multiple_targets_pick():
     g = _e011_game(HEADS, discard=("P-001", "P-002"))
     reycom = give(g, 0, "M-004")
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert g.state.pending.kind == "e011_pick"
+    assert g.state.pending.kind == "pick_partner_in_discard"
     assert [(o["card"], o["slot_uid"]) for o in g.state.pending.options] == [
         ("P-001", slot0(g, 0).uid), ("P-002", reycom.uid)]
     with pytest.raises(IllegalCommand):
@@ -474,7 +474,7 @@ def test_e027_opponent_chooses_partner_to_keep_then_self_fetches():
     opp_b = give(g, 1, "M-004", partner="P-002")
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert pending(g) == ("e027_keep", 1, [opp_a.uid, opp_b.uid])   # 決策者是對手
+    assert pending(g) == ("pick_partner_to_keep", 1, [opp_a.uid, opp_b.uid])   # 決策者是對手
     assert [o["card"] for o in g.state.pending.options] == ["P-001", "P-002"]
     assert slot0(g, 0).partner is None                               # 自己這側尚未處理
     with pytest.raises(IllegalCommand):
@@ -496,9 +496,9 @@ def test_e027_self_chooses_page_then_mamodo():
     gash2 = give(g, 0, "M-016")
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert pending(g) == ("e027_fetch", 0, [9, 10])
+    assert pending(g) == ("pick_partner_in_own_book", 0, [9, 10])
     submit(g, {"type": "choose", "player": 0, "value": 10})
-    assert pending(g) == ("e027_slot", 0, [gash.uid, gash2.uid])
+    assert pending(g) == ("pick_mamodo_for_partner", 0, [gash.uid, gash2.uid])
     submit(g, {"type": "choose", "player": 0, "value": gash2.uid})
     assert gash2.partner == "P-010" and gash.partner is None
     assert 10 in g.state.players[0].consumed_pages and 9 not in g.state.players[0].consumed_pages

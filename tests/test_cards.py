@@ -236,7 +236,7 @@ def test_m011_discard_mamodo_from_book_once_per_game():
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
                "slot_uid": fein.uid})
-    assert g.state.pending is not None and g.state.pending.kind == "m011_pick"
+    assert g.state.pending is not None and g.state.pending.kind == "pick_opponent_book_card"
     submit(g, {"type": "choose", "player": 0, "value": 6})  # 對手第 6 頁 M-014
     assert "M-014" in g.state.players[1].discard
     assert 6 in g.state.players[1].consumed_pages
@@ -623,7 +623,7 @@ def test_e011_reflip_by_paying():
     g.state.players[0].mp = 5
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert g.state.pending.kind == "e011_retry"  # 反面 → 可付費重擲
+    assert g.state.pending.kind == "paid_reflip"  # 反面 → 可付費重擲
     submit(g, {"type": "choose", "player": 0, "value": True})
     # 重擲正面 → 唯一目標自動放出
     assert slot0(g, 0).partner == "P-001"
@@ -642,7 +642,7 @@ def test_e012_deploy_mamodo_from_any_page():
     ps.mp = 5
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "use_book_card", "player": tp, "page": 2})
-    assert g.state.pending.kind == "e012_pick"  # 第 6 頁 M-014、第 14 頁 M-012
+    assert g.state.pending.kind == "pick_mamodo_in_own_book"  # 第 6 頁 M-014、第 14 頁 M-012
     submit(g, {"type": "choose", "player": tp, "value": 14})
     assert any(s.top == "M-012" for s in ps.slots)
     assert 14 in ps.consumed_pages
@@ -750,7 +750,7 @@ def test_e019_discard_own_mamodo_chosen():
     a = slot0(g, 0)
     b = give(g, 0, "M-002")
     _use_event(g)
-    assert g.state.pending.kind == "e019_pick"
+    assert g.state.pending.kind == "pick_own_mamodo"
     submit(g, {"type": "choose", "player": 0, "value": b.uid})
     assert b not in g.state.players[0].slots and a in g.state.players[0].slots
     assert "M-002" in g.state.players[0].discard
@@ -806,7 +806,7 @@ def test_e024_locks_chosen_opponent_mamodo_this_turn():
     x = slot0(g, 1)
     y = give(g, 1, "M-002")
     _use_event(g)
-    assert g.state.pending.kind == "e024_pick"
+    assert g.state.pending.kind == "pick_opponent_mamodo"
     submit(g, {"type": "choose", "player": 0, "value": y.uid})
     assert slot_restricted(g, 1, MAMODO_LOCKED, y.uid)
     assert not slot_restricted(g, 1, MAMODO_LOCKED, x.uid)
@@ -1023,3 +1023,20 @@ def test_last_page_bao_zakeruga_free():
     submit(g, {"type": "declare_attack", "player": tp, "page": 32})
     submit(g, {"type": "battle_in_response", "player": 1 - tp, "allow": True})
     assert g.state.players[tp].mp == 2  # 沒扣
+
+
+# ================================================================ 決策種類依選擇內容命名
+
+@pytest.mark.parametrize("number,kind,opp_book", [
+    ("E-001", "pick_own_mamodo", None),
+    ("E-009", "pick_own_mamodo", None),
+    ("E-016", "pick_opponent_book_card", None),
+    ("E-017", "pick_opponent_book_card", {"p10": "E-003", "p11": "E-004"}),
+])
+def test_same_choice_shares_kind(number, kind, opp_book):
+    g = game(book0=book(p2=number), book1=book(**opp_book) if opp_book else None)
+    g.state.players[0].mp = 10
+    give(g, 0, "M-002")
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert (g.state.pending.kind, g.state.pending.source) == (kind, number)

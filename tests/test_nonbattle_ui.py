@@ -151,3 +151,20 @@ def test_number_layout_and_pure_detail(page):
         assert box['x']>=0 and box['x']+box['width']<=width
     page.evaluate("zoom('S-001')")
     assert page.locator('#zoom-card .cnum').inner_text()=='S-001'
+
+
+def test_choice_dialog_shows_generic_title_and_source_card(page):
+    page.evaluate("startLocal()")
+    page.evaluate("""() => {
+      S.pending = {kind: 'pick_own_mamodo', player: S.turn_player, source: 'E-009',
+                   options: [{value: 1, card: 'M-001'}, {value: 2, card: 'M-002'}]};
+      renderPendingDialog();
+    }""")
+    assert page.locator("#dialog-title").inner_text().endswith("選擇自己的魔物")
+    source = page.locator("#dialog-source")
+    assert source.is_visible()
+    text = source.inner_text()
+    assert page.evaluate("cname('E-009')") in text
+    assert page.evaluate("ZH['E-009'].effect").split()[0] in text
+    page.evaluate("() => { S.pending.source = null; renderPendingDialog(); }")
+    assert not page.locator("#dialog-source").is_visible()

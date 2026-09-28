@@ -1514,3 +1514,31 @@ def test_registration_file_is_sorted_by_card_number_and_has_no_logic():
 def test_effects_package_has_no_per_card_handler_files():
     files = {p.name for p in EFFECTS_DIR.glob("*.py")}
     assert files == {"__init__.py", "registry.py", "primitives.py", "tree.py", "tree_cards.py"}
+
+
+def _engine_choice_kinds():
+    import re
+    kinds = set()
+    for path in (EFFECTS_DIR.parent / "engine.py", EFFECTS_DIR / "primitives.py"):
+        text = path.read_text(encoding="utf-8")
+        kinds |= set(re.findall(r'(?:PendingChoice|choose_or_auto)\((?:[^()]|\n)*?kind="(\w+)"', text))
+    return kinds
+
+
+def _tree_choice_kinds():
+    import re
+    return set(re.findall(r'prompt="([^"]+)"', (EFFECTS_DIR / "tree_cards.py").read_text(encoding="utf-8")))
+
+
+def test_choice_kinds_have_no_card_numbers():
+    import re
+    kinds = _tree_choice_kinds()
+    assert kinds and not [k for k in kinds if re.search(r"[empsEMPS]-?\d{3}", k)]
+
+
+def test_every_choice_kind_has_i18n_title():
+    root = EFFECTS_DIR.parents[3]
+    titles = json.loads((root / "frontend" / "i18n" / "zh-TW.json").read_text(encoding="utf-8"))
+    kinds = _tree_choice_kinds() | _engine_choice_kinds() | set(tree.RESERVED_KINDS)
+    assert {"protect", "jammer_negate", "spell_discount"} <= kinds
+    assert not [k for k in sorted(kinds) if f"choice.title.{k}" not in titles]

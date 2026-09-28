@@ -55,7 +55,7 @@ from .tree import (
 # ================================================================ 事件卡
 
 reg.event("E-001", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="e001_pick",
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=Standby(
         NextStartPhase(), expires="next_start",
         then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
@@ -76,7 +76,7 @@ reg.event("E-005", effect=Coin(
 ))
 
 reg.event("E-006", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="e006_pick",
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=Coin(
         count=1, on=HeadsAtLeast(1),
         then=HealSlot(target=Ref("slot")),
@@ -85,32 +85,32 @@ reg.event("E-006", when=has_own_mamodo, effect=Choose(
 ))
 
 reg.event("E-007", when=has_own_injured_mamodo, effect=Choose(
-    OwnInjuredMamodo(), bind="slot", prompt="e007_pick",
+    OwnInjuredMamodo(), bind="slot", prompt="pick_own_injured_mamodo",
     then=HealSlot(target=Ref("slot")),
 ))
 
 reg.event("E-008", effect=RestrictBothPlayers(flag=NO_PARTNER_EFFECTS, duration=DUR_TURN))
 
 reg.event("E-009", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="e009_pick",
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
 ))
 
 reg.event("E-010", when=opponent_has_partner, effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="e010_pick",
+    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
     then=BorrowPartner(),
 ))
 
 reg.event("E-011", when=HasOptions(PlayablePartnerInDiscard()), effect=CoinWithPaidReflip(
-    count=1, on=HeadsAtLeast(1), cost=2, prompt="e011_retry",
+    count=1, on=HeadsAtLeast(1), cost=2, prompt="paid_reflip",
     then=Choose(
-        PlayablePartnerInDiscard(), bind="choice", prompt="e011_pick",
+        PlayablePartnerInDiscard(), bind="choice", prompt="pick_partner_in_discard",
         then=AttachPartnerFromDiscard(spec=PlayablePartnerInDiscard()),
     ),
 ))
 
 reg.event("E-012", when=HasOptions(DeployableMamodoInOwnBook()), effect=Choose(
-    DeployableMamodoInOwnBook(), bind="page", prompt="e012_pick",
+    DeployableMamodoInOwnBook(), bind="page", prompt="pick_mamodo_in_own_book",
     then=DeployMamodoFromBook(),
 ))
 
@@ -122,14 +122,14 @@ reg.event("E-014", effect=Sequence(steps=(
 )))
 
 reg.event("E-015", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="e015_pick",
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=AddPower(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN, target=Ref("slot")),
 ))
 
 reg.event("E-016", when=HasOptions(OpponentBookCards("spell", exclude_last=True)), effect=Sequence(steps=(
     RevealOpponentBook(),
     Choose(
-        OpponentBookCards("spell", exclude_last=True), bind="page", prompt="e016_pick",
+        OpponentBookCards("spell", exclude_last=True), bind="page", prompt="pick_opponent_book_card",
         then=DiscardFromOpponentBookPayCost(),
     ),
 )))
@@ -137,7 +137,7 @@ reg.event("E-016", when=HasOptions(OpponentBookCards("spell", exclude_last=True)
 reg.event("E-017", when=HasOptions(OpponentBookCards("event")), effect=Sequence(steps=(
     RevealOpponentBook(),
     Choose(
-        OpponentBookCards("event"), bind="page", prompt="e016_pick",
+        OpponentBookCards("event"), bind="page", prompt="pick_opponent_book_card",
         then=DiscardFromOpponentBookPayCost(),
     ),
 )))
@@ -145,7 +145,7 @@ reg.event("E-017", when=HasOptions(OpponentBookCards("event")), effect=Sequence(
 reg.event("E-018", effect=ReduceOpponentMpUnlessReducedLastTurn(amount=4))
 
 reg.event("E-019", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="e019_pick",
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=DiscardChosenMamodo(),
 ))
 
@@ -165,7 +165,7 @@ reg.event("E-021", when=has_two_or_more_mamodo, effect=Sequence(steps=(
 reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(
     count=1, on=HeadsAtLeast(1),
     then=Choose(
-        PartnerDiscardedThisTurn(), bind="choice", prompt="e022_pick",
+        PartnerDiscardedThisTurn(), bind="choice", prompt="pick_partner_in_discard",
         then=AttachPartnerFromDiscard(),
     ),
 ))
@@ -173,7 +173,7 @@ reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(
 reg.event("E-023", effect=BoostPartneredMamodo(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN))
 
 reg.event("E-024", when=opponent_has_mamodo, effect=Choose(
-    OpponentMamodo(), bind="choice", prompt="e024_pick",
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
     then=LockChosenOpponentMamodo(),
 ))
 
@@ -187,13 +187,13 @@ reg.event("E-026", effect=Coin(
 reg.event("E-027", effect=opponent_then_self(When(
     OwnHasPartner(),
     then=Choose(
-        OwnPartneredMamodo(), bind="keep", prompt="e027_keep",
+        OwnPartneredMamodo(), bind="keep", prompt="pick_partner_to_keep",
         then=DiscardOtherPartners(),
     ),
     otherwise=Choose(
-        AttachablePartnerPagesInOwnBook(), bind="page", prompt="e027_fetch",
+        AttachablePartnerPagesInOwnBook(), bind="page", prompt="pick_partner_in_own_book",
         then=Choose(
-            SlotsForBookPartner(), bind="slot", prompt="e027_slot",
+            SlotsForBookPartner(), bind="slot", prompt="pick_mamodo_for_partner",
             then=AttachPartnerFromBookPage(),
         ),
     ),
@@ -233,7 +233,7 @@ reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True,
               condition=HasOptions(OpponentBookCards("mamodo")), effect=Sequence(steps=(
     RevealOpponentBook(),
     Choose(
-        OpponentBookCards("mamodo"), bind="page", prompt="m011_pick",
+        OpponentBookCards("mamodo"), bind="page", prompt="pick_opponent_book_card",
         then=DiscardFromOpponentBook(),
     ),
 )))
@@ -248,9 +248,9 @@ reg.activated("M-015", mode="mp", mp_cost=5, timing="battle",
 
 reg.activated("M-016", mode="declare", timing="nonbattle", per_game=True,
               condition=All(HasOptions(OwnOpenPages()), HasOptions(OwnEarlierPages())), effect=Choose(
-    OwnOpenPages(), bind="open", prompt="m016_open",
+    OwnOpenPages(), bind="open", prompt="pick_own_open_page",
     then=Choose(
-        OwnEarlierPages(), bind="earlier", prompt="m016_prev",
+        OwnEarlierPages(), bind="earlier", prompt="pick_own_earlier_page",
         then=SwapBookPages(),
     ),
 ))
@@ -268,19 +268,19 @@ reg.activated("M-019", mode="declare", timing="any", condition=Never(), effect=N
 
 reg.activated("M-020", mode="mp", mp_cost=1, timing="nonbattle",
               condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("大海恵"))), effect=Choose(
-    OwnBookPartnerNamed("大海恵"), bind="page", prompt="m020_pick",
+    OwnBookPartnerNamed("大海恵"), bind="page", prompt="pick_partner_in_own_book",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
 
 reg.activated("M-021", mode="mp", mp_cost=1, timing="nonbattle",
               condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("窪塚泳太"))), effect=Choose(
-    OwnBookPartnerNamed("窪塚泳太"), bind="page", prompt="m021_pick",
+    OwnBookPartnerNamed("窪塚泳太"), bind="page", prompt="pick_partner_in_own_book",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
 
 reg.activated("M-022", mode="mp", mp_cost=5, timing="nonbattle",
               condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="m022_pick",
+    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -291,11 +291,11 @@ reg.spell_use_limit("M-024",
 
 reg.on_play("M-025", effect=Sequence(steps=(
     Choose(
-        DiscardedCardsToReturn(numbers=("M-024", "M-025")), bind="card", prompt="m025_pick",
+        DiscardedCardsToReturn(numbers=("M-024", "M-025")), bind="card", prompt="pick_card_in_own_discard",
         then=When(
             Bound("card", None),
             otherwise=Choose(
-                OwnEmptyBookPages(), bind="page", prompt="m025_page",
+                OwnEmptyBookPages(), bind="page", prompt="pick_own_empty_page",
                 then=ReturnDiscardToBook(),
             ),
         ),
@@ -317,7 +317,7 @@ reg.trigger("M-028", "stack_detached", effect=When(
 reg.spell_compat("M-029", check=CanUseSpellNamed(mamodo="ガッシュ・ベル", name="ザケル"))
 reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",
               condition=HasOptions(OpponentInjuredMamodo()), effect=Choose(
-    OpponentInjuredMamodo(), bind="choice", prompt="m029_pick",
+    OpponentInjuredMamodo(), bind="choice", prompt="pick_opponent_injured_mamodo",
     then=DiscardChosenOpponentMamodo(),
 ))
 
@@ -352,7 +352,7 @@ reg.activated("P-007", mode="discard", timing="nonbattle",
 
 reg.activated("P-008", mode="discard", timing="nonbattle",
               condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="p008_pick",
+    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -363,7 +363,7 @@ reg.activated("P-010", mode="discard", timing="nonbattle", condition=OwnPageTurn
 
 reg.activated("P-011", mode="discard", timing="nonbattle",
               condition=HasOptions(OpponentMamodo()), effect=Choose(
-    OpponentMamodo(), bind="choice", prompt="p011_pick",
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
     then=SetPowerZeroThisTurn(),
 ))
 
@@ -473,7 +473,7 @@ reg.spell_rider("S-037", on_damage=Coin(
 reg.spell_rider("S-038", on_damage=GrantFullImmune())
 
 reg.spell_rider("S-039", on_damage=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="s039_pick",
+    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -493,14 +493,14 @@ reg.spell_nonbattle("S-041", effect=Coin(
 reg.spell_rider("S-042", damage_bonus=DamageBonusIfAttackTotalAtLeast(threshold=8000, bonus=2))
 
 reg.spell_nonbattle("S-043", effect=Choose(
-    RobnosTransformMode(), bind="mode", prompt="s043_choice",
+    RobnosTransformMode(), bind="mode", prompt="pick_transform_mode",
     then=Sequence(steps=(
         When(
             Bound("mode", "fuse"),
             then=Sequence(steps=(
                 DiscardOwnMamodoByNumber(number="M-024", count=2),
                 Choose(
-                    OwnBookCopiesOf("M-025"), bind="page", prompt="s043_place_complete",
+                    OwnBookCopiesOf("M-025"), bind="page", prompt="pick_mamodo_in_own_book",
                     then=PlayMamodoFromBook(),
                 ),
             )),
@@ -534,7 +534,7 @@ reg.spell_rider("S-046", on_declare=When(
 reg.spell_nonbattle("S-048", effect=When(
     OwnFieldHas("M-028"),
     then=Choose(
-        OwnBookCopiesOf("M-027"), bind="page", prompt="s048_place",
+        OwnBookCopiesOf("M-027"), bind="page", prompt="pick_mamodo_in_own_book",
         then=StackFromBookOnto(base="M-028"),
     ),
 ))
