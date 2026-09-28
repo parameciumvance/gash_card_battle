@@ -7,7 +7,7 @@
 | 檔案 | 內容 |
 |---|---|
 | `tree.py` | 節點、條件、選項規格、查詢規格,以及直譯器 |
-| `tree_cards.py` | 所有卡片的登記(唯一的逐卡註冊檔;依卡號排序,排版規則見檔案開頭) |
+| `cards/` | 所有卡片的登記,依類別分檔:`events.py` / `mamodo.py` / `partners.py` / `spells.py`,各檔依卡號排序;排版規則見 `cards/__init__.py`。匯入順序即登記順序(依卡號),`reg.START_PHASE` 等表依此迭代 |
 | `primitives.py` | 節點共用的狀態操作(加魔力、翻頁、待命、擲幣⋯) |
 | `registry.py` | 引擎與卡片效果之間的掛鉤表 |
 

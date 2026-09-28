@@ -139,7 +139,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** `coin_flipped` 事件的擲幣者為對手;使用者 MP +3、對手 MP +3;對手場上的 M-012 由對手決定是否重擲,使用者場上的 M-019 由使用者決定是否令對手重擲
 
 ### Requirement: 效果樹與既有註冊方式並存
-所有卡片 SHALL 以效果樹註冊,`tree_cards.py` 為唯一的逐卡註冊檔。系統 SHALL 仍接受既有 `@reg.xxx` 裝飾器 / `CHOICE_RESOLVERS` 字串 key 註冊(裝飾器只剩測試使用,引擎內部的決策 resolver 仍以字串 key 登記);同一張卡 MUST NOT 同時以兩種方式註冊同一個掛鉤。遷移本身為內部重構;遷移過程中依日文效果文修正的行為記錄於 `card-effects` spec,其餘可觀察行為(事件、pending、結算結果)MUST 與遷移前一致。
+所有卡片 SHALL 以效果樹註冊,登記只放在 `effects/cards/` 套件(依卡片類別分檔,見「註冊檔逐卡集中登記」)。系統 SHALL 仍接受既有 `@reg.xxx` 裝飾器 / `CHOICE_RESOLVERS` 字串 key 註冊(裝飾器只剩測試使用,引擎內部的決策 resolver 仍以字串 key 登記);同一張卡 MUST NOT 同時以兩種方式註冊同一個掛鉤。遷移本身為內部重構;遷移過程中依日文效果文修正的行為記錄於 `card-effects` spec,其餘可觀察行為(事件、pending、結算結果)MUST 與遷移前一致。
 
 #### Scenario: 效果樹卡與裝飾器登記並存
 - **WHEN** 以效果樹註冊的事件卡與測試用裝飾器註冊的事件卡在同一局各使用一次
@@ -151,7 +151,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 
 #### Scenario: 沒有逐卡 handler 檔
 - **WHEN** 檢視 `effects` 套件
-- **THEN** 只有 `registry.py`、`primitives.py`、`tree.py`、`tree_cards.py`;舊的 `events.py`、`mamodo.py`、`partners.py`、`spells.py` 已刪除
+- **THEN** `effects/` 下只有機制檔(`registry.py`、`primitives.py`、`tree.py`)與 `cards/` 登記套件;遷移前的逐卡 handler 檔(`effects/events.py` 等)已刪除
 
 #### Scenario: 遷移前後行為一致或依效果文修正
 - **WHEN** 比較遷移前後的卡片行為
@@ -200,7 +200,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 拒絕並拋出錯誤,`on_damage` 也沒有被寫入或標記為已註冊;修正後可正常註冊
 
 ### Requirement: 註冊檔逐卡集中登記
-以效果樹註冊的卡片,註冊檔 SHALL 依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。
+以效果樹註冊的卡片,登記 SHALL 依卡片類別分檔:`effects/cards/` 的 `events.py`(E)、`mamodo.py`(M)、`partners.py`(P)、`spells.py`(S),每個檔案只含該類別的卡並依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。
 
 #### Scenario: 註冊行不含邏輯
 - **WHEN** 檢視 E-001 的註冊
@@ -209,6 +209,10 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 #### Scenario: 同一張卡的多個登記相鄰
 - **WHEN** 檢視 M-027(疊放規則 + 無術攻擊規格)的登記
 - **THEN** 為相鄰的 `reg.stack_on("M-027", …)` 與 `reg.mamodo_attack("M-027", …)` 兩個呼叫,前後都是卡號不同的卡
+
+#### Scenario: 依卡片類別分檔
+- **WHEN** 檢視 `effects/cards/mamodo.py`
+- **THEN** 只有 `M-` 開頭卡號的登記,且依卡號排序;事件卡、夥伴卡、術卡各在自己的檔案
 
 ### Requirement: 以對手視角執行子樹
 `AsOpponent` 節點 SHALL 以對手的視角解決其子樹:子樹內 `ctx["player"]` 為對手,因此子樹中 `Choose` 的決策者與「自己」相關的選項規格、葉節點都指對手。子樹完成後,外層節點的 `ctx["player"]` MUST 仍為效果擁有者,不論子樹是同步完成或停下後恢復(上溯經過 `AsOpponent` 時換回)。`When` 節點 SHALL 支援 `otherwise` 分支,條件只在進入時判斷一次。
@@ -252,7 +256,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 兩者的 pending `kind` 都是 `pick_own_mamodo`
 
 #### Scenario: 登記中的決策種類不含卡號
-- **WHEN** 檢視 `tree_cards.py` 所有節點的 `prompt`
+- **WHEN** 檢視 `effects/cards/` 中所有節點的 `prompt`
 - **THEN** 沒有任何一個含卡號樣式(如 `e001`、`M-011`)
 
 #### Scenario: 每個決策種類都有標題
