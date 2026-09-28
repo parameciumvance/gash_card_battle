@@ -37,19 +37,23 @@
 ## MODIFIED Requirements
 
 ### Requirement: 效果樹與既有註冊方式並存
-系統 SHALL 同時支援以效果樹註冊與既有 `@reg.xxx` 裝飾器 / `CHOICE_RESOLVERS` 字串 key 註冊;同一張卡 MUST NOT 同時以兩種方式註冊同一個掛鉤。遷移為內部重構,遊戲可觀察行為(事件、pending、結算結果)MUST 與遷移前一致。
+所有卡片 SHALL 以效果樹註冊,`tree_cards.py` 為唯一的逐卡註冊檔。系統 SHALL 仍接受既有 `@reg.xxx` 裝飾器 / `CHOICE_RESOLVERS` 字串 key 註冊(裝飾器只剩測試使用,引擎內部的決策 resolver 仍以字串 key 登記);同一張卡 MUST NOT 同時以兩種方式註冊同一個掛鉤。遷移本身為內部重構;遷移過程中依日文效果文修正的行為記錄於 `card-effects` spec,其餘可觀察行為(事件、pending、結算結果)MUST 與遷移前一致。
 
-#### Scenario: 已遷移與未遷移的卡並存
-- **WHEN** E-001 以效果樹註冊、E-002 仍以裝飾器註冊,雙方各使用一次
-- **THEN** 兩者都正常解決,既有測試全數通過
+#### Scenario: 效果樹卡與裝飾器登記並存
+- **WHEN** 以效果樹註冊的事件卡與測試用裝飾器註冊的事件卡在同一局各使用一次
+- **THEN** 兩者都正常解決
 
 #### Scenario: 重複註冊被拒絕
 - **WHEN** 同一張卡的同一掛鉤先後以效果樹與裝飾器各註冊一次
 - **THEN** 註冊時拋出錯誤,不靜默覆蓋
 
-#### Scenario: 逐批遷移過程中整體卡池行為不變
-- **WHEN** 效果樹遷移(`effect-tree-migration`)跨多次工作階段逐批進行,任一時間點都同時存在已遷移與未遷移的卡
-- **THEN** 每一批遷移前後,`card-effects` spec 涵蓋的全部卡片既有測試(含該批遷移前補上的特徵測試)皆全數通過;遷移未完成不影響尚未遷移的卡正常運作
+#### Scenario: 沒有逐卡 handler 檔
+- **WHEN** 檢視 `effects` 套件
+- **THEN** 只有 `registry.py`、`primitives.py`、`tree.py`、`tree_cards.py`;舊的 `events.py`、`mamodo.py`、`partners.py`、`spells.py` 已刪除
+
+#### Scenario: 遷移前後行為一致或依效果文修正
+- **WHEN** 比較遷移前後的卡片行為
+- **THEN** 未依效果文修正的卡,既有測試與遷移前補上的特徵測試皆全數通過;依效果文修正的卡,修正前先寫的測試在舊寫法上失敗、修正後通過
 
 ### Requirement: 註冊檔逐卡集中登記
 以效果樹註冊的卡片,註冊檔 SHALL 依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。單一呼叫 MAY 跨多行排版:有子節點的容器節點(`Choose` / `Coin` / `When` / `Standby` / `Sequence`)換行並縮排一層,使巢狀層次可直接由縮排辨識。
