@@ -16,15 +16,15 @@
 - **THEN** 直譯器的 `ctx["source"]` 為 `"E-001"`,樹內節點不需自行寫入卡號
 
 ### Requirement: 停點續體為純資料
-效果解決過程中遇到停點(等待玩家選擇、擲幣確認、待命)時,系統 SHALL 僅儲存 `(effect_id, path, ctx)` 作為續體,MUST NOT 儲存閉包或函式物件於遊戲狀態。`ctx` MUST 僅含可 JSON 序列化的值。
+效果解決過程中遇到停點(等待玩家選擇、擲幣確認、待命)時,系統 SHALL 只在遊戲狀態中儲存純資料的續體(可識別效果、停點位置與 `ctx`),MUST NOT 儲存閉包或函式物件。續體 MUST 可 JSON 序列化。
 
 #### Scenario: 停點時狀態可序列化
 - **WHEN** 效果因 `Choose` 進入 pending
-- **THEN** `PendingChoice.data["tree_choice"]` 只含 `effect_id`(字串)、`path`(整數 tuple)與 JSON 可序列化的 `ctx`
+- **THEN** pending 中的續體只含字串、數字、布林、null、list 與 dict,可直接 `json.dumps`
 
 #### Scenario: 從停點之後繼續
 - **WHEN** 玩家回應 `Choose` 的 pending
-- **THEN** 直譯器依 `effect_id` 與 `path` 找回該節點,把選擇值寫入 `ctx` 後,只解決該節點之後的節點,不重跑之前的節點
+- **THEN** 直譯器依續體找回該節點,把選擇值寫入 `ctx` 後,只解決該節點之後的節點,不重跑之前的節點
 
 #### Scenario: 續體經序列化往返後仍可恢復
 - **WHEN** 停點的續體經 `json.dumps` 再 `json.loads` 後交給 `resume`
@@ -53,8 +53,8 @@
 - **WHEN** `Sequence(A, Coin(…), B)` 執行時自己場上有可用 M-012,玩家於確認 pending 選擇保留
 - **THEN** A 只在停點之前執行一次,Coin 分支與 B 在確認結束後各執行一次
 
-### Requirement: pending 依專屬標記分派
-系統 SHALL 僅在 `PendingChoice` 由效果樹節點建立(`Choose`、`CoinWithPaidReflip` 的詢問;`pending.data` 含專屬鍵 `tree_choice`)時,把玩家回應交給效果樹,並呼叫建立該 pending 之節點的 `resume_choice`(預設等同 `resume`)。`Coin` 與 `Standby` 攜帶的續體 MUST 使用不同的鍵(`tree_cont`),只作為 callback payload,恢復時呼叫節點的 `resume`;內部確認 pending(`coin_confirm`、`opp_coin_redo`)MUST 依 `pending.kind` 交給原 resolver。任何節點的 `prompt` MUST NOT 與引擎保留的 pending kind 或既有 resolver key 相同,註冊時檢查並拒絕。
+### Requirement: 決策回應依建立來源分派
+系統 SHALL 只把由效果樹節點建立的決策(`Choose`、`CoinWithPaidReflip` 的詢問)的玩家回應交回效果樹,由建立該決策的節點續行。擲幣確認鏈的內部決策(`coin_confirm`、`opp_coin_redo`)MUST 依決策種類交給原本的 M-012 / M-019 處理,確認鏈全部結束後才回到效果樹;擲幣確認結束與待命觸發時的續行 MUST NOT 被當成玩家對樹內決策的回應。任何節點的 `prompt` MUST NOT 與引擎保留的決策種類或既有 resolver key 相同,註冊時檢查並拒絕。
 
 #### Scenario: 確認 pending 不被誤送進樹
 - **WHEN** 效果樹的 `Coin` 造成 `coin_confirm` pending,玩家回應保留(`None`)或重擲第幾枚(整數)
@@ -197,7 +197,7 @@
 - **THEN** 拒絕並拋出錯誤,`on_damage` 也沒有被寫入或標記為已註冊;修正後可正常註冊
 
 ### Requirement: 註冊檔逐卡集中登記
-以效果樹註冊的卡片,註冊檔 SHALL 依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。單一呼叫 MAY 跨多行排版:有子節點的容器節點(`Choose` / `Coin` / `When` / `Standby` / `Sequence`)換行並縮排一層,使巢狀層次可直接由縮排辨識。
+以效果樹註冊的卡片,註冊檔 SHALL 依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。
 
 #### Scenario: 註冊行不含邏輯
 - **WHEN** 檢視 E-001 的註冊
@@ -206,10 +206,6 @@
 #### Scenario: 同一張卡的多個登記相鄰
 - **WHEN** 檢視 M-027(疊放規則 + 無術攻擊規格)的登記
 - **THEN** 為相鄰的 `reg.stack_on("M-027", …)` 與 `reg.mamodo_attack("M-027", …)` 兩個呼叫,前後都是卡號不同的卡
-
-#### Scenario: 巢狀層次由縮排辨識
-- **WHEN** 檢視含兩層以上容器節點的註冊(如 S-021 的 `When` → `Coin` → `NegateAttack`)
-- **THEN** 每個容器節點的子節點比該容器多縮排一層,容器的收尾括號獨立成行並與開頭對齊
 
 ### Requirement: 以對手視角執行子樹
 `AsOpponent` 節點 SHALL 以對手的視角解決其子樹:子樹內 `ctx["player"]` 為對手,因此子樹中 `Choose` 的決策者與「自己」相關的選項規格、葉節點都指對手。子樹完成後,外層節點的 `ctx["player"]` MUST 仍為效果擁有者,不論子樹是同步完成或停下後恢復(上溯經過 `AsOpponent` 時換回)。`When` 節點 SHALL 支援 `otherwise` 分支,條件只在進入時判斷一次。
@@ -223,7 +219,7 @@
 - **THEN** 不會再執行 Y
 
 ### Requirement: 付費重擲節點在節點內部迴圈
-`CoinWithPaidReflip` 節點 SHALL 擲幣並沿用既有確認鏈;結果符合條件時解決其 `then`,不符合且擁有者 MP 不少於費用時,建立詢問 pending(選項為付費重擲 / 停止),玩家選擇重擲時付費後由同一節點重新擲幣,可重複任意次。迴圈 MUST 只發生在該節點內部:節點只在最終完成(結果符合且 `then` 完成、玩家停止、或 MP 不足)時上溯一次,外層節點的副作用恰好執行一次。玩家回應詢問的值 MUST 為 `True` 或 `False`,否則拒絕並保留 pending;選擇重擲但 MP 不足時同樣拒絕;驗證 MUST 先於任何狀態變更。確認鏈的停點以 `CONT_KEY` 續體恢復,詢問的停點以 `CHOICE_KEY` 續體恢復,兩者分別由節點的 `resume` 與 `resume_choice` 處理。
+`CoinWithPaidReflip` 節點 SHALL 擲幣並沿用既有確認鏈;結果符合條件時解決其 `then`,不符合且擁有者 MP 不少於費用時,建立詢問 pending(選項為付費重擲 / 停止),玩家選擇重擲時付費後由同一節點重新擲幣,可重複任意次。迴圈 MUST 只發生在該節點內部:節點只在最終完成(結果符合且 `then` 完成、玩家停止、或 MP 不足)時上溯一次,外層節點的副作用恰好執行一次。玩家回應詢問的值 MUST 為 `True` 或 `False`,否則拒絕並保留 pending;選擇重擲但 MP 不足時同樣拒絕;驗證 MUST 先於任何狀態變更。
 
 #### Scenario: 重擲兩次後外層節點只執行一次
 - **WHEN** `Sequence(A, CoinWithPaidReflip(cost=2, then=H), B)` 連續擲出反面、反面、正面,玩家兩次都選擇付費重擲

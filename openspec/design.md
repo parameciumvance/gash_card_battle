@@ -2,7 +2,7 @@
 
 本檔記錄**目前有效**的設計與決定,以及為什麼這樣決定。
 
-- 可觀察行為(遊戲規則、卡片效果的結果)寫在 `openspec/specs/`,本檔不重複。
+- 可觀察行為(遊戲規則、卡片效果的結果)與可測試的約束寫在 `openspec/specs/`,本檔不重複。分界標準:換一種實作仍須成立的性質(如續體經 JSON 往返後可恢復、副作用恰好執行一次)寫在 spec;資料鍵名、欄位格式、檔案排版等換一種實作就會變的細節,寫在本檔或程式內的說明。
 - 各 change 的 `design.md` 是當時的討論紀錄,歸檔後不再更新;仍然有效的決定整理到本檔。
 - 歸檔 change 前,依 AGENTS.md 的流程把該 change 仍有效的決定合併進來,被取代的改寫或刪除。
 - 本檔第一版整理自 `effect-tree-interpreter` 與 `effect-tree-migration` 兩個 change;更早的 change 尚未整理。
@@ -35,13 +35,14 @@
 
 ### 2.2 停點與續體
 
-- 停下(等玩家選擇、擲幣確認、待命)時,只存續體 `(effect_id, path, ctx, floor)`,不存閉包。
-  - `path` 是停點節點本身的位置。
+- 停下(等玩家選擇、擲幣確認、待命)時,只存續體 `{"effect_id", "path", "ctx", "floor"}`(`Run.cont` 產生),不存閉包。
+  - `effect_id` 為 `"<卡號>:<掛鉤>"`;`path` 是停點節點本身的位置(子節點索引的 list)。
   - `ctx` 可 JSON 序列化,至少含 `player`、`source`。
+  - `floor` 是上溯的下界:一般為 0;脫離式的待命子樹為 `len(path)+1`,觸發時不上溯到祖先(見 2.4)。
 - 恢復後沿 `path` 由深往淺「上溯」:父節點是 `Sequence` 時執行之後的兄弟節點;上溯經過節點時呼叫其 `leave(ctx)`(`AsOpponent` 在此把 `player` 換回來)。
 - pending 依專屬鍵分派,不只看「有沒有續體」,否則會跳過 M-012 / M-019 的確認 resolver:
-  - `data["tree_choice"]`:由樹建立的選擇,交給節點的 `resume_choice`。
-  - `data["tree_cont"]`:擲幣確認鏈結束、待命觸發時的 callback payload,交給節點的 `resume`。
+  - `data["tree_choice"]`(常數 `tree.CHOICE_KEY`):由樹建立的選擇(`Choose`、`CoinWithPaidReflip` 的付費重擲詢問),引擎的 `_handle_choose` 只在 pending 含此鍵時交給 `tree.resume`,再由節點的 `resume_choice` 續行。
+  - `data["tree_cont"]`(常數 `tree.CONT_KEY`):擲幣確認鏈結束、待命觸發時的 callback payload,經通用 resolver `effect_tree_resume` 交給節點的 `resume`。`CoinWithPaidReflip` 的確認鏈停點也用這個鍵。
 - 目標以穩定的 slot UID 綁定,執行當下才重新查找;目標已離場時無效果、不發事件,也不改選別的目標。
 
 ### 2.3 擲幣
