@@ -2,19 +2,13 @@ schema: spec-driven
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  現行設計與決定的理由見 openspec/design.md(架構、共通機制、效果文解讀紀錄、已知限制);
+  撰寫 design 前先讀它,新決定若取代其中內容要明確指出。
+  卡片效果以日文效果文為準,實作慣例見 AGENTS.md。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  tasks:
+    - 最後一組任務包含:同步 delta spec 回主 spec,並把本 change 仍有效的決定合併進 openspec/design.md(被取代的內容改寫或刪除),再歸檔

@@ -229,6 +229,7 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 - `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。
 - 實作或修改卡片效果前先讀 `AGENTS.md`「實作 / 修改卡片效果」:以日文效果文為準、不可悄悄簡化、
   每張非香草卡都要有依效果文寫的行為測試。
+- 現行設計、共通機制與效果文的解讀紀錄見 `openspec/design.md`;可觀察行為的規格在 `openspec/specs/`。
 
 ## 測試
 
