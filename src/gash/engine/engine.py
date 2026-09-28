@@ -616,6 +616,14 @@ def _consume_standby(game: Game, kind: str, predicate) -> list[Standby]:
     return hits
 
 
+def _arm_next_battle_standbys(game: Game) -> None:
+    """「このターン中の次のバトル」的待命(P-001 / P-007 / M-008 / S-019 / S-026):戰鬥開始時綁定到
+    這場戰鬥;條件不符沒有生效的,在戰鬥結束時與「このバトル中」的待命一起移除,不留到之後的戰鬥。"""
+    for s in game.state.standby:
+        if s.data.get("expires") == "next_battle":
+            s.data["expires"] = "battle"
+
+
 def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
     st = game.state
     if bi.get("mamodo_attack"):
@@ -636,6 +644,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
     battle = BattleState(attacker=attacker, step=STEP_DEFENSE,
                          attack_page=page, attack_spell=number, attack_slot=slot_uid)
     st.battle = battle
+    _arm_next_battle_standbys(game)
     game.emit(batch, "battle_started", attacker=attacker, spell=number, slot=slot_uid)
 
     slot = st.slot_by_uid(attacker, slot_uid)
@@ -677,8 +686,14 @@ def _start_mamodo_battle(game: Game, batch: list[dict], bi: dict) -> None:
     battle.data["attack_fixed_power"] = spec["power"]
     battle.data["attack_fixed_damage"] = spec["damage"]
     st.battle = battle
+    _arm_next_battle_standbys(game)
     game.emit(batch, "battle_started", attacker=attacker, spell=None,
               mamodo=slot.top, slot=slot_uid)
+    # 待命:攻擊不可被防禦(S-019 / S-026;P-001 限「ガッシュ・ベル」の術で攻撃,無術攻擊不適用)
+    for sb in _consume_standby(game, "attack_undefendable",
+                               lambda s: s.owner == attacker and s.data.get("mamodo") is None):
+        battle.attack_undefendable = True
+        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     for sb in _consume_standby(game, "no_protect_book", lambda s: s.owner == attacker):
         battle.data["no_protect_book"] = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
@@ -1309,7 +1324,8 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     # 時效到期與回合收尾
     st.modifiers = [m for m in st.modifiers if not _expires_now(m, st.turn_no)]
     st.standby = [s for s in st.standby
-                  if not (s.data.get("expires", "turn") == "turn" and s.created_turn == st.turn_no)
+                  if not (s.data.get("expires", "turn") in ("turn", "next_battle")
+                          and s.created_turn == st.turn_no)
                   and not (s.created_turn < st.turn_no)]
     for p in st.players:
         p.spell_page_uses.clear()
@@ -1319,6 +1335,8 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.discarded_this_turn.clear()
         p.page_effect_used = False
         p.page_back_effect_used = False
+        p.page_effect_limited = False
+        p.page_back_effect_limited = False
     game.emit(batch, "turn_ended", turn=st.turn_no)
     st.turn_no += 1
     st.turn_player = 1 - st.turn_player

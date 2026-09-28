@@ -19,10 +19,10 @@ from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, attach_partner_from_book, discard_from_book,
     discard_partner, flip_coins,
-    heal_slot, mark_opp_mp_reduced, play_mamodo_from_book, reduce_mp, reduce_opponent_mp,
-    return_to_book,
+    heal_slot, mark_opp_mp_reduced, own_book_turn_effect, play_mamodo_from_book, reduce_mp,
+    reduce_opponent_mp, return_to_book,
     schedule_standby, take_from_book,
-    turn_back_pages, turn_pages,
+    turn_pages,
 )
 
 # 引擎內建的 pending kind,Choose.prompt 不得與之相同
@@ -973,9 +973,11 @@ class MakeNextAttackUndefendable(Effect):
     mamodo: str | None = None
 
     def run(self, rt, ctx, path):
+        data = {"expires": "next_battle"}
+        if self.mamodo:
+            data["mamodo"] = self.mamodo
         schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
-                         source=ctx["source"], owner=ctx["player"],
-                         data={"mamodo": self.mamodo} if self.mamodo else None)
+                         source=ctx["source"], owner=ctx["player"], data=data)
         return True
 
 
@@ -1070,7 +1072,8 @@ class HealSlot(Effect):
 
 @dataclass(frozen=True)
 class TurnPagesForward(Effect):
-    """target("self" / "opponent")的魔本翻頁(效果造成,不獲得 MP);翻完即敗(E-005 / E-014)。"""
+    """target("self" / "opponent")的魔本翻頁(效果造成,不獲得 MP);翻完即敗(E-005 / E-014)。
+    翻自己的魔本時算「自分の魔本をめくる」效果,受 P-010 的「合計1回」限制。"""
     leaves: int = 1
     target: str = "self"
 
@@ -1078,17 +1081,20 @@ class TurnPagesForward(Effect):
         _check_who(self.target)
 
     def run(self, rt, ctx, path):
-        turn_pages(rt.game, rt.batch, _who(ctx, self.target), self.leaves, ctx["source"])
+        if self.target == "self":
+            own_book_turn_effect(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        else:
+            turn_pages(rt.game, rt.batch, _who(ctx, self.target), self.leaves, ctx["source"])
         return True
 
 
 @dataclass(frozen=True)
 class TurnPagesBack(Effect):
-    """自己魔本回翻頁(E-005 正正)。"""
+    """自己魔本回翻頁(E-005 正正);算「自分の魔本をもどす」效果,受 P-018 的「合計1回」限制。"""
     leaves: int = 1
 
     def run(self, rt, ctx, path):
-        turn_back_pages(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        own_book_turn_effect(rt.game, rt.batch, ctx["player"], -self.leaves, ctx["source"])
         return True
 
 
@@ -1594,7 +1600,7 @@ class ScheduleNextSpellBonus(Effect):
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="spell_bonus", source=ctx["source"], owner=ctx["player"],
                          data={"mamodo": self.mamodo, "power_delta": self.power_delta,
-                               "cost_delta": self.cost_delta})
+                               "cost_delta": self.cost_delta, "expires": "next_battle"})
         return True
 
 
@@ -1959,7 +1965,7 @@ def _negatable_opponent_spell(game, player, which):
 
 @dataclass(frozen=True)
 class OwnPageTurnEffectAvailable:
-    """本回合尚未使用「翻自己魔本」的效果(P-010;依效果文,翻完魔本而敗北也可以使用)。"""
+    """本回合尚未使用「翻自己魔本」的效果(P-010;E-005 反反也算;依效果文,翻完魔本而敗北也可以使用)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
         return not game.state.players[player].page_effect_used
@@ -1967,7 +1973,7 @@ class OwnPageTurnEffectAvailable:
 
 @dataclass(frozen=True)
 class OwnPageTurnBackEffectAvailable:
-    """本回合尚未使用「回翻自己魔本」的效果,且魔本不在第一頁(P-018;在第一頁時無法回翻)。"""
+    """本回合尚未使用「回翻自己魔本」的效果(E-005 正正也算),且魔本不在第一頁(P-018;在第一頁時無法回翻)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
         ps = game.state.players[player]

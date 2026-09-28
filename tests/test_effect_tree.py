@@ -326,7 +326,8 @@ def test_make_next_attack_undefendable_schedules_standby():
     batch = run(g, tree.MakeNextAttackUndefendable())
     assert [e["type"] for e in batch] == ["standby_set"]
     sb = g.state.standby[0]
-    assert (sb.kind, sb.source, sb.owner, sb.data) == ("attack_undefendable", "T-000", 0, {})
+    assert (sb.kind, sb.source, sb.owner, sb.data) == (
+        "attack_undefendable", "T-000", 0, {"expires": "next_battle"})
 
 
 def test_add_power_target_gone_is_noop_without_event():
@@ -1227,7 +1228,8 @@ def test_self_slot_effect_nodes():
     run(g, tree.ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1))
     run(g, tree.ScheduleSkipEndFlip())
     assert [(sb.kind, sb.data) for sb in g.state.standby] == [
-        ("spell_bonus", {"mamodo": "スギナ", "power_delta": -1000, "cost_delta": -1}),
+        ("spell_bonus", {"mamodo": "スギナ", "power_delta": -1000, "cost_delta": -1,
+                         "expires": "next_battle"}),
         ("skip_end_flip", {})]
 
 

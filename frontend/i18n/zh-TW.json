@@ -80,6 +80,7 @@
   "log.pages_flipped": "{player} 翻魔本 {count} 張(MP +{mp})",
   "log.pages_flipped_forced": "{player} 翻魔本 {count} 張(強制)",
   "log.pages_turned": "{player} 的魔本被翻動 {count} 張({source})",
+  "log.page_turn_restricted": "{player} 本回合已受「合計1次」限制,{source} 的翻頁不發生",
   "log.mp_changed_gain": "{player} MP +{delta}(→{mp})",
   "log.mp_changed_pay": "{player} MP -{delta}(→{mp})",
   "log.card_played": "{player} 放出《{card}》",

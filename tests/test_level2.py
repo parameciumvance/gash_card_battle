@@ -1285,6 +1285,25 @@ def test_p019_two_mp_per_page_turned_back():
     assert st.players[1].mp == 10 - g.db["E-005"].cost - 2 * 2
 
 
+@pytest.mark.parametrize("pos,after,mp_lost", [(4, 2, 2), (2, 2, 0)])
+def test_p019_counts_pages_actually_turned_back(pos, after, mp_lost):
+    # 回翻到第一頁為止:E-005 正正在 pos 4 只回翻 1 張、在 pos 2 沒有回翻
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-019"
+    to_battle(g, 0)
+    _end_turn(g)
+    if st.phase == "start":
+        submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    g.rng = Rng(HEADS, HEADS)
+    st.players[1].mp, st.players[1].pos = 10, pos
+    st.players[1].book[pos - 1] = "E-005"
+    events = submit(g, {"type": "use_book_card", "player": 1, "page": pos})
+    assert st.players[1].pos == after
+    assert [e["count"] for e in events if e["type"] == "pages_turned"] == ([-(pos - after) // 2] if mp_lost else [])
+    assert st.players[1].mp == 10 - g.db["E-005"].cost - mp_lost
+
+
 def test_p010_usable_on_last_page_and_turning_past_end_loses():
     # 效果文沒有限制:在最後一頁使用 → 自己的魔本翻完 → 敗北
     g, _ = mk(book("M-001"), book("M-001"))
@@ -1468,6 +1487,195 @@ def test_p018_not_usable_on_first_page():
     assert e.value.code == "ability.condition"
 
 
+# ---------------------------------------------------------------- 「このターン中の次のバトル」(P-001 / P-007 / M-008)
+
+def _finish_battle(g):
+    """雙方 pass 到戰鬥結束;傷害 / 保護決策一律不保護、依序處理。"""
+    st = g.state
+    while st.battle is not None:
+        if st.pending is not None:
+            _resolve_damage_choices(g, st.pending.player)
+        else:
+            submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
+
+
+def _two_battles(first_book, other, use, first_page, second_page):
+    """玩家 0:P1 魔物(first_book[0])與另一隻 other;use(g, main) 使用效果後,
+    第 1 場以 other 用第 first_page 頁攻擊並打完,回傳 (g, main) 供第 2 場使用。"""
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book(*first_book), book("M-001"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 20
+    main = st.players[0].slots[0]
+    helper = MamodoSlot(uid=st.next_uid(), stack=[other])
+    st.players[0].slots.append(helper)
+    to_battle(g, 0)
+    use(g, main)
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "declare_attack", "player": 0, "page": first_page, "slot_uid": helper.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    _finish_battle(g)
+    assert st.battle is None and st.phase == BATTLE and st.action_player == 0
+    submit(g, {"type": "declare_attack", "player": 0, "page": second_page, "slot_uid": main.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    return g, main
+
+
+def _use_partner_card(number):
+    def use(g, main):
+        main.partner = number
+        _use_partner(g, 0, main)
+    return use
+
+
+def test_p001_only_applies_to_the_next_battle():
+    # 効果文:このターン中の次のバトルで、自分が「ガッシュ・ベル」の術で攻撃するとき、相手は防御できない。
+    #   下一場由ブラゴ攻擊 → 效果用掉;第 2 場ガッシュ攻擊時可以防禦
+    g, _ = _two_battles(("M-001", "S-008", "S-001"), "M-005", _use_partner_card("P-001"), 2, 3)
+    submit(g, {"type": "declare_defense", "player": 1, "page": g.state.players[1].pos})
+    assert g.state.battle.defense_spell == "S-029"
+
+
+def test_p007_only_applies_to_the_next_battle():
+    # 効果文:このターン中の次のバトルで、自分が使う「フェイン」の術の魔力を+4000する。
+    from .test_cards import showdown_of
+    g, _ = _two_battles(("M-011", "S-001", "S-018"), "M-001", _use_partner_card("P-007"), 2, 3)
+    submit(g, {"type": "no_defense", "player": 1})
+    events = []
+    while g.state.battle is not None and g.state.battle.step == "effects" and g.state.pending is None:
+        events += submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
+    assert showdown_of(events)["attacker_total"] == 3000 + 2000
+
+
+def test_m008_only_applies_to_the_next_battle():
+    # 効果文:このターン中の次のバトルで、この魔物の術を本来より1低いコストで使うことができる。
+    def use_m008(g, main):
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": main.uid})
+    mp_before = {}
+
+    def use_and_record(g, main):
+        use_m008(g, main)
+        mp_before["mp"] = g.state.players[0].mp
+    g, _ = _two_battles(("M-008", "S-001", "S-014"), "M-001", use_and_record, 2, 3)
+    assert g.state.players[0].mp == mp_before["mp"] - g.db["S-001"].cost - g.db["S-014"].cost
+
+
+def test_p007_applies_when_defending_in_the_next_battle():
+    # 「自分が使うフェインの術」:對手回合中使用,下一場戰鬥以フェイン的術防禦時也適用
+    from .test_cards import showdown_of
+    g, _ = mk(book("M-001", "S-001"), book("M-011", "S-019"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    st.players[1].slots[0].partner = "P-007"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    _use_partner(g, 1, st.players[1].slots[0])
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    events = []
+    while st.battle is not None and st.battle.step == "effects" and st.pending is None:
+        events += submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
+    assert showdown_of(events)["defender_total"] == 3000 + 3000 + 4000
+
+
+def test_s026_next_battle_undefendable_applies_to_mamodo_attack():
+    # S-026 効果文:このターン中の次のバトルで、相手は防御できない。→ 無術攻擊的戰鬥也是「次のバトル」
+    g, _ = mk(book("M-028", "S-048", "S-026", "S-029", "M-027"), book("M-001"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    g.rng = Rng(HEADS)
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})      # S-048 疊上裝甲體
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 3})      # S-026 正面
+    submit(g, {"type": "pass", "player": 1})
+    slot = st.players[0].slots[0]
+    assert slot.top == "M-027"
+    submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": slot.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    assert e.value.code == "defense.undefendable"
+
+
+def test_next_battle_standby_expires_at_turn_end_without_battle():
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    st.players[0].slots[0].partner = "P-001"
+    to_battle(g, 0)
+    _use_partner(g, 0, st.players[0].slots[0])
+    _end_turn(g)                                                       # 本回合沒有戰鬥
+    _end_turn(g)
+    if st.phase == "start":
+        submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "declare_attack", "player": 0, "page": st.players[0].pos})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": st.players[1].pos})
+    assert st.battle.defense_declared is True
+
+
+# ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果を合計1回(P-010 / P-018 與 E-005)
+
+def _own_book_game(pos, e005_page, coins, partner):
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    st.players[0].slots[0].partner = partner
+    st.players[0].book[e005_page - 1] = "E-005"
+    g.rng = Rng(*coins)
+    to_battle(g, 0)
+    st.players[0].pos = pos
+    return g
+
+
+def _use_e005(g, page):
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": page})
+    submit(g, {"type": "pass", "player": 1})
+    return events
+
+
+@pytest.mark.parametrize("partner,pos,after_partner,coins", [
+    ("P-010", 2, 4, (TAILS, TAILS)),        # P-010 翻 1 張後,E-005 反反不再翻
+    ("P-018", 6, 4, (HEADS, HEADS)),        # P-018 回翻 1 張後,E-005 正正不再回翻
+])
+def test_e005_same_direction_blocked_after_partner(partner, pos, after_partner, coins):
+    g = _own_book_game(pos, after_partner, coins, partner)
+    st = g.state
+    _use_partner(g, 0, st.players[0].slots[0])
+    submit(g, {"type": "pass", "player": 1})
+    assert st.players[0].pos == after_partner
+    events = _use_e005(g, after_partner)
+    assert st.players[0].pos == after_partner
+    assert not [e for e in events if e["type"] == "pages_turned"]
+    assert [e["source"] for e in events if e["type"] == "page_turn_restricted"] == ["E-005"]
+
+
+def test_e005_other_direction_not_blocked_after_p010():
+    g = _own_book_game(6, 8, (HEADS, HEADS), "P-010")
+    st = g.state
+    _use_partner(g, 0, st.players[0].slots[0])                         # 翻 1 張 → 8
+    submit(g, {"type": "pass", "player": 1})
+    _use_e005(g, 8)                                                    # 正正回翻 2 張
+    assert st.players[0].pos == 4
+
+
+@pytest.mark.parametrize("partner,pos,coins,after_e005", [
+    ("P-010", 2, (TAILS, TAILS), 6),        # E-005 已翻過自己的魔本 → 不能再用 P-010
+    ("P-018", 10, (HEADS, HEADS), 6),       # E-005 已回翻過 → 不能再用 P-018
+])
+def test_partner_blocked_after_e005_same_direction(partner, pos, coins, after_e005):
+    g = _own_book_game(pos, pos, coins, partner)
+    st = g.state
+    _use_e005(g, pos)
+    assert st.players[0].pos == after_e005
+    with pytest.raises(IllegalCommand) as e:
+        _use_partner(g, 0, st.players[0].slots[0])
+    assert e.value.code == "ability.condition"
+
+
 # ---------------------------------------------------------------- 事件卡 j 版差異(E-018)
 
 def test_e018_j_version_consecutive_limit():
@@ -1559,9 +1767,10 @@ def test_e018_zero_after_passive_p019_reduced_opponent_mp_last_turn():
     to_battle(g, 0)
     _end_turn(g)                                               # 對手回合
     g.rng = Rng(HEADS, HEADS)
-    g.state.players[1].mp, g.state.players[1].pos = 5, 1
-    submit(g, {"type": "use_book_card", "player": 1, "page": 2})   # E-005 正正 → 對手自己回翻 2 張
-    assert g.state.players[1].mp < 5                           # P-019 觸發:對手 MP-2
+    g.state.players[1].mp, g.state.players[1].pos = 5, 6
+    g.state.players[1].book[5] = "E-005"
+    submit(g, {"type": "use_book_card", "player": 1, "page": 6})   # E-005 正正 → 對手自己回翻 2 張
+    assert g.state.players[1].mp == 5 - 2 * 2                  # P-019 觸發:每張 MP-2
     _end_turn(g)                                               # 回到玩家 0(直前回合 = P-019 觸發的回合)
     assert _use_e018(g, 2) == 0
 

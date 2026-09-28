@@ -101,8 +101,10 @@ class PlayerState:
     used_nonbattle_spells: set[str] = field(default_factory=set)  # 本回合已用非戰鬥術卡號
     used_per_game: set[str] = field(default_factory=set)    # 一場遊戲限一次
     discarded_this_turn: list[str] = field(default_factory=list)  # 本回合入墓的卡(E-022)
-    page_effect_used: bool = False        # 本回合已用「翻自己書頁」效果(P-010 條款)
-    page_back_effect_used: bool = False   # 本回合已用「回翻自己書頁」效果(P-018 條款)
+    page_effect_used: bool = False        # 本回合已用「翻自己魔本」的效果(P-010 / E-005)
+    page_back_effect_used: bool = False   # 本回合已用「回翻自己魔本」的效果(P-018 / E-005)
+    page_effect_limited: bool = False     # 本回合受 P-010「合計1回」限制:之後的翻自己魔本效果不發生
+    page_back_effect_limited: bool = False  # 本回合受 P-018「合計1回」限制
     # 用過「減少對手 MP」效果的回合(E-018 直前回合限制);只保留本回合與前一回合
     opp_mp_reduced_turns: set[int] = field(default_factory=set)
 

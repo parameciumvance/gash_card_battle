@@ -55,10 +55,15 @@ def turn_pages(game, batch, player, leaves, source):
         _game_over(game, batch, winner=1 - player, reason="book_out")
 
 
-def turn_back_pages(game, batch, player, leaves, source):
+def turn_back_pages(game, batch, player, leaves, source) -> int:
+    """效果造成的回翻,最多回到第一頁;回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。"""
     ps = game.state.players[player]
-    ps.pos = max(2, ps.pos - 2 * leaves)
-    game.emit(batch, "pages_turned", player=player, count=-leaves, pos=ps.pos, source=source)
+    actual = min(leaves, max(0, (ps.pos - 2) // 2))
+    if actual == 0:
+        return 0
+    ps.pos -= 2 * actual
+    game.emit(batch, "pages_turned", player=player, count=-actual, pos=ps.pos, source=source)
+    return actual
 
 
 def reduce_mp(game, batch, player, amount, source) -> int:
@@ -182,18 +187,36 @@ def discard_partner(game, batch, player, slot, source):
     return number
 
 
-# ---------------------------------------------------------------- 翻頁「效果」每回合一次(P-010/P-018 條款)
+# ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果(P-010/P-018 條款)
+
+def own_book_turn_effect(game, batch, player, leaves, source) -> bool:
+    """「翻自己魔本」的效果(leaves < 0 為回翻)。記錄本回合用過該方向的效果;本回合已受
+    P-010 / P-018 的「合計1回」限制時不發生(限制卡本身已算 1 次),回傳是否有翻頁。"""
+    ps = game.state.players[player]
+    back = leaves < 0
+    if ps.page_back_effect_limited if back else ps.page_effect_limited:
+        game.emit(batch, "page_turn_restricted", player=player, count=leaves, source=source)
+        return False
+    if back:
+        if not turn_back_pages(game, batch, player, -leaves, source):
+            return False                  # 已在第一頁:沒有回翻,不算用過
+        ps.page_back_effect_used = True
+    else:
+        ps.page_effect_used = True
+        turn_pages(game, batch, player, leaves, source)
+    return True
+
 
 def own_page_turn_effect(game, batch, player, leaves, source):
-    ps = game.state.players[player]
-    ps.page_effect_used = True
-    turn_pages(game, batch, player, leaves, source)
+    """P-010:翻自己的魔本,之後本回合的「翻自己魔本」效果合計只能 1 次。"""
+    own_book_turn_effect(game, batch, player, leaves, source)
+    game.state.players[player].page_effect_limited = True
 
 
 def own_page_turnback_effect(game, batch, player, leaves, source):
-    ps = game.state.players[player]
-    ps.page_back_effect_used = True
-    turn_back_pages(game, batch, player, leaves, source)
+    """P-018:回翻自己的魔本,之後本回合的「回翻自己魔本」效果合計只能 1 次。"""
+    own_book_turn_effect(game, batch, player, -leaves, source)
+    game.state.players[player].page_back_effect_limited = True
 
 
 # ---------------------------------------------------------------- 選擇
