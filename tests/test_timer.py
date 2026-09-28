@@ -5,7 +5,7 @@ import time
 
 from gash.api.app import CreateRoom, _fire_due_timeouts, create_room, join_room, post_command, store
 from gash.api.app import CommandBody
-from gash.api.rooms import awaited_player, default_command
+from gash.engine.awaiting import awaited_player, default_command
 from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import load_deck
 from gash.engine.engine import new_game, submit

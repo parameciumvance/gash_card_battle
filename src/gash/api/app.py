@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import random
 import time
 from contextlib import asynccontextmanager
 
@@ -14,12 +16,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
 from ..engine.engine import IllegalCommand, new_game, submit
-from ..engine.state import BOOK_SIZE
+from ..engine.state import BOOK_SIZE, GAME_OVER
+from ..npc import LEVELS as NPC_LEVELS
+from ..npc import decide, submit_ranked
 from ..paths import frontend_dir, resolve_assets
-from .rooms import Room, RoomError, RoomStore, awaited_player, default_command
+from .rooms import NpcSeat, Room, RoomError, RoomStore
 from .views import filter_events, snapshot
 
 FRONTEND_DIR = frontend_dir()
@@ -57,6 +62,9 @@ class CreateRoom(BaseModel):
     decks: list[dict] | None = None   # 本機房:雙方各一副([p0, p1])
     name: str | None = None           # 建房者暱稱
     names: list[str | None] | None = None  # 本機房:雙方暱稱([n0, n1])
+    npc_level: str | None = None      # NPC 房:難度(dummy / normal,缺省 normal)
+    npc_deck: dict | None = None      # NPC 房:指定的 NPC 牌組
+    npc_decks: list[dict] | None = None  # NPC 房:隨機抽選的候選牌組
 
 
 class JoinBody(BaseModel):
@@ -114,7 +122,16 @@ def _room_meta(room: Room, viewer) -> dict:
         "you": viewer,
         "names": [room.names[0], room.names[1]],   # 公開:雙方暱稱(None=用預設)
         "awaited_player": awaited_player(room.game) if room.game else None,
+        "npc": _npc_meta(room),
     }
+
+
+def _npc_meta(room: Room) -> dict | None:
+    """NPC 的座位與難度;NPC 使用的牌組在對局結束後才公開。"""
+    if room.npc is None:
+        return None
+    over = room.game is not None and room.game.state.phase == GAME_OVER
+    return {"seat": room.npc.seat, "level": room.npc.level, "deck": room.npc.deck if over else None}
 
 
 def _state_payload(room: Room, viewer) -> dict:
@@ -212,6 +229,41 @@ def _resolve_deck(spec: dict | None) -> tuple[str, ...] | None:
     return tuple(pages)
 
 
+NPC_DECK_CANDIDATES_MAX = 64
+
+
+def _npc_http_error(code: str, message: str) -> HTTPException:
+    return HTTPException(422, detail={"code": code, "message": message})
+
+
+def _deck_label(spec: dict | None) -> dict:
+    """公開用的牌組描述:預組以 id、自訂牌組以頁序(與 _resolve_deck 的判斷順序相同)。"""
+    if spec is None:
+        return {"preset": DEFAULT_PRESET}
+    if "preset" in spec:
+        return {"preset": spec.get("preset")}
+    return {"pages": list(spec["pages"])}
+
+
+def _npc_seat(body: CreateRoom) -> tuple[NpcSeat, tuple[str, ...] | None]:
+    """驗證 NPC 難度與牌組,抽選隨機牌組;回傳 NPC 座位與 NPC 牌組頁序(None=level1)。"""
+    level = body.npc_level or "normal"
+    if level not in NPC_LEVELS:
+        raise _npc_http_error("npc.bad_level", f"NPC 難度須為 {NPC_LEVELS}")
+    if body.npc_deck is not None and body.npc_decks is not None:
+        raise _npc_http_error("npc.deck_conflict", "npc_deck 與 npc_decks 只能擇一")
+    if body.npc_decks is not None and not 1 <= len(body.npc_decks) <= NPC_DECK_CANDIDATES_MAX:
+        raise _npc_http_error("npc.bad_decks", f"候選牌組須為 1 至 {NPC_DECK_CANDIDATES_MAX} 副")
+    rng = random.Random(f"npc:{body.seed}") if body.seed is not None else random.Random()
+    if body.npc_decks is not None:
+        resolved = [_resolve_deck(spec) for spec in body.npc_decks]   # 全部驗證後才抽
+        i = rng.randrange(len(resolved))
+        spec, pages = body.npc_decks[i], resolved[i]
+    else:
+        spec, pages = body.npc_deck, _resolve_deck(body.npc_deck)
+    return NpcSeat(level=level, rng=rng, deck=_deck_label(spec)), pages
+
+
 def _start_game(room: Room) -> None:
     default = _default_deck()
     deck0 = room.decks[0] or default
@@ -283,6 +335,9 @@ async def create_room(body: CreateRoom):
         resolved = [_resolve_deck(body.decks[0]), _resolve_deck(body.decks[1])]
     else:
         resolved = [_resolve_deck(body.deck), None]
+    npc_seat = None
+    if body.mode == "npc":
+        npc_seat, resolved[1] = _npc_seat(body)
     if body.mode == "local" and body.names is not None:
         names = [_clean_name(body.names[0] if len(body.names) > 0 else None),
                  _clean_name(body.names[1] if len(body.names) > 1 else None)]
@@ -306,6 +361,13 @@ async def create_room(body: CreateRoom):
         resp["player_tokens"] = [token0, token1]
         resp["events"] = filter_events(room.game.events, "all")
         resp.update(_state_payload(room, 0))
+    elif room.mode == "npc":
+        room.npc = npc_seat
+        _start_game(room)
+        resp["player_token"] = token0
+        resp["events"] = filter_events(room.game.events, 0)
+        resp.update(_state_payload(room, 0))
+        _kick_npc(room)
     else:
         resp["player_token"] = token0
         resp["join_url"] = f"/?join={room.code}"
@@ -350,6 +412,7 @@ async def post_command(code: str, body: CommandBody,
         room.touch()
         room.reset_deadline()
     await _broadcast(room, events)
+    _kick_npc(room)
     ev = _effective_viewer(room, viewer)
     return {"events": filter_events(events, ev), **_state_payload(room, viewer)}
 
@@ -358,12 +421,19 @@ def _debug_state_payload(room: Room) -> dict:
     return {"players": [{"book": list(p.book), "mp": p.mp} for p in room.game.state.players]}
 
 
+def _check_cheat_access(room: Room, viewer) -> None:
+    """金手指只開放本機房與 NPC 房的玩家;線上房與觀戰者 403。"""
+    if room.mode not in ("local", "npc"):
+        raise HTTPException(403, detail={"code": "room.not_local", "message": "僅本機測試模式與 NPC 對戰開放"})
+    if viewer == "spectator":
+        raise HTTPException(403, detail={"code": "room.spectator", "message": "觀戰者不能使用金手指"})
+
+
 @app.get("/api/rooms/{code}/debug-state")
 async def get_debug_state(code: str, x_player_token: str | None = Header(default=None)):
-    """金手指:僅本機測試模式開放,回傳雙方 book/mp 供編輯。"""
+    """金手指:僅本機測試模式與 NPC 對戰開放,回傳雙方 book/mp 供編輯。"""
     room, viewer = _resolve(code, x_player_token)
-    if room.mode != "local":
-        raise HTTPException(403, detail={"code": "room.not_local", "message": "僅本機測試模式開放"})
+    _check_cheat_access(room, viewer)
     if room.game is None:
         raise HTTPException(409, detail={"code": "room.waiting", "message": "等待對手加入"})
     return _debug_state_payload(room)
@@ -374,10 +444,7 @@ async def post_debug_state(code: str, body: DebugStateBody,
                            x_player_token: str | None = Header(default=None)):
     """金手指:驗證卡號存在、book 長度為 32 後整包取代雙方 book/mp。"""
     room, viewer = _resolve(code, x_player_token)
-    if room.mode != "local":
-        raise HTTPException(403, detail={"code": "room.not_local", "message": "僅本機測試模式開放"})
-    if viewer == "spectator":
-        raise HTTPException(403, detail={"code": "room.spectator", "message": "觀戰者不能套用金手指"})
+    _check_cheat_access(room, viewer)
     if room.game is None:
         raise HTTPException(409, detail={"code": "room.waiting", "message": "等待對手加入"})
     if len(body.players) != 2:
@@ -400,6 +467,7 @@ async def post_debug_state(code: str, body: DebugStateBody,
         room.game.emit(batch, "cheat_applied", player=None)
         room.touch()
     await _broadcast(room, batch)
+    _kick_npc(room)
     return _debug_state_payload(room)
 
 
@@ -485,6 +553,71 @@ async def _timeout_loop() -> None:
             await _fire_due_timeouts()
         except Exception:
             pass
+        for room in list(store.rooms.values()):
+            _kick_npc(room)     # 保險:輪到 NPC 卻沒有執行中的驅動時恢復
+
+
+# ---------------------------------------------------------------- NPC 驅動
+
+NPC_QUIET_DELAY = 0.3     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)送出前的等待秒數
+NPC_ACTION_DELAY = 0.9    # 其他指令
+_QUIET_COMMANDS = {"pass", "battle_in_response", "no_defense"}
+_log = logging.getLogger(__name__)
+
+
+def _npc_delay(command: dict) -> float:
+    quiet = (command["type"] in _QUIET_COMMANDS
+             or (command["type"] == "flip_pages" and command.get("count") == 0))
+    return NPC_QUIET_DELAY if quiet else NPC_ACTION_DELAY
+
+
+async def _npc_pause(seconds: float) -> None:
+    await asyncio.sleep(seconds)
+
+
+def _npc_turn(room: Room) -> bool:
+    game = room.game
+    return (room.npc is not None and game is not None and game.state.phase != GAME_OVER
+            and awaited_player(game) == room.npc.seat)
+
+
+def _kick_npc(room: Room) -> None:
+    """輪到 NPC 時啟動驅動;同一房間同時只有一個驅動 task。"""
+    if not _npc_turn(room):
+        return
+    task = room.npc.task
+    if task is not None and not task.done():
+        return
+    room.npc.task = asyncio.get_running_loop().create_task(_drive_npc(room))
+
+
+def _npc_decide(room: Room) -> list[dict]:
+    seat = room.npc
+    try:
+        return decide(room.game, seat.seat, seat.level, seat.rng)
+    except Exception:       # 模擬中的引擎錯誤不可拖垮房間:退回安全預設
+        _log.exception("NPC 決策失敗(房間 %s)", room.code)
+        return []
+
+
+async def _drive_npc(room: Room) -> None:
+    """輪到 NPC 時連續出手:決策 → 稍候 → 局面沒變才送出(變了就重新決策)→ 廣播。"""
+    game = room.game
+    while _npc_turn(room):
+        version = len(game.events)
+        ranked = _npc_decide(room)
+        await _npc_pause(_npc_delay(ranked[0]) if ranked else NPC_QUIET_DELAY)
+        async with _lock(room.code):
+            if len(game.events) != version or not _npc_turn(room):
+                continue
+            result = submit_ranked(game, room.npc.seat, ranked)
+            if result is None:
+                _log.error("NPC 沒有可送出的指令(房間 %s)", room.code)
+                return
+            events = result[1]
+            room.touch()
+            room.reset_deadline()
+        await _broadcast(room, events)
 
 
 # ---------------------------------------------------------------- 靜態資源

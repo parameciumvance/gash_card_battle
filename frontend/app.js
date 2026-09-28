@@ -1,5 +1,6 @@
 /* 金色のガッシュベル!! THE CARD BATTLE — 前端
- * 模式:本機(local, 全視角雙 token)/ 線上(online, 單 token + WS)/ 觀戰(spectator)。
+ * 模式:本機(local, 全視角雙 token)/ 線上(online, 單 token + WS)/ NPC 對戰(npc, 同線上,對手由伺服器驅動)
+ * / 觀戰(spectator)。
  * 規則裁決與資訊過濾全在後端;前端渲染視角化快照、送指令、渲染事件 log。 */
 
 "use strict";
@@ -36,8 +37,20 @@ function t(key, params = {}) {
 }
 
 function pname(p) {
+  if (R && R.npc && R.npc.seat === p) return t(`ui.npc.name.${R.npc.level}`);
   const custom = R && R.names && R.names[p];
   return custom || t("ui.player", { n: p + 1 });
+}
+
+// NPC 使用的牌組(對局結束後才由房間 meta 公開):預組名稱 / 本機儲存牌組名稱 / 「自訂牌組」
+function npcDeckName(deck) {
+  if (deck.preset) {
+    const preset = PRESETS.find((p) => p.id === deck.preset);
+    return preset ? preset.name : deck.preset;
+  }
+  const key = JSON.stringify(deck.pages);
+  const saved = DeckStore.list().find((d) => JSON.stringify(d.pages) === key);
+  return saved ? saved.name : t("ui.npc.custom_deck");
 }
 
 // 暱稱記憶(localStorage);清理與後端一致(去空白、限長 16)
@@ -58,6 +71,7 @@ function cname(num) {
 
 function myViewer() { return SESSION ? SESSION.viewer : null; }   // 0|1|"all"|"spectator"
 function isLocal() { return SESSION && SESSION.mode === "local"; }
+function isNpc() { return SESSION && SESSION.mode === "npc"; }
 function iControl(p) {
   const v = myViewer();
   return v === "all" || v === p;
@@ -220,6 +234,40 @@ async function startLocal() {
   resetLog();
   applyPayload(body);
   show("layout");
+}
+
+const NPC_RANDOM_DECK = "npc:random";
+
+// 「隨機」:所有預組與本機儲存的合法牌組都是候選
+function npcDeckCandidates() {
+  return PRESETS.map((p) => ({ preset: p.id }))
+    .concat(DeckStore.validList().map((d) => ({ pages: d.pages })));
+}
+
+async function startNpc() {
+  const payload = { mode: "npc", deck: deckPayload("deck-npc"),
+    npc_level: document.getElementById("npc-level").value,
+    name: saveNick(document.getElementById("name-npc").value) };
+  if (document.getElementById("deck-npc-opp").value === NPC_RANDOM_DECK) {
+    payload.npc_decks = npcDeckCandidates();
+  } else {
+    payload.npc_deck = deckPayload("deck-npc-opp");
+  }
+  try {
+    const body = await api("/api/rooms", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    SESSION = { code: body.code, mode: "npc", viewer: 0, tokens: { me: body.player_token } };
+    saveSession();
+    history.replaceState(null, "", `/?room=${body.code}`);
+    resetLog();
+    applyPayload(body);
+    show("layout");
+    openWS();   // NPC 的行動經 WS 推送
+  } catch (err) {
+    toast(t("ui.error", { msg: err.message }));
+  }
 }
 
 async function createRoom() {
@@ -614,12 +662,12 @@ document.getElementById("log-title").onclick = () => {
   updateLogTab();
 };
 
-// ---------------------------------------------------------------- 金手指(僅本機測試模式)
+// ---------------------------------------------------------------- 金手指(本機測試模式與 NPC 對戰)
 
 let CHEAT = null;
 let cheatGeneration = 0;
 
-function canCheat() { return isLocal() && ["all", 0, 1].includes(myViewer()); }
+function canCheat() { return (isLocal() || isNpc()) && ["all", 0, 1].includes(myViewer()); }
 function cheatCurrent(editor) { return CHEAT === editor && SESSION === editor.session && canCheat(); }
 function cheatEditable() { return CHEAT && CHEAT.players && !CHEAT.busy && cheatCurrent(CHEAT); }
 
@@ -842,7 +890,8 @@ function renderTopbar() {
   const acting = document.getElementById("acting-info");
   if (S.phase === "game_over") {
     acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
-      "(" + t(`ui.reason.${S.end_reason}`) + ")";
+      "(" + t(`ui.reason.${S.end_reason}`) + ")" +
+      (R && R.npc && R.npc.deck ? "|" + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
   } else if (S.pending) {
     acting.textContent = iControl(S.pending.player)
       ? t("ui.waiting_choice", { player: pname(S.pending.player) })
@@ -1942,6 +1991,21 @@ function renderLanding() {
   local.querySelector("button").textContent = t("ui.landing.go");
   local.querySelector("button").onclick = startLocal;
 
+  const npcEntry = document.getElementById("entry-npc");
+  npcEntry.querySelector("h2").textContent = t("ui.landing.npc");
+  npcEntry.querySelector("p").textContent = t("ui.landing.npc_desc");
+  npcEntry.querySelector("button").textContent = t("ui.landing.go");
+  npcEntry.querySelector("button").onclick = startNpc;
+  document.getElementById("npc-level-label").textContent = t("ui.npc.level");
+  const levelSel = document.getElementById("npc-level");
+  levelSel.innerHTML = "";
+  for (const level of ["normal", "dummy"]) {          // 缺省:一般
+    const opt = document.createElement("option");
+    opt.value = level;
+    opt.textContent = t(`ui.npc.level.${level}`);
+    levelSel.appendChild(opt);
+  }
+
   const create = document.getElementById("entry-create");
   create.querySelector("h2").textContent = t("ui.landing.create");
   create.querySelector("p").textContent = t("ui.landing.create_desc");
@@ -1982,20 +2046,30 @@ function renderLanding() {
   document.getElementById("name-local-1-label").textContent = t("ui.name.p2");
   document.getElementById("name-create-label").textContent = t("ui.name.self");
   document.getElementById("name-join-label").textContent = t("ui.name.self");
-  for (const id of ["name-local-0", "name-local-1", "name-create", "name-join"]) {
+  document.getElementById("name-npc-label").textContent = t("ui.name.self");
+  for (const id of ["name-local-0", "name-local-1", "name-npc", "name-create", "name-join"]) {
     document.getElementById(id).placeholder = t("ui.name.placeholder");
   }
-  document.getElementById("name-create").value = loadNick();
-  document.getElementById("name-join").value = loadNick();
+  for (const id of ["name-npc", "name-create", "name-join"]) {
+    document.getElementById(id).value = loadNick();
+  }
 
   // 牌組選單(本機×2 / 建房 / 加入)
   document.getElementById("deck-local-0-label").textContent = t("ui.deck.p1");
   document.getElementById("deck-local-1-label").textContent = t("ui.deck.p2");
   document.getElementById("deck-create-label").textContent = t("ui.deck.select");
   document.getElementById("deck-join-label").textContent = t("ui.deck.select");
-  for (const id of ["deck-local-0", "deck-local-1", "deck-create", "deck-join"]) {
+  document.getElementById("deck-npc-label").textContent = t("ui.deck.select");
+  document.getElementById("deck-npc-opp-label").textContent = t("ui.deck.npc");
+  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-create", "deck-join"]) {
     deckOptions(document.getElementById(id));
   }
+  const npcDeck = document.getElementById("deck-npc-opp");
+  const random = document.createElement("option");      // 缺省:隨機
+  random.value = NPC_RANDOM_DECK;
+  random.textContent = t("ui.deck.random");
+  npcDeck.prepend(random);
+  npcDeck.value = NPC_RANDOM_DECK;
 
   document.getElementById("share-join-label").textContent = t("ui.share.join");
   document.getElementById("share-spec-label").textContent = t("ui.share.spectate");

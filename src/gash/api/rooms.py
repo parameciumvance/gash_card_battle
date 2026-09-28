@@ -1,21 +1,27 @@
-"""房間層:Room 包裹 Game;token 即身分;計時器的等待者推導與逾時預設指令。
+"""房間層:Room 包裹 Game;token 即身分;計時器期限。
 
-引擎對房間一無所知;逾時代打即正常指令,走同一條提交路徑。
+引擎對房間一無所知;逾時代打即正常指令,走同一條提交路徑
+(等待者與安全預設指令見 engine/awaiting.py)。
 """
 
 from __future__ import annotations
 
+import random
 import secrets
 import string
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
-from ..engine.state import BATTLE, GAME_OVER, START, Game
+from ..engine.awaiting import awaited_player
+from ..engine.state import Game
 
 ROOM_CODE_ALPHABET = string.ascii_uppercase + string.digits
 ROOM_CODE_LEN = 6
 IDLE_SECONDS = 2 * 60 * 60          # 閒置回收:2 小時無活動
 TIMER_CHOICES = (None, 30, 60, 120)
+MODES = ("online", "local", "npc")
+NPC_SEAT = 1                        # NPC 房:建房者為玩家 0,NPC 為玩家 1
 
 
 class RoomError(Exception):
@@ -26,9 +32,19 @@ class RoomError(Exception):
 
 
 @dataclass
+class NpcSeat:
+    """NPC 房的 NPC 座位。rng 由房間 seed 衍生(決策與隨機牌組抽選共用),可重現整局。"""
+    level: str                                  # "dummy" | "normal"
+    rng: random.Random
+    deck: dict | None = None                    # 實際使用的牌組:{"preset": id} 或 {"pages": [...]}
+    seat: int = NPC_SEAT
+    task: Any = None                            # 目前的驅動 asyncio.Task
+
+
+@dataclass
 class Room:
     code: str
-    mode: str                                   # "online" | "local"
+    mode: str                                   # "online" | "local" | "npc"
     timer_seconds: int | None
     seed: int | None
     spectator_token: str
@@ -39,6 +55,7 @@ class Room:
     sockets: list = field(default_factory=list)   # [(websocket, viewer)]
     deadline: float | None = None                 # 逾時時刻(epoch 秒)
     last_activity: float = field(default_factory=time.time)
+    npc: NpcSeat | None = None                    # NPC 房的 NPC 座位
 
     def viewer_of(self, token: str):
         """token → viewer(0/1/"spectator");本機模式玩家 token 仍對映到各自 index。"""
@@ -75,8 +92,10 @@ class RoomStore:
 
     def create(self, mode: str, timer_seconds: int | None, seed: int | None,
                names: list | None = None) -> tuple[Room, str]:
-        if mode not in ("online", "local"):
-            raise RoomError(422, "room.bad_mode", "mode 須為 online 或 local")
+        if mode not in MODES:
+            raise RoomError(422, "room.bad_mode", "mode 須為 online、local 或 npc")
+        if mode == "npc":
+            timer_seconds = None            # NPC 房不計時
         if timer_seconds not in TIMER_CHOICES:
             raise RoomError(422, "room.bad_timer", f"timer 須為 {TIMER_CHOICES}")
         self.cleanup_idle()
@@ -114,53 +133,3 @@ class RoomStore:
         for code in [c for c, r in self.rooms.items()
                      if now - r.last_activity > IDLE_SECONDS]:
             del self.rooms[code]
-
-
-# ---------------------------------------------------------------- 計時器輔助
-
-def awaited_player(game: Game) -> int | None:
-    """目前等待哪位玩家輸入;對局結束回 None。"""
-    st = game.state
-    if st.phase == GAME_OVER:
-        return None
-    if st.pending is not None:
-        return st.pending.player
-    if st.phase == START:
-        return st.turn_player
-    if st.phase != BATTLE:
-        return None
-    if st.battle is not None:
-        if st.battle.step == "defense":
-            return st.battle.defender
-        return st.battle.data.get("effect_turn")
-    if st.battle_in is not None:
-        return 1 - st.battle_in["attacker"]
-    return st.action_player
-
-
-def default_command(game: Game) -> dict | None:
-    """逾時代打的安全預設指令(不含 player,由呼叫端補上)。"""
-    st = game.state
-    if st.phase == GAME_OVER:
-        return None
-    if st.pending is not None:
-        kind = st.pending.kind
-        if kind == "protect" or kind == "coin_confirm":
-            return {"type": "choose", "value": None}       # 不保護 / 保留硬幣
-        if kind == "paid_reflip":
-            return {"type": "choose", "value": False}      # 放棄付費重擲
-        if kind == "damage_order":
-            return {"type": "choose", "value": 0}
-        if any(o.get("label") == "skip" for o in st.pending.options):
-            return {"type": "choose", "value": None}       # 可選擇不使用的效果:不使用
-        opt = st.pending.options[0]
-        return {"type": "choose", "value": opt.get("value", opt.get("page"))}
-    if st.phase == START:
-        return {"type": "flip_pages", "count": 0}
-    if st.battle is not None:
-        if st.battle.step == "defense":
-            return {"type": "no_defense"}
-        return {"type": "pass"}
-    if st.battle_in is not None:
-        return {"type": "battle_in_response", "allow": True}  # 迎戰=依規則強制攻擊
-    return {"type": "pass"}

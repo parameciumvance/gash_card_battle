@@ -1091,7 +1091,7 @@ def test_m026_not_offered_for_partner_effects():
 
 
 def test_timeout_default_prefers_skip_option():
-    from gash.api.rooms import default_command
+    from gash.engine.awaiting import default_command
     g, _ = _jammer_battle()
     assert default_command(g) == {"type": "choose", "value": None}
 
