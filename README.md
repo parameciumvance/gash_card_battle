@@ -224,9 +224,11 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 - 只回傳值的查詢(常駐魔力加成、使用條件、傷害免疫、術相容、`damage_bonus`)不是效果,
   用 `tree.py` 裡不可變、可呼叫的規格物件登記(如 `reg.static_power(number, value=…)`)。
 
-- 舊的 `@reg.xxx` 裝飾器寫法遷移期間保留,逐卡搬到效果樹;同一張卡的同一掛鉤不能兩種都註冊。
+- 所有卡片都已遷移到效果樹,`tree_cards.py` 是唯一的逐卡註冊檔。`registry.py` 仍接受舊的
+  `@reg.xxx` 裝飾器寫法(只剩測試使用),新卡不要用;同一張卡的同一掛鉤不能兩種都註冊。
 - `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。
-- 遷移進度見 `openspec/changes/effect-tree-migration/tasks.md`(權威來源,逐卡勾選)。
+- 實作或修改卡片效果前先讀 `AGENTS.md`「實作 / 修改卡片效果」:以日文效果文為準、不可悄悄簡化、
+  每張非香草卡都要有依效果文寫的行為測試。
 
 ## 測試
 
@@ -248,8 +250,7 @@ src/gash/
       registry.py       引擎 ↔ 卡片效果的掛鉤介面
       primitives.py     效果原語(加魔力、禁止旗標、待命、互動式硬幣…)
       tree.py           效果樹:不可變節點(Choose / Coin / Standby / AddPower…)+ 直譯器
-      tree_cards.py     以效果樹註冊的卡片,依卡號排序、每卡的登記集中一處
-      partners.py       尚未遷移的夥伴卡 handler(舊寫法,遷移期保留)
+      tree_cards.py     全部卡片的效果登記,依卡號排序、每卡的登記集中一處
   api/
     app.py              FastAPI:房間端點、指令轉發、WebSocket 推送、逾時代打
     rooms.py            房間模型、token 身分、計時器(等待者推導與安全預設指令)

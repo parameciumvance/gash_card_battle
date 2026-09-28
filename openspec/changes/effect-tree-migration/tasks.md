@@ -111,30 +111,41 @@
 - [x] M-031 キクロプ(damage_immunity) — `f87fc87`
 另:M-024(`max_copies` 與「二身一体」)原本不在清單中(盤點時只看效果掛鉤),`f87fc87` 移入資料登記、`29e77c0` 補上原本缺漏的「二身一体」效果。
 
-## 5. 夥伴卡(partners.py)19 卡
+## 5. 夥伴卡(partners.py)19 卡 — 全部完成,`partners.py` 已於 `e7141c2` 刪除
 
-- [ ] P-001 高嶺清麿(activated)
-- [ ] P-002 細川(activated)
-- [ ] P-003 シェリー(activated)
-- [ ] P-004 連次(activated)
-- [ ] P-005 春彦(activated)
-- [ ] P-006 しおり(activated)
-- [ ] P-007 清兵衛(activated)
-- [ ] P-008 パルコ・フォルゴレ(activated)
-- [ ] P-009 大海恵(activated)
-- [ ] P-010 高嶺清麿(activated)
-- [ ] P-011 窪塚泳太(activated)
-- [ ] P-012 シェリー(activated)
-- [ ] P-013 ココ(trigger.mamodo_discarded)
-- [ ] P-014 ペリコ(activated)
-- [ ] P-015 リュック(activated)
-- [ ] P-016 レンブラント(activated)
-- [ ] P-017 ステング(activated)
-- [ ] P-018 ジェム(activated)
-- [ ] P-019 イギリス紳士(trigger.pages_turned)
+- [x] P-001 高嶺清麿(activated) — `e7141c2`
+- [x] P-002 細川(activated) — `e7141c2`
+- [x] P-003 シェリー(activated) — `e7141c2`
+- [x] P-004 連次(activated) — `e7141c2`
+- [x] P-005 春彦(activated) — `e7141c2`(依使用者決定:以使用術的魔物判定)
+- [x] P-006 しおり(activated) — `e7141c2`(依效果文修正)
+- [x] P-007 清兵衛(activated) — `e7141c2`(依使用者決定:以使用術的魔物判定)
+- [x] P-008 パルコ・フォルゴレ(activated) — `e7141c2`(依效果文修正)
+- [x] P-009 大海恵(activated) — `e7141c2`(依效果文修正)
+- [x] P-010 高嶺清麿(activated) — `e7141c2`(依效果文修正)
+- [x] P-011 窪塚泳太(activated) — `e7141c2`
+- [x] P-012 シェリー(activated) — `e7141c2`
+- [x] P-013 ココ(trigger.mamodo_discarded / trigger.card_discarded) — `e7141c2`(依效果文修正)
+- [x] P-014 ペリコ(activated) — `e7141c2`
+- [x] P-015 リュック(activated) — `e7141c2`
+- [x] P-016 レンブラント(activated) — `e7141c2`
+- [x] P-017 ステング(activated) — `e7141c2`
+- [x] P-018 ジェム(activated) — `e7141c2`(保留「第一頁不能用」的限制,見 design.md 第 4 節)
+- [x] P-019 イギリス紳士(trigger.pages_turned) — `e7141c2`(依效果文修正)
+
+M-008 的「スギナの術」判定與 P-005 / P-007 一起改為以使用術的魔物判定(`e7141c2`)。
+照原樣遷移的 11 張,補上依效果文的行為測試並在遷移前的程式(HEAD 的 worktree)上確認通過;
+依效果文修正的 8 張(含 M-008),測試在舊寫法上確認失敗。
+
+**待使用者決定**(不影響遷移完成,可在歸檔前或另開 change 處理):
+
+- P-001 / P-007 / M-008「このターン中の次のバトル」:目前的待命只在條件相符的戰鬥才消耗,
+  本回合第一場戰鬥不相符時會留到下一場;依效果文應只作用於本回合的下一場戰鬥。
+- P-010 / P-018「自分の魔本をめくる/もどす効果を合計1回」:目前只限制 P-010 / P-018 彼此,
+  E-005(正正回翻 2 張、反反翻 2 張自己的魔本)不受限制也不計入。
 
 ## 6. 收尾(全部遷完之後)
 
-- [ ] 6.1 確認 `mamodo.py`/`partners.py`/`events.py` 只剩檔案說明註解(或整個檔案可以刪除),`tree_cards.py` 是唯一的逐卡註冊檔(`spells.py` 已於 `972a5fe` 刪除)。
-- [ ] 6.2 更新 README「卡片效果的寫法」段落與 `openspec/changes/todo.md`,移除「其餘卡片遷移」項目。
+- [x] 6.1 確認 `mamodo.py`/`partners.py`/`events.py` 只剩檔案說明註解(或整個檔案可以刪除),`tree_cards.py` 是唯一的逐卡註冊檔(`spells.py` 已於 `972a5fe` 刪除)。— 四個舊檔都已刪除(`events.py` `ca87c12`、`mamodo.py` `eb3daa1`、`partners.py` `e7141c2`)
+- [x] 6.2 更新 README「卡片效果的寫法」段落與 `openspec/changes/todo.md`,移除「其餘卡片遷移」項目。
 - [ ] 6.3 依 AGENTS.md 流程:`/opsx:sync` 同步 delta spec 回主 spec,再 `/opsx:archive` 歸檔本 change。
