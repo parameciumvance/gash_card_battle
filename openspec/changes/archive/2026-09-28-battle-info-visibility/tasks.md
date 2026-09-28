@@ -29,9 +29,9 @@
 
 ## 5. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 5.1 同步 delta spec 回 `game-engine`、`battle-api`、`battle-ui` 主 spec
-- [ ] 5.2 Reconcile affected capability design and rationale:
+- [x] 5.1 同步 delta spec 回 `game-engine`、`battle-api`、`battle-ui` 主 spec
+- [x] 5.2 Reconcile affected capability design and rationale:
   - `game-engine/design.md` 記錄「合計由明細推得」與明細項目。
   - `battle-api/design.md`(新):快照公開欄位與私有資料的界線(`pending.info` 與 `data`、作用中效果只送整理過的欄位)。
-- [ ] 5.3 Update capability map:`battle-api` 的 design 覆蓋改為 Partial
-- [ ] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 5.3 Update capability map:`battle-api` 的 design 覆蓋改為 Partial
+- [x] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔

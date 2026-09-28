@@ -25,7 +25,7 @@
 | `effect-tree` | 卡片效果的執行機制:節點、直譯器、續體、登記入口 | Documented | Documented | 每條需求都有對應測試(`tests/test_effect_tree.py`,擲幣確認鏈另見 `tests/test_effect_characterization.py`) |
 | `card-data` | 日文權威來源抓取、`cards.json` 轉換、翻譯與卡圖資產、預組魔本資料 | Partial | Not documented | 初評 |
 | `online-room` | 房號約戰、token 身分、回合計時與逾時代打、斷線重連、觀戰、NPC 房與 NPC 座位的驅動 | Partial | Partial | 初評;design 只整理了等待者與 NPC 座位 |
-| `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Not documented | 初評 |
+| `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Partial | 初評;design 只整理了快照的公開 / 私有界線 |
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |
 | `npc-opponent` | NPC 對手的決策:資訊可見範圍、只送出引擎接受的指令、難度與基本判斷、可重現 | Documented | Documented | 測試在 `tests/test_npc.py`;NPC 房與驅動見 `online-room` |
 | `battle-ui` | 對戰畫面:首頁入口、盤面、操作與決策、行動記錄、動畫、i18n | Partial | Not documented | 初評 |
