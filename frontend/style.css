@@ -26,6 +26,10 @@
   --cell-w: 120px;
   --book-w: calc(var(--card-w) * 2 + 32px);   /* 兩頁 + 頁縫/內距/框線 */
   --book-h: calc(var(--card-h) + 36px);
+  /* 負傷卡:旋轉前為實卡比例(63:88),轉 90° 後長邊恰為魔物欄寬 */
+  --injured-h: var(--cell-w);
+  --injured-w: calc(var(--cell-w) * .716);
+  --injured-art-h: 72px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -107,12 +111,20 @@ body {
 .field-row { display: flex; gap: 10px; justify-content: center; }
 /* 框格固定尺寸:有無卡片、有無按鈕都不伸縮 */
 .mcell { display: flex; align-items: center; justify-content: center; width: var(--cell-w); }
-.mamodo-cell { height: var(--card-h); }
+.mamodo-cell { height: var(--card-h); position: relative; }
+/* 負傷:欄內保留健康卡尺寸的虛線直框,橫卡疊在上面交叉成十字 */
+.injured-frame {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: var(--card-w); height: var(--card-h); pointer-events: none;
+  border: 2px dashed rgba(217,164,65,.28); border-radius: 8px;
+}
 .partner-cell { height: var(--card-h); }  /* 搭檔欄與魔物欄同高 */
 /* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視 */
 #board .card { width: var(--card-w); height: var(--card-h); min-height: 0; overflow: hidden; }
 #board .card.small { width: var(--card-w); height: var(--card-h); }  /* 搭檔卡與魔物同尺寸 */
 #board .card img.art { height: var(--art-h); flex-shrink: 0; }
+#board .card.injured { width: var(--injured-w); height: var(--injured-h); }
+#board .card.injured img.art { height: var(--injured-art-h); }
 /* 盤面卡面只留卡名:隱藏費用/魔力/傷害(cmeta)、效果全文、日文名、卡號 */
 #board .card .cmeta,
 #board .card .ceffect,
@@ -201,8 +213,8 @@ body {
 .card.type-spell { background: #dceaf5; border-color: #3e556b; }
 .card.type-event { background: #e9dcf5; border-color: #563e6b; }
 .card.type-partner { background: #dcf5e0; border-color: #3e6b48; }
-.card.injured { transform: rotate(90deg) scale(.82); }
-.card.injured:hover { transform: rotate(90deg) scale(.85); }
+.card.injured { transform: rotate(90deg); }
+.card.injured:hover { transform: translateY(-3px) rotate(90deg); }
 .card.small { width: 96px; min-height: 104px; }
 
 #zoom-actions button, #action-bar button, #dialog-options button {
@@ -631,7 +643,7 @@ body {
    堆疊序(上→下):對手魔本(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
                    我方魔物 → 我方搭檔 → 我方魔本(對頁+MP) */
 @media (max-width: 700px) {
-  :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; }
+  :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --injured-art-h: 52px; }
 
   #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
   #topbar #title { display: none; }

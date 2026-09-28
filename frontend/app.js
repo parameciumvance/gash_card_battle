@@ -984,6 +984,11 @@ function renderFieldBlock(p, ps, isTop) {
         st.textContent = `×${slot.stack.length}`;
         m.appendChild(st);
       }
+      if (slot.injured) {                      // 虛線直框在下、橫卡在上,交叉成十字
+        const frame = document.createElement("div");
+        frame.className = "injured-frame";
+        mamodoCell.appendChild(frame);
+      }
       mamodoCell.appendChild(m);
       if (slot.partner) {
         const pt = partnerEl(p, slot);
