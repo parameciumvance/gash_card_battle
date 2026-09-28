@@ -60,6 +60,6 @@
 
 ## 已知限制
 
-- `Standby.then` 只能同步完成(見「待命」)。要支援會停下的 `then`,需先把開始階段改成可恢復的流程。
+- `Standby.then` 只能同步完成(見「待命」)。目前沒有卡需要會停下的 `then`(E-001 在使用時就選擇魔物,見 `card-effects/design.md`);將來要支援,需先把開始階段改成可恢復的流程。
 - 部分 `Choose` 的 `prompt`(= pending kind、前端 `choice.title.*` 的 key)仍含卡號,如 `e001_pick`。待另案改為依節點種類命名(`openspec/changes/todo.md`)。
 - 續體的 `path` 依賴樹的形狀。房間狀態目前只存在單一行程的記憶體(`online-room`),樹只在啟動時建立一次,所以不會遇到樹版本不一致;若日後要持久化對局,需處理樹版本。
