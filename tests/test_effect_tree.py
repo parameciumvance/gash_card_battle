@@ -348,26 +348,34 @@ def test_add_power_applies_to_bound_slot():
 # ================================================================ 新舊並存
 
 def test_tree_and_decorator_cards_coexist_in_one_game():
-    """同一局中效果樹註冊的卡(E-001)與仍是裝飾器註冊的卡(夥伴卡 P-002)都正常運作。
-    (夥伴卡排在遷移最後;全部遷完後此測試改用測試專用的舊寫法註冊。)"""
+    """同一局中效果樹註冊的卡(E-001)與以裝飾器註冊的卡都正常運作。
+    全部卡片都已遷移,因此用一張測試專用的事件卡 T-990(複製 E-003 的資料)以舊寫法註冊。"""
+    import dataclasses
     from gash.engine.engine import slot_power
     from .test_cards import book
-    assert ("E-001", "event") in tree.TREE_HOOKS                 # 效果樹註冊
-    assert "P-002" in reg.ACTIVATED and ("P-002", "activated") not in tree.TREE_HOOKS
-    g = game(book0=book(p2="E-001"))
+    g = game(book0=book(p2="E-001", p3="T-990"))
+    g.db = dict(g.db)
+    g.db["T-990"] = dataclasses.replace(g.db["E-003"], number="T-990")
+
+    @reg.event("T-990")
+    def legacy(game_, batch, player, page):
+        from gash.engine.engine import gain_mp
+        gain_mp(game_, batch, player, 5, "T-990")
+
+    assert ("E-001", "event") in tree.TREE_HOOKS and ("T-990", "event") not in tree.TREE_HOOKS
     s = slot0(g, 0)
-    s.partner = "P-002"
     base = slot_power(g, 0, s)
-    g.state.players[0].mp, g.state.players[1].mp = 0, 5
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
-    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": s.uid})
-    assert (g.state.players[0].mp, g.state.players[1].mp) == (3, 2)   # P-002(舊寫法)
-    g.state.players[0].mp = 5
-    submit(g, {"type": "pass", "player": 1})                         # 行動權回到玩家 0
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})     # E-001(樹)
     end_turn(g)
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})
     assert slot_power(g, 0, s) == base + 3000                        # 待命於下回合開始階段觸發
+    end_turn(g)
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    g.state.players[0].pos = 2                                       # 讓第 3 頁翻開
+    mp = g.state.players[0].mp
+    submit(g, {"type": "use_book_card", "player": 0, "page": 3})     # T-990(舊寫法)
+    assert g.state.players[0].mp == mp + 5
 
 
 # ================================================================ 註冊表一致性(code review CR1)
@@ -1348,3 +1356,126 @@ def test_spell_uses_per_turn_while_copies():
     assert spec(g, 0, biraitsu) is None                       # 只有 1 隻
     give(g, 0, "M-024")
     assert spec(g, 0, biraitsu) == 2 and spec(g, 0, other) is None
+
+
+# ================================================================ 夥伴卡(P-001 ~ P-019)
+
+def _battle(g, attacker, attack_slot, attack_spell="S-001"):
+    from gash.engine.state import BattleState
+    g.state.battle = BattleState(attacker=attacker, step="effects", attack_page=2,
+                                 attack_spell=attack_spell, attack_slot=attack_slot)
+    return g.state.battle
+
+
+def test_own_attack_by_judges_by_attacking_mamodo():
+    g = game()
+    brago = give(g, 0, "M-005")
+    cond = tree.OwnAttackBy("ブラゴ")
+    assert cond(g, 0) is False                                    # 不在戰鬥中
+    _battle(g, 0, brago.uid)
+    assert cond(g, 0) is True and cond(g, 1) is False             # 對手不是攻方
+    g.state.battle.attack_slot = slot0(g, 0).uid                  # 改由ガッシュ攻擊
+    assert cond(g, 0) is False
+
+
+def test_no_battle_damage_modifier_from_only_counts_same_source_this_battle():
+    from gash.engine.effects.primitives import add_modifier
+    from gash.engine.state import DUR_BATTLE, DUR_TURN
+    g = game()
+    cond = tree.NoBattleDamageModifierFrom("P-003")
+    add_modifier(g, [], kind="damage_delta", source="P-004", owner=0, duration=DUR_BATTLE, amount=2)
+    add_modifier(g, [], kind="damage_delta", source="P-003", owner=0, duration=DUR_TURN, amount=2)
+    assert cond(g, 0) is True
+    add_modifier(g, [], kind="damage_delta", source="P-003", owner=0, duration=DUR_BATTLE, amount=2)
+    assert cond(g, 0) is False
+
+
+def test_negate_opponent_spell_by_side():
+    g = game()
+    b = _battle(g, 0, slot0(g, 0).uid)
+    attack, defense, any_ = (tree.CanNegateOpponentSpell(w) for w in ("attack", "defense", "any"))
+    assert attack(g, 1) and any_(g, 1)
+    assert not attack(g, 0) and not defense(g, 0) and not any_(g, 0)   # 防方沒有用術防禦
+    b.defense_spell = "S-003"
+    assert defense(g, 0) and not defense(g, 1)
+    events = run(g, tree.NegateOpponentSpell("any"), player=0)          # 攻方:無效防禦
+    assert b.defense_negated and not b.attack_negated
+    assert [e["type"] for e in events] == ["defense_negated"]
+    run(g, tree.NegateOpponentSpell("any"), player=1)                   # 防方:無效攻擊
+    assert b.attack_negated
+    assert not any_(g, 0) and not any_(g, 1)                             # 已被無效就不能再用
+    b.attack_negated, b.attack_spell = False, None                      # 無術攻擊
+    assert not attack(g, 1)
+
+
+def test_negate_next_damage_this_battle_then_must_be_synchronous():
+    with pytest.raises(ValueError, match="Standby.then"):
+        tree.validate_tree(tree.NegateNextDamageThisBattle(
+            number="M-010", then=Choose(target=OwnMamodo(), prompt="t_pick")))
+
+
+def test_negate_next_damage_this_battle_schedules_battle_scoped_standby():
+    g = game()
+    run(g, tree.NegateNextDamageThisBattle(number="M-010"))
+    assert g.state.standby == []                                  # 場上沒有 M-010:無效果
+    koruru = give(g, 0, "M-009")
+    koruru.stack.append("M-010")
+    run(g, tree.NegateNextDamageThisBattle(number="M-010"))
+    [sb] = g.state.standby
+    assert (sb.kind, sb.data["slot_uid"], sb.data["expires"]) == ("negate_damage", koruru.uid, "battle")
+
+
+def test_discard_top_mamodo_card_keeps_lower_card():
+    g = game()
+    koruru = give(g, 0, "M-009")
+    koruru.stack.append("M-010")
+    events = run(g, tree.DiscardTopMamodoCard(number="M-010"), shielded=koruru.uid)
+    assert koruru.stack == ["M-009"] and g.state.players[0].discard[-1] == "M-010"
+    assert [(e["type"], e["card"], e["zone"]) for e in events] == [("card_discarded", "M-010", "mamodo")]
+    assert run(g, tree.DiscardTopMamodoCard(number="M-010"), shielded=koruru.uid) == []   # 頂層已不是
+    alone = give(g, 0, "M-010")
+    assert run(g, tree.DiscardTopMamodoCard(number="M-010"), shielded=alone.uid) == []    # 沒有下層
+
+
+def test_turn_opponent_pages_counts_opponent_mamodo_cards_only():
+    g = game()
+    node = tree.TurnOpponentPagesPerMamodoCardDiscarded()
+    opp = g.state.players[1]
+    pos = opp.pos
+    run(g, node, event={"type": "mamodo_discarded", "player": 0, "cards": ["M-001"]})     # 自己的
+    run(g, node, event={"type": "card_discarded", "player": 1, "card": "P-006"})          # 夥伴卡
+    run(g, node, event={"type": "card_discarded", "player": 1, "card": "S-001"})          # 術卡
+    assert opp.pos == pos
+    run(g, node, event={"type": "mamodo_discarded", "player": 1, "cards": ["M-009", "M-010"]})
+    assert opp.pos == pos + 2 * 2
+    run(g, node, event={"type": "card_discarded", "player": 1, "card": "M-002"})
+    assert opp.pos == pos + 2 * 3
+
+
+def test_reduce_opponent_mp_per_page_turned_back():
+    g = game()
+    node = tree.ReduceOpponentMpPerPageTurnedBack(per_page=2)
+    g.state.players[1].mp = 10
+    run(g, node, event={"type": "pages_turned", "player": 1, "count": 2})    # 往前翻
+    run(g, node, event={"type": "pages_turned", "player": 0, "count": -1})   # 自己回翻
+    assert g.state.players[1].mp == 10 and not g.state.players[0].opp_mp_reduced_turns
+    run(g, node, event={"type": "pages_turned", "player": 1, "count": -2})
+    assert g.state.players[1].mp == 6
+    assert g.state.turn_no in g.state.players[0].opp_mp_reduced_turns       # 算「減少對手 MP」的效果
+
+
+def test_steal_opponent_mp_gains_only_what_was_reduced():
+    # 効果文:相手のＭＰを3へらす。そうしたなら、へらした数と同じ数、自分のＭＰをふやす。
+    g = game()
+    g.state.players[0].mp, g.state.players[1].mp = 0, 2
+    run(g, tree.StealOpponentMp(amount=3))
+    assert (g.state.players[0].mp, g.state.players[1].mp) == (2, 0)
+
+
+def test_set_power_zero_this_turn_gone_target_noop():
+    g = game()
+    x = give(g, 1, "M-004")
+    run(g, tree.SetPowerZeroThisTurn(), choice=x.uid)
+    assert [(m.kind, m.target_slot) for m in g.state.modifiers] == [("power_zero", x.uid)]
+    g.state.players[1].slots.remove(x)
+    assert run(g, tree.SetPowerZeroThisTurn(), choice=x.uid) == []

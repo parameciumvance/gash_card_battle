@@ -463,11 +463,12 @@ def test_s036_damage_negated_by_p006():
     kolulu.stack.append("M-010")
     kolulu.partner = "P-006"
     to_battle(g, 0)
-    submit(g, {"type": "pass", "player": 0})  # 讓出優先權給玩家1
-    submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner", "slot_uid": kolulu.uid})
     submit(g, {"type": "declare_attack", "player": 0, "page": 2})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    # P-006 帶「バトル」圖示:在戰鬥中使用
+    submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner", "slot_uid": kolulu.uid})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
     _resolve_damage_choices(g, 1, protect_index=None)
@@ -1092,6 +1093,379 @@ def test_timeout_default_prefers_skip_option():
     from gash.api.rooms import default_command
     g, _ = _jammer_battle()
     assert default_command(g) == {"type": "choose", "value": None}
+
+
+# ---------------------------------------------------------------- 夥伴卡:依使用者決定與效果文
+
+def _pokkerio_uses_sugina_spell(setup):
+    """場上有 M-008 スギナ 與 M-023 ポッケリオ(可用木屬性術);第 2 頁為スギナ的 S-014(木)。"""
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-008", "S-014"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    pokkerio = MamodoSlot(uid=st.next_uid(), stack=["M-023"])
+    st.players[0].slots.append(pokkerio)
+    sugina = st.players[0].slots[0]
+    to_battle(g, 0)
+    setup(g, sugina)
+    return g, sugina, pokkerio
+
+
+def test_p005_cost_zero_only_when_sugina_uses_the_spell():
+    # 使用者決定:「スギナ」の術 以使用術的魔物判定 → ポッケリオ 用 スギナ 的術不免費
+    from gash.engine.engine import spell_cost
+    def use_p005(g, sugina):
+        sugina.partner = "P-005"
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": sugina.uid})
+        submit(g, {"type": "pass", "player": 1})
+    g, sugina, pokkerio = _pokkerio_uses_sugina_spell(use_p005)
+    card = g.db["S-014"]
+    mp = g.state.players[0].mp
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": pokkerio.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})   # 開戰時才扣費
+    assert g.state.players[0].mp == mp - card.cost
+    assert spell_cost(g, 0, 2, card, slot=sugina) == 0
+    assert spell_cost(g, 0, 2, card, slot=pokkerio) == card.cost
+    assert spell_cost(g, 0, 2, card) == 0                             # 未指定魔物:取可用魔物中最低
+
+
+def test_m008_bonus_only_when_sugina_uses_the_spell():
+    def use_m008(g, sugina):
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": sugina.uid})
+        submit(g, {"type": "pass", "player": 1})
+    g, sugina, pokkerio = _pokkerio_uses_sugina_spell(use_m008)
+    card = g.db["S-014"]
+    mp = g.state.players[0].mp
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": pokkerio.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert g.state.players[0].mp == mp - card.cost                    # 不減費
+    assert g.state.battle.data.get("attack_spell_bonus", 0) == 0     # 不減魔力
+
+
+def test_p006_only_usable_in_battle():
+    g, _ = mk(book("M-009"), book("M-001"))
+    st = g.state
+    koruru = st.players[0].slots[0]
+    koruru.stack.append("M-010")
+    koruru.partner = "P-006"
+    to_battle(g, 0)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": koruru.uid})
+    assert e.value.code == "ability.timing"
+
+
+def test_p006_negation_lasts_only_this_battle():
+    # 效果文:【スタンバイ】このバトル中、…ダメージを受けないとき → 只在這場戰鬥中
+    g, _ = mk(book("M-001", "S-001", "S-001"), book("M-009", "S-016"))
+    st = g.state
+    koruru = st.players[1].slots[0]
+    koruru.stack.append("M-010")
+    koruru.partner = "P-006"
+    st.players[0].mp, st.players[1].mp = 10, 10
+    to_battle(g, 0)
+    # 第 1 場:防方以 S-016 防禦並使用 P-006,再加魔力確保防方獲勝 → コルル 沒受傷
+    from gash.engine.effects.primitives import add_power
+    from gash.engine.state import DUR_BATTLE
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner", "slot_uid": koruru.uid})
+    add_power(g, [], source="test", owner=1, target_player=1, target_slot=koruru.uid,
+              amount=10000, duration=DUR_BATTLE)
+    while st.battle is not None and st.pending is None:
+        submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
+    assert st.battle is None and koruru.injured is False
+    # 第 2 場:以 コルル 保護魔本 → 受傷(P-006 的效果已隨上一場戰鬥結束)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 3})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    _run_attack_to_damage(g, 0, 1)
+    assert st.pending.kind == "protect"
+    events = submit(g, {"type": "choose", "player": 1, "value": koruru.uid})
+    assert not [e for e in events if e["type"] == "damage_negated"]
+    assert st.slot_by_uid(1, koruru.uid).injured is True
+
+
+def test_p008_discarded_partner_counts_as_discarded_this_turn():
+    # 效果文:相手のパートナーカード1枚を選び、捨て札にする → 算是「本回合入墓」,對手的 E-022 可取回
+    g, _ = mk(book("M-001", "E-022"), book("M-012"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-001"
+    st.players[1].slots[0].partner = "P-008"
+    st.players[0].mp, st.players[1].mp = 10, 10
+    g.rng = Rng(HEADS)
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})                          # 行動權到玩家 1
+    submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner",
+               "slot_uid": st.players[1].slots[0].uid})               # P-008 棄掉玩家 0 的 P-001
+    assert st.players[0].slots[0].partner is None
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})      # E-022 擲幣正 → 取回
+    assert st.players[0].slots[0].partner == "P-001"
+
+
+def _armored_attack_until_defender_acts():
+    """玩家 0 以裝甲巴爾特羅無術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
+    g, _ = mk(book("M-028", "S-048", "M-027"), book("M-004"))
+    st = g.state
+    st.players[0].mp = 10
+    st.players[1].slots[0].partner = "P-009"
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    slot = st.players[0].slots[0]
+    submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": slot.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    return g
+
+
+def test_p009_cannot_negate_spellless_attack():
+    # 效果文:このバトルの、相手が使った「術」1つを無効にする → 無術攻擊不是術
+    g = _armored_attack_until_defender_acts()
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner",
+                   "slot_uid": g.state.players[1].slots[0].uid})
+    assert e.value.code == "ability.condition"
+
+
+def _p013_game():
+    """玩家 0:M-022 ゾフィス 裝 P-013 ココ,另有 M-029 ゼオン(7MP 棄掉對手負傷魔物)。"""
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-022"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 20
+    st.players[0].slots[0].partner = "P-013"
+    zeon = MamodoSlot(uid=st.next_uid(), stack=["M-029"])
+    st.players[0].slots.append(zeon)
+    to_battle(g, 0)
+    return g, zeon
+
+
+@pytest.mark.parametrize("stack,pages", [(["M-009", "M-010"], 2), (["M-028", "M-027"], 1)])
+def test_p013_turns_one_page_per_opponent_mamodo_card(stack, pages):
+    # 效果文:相手の魔物カード1枚が捨て札になるたびに、相手の魔本を1枚めくる
+    #   疊著兩張的魔物整隻入墓 → 2 張;裝甲單獨入墓(本體留下)→ 1 張
+    from gash.engine.state import MamodoSlot
+    g, zeon = _p013_game()
+    st = g.state
+    target = MamodoSlot(uid=st.next_uid(), stack=list(stack), injured=True)
+    st.players[1].slots.append(target)
+    pos1 = st.players[1].pos
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": zeon.uid})
+    assert st.players[1].pos == pos1 + 2 * pages
+
+
+def test_p013_counts_mamodo_card_discarded_from_book():
+    from gash.engine.state import MamodoSlot
+    g, _ = _p013_game()
+    st = g.state
+    st.players[1].book[9] = "M-002"                         # 對手魔本第 10 頁放一張魔物卡
+    fein = MamodoSlot(uid=st.next_uid(), stack=["M-011"])
+    st.players[0].slots.append(fein)
+    pos1 = st.players[1].pos
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": fein.uid})
+    assert st.pending is None                               # 唯一的魔物卡 → 自動選
+    assert "M-002" in st.players[1].discard
+    assert st.players[1].pos == pos1 + 2
+
+
+def test_p019_two_mp_per_page_turned_back():
+    # 效果文:相手が相手自身の魔本のページを1枚もどすたびに、相手のMPを2へらす
+    g, _ = mk(book("M-001"), book("M-001", "E-005"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-019"
+    to_battle(g, 0)
+    _end_turn(g)
+    g.rng = Rng(HEADS, HEADS)
+    st.players[1].mp, st.players[1].pos = 10, 6            # 翻開 6、7;可回翻 2 張
+    st.players[1].book[5] = "E-005"
+    submit(g, {"type": "use_book_card", "player": 1, "page": 6})   # E-005 正正 → 回翻 2 張
+    assert st.players[1].pos == 2
+    assert st.players[1].mp == 10 - g.db["E-005"].cost - 2 * 2
+
+
+def test_p010_usable_on_last_page_and_turning_past_end_loses():
+    # 效果文沒有限制:在最後一頁使用 → 自己的魔本翻完 → 敗北
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-010"
+    st.players[0].pos = 32
+    to_battle(g, 0)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner",
+               "slot_uid": st.players[0].slots[0].uid})
+    assert st.phase == "game_over" and st.winner == 1
+
+
+# ---------------------------------------------------------------- 夥伴卡(照原樣遷移者的行為測試)
+
+def _use_partner(g, player, slot):
+    return submit(g, {"type": "use_field_ability", "player": player, "zone": "partner", "slot_uid": slot.uid})
+
+
+def test_p011_player_chooses_opponent_mamodo_power_zero_this_turn():
+    # 效果文:相手の魔物1体を選ぶ。このターン中、その魔物の魔力を0にする。
+    from gash.engine.engine import slot_power
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    me = st.players[0].slots[0]
+    me.partner = "P-011"
+    a = st.players[1].slots[0]
+    b = MamodoSlot(uid=st.next_uid(), stack=["M-004"])
+    st.players[1].slots.append(b)
+    to_battle(g, 0)
+    _use_partner(g, 0, me)
+    assert st.pending.kind == "p011_pick" and st.pending.player == 0
+    with pytest.raises(IllegalCommand) as e:                           # 對手不能代選
+        submit(g, {"type": "choose", "player": 1, "value": b.uid})
+    assert e.value.code == "choice.required" and st.pending.kind == "p011_pick"
+    submit(g, {"type": "choose", "player": 0, "value": b.uid})
+    assert slot_power(g, 1, b) == 0 and slot_power(g, 1, a) == 4000
+    _end_turn(g)
+    assert slot_power(g, 1, b) == 3000                                 # 只到本回合結束
+
+
+@pytest.mark.parametrize("page,attacker_top,discarded", [
+    (2, "M-005", True),                     # ブラゴ 的 S-008 → 保護的魔物入墓
+    (3, "M-001", False),                    # ガッシュ 的 S-001 → 只受傷
+])
+def test_p012_protector_of_own_brago_damage_is_discarded(page, attacker_top, discarded):
+    # 効果文:このターン中、自分の「ブラゴ」によるダメージを「かばって」、ダメージを受けた魔物は捨て札になる。
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-005", "S-008", "S-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    brago = st.players[0].slots[0]
+    brago.partner = "P-012"
+    st.players[0].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-001"]))
+    protector = MamodoSlot(uid=st.next_uid(), stack=["M-004"])
+    st.players[1].slots.append(protector)
+    to_battle(g, 0)
+    _use_partner(g, 0, brago)
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "declare_attack", "player": 0, "page": page,
+               "slot_uid": slot_uid(g, 0, attacker_top)})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    _run_attack_to_damage(g, 0, 1)
+    assert st.pending.kind == "protect"
+    submit(g, {"type": "choose", "player": 1, "value": protector.uid})
+    if discarded:
+        assert protector not in st.players[1].slots and "M-004" in st.players[1].discard
+    else:
+        assert protector in st.players[1].slots and protector.injured is True
+
+
+def test_p014_opponent_cannot_attack_with_spells_this_turn():
+    # 効果文:このターン中、相手は術で攻撃できない。
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    st.players[1].slots[0].partner = "P-014"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    _use_partner(g, 1, st.players[1].slots[0])                         # 對手在我的回合使用
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    assert e.value.code == "spell.attack_restricted"
+    _end_turn(g)                                                       # 結束玩家 0 的回合
+    _end_turn(g)                                                       # 結束玩家 1 的回合
+    if st.phase == "start":
+        submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    assert st.turn_player == 0 and st.phase == BATTLE
+    submit(g, {"type": "declare_attack", "player": 0, "page": st.players[0].pos})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert st.battle.attack_spell == "S-029"                           # 下一個回合可以攻擊
+
+
+def _spell_battle(defend, p0_partner=None, p1_partner=None):
+    """玩家 0 以 S-001 攻擊;玩家 1 以 S-029 防禦(defend)或不防禦。效果階段由攻方先行動。"""
+    g, _ = mk(book("M-001", "S-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    st.players[0].slots[0].partner = p0_partner
+    st.players[1].slots[0].partner = p1_partner
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    if defend:
+        submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    else:
+        submit(g, {"type": "no_defense", "player": 1})
+    return g
+
+
+def test_p016_defender_negates_opponent_spell_attack():
+    # 効果文:このバトルの、相手の術による攻撃1つを無効にする。
+    g = _spell_battle(defend=False, p1_partner="P-016")
+    st = g.state
+    submit(g, {"type": "pass", "player": 0})
+    events = _use_partner(g, 1, st.players[1].slots[0])
+    assert st.battle.attack_negated is True
+    assert [e["source"] for e in events if e["type"] == "attack_negated"] == ["P-016"]
+
+
+def test_p016_attacker_cannot_use_it():
+    g = _spell_battle(defend=True, p0_partner="P-016")
+    with pytest.raises(IllegalCommand) as e:
+        _use_partner(g, 0, g.state.players[0].slots[0])
+    assert e.value.code == "ability.condition"
+
+
+def test_p016_cannot_negate_spellless_attack():
+    g = _armored_attack_until_defender_acts()
+    g.state.players[1].slots[0].partner = "P-016"
+    with pytest.raises(IllegalCommand) as e:
+        _use_partner(g, 1, g.state.players[1].slots[0])
+    assert e.value.code == "ability.condition"
+
+
+def test_p017_attacker_negates_opponent_spell_defense():
+    # 効果文:このバトルの、相手の術による防御1つを無効にする。
+    g = _spell_battle(defend=True, p0_partner="P-017")
+    st = g.state
+    events = _use_partner(g, 0, st.players[0].slots[0])
+    assert st.battle.defense_negated is True
+    assert [e["source"] for e in events if e["type"] == "defense_negated"] == ["P-017"]
+
+
+@pytest.mark.parametrize("defend,user", [(False, 0), (True, 1)])
+def test_p017_needs_opponent_spell_defense(defend, user):
+    # 對手沒有以術防禦(不防禦)、或自己是防方時都不能使用
+    partners = {"p0_partner": "P-017"} if user == 0 else {"p1_partner": "P-017"}
+    g = _spell_battle(defend=defend, **partners)
+    st = g.state
+    if user == 1:
+        submit(g, {"type": "pass", "player": 0})
+    with pytest.raises(IllegalCommand) as e:
+        _use_partner(g, user, st.players[user].slots[0])
+    assert e.value.code == "ability.condition"
+
+
+def test_p018_turn_back_one_leaf():
+    # 効果文:自分の魔本を1枚もどす。
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    me = st.players[0].slots[0]
+    me.partner = "P-018"
+    to_battle(g, 0)
+    st.players[0].pos = 6
+    events = _use_partner(g, 0, me)
+    assert st.players[0].pos == 4 and me.partner is None
+    assert [e["count"] for e in events if e["type"] == "pages_turned"] == [-1]
+
+
+def test_p018_not_usable_on_first_page():
+    # 保留舊寫法的限制:魔本在第一頁時無法回翻(否則會空用效果並誤觸對手的 P-019)
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    me = st.players[0].slots[0]
+    me.partner = "P-018"
+    to_battle(g, 0)
+    assert st.players[0].pos == 2
+    with pytest.raises(IllegalCommand) as e:
+        _use_partner(g, 0, me)
+    assert e.value.code == "ability.condition"
 
 
 # ---------------------------------------------------------------- 事件卡 j 版差異(E-018)

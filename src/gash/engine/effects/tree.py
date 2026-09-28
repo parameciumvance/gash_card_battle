@@ -244,11 +244,15 @@ class OwnHasPartner:
 
 @dataclass(frozen=True)
 class OwnFieldHas:
-    """自己場上有頂層為 number 的魔物(S-048 需要場上有巴爾特羅本體)。"""
+    """自己場上有頂層為 number 的魔物(S-048 需要巴爾特羅本體 / P-006 需要コルル(変身後))。
+    可當 When 條件(test),也可當啟動條件(fn(game, player, slot))。"""
     number: str
 
     def test(self, game, ctx) -> bool:
         return any(s.top == self.number for s in game.state.players[ctx["player"]].slots)
+
+    def __call__(self, game, player, slot=None) -> bool:
+        return self.test(game, {"player": player})
 
 
 @dataclass(frozen=True)
@@ -786,6 +790,34 @@ def _flip(rt: Run, ctx: dict, path: tuple, count: int, flipper: int):
 
 
 @dataclass(frozen=True)
+class NegateNextDamageThisBattle(Effect):
+    """[待命] 本場戰鬥中,自己頂層為 number 的魔物下一次受到傷害時不受該傷害,之後解決 then
+    (脫離式,同 Standby;then 只能同步完成)。ctx["shielded"] 為受保護魔物的 UID(P-006)。"""
+    number: str = ""
+    then: Effect = field(default_factory=Nothing)
+
+    def children(self):
+        return (self.then,)
+
+    @property
+    def may_suspend(self) -> bool:
+        return False
+
+    def run(self, rt, ctx, path):
+        slot = next((s for s in rt.game.state.players[ctx["player"]].slots if s.top == self.number), None)
+        if slot is None:
+            return True
+        ctx = dict(ctx, shielded=slot.uid)
+        schedule_standby(rt.game, rt.batch, kind="negate_damage", source=ctx["source"], owner=ctx["player"],
+                         data={"slot_uid": slot.uid, "after": "effect_tree_resume", "expires": "battle",
+                               CONT_KEY: rt.cont(ctx, path, floor=len(path) + 1)})
+        return True
+
+    def resume(self, rt, ctx, value, path, floor):
+        self.then.run(rt, ctx, path + (0,))
+
+
+@dataclass(frozen=True)
 class Coin(Effect):
     """由 flipper 擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。
 
@@ -936,11 +968,14 @@ class NegateAttack(Effect):
 
 @dataclass(frozen=True)
 class MakeNextAttackUndefendable(Effect):
-    """[待命] 本回合下一場戰鬥的攻擊不可被防禦。"""
+    """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在由該家族的魔物攻擊時生效
+    (以使用術的魔物判定,指示術由該魔物使用時也適用)(P-001)。"""
+    mamodo: str | None = None
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
-                         source=ctx["source"], owner=ctx["player"])
+                         source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": self.mamodo} if self.mamodo else None)
         return True
 
 
@@ -1627,6 +1662,184 @@ class ReturnDiscardToBook(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class StealOpponentMp(Effect):
+    """對手 MP 減少 amount,自己增加實際減少的量(P-002)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        actual = reduce_opponent_mp(rt.game, rt.batch, ctx["player"], self.amount, ctx["source"])
+        gain_mp(rt.game, rt.batch, ctx["player"], actual, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class IncreaseAttackDamage(Effect):
+    """本場戰鬥中,自己攻擊的魔物造成的傷害 +amount(P-003)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..state import DUR_BATTLE
+        b = rt.game.state.battle
+        add_modifier(rt.game, rt.batch, kind="damage_delta", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_BATTLE, target_player=ctx["player"], target_slot=b.attack_slot,
+                     amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class DoubleAttackDamage(Effect):
+    """本場戰鬥中,自己攻擊的魔物造成的傷害 ×2(P-004)。"""
+
+    def run(self, rt, ctx, path):
+        from ..state import DUR_BATTLE
+        b = rt.game.state.battle
+        add_modifier(rt.game, rt.batch, kind="damage_double", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_BATTLE, target_player=ctx["player"], target_slot=b.attack_slot)
+        return True
+
+
+@dataclass(frozen=True)
+class SpellsCostZeroThisTurn(Effect):
+    """本回合 mamodo 使用的術費用為 0(以使用術的魔物判定,指示術也適用)(P-005)。"""
+    mamodo: str = ""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="spell_cost_zero", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"], data={"mamodo": self.mamodo})
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardTopMamodoCard(Effect):
+    """把 target 綁定魔物頂層的 number 棄掉、下層留在場上(P-006「下のカードを残して捨て札」)。"""
+    number: str = ""
+    target: Ref = Ref("shielded")
+
+    def run(self, rt, ctx, path):
+        from ..engine import to_discard
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(player, ctx[self.target.name])
+        if slot is None or slot.top != self.number or len(slot.stack) < 2:
+            return True
+        slot.stack.pop()
+        to_discard(rt.game.state.players[player], self.number)
+        rt.game.emit(rt.batch, "card_discarded", player=player, card=self.number, zone="mamodo",
+                     reason=ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class NegateOpponentSpell(Effect):
+    """使本場戰鬥中對手的術無效(which 見 CanNegateOpponentSpell)(P-009 / P-016 / P-017)。"""
+    which: str = "any"
+
+    def run(self, rt, ctx, path):
+        b = rt.game.state.battle
+        side = _negatable_opponent_spell(rt.game, ctx["player"], self.which)
+        if side == "attack":
+            b.attack_negated = True
+            rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
+        elif side == "defense":
+            b.defense_negated = True
+            rt.game.emit(rt.batch, "defense_negated", source=ctx["source"], player=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class TurnOwnPagesOncePerTurn(Effect):
+    """翻自己的魔本 leaves 張,並記錄本回合已用過「翻自己魔本」的效果(P-010);翻完即敗。"""
+    leaves: int = 1
+
+    def run(self, rt, ctx, path):
+        from .primitives import own_page_turn_effect
+        own_page_turn_effect(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class TurnOwnPagesBackOncePerTurn(Effect):
+    """回翻自己的魔本 leaves 張,並記錄本回合已用過「回翻自己魔本」的效果(P-018)。"""
+    leaves: int = 1
+
+    def run(self, rt, ctx, path):
+        from .primitives import own_page_turnback_effect
+        own_page_turnback_effect(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class SetPowerZeroThisTurn(Effect):
+    """本回合 target 綁定的對手魔物魔力為 0(P-011)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        opp = 1 - ctx["player"]
+        slot = rt.game.state.slot_by_uid(opp, ctx[self.target.name])
+        if slot is None:
+            return True
+        add_modifier(rt.game, rt.batch, kind="power_zero", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=opp, target_slot=slot.uid)
+        return True
+
+
+@dataclass(frozen=True)
+class ProtectorsDiscardedThisTurn(Effect):
+    """本回合「保護」mamodo 造成的傷害而受傷的魔物改為入墓(P-012)。"""
+    mamodo: str = ""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="protect_discard", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"], data={"mamodo": self.mamodo})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleSpellFromAnyPage(Effect):
+    """[待命] 本回合一次,可使用自己魔本任意頁上名為 spell 的術卡(P-015)。"""
+    spell: str = ""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
+                         data={"spell_name": self.spell})
+        return True
+
+
+@dataclass(frozen=True)
+class TurnOpponentPagesPerMamodoCardDiscarded(Effect):
+    """觸發器:對手每有 1 張魔物卡入墓,翻對手魔本 1 張(P-013)。
+    事件 mamodo_discarded(整隻魔物入墓)依其中的魔物卡張數計;card_discarded(疊放頂層單獨入墓、
+    自魔本棄卡等)只在該卡為魔物卡時計 1 張。"""
+
+    def run(self, rt, ctx, path):
+        from ..cards import MAMODO
+        ev = ctx["event"]
+        opp = 1 - ctx["player"]
+        if ev.get("player") != opp:
+            return True
+        if ev["type"] == "mamodo_discarded":
+            count = sum(1 for n in ev.get("cards", []) if rt.game.db[n].type == MAMODO)
+        else:
+            count = 1 if rt.game.db[ev["card"]].type == MAMODO else 0
+        if count:
+            turn_pages(rt.game, rt.batch, opp, count, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class ReduceOpponentMpPerPageTurnedBack(Effect):
+    """觸發器:對手每回翻自己的魔本 1 張,對手 MP 減少 per_page(P-019)。"""
+    per_page: int = 0
+
+    def run(self, rt, ctx, path):
+        ev = ctx["event"]
+        pages = -ev.get("count", 0)
+        if ev.get("player") == 1 - ctx["player"] and pages > 0:
+            reduce_opponent_mp(rt.game, rt.batch, ctx["player"], self.per_page * pages, ctx["source"])
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
@@ -1694,6 +1907,71 @@ class Never:
 
     def __call__(self, game, player, slot) -> bool:
         return False
+
+
+@dataclass(frozen=True)
+class OwnAttackBy:
+    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用術的魔物判定)。"""
+    mamodo: str
+
+    def __call__(self, game, player, slot=None) -> bool:
+        b = game.state.battle
+        if b is None or b.attacker != player:
+            return False
+        attacker = game.state.slot_by_uid(player, b.attack_slot)
+        return attacker is not None and game.db[attacker.top].related_mamodo == self.mamodo
+
+
+@dataclass(frozen=True)
+class NoBattleDamageModifierFrom:
+    """本場戰鬥尚未套用過 source 的傷害加成(「重複しない」:P-003 / P-004)。"""
+    source: str
+
+    def __call__(self, game, player, slot=None) -> bool:
+        from ..state import DUR_BATTLE
+        return not any(m.kind in ("damage_delta", "damage_double") and m.source == self.source
+                       and m.duration == DUR_BATTLE for m in game.state.modifiers)
+
+
+@dataclass(frozen=True)
+class CanNegateOpponentSpell:
+    """目前的戰鬥中,對手有可被無效的術(P-009 any / P-016 attack / P-017 defense)。
+    attack:自己是防方、對手以術攻擊(無術攻擊不算)且尚未被無效;defense:自己是攻方、對手以術防禦且尚未被無效。"""
+    which: str = "any"
+
+    def __call__(self, game, player, slot=None) -> bool:
+        return _negatable_opponent_spell(game, player, self.which) is not None
+
+
+def _negatable_opponent_spell(game, player, which):
+    """回傳 "attack" / "defense"(可被無效的對手術)或 None。"""
+    b = game.state.battle
+    if b is None:
+        return None
+    if which in ("attack", "any") and b.defender == player and b.attack_spell is not None \
+            and not b.attack_negated:
+        return "attack"
+    if which in ("defense", "any") and b.attacker == player and b.defense_spell is not None \
+            and not b.defense_negated:
+        return "defense"
+    return None
+
+
+@dataclass(frozen=True)
+class OwnPageTurnEffectAvailable:
+    """本回合尚未使用「翻自己魔本」的效果(P-010;依效果文,翻完魔本而敗北也可以使用)。"""
+
+    def __call__(self, game, player, slot=None) -> bool:
+        return not game.state.players[player].page_effect_used
+
+
+@dataclass(frozen=True)
+class OwnPageTurnBackEffectAvailable:
+    """本回合尚未使用「回翻自己魔本」的效果,且魔本不在第一頁(P-018;在第一頁時無法回翻)。"""
+
+    def __call__(self, game, player, slot=None) -> bool:
+        ps = game.state.players[player]
+        return not ps.page_back_effect_used and ps.pos > 2
 
 
 @dataclass(frozen=True)
@@ -1845,7 +2123,7 @@ def validate_tree(root: Effect) -> None:
         prompt = getattr(node, "prompt", None)
         if prompt is not None and (prompt in RESERVED_KINDS or prompt in reg.CHOICE_RESOLVERS):
             raise ValueError(f"{type(node).__name__}.prompt {prompt!r} 與既有 pending kind 相同")
-        if isinstance(node, Standby) and node.then.may_suspend:
+        if isinstance(node, (Standby, NegateNextDamageThisBattle)) and node.then.may_suspend:
             raise ValueError("Standby.then 只能同步完成,不可包含 Choose / Coin")
         for c in node.children():
             walk(c)

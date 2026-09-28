@@ -13,33 +13,40 @@
 """
 
 from ..state import (
-    DUR_BATTLE, DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
+    DUR_BATTLE, DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK_SPELL, NO_MAMODO_EFFECTS,
+    NO_PARTNER_EFFECTS, NO_SPELLS,
 )
 from . import registry as reg
 from .tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPower,
     AddPowerToAllOpponentMamodo, AdjustDefenseDamage, All, Always, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner,
-    Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose, Coin, CoinWithPaidReflip,
-    DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DeployMamodoFromBook,
-    DeployableMamodoInOwnBook, DetachedFromSelf, DisableBookProtection, DiscardChosenMamodo,
-    DiscardChosenOpponentMamodo, DiscardChosenPartner, DiscardFromOpponentBook,
-    DiscardFromOpponentBookPayCost, DiscardOtherPartners, DiscardOwnMamodoByNumber,
-    DiscardedCardsToReturn, GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions,
-    HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo, HealSlot, ImmuneToSpellDamageAtMost,
+    Bound, CanNegateOpponentSpell, CanUseSpellNamed, CanUseSpellsWithAttr, Choose, Coin,
+    CoinWithPaidReflip, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo,
+    DeployMamodoFromBook, DeployableMamodoInOwnBook, DetachedFromSelf, DisableBookProtection,
+    DiscardChosenMamodo, DiscardChosenOpponentMamodo, DiscardChosenPartner,
+    DiscardFromOpponentBook, DiscardFromOpponentBookPayCost, DiscardOtherPartners,
+    DiscardOwnMamodoByNumber, DiscardTopMamodoCard, DiscardedCardsToReturn, DoubleAttackDamage,
+    GainMp, GainMpPerDamage, GainMpPerHeads, GrantFullImmune, HasOptions, HeadsAtLeast, HeadsCount,
+    HealFirstInjuredMamodo, HealSlot, ImmuneToSpellDamageAtMost, IncreaseAttackDamage,
     IncreaseSelfDamage, LockChosenOpponentMamodo, MakeAttackUndefendable,
-    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack, Never, NextStartPhase,
-    Nothing, OpponentBookCards, OpponentInjuredMamodo, OpponentMamodo,
-    OpponentOpenPagesLackDefenseSpell, OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookCopiesOf,
-    OwnBookPartnerNamed, OwnEarlierPages, OwnEmptyBookPages, OwnFieldHas, OwnHasPartner,
-    OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
-    OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlaceMamodoFromBookUpTo,
-    PlayMamodoFromBook, PlayablePartnerInDiscard, PreventDamageToSelf, ReduceOpponentMp,
-    ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers, RestrictOpponent,
-    ReturnDiscardToBook, RevealOpponentBook, RobnosTransformMode, ScheduleInjureInsteadNextWin,
-    ScheduleNextSpellBonus, ScheduleNoProtectBookNextBattle, ScheduleSkipEndFlip, SelfHasNoPartner,
-    SelfHasPartner, SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SideIs,
-    SlotsForBookPartner, SpellUsesPerTurnWhileCopies, StackFromBookOnto, Standby, SwapBookPages,
+    MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
+    NegateNextDamageThisBattle, NegateOpponentSpell, Never, NextStartPhase,
+    NoBattleDamageModifierFrom, Nothing, OpponentBookCards, OpponentInjuredMamodo, OpponentMamodo,
+    OpponentOpenPagesLackDefenseSpell, OpponentPartneredMamodo, OwnAttackBy, OwnBookAtLastPage,
+    OwnBookCopiesOf, OwnBookPartnerNamed, OwnEarlierPages, OwnEmptyBookPages, OwnFieldHas,
+    OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost,
+    OwnOpenPages, OwnPageTurnBackEffectAvailable, OwnPageTurnEffectAvailable, OwnPartneredMamodo,
+    PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlaceMamodoFromBookUpTo, PlayMamodoFromBook,
+    PlayablePartnerInDiscard, PreventDamageToSelf, ProtectorsDiscardedThisTurn, ReduceOpponentMp,
+    ReduceOpponentMpPerPageTurnedBack, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    RestrictBothPlayers, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook,
+    RobnosTransformMode, ScheduleInjureInsteadNextWin, ScheduleNextSpellBonus,
+    ScheduleNoProtectBookNextBattle, ScheduleSkipEndFlip, ScheduleSpellFromAnyPage,
+    SelfHasNoPartner, SelfHasPartner, SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence,
+    SetPowerZeroThisTurn, SideIs, SlotsForBookPartner, SpellUsesPerTurnWhileCopies,
+    SpellsCostZeroThisTurn, StackFromBookOnto, Standby, StealOpponentMp, SwapBookPages,
+    TurnOpponentPagesPerMamodoCardDiscarded, TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn,
     TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp, has_own_injured_mamodo,
     has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo, opponent_has_mamodo,
     opponent_has_partner, opponent_then_self,
@@ -318,6 +325,61 @@ reg.activated("M-030", mode="declare", timing="nonbattle", per_game=True, condit
               effect=ScheduleSkipEndFlip())
 
 reg.damage_immunity("M-031", check=ImmuneToSpellDamageAtMost(total=6000))
+
+# ================================================================ 夥伴卡
+# 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
+# 「某魔物の術 / 某魔物による」類效果以「使用術的魔物」判定,指示術由該魔物使用時也適用。
+
+reg.activated("P-001", mode="discard", timing="nonbattle",
+              effect=MakeNextAttackUndefendable(mamodo="ガッシュ・ベル"))
+reg.activated("P-002", mode="discard", timing="nonbattle", effect=StealOpponentMp(amount=3))
+reg.activated("P-003", mode="discard", timing="battle",
+              condition=All(OwnAttackBy("ブラゴ"), NoBattleDamageModifierFrom("P-003")),
+              effect=IncreaseAttackDamage(amount=2))
+reg.activated("P-004", mode="discard", timing="battle",
+              condition=All(OwnAttackBy("ゴフレ"), NoBattleDamageModifierFrom("P-004")),
+              effect=DoubleAttackDamage())
+reg.activated("P-005", mode="discard", timing="nonbattle", effect=SpellsCostZeroThisTurn(mamodo="スギナ"))
+
+reg.activated("P-006", mode="discard", timing="battle", condition=OwnFieldHas("M-010"),
+              effect=NegateNextDamageThisBattle(
+    number="M-010",
+    then=DiscardTopMamodoCard(number="M-010"),
+))
+
+reg.activated("P-007", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="フェイン", power_delta=4000))
+
+reg.activated("P-008", mode="discard", timing="nonbattle",
+              condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
+    OpponentPartneredMamodo(), bind="choice", prompt="p008_pick",
+    then=DiscardChosenPartner(),
+))
+
+reg.activated("P-009", mode="discard", timing="battle", condition=CanNegateOpponentSpell("any"),
+              effect=NegateOpponentSpell("any"))
+reg.activated("P-010", mode="discard", timing="nonbattle", condition=OwnPageTurnEffectAvailable(),
+              effect=TurnOwnPagesOncePerTurn(leaves=1))
+
+reg.activated("P-011", mode="discard", timing="nonbattle",
+              condition=HasOptions(OpponentMamodo()), effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="p011_pick",
+    then=SetPowerZeroThisTurn(),
+))
+
+reg.activated("P-012", mode="discard", timing="nonbattle", effect=ProtectorsDiscardedThisTurn(mamodo="ブラゴ"))
+reg.trigger("P-013", "mamodo_discarded", effect=TurnOpponentPagesPerMamodoCardDiscarded())
+reg.trigger("P-013", "card_discarded", effect=TurnOpponentPagesPerMamodoCardDiscarded())
+reg.activated("P-014", mode="discard", timing="nonbattle",
+              effect=RestrictOpponent(flag=NO_ATTACK_SPELL, duration=DUR_TURN))
+reg.activated("P-015", mode="discard", timing="nonbattle", effect=ScheduleSpellFromAnyPage(spell="ビライツ"))
+reg.activated("P-016", mode="discard", timing="battle", condition=CanNegateOpponentSpell("attack"),
+              effect=NegateOpponentSpell("attack"))
+reg.activated("P-017", mode="discard", timing="battle", condition=CanNegateOpponentSpell("defense"),
+              effect=NegateOpponentSpell("defense"))
+reg.activated("P-018", mode="discard", timing="nonbattle", condition=OwnPageTurnBackEffectAvailable(),
+              effect=TurnOwnPagesBackOncePerTurn(leaves=1))
+reg.trigger("P-019", "pages_turned", effect=ReduceOpponentMpPerPageTurnedBack(per_page=2))
 
 # ================================================================ 術卡
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方

@@ -109,7 +109,19 @@ def _full_immune(game: Game, player: int) -> bool:
                and m.active(game.state.turn_no) for m in game.state.modifiers)
 
 
-def spell_cost(game: Game, player: int, page: int, card: CardDef) -> int:
+def spell_cost(game: Game, player: int, page: int, card: CardDef, slot: MamodoSlot | None = None) -> int:
+    """術卡費用。「某魔物的術」類的費用效果(P-005 / M-008)以「使用術的魔物」判定,指示術由該魔物
+    使用時也適用。slot 為使用的魔物;未指定時(畫面顯示、非戰鬥術)取自己場上可使用此術的魔物中最低的費用。"""
+    if slot is not None:
+        return _spell_cost_by(game, player, page, card, game.db[slot.top].related_mamodo)
+    users = [s for s in game.state.players[player].slots
+             if card.is_command_spell or _spell_usable_by(game, player, s, card)]
+    if not users:
+        return _spell_cost_by(game, player, page, card, None)
+    return min(_spell_cost_by(game, player, page, card, game.db[s.top].related_mamodo) for s in users)
+
+
+def _spell_cost_by(game: Game, player: int, page: int, card: CardDef, mamodo_name: str | None) -> int:
     ps = game.state.players[player]
     cost = card.cost or 0
     if page == BOOK_SIZE and ps.pos == BOOK_SIZE:
@@ -117,11 +129,11 @@ def spell_cost(game: Game, player: int, page: int, card: CardDef) -> int:
     for m in game.state.modifiers:
         if (m.kind == "spell_cost_zero" and m.target_player == player
                 and m.active(game.state.turn_no)
-                and card.related_mamodo == m.data.get("mamodo")):
+                and mamodo_name is not None and mamodo_name == m.data.get("mamodo")):
             cost = 0
     for sb in game.state.standby:
         if (sb.kind == "spell_bonus" and sb.owner == player
-                and card.related_mamodo == sb.data.get("mamodo")):
+                and mamodo_name is not None and mamodo_name == sb.data.get("mamodo")):
             cost += sb.data.get("cost_delta", 0)
     return max(0, cost)
 
@@ -535,7 +547,7 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
             raise IllegalCommand("spell.no_mamodo", "對應此術的魔物不在自己場上")
     if slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
         raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用術卡")
-    cost = spell_cost(game, player, page, card)
+    cost = spell_cost(game, player, page, card, slot=slot)
     if st.players[player].mp < cost:
         raise IllegalCommand("spell.mp", "MP 不足")
     return number, slot
@@ -612,8 +624,8 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
     attacker, page, number, slot_uid = bi["attacker"], bi["page"], bi["spell"], bi["slot"]
     card = game.db[number]
     # 攻擊宣告:此時再驗證一次(插入行動可能已改變盤面)
-    _validate_spell_declaration(game, attacker, page, slot_uid, attack=True)
-    cost = spell_cost(game, attacker, page, card)
+    _, using_slot = _validate_spell_declaration(game, attacker, page, slot_uid, attack=True)
+    cost = spell_cost(game, attacker, page, card, slot=using_slot)
     if page not in st.players[attacker].open_pages():  # 經 P-015 類待命自任意頁使用
         for sb in _consume_standby(game, "spell_any_page",
                                    lambda s: s.owner == attacker
@@ -631,7 +643,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
     # 待命:術卡加成(M-008 減費減魔力 / P-007 加魔力)
     for sb in _consume_standby(game, "spell_bonus",
                                lambda s: s.owner == attacker and (
-                                   s.data.get("mamodo") in (None, card.related_mamodo, mamodo_name))):
+                                   s.data.get("mamodo") in (None, mamodo_name))):
         battle.data["attack_spell_bonus"] = battle.data.get("attack_spell_bonus", 0) + sb.data.get("power_delta", 0)
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     # 待命:攻擊不可被防禦(P-001 / S-019 / S-026)
@@ -693,7 +705,7 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
                 game, player, command.get("page"), command.get("slot_uid"), attack=False)
             page = command["page"]
             card = game.db[number]
-            cost = spell_cost(game, player, page, card)
+            cost = spell_cost(game, player, page, card, slot=slot)
             if page not in st.players[player].open_pages():
                 for sb in _consume_standby(game, "spell_any_page",
                                            lambda s: s.owner == player
@@ -709,7 +721,7 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
             mamodo_name = game.db[slot.top].related_mamodo
             for sb in _consume_standby(game, "spell_bonus",
                                        lambda s: s.owner == player and (
-                                           s.data.get("mamodo") in (None, card.related_mamodo, mamodo_name))):
+                                           s.data.get("mamodo") in (None, mamodo_name))):
                 battle.data["defense_spell_bonus"] = battle.data.get("defense_spell_bonus", 0) + sb.data.get("power_delta", 0)
                 game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
             rider = reg.SPELL_RIDERS.get(number)
@@ -983,6 +995,7 @@ reg.CHOICE_RESOLVERS["jammer_negate"] = _jammer_resolver
 def _end_battle(game: Game, batch: list[dict]) -> None:
     st = game.state
     st.modifiers = [m for m in st.modifiers if m.duration != DUR_BATTLE]
+    st.standby = [s for s in st.standby if s.data.get("expires") != "battle"]   # 「このバトル中」的待命(P-006)
     st.battle = None
     game.emit(batch, "battle_ended")
     if st.phase == GAME_OVER:
