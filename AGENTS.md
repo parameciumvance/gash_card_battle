@@ -1,15 +1,15 @@
 # Agent 工作慣例
 
-## OpenSpec 變更流程
+## 規格與 OpenSpec 變更流程
 
-- 執行 `/opsx:archive` 封存變更前,依序完成:
-  1. 若該變更含 delta spec(`specs/<capability>/spec.md`),先同步回主 spec(`openspec/specs/<capability>/spec.md`),不要略過同步直接封存。
-  2. 把該變更 `design.md` 中仍然有效的決定、效果文解讀與已知限制合併進專案設計 `openspec/design.md`;被這次變更取代的內容要改寫或刪除,讓它反映現況。
-- `openspec/design.md` 記錄現行設計與決定的理由;各 change 的 `design.md` 是當時的討論紀錄,歸檔後不再更新。
+進行規格驅動的開發(OpenSpec change)前,先讀 `docs/specification-guide.md` 並照它做;規格制度以該指南為準,本檔不重複。特別是:
+
+- 開始 change 前依指南 §11 的閱讀程序,從 `openspec/capability-map.md` 找出受影響的 capability。
+- 歸檔前依指南 §13 完成 reconciliation:同步 delta spec、更新受影響 capability 的 `design.md`(含行為決定與理由)、必要時更新 capability map。
 
 ## 實作 / 修改卡片效果
 
-過去第二彈卡片曾依英文翻譯實作、並在程式碼裡悄悄簡化,造成多張卡與效果文不符且長期沒被發現(E-018、E-020、E-027、M-008、M-024、M-025、M-026、M-029 與多張夥伴卡,經過見 `openspec/changes/archive/2026-09-28-effect-tree-migration/design.md` 第 4 節,現行的效果文解讀見 `openspec/design.md` 第 4 節)。實作新卡或修改既有卡時:
+過去第二彈卡片曾依英文翻譯實作、並在程式碼裡悄悄簡化,造成多張卡與效果文不符且長期沒被發現(E-018、E-020、E-027、M-008、M-024、M-025、M-026、M-029 與多張夥伴卡,經過見 `openspec/changes/archive/2026-09-28-effect-tree-migration/design.md` 第 4 節,現行的效果文解讀見 `openspec/specs/card-effects/design.md`「行為決定與理由」)。實作新卡或修改既有卡時:
 
 ### 以日文效果文為準
 
@@ -23,7 +23,7 @@
   - 「※…としてあつかう」之類的註記會改變判定範圍,要一併實作。
   - 效果圖示(如 `jammer`)有規則書定義的使用時機,不能當一般啟動效果處理。
   - 「このカードが場にある→」的效果依規則書也算「使用」了效果。
-- 效果文沒有明說的部分(例如由誰選頁)要做解讀時,記錄在對應 change 的 `design.md` 並告知使用者,不要只寫在程式碼註解;歸檔時整理進 `openspec/design.md` 第 4 節。修改卡片前先查該節,要改變既有解讀須先與使用者確認。
+- 效果文沒有明說的部分(例如由誰選頁)要做解讀時,記錄在對應 change 的 `design.md` 並告知使用者,不要只寫在程式碼註解。解讀的行為結果寫進 `card-effects` spec,理由與確認狀態依指南 §7 寫進 `openspec/specs/card-effects/design.md`「行為決定與理由」;自己的解讀只能標 `Inferred` 或 `Pending Confirmation`。修改卡片前先查該節,要改變既有解讀須先與使用者確認。
 
 ### 不可悄悄簡化
 

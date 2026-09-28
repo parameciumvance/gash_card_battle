@@ -1,7 +1,11 @@
 # docker-deployment Specification
 
 ## Purpose
-TBD - created by archiving change docker-deployment. Update Purpose after archive.
+
+在 VPS 上以容器長期常駐提供線上對戰服務。
+
+Scope:production 容器映像檔、Caddy 反向代理與對外服務、CI 的測試 / 建置分流、VPS 端的自動更新與健康檢查。不含單機發行(見 `standalone-release`)與房間 / 對戰行為本身(見 `online-room`、`battle-api`)。
+
 ## Requirements
 ### Requirement: Production 容器映像檔
 專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。

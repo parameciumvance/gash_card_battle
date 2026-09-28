@@ -100,6 +100,16 @@ def test_action_priority_alternates_and_double_pass_ends_phase():
     assert g.state.players[tp].mp == 4
 
 
+def test_non_turn_player_cannot_declare_attack():
+    g = mk()
+    tp = turn_of(g)
+    submit(g, {"type": "flip_pages", "player": tp, "count": 0})
+    submit(g, {"type": "pass", "player": tp})            # 行動權到非回合玩家
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "declare_attack", "player": 1 - tp, "page": g.state.players[1 - tp].pos})
+    assert e.value.code == "attack.not_turn_player"
+
+
 # ---------------------------------------------------------------- 放卡
 
 def test_play_mamodo_and_partner_rules():

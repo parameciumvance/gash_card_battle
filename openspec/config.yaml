@@ -3,12 +3,12 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 context: |
-  現行設計與決定的理由見 openspec/design.md(架構、共通機制、效果文解讀紀錄、已知限制);
-  撰寫 design 前先讀它,新決定若取代其中內容要明確指出。
+  本專案的規格制度與 brownfield 開發規則定義於 docs/specification-guide.md,進行 OpenSpec change 時必須遵循。
+  導航入口是 openspec/capability-map.md;現行設計與理由在各 capability 的 openspec/specs/<capability>/design.md。
   卡片效果以日文效果文為準,實作慣例見 AGENTS.md。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 rules:
   tasks:
-    - 最後一組任務包含:同步 delta spec 回主 spec,並把本 change 仍有效的決定合併進 openspec/design.md(被取代的內容改寫或刪除),再歸檔
+    - 最後一組任務依 docs/specification-guide.md §13 做 reconciliation:同步 delta spec 回主 spec;更新受影響 capability 的 design.md(含行為決定與理由,被取代的內容改寫或刪除);capability 或覆蓋程度有變時更新 openspec/capability-map.md;然後歸檔

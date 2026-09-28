@@ -1,7 +1,11 @@
 # standalone-release Specification
 
 ## Purpose
-TBD - created by archiving change standalone-release. Update Purpose after archive.
+
+給非開發者玩家的單機發行版:下載 zip、解壓即可在本機開啟遊戲,並可選擇以公開通道邀請遠端玩家。
+
+Scope:資源目錄解析(程式資源與卡圖)、啟動器、cloudflared 公開通道、發行打包。不含 VPS 部署(見 `docker-deployment`)與遊戲功能本身。
+
 ## Requirements
 ### Requirement: 資源目錄解析
 系統 SHALL 以單一模組解析資源目錄,區分「程式資源」(frontend/、data/)與「卡圖資源」。程式資源:PyInstaller 凍結環境下 SHALL 取自打包目錄(`sys._MEIPASS`),否則取 repo 佈局。卡圖資源 SHALL 依序取第一個存在的目錄:`GASH_ASSETS_DIR` 環境變數 → 執行檔旁 `assets/` → 使用者資料夾(Windows `%LOCALAPPDATA%\gash-card-battle\assets`,其他平台 `~/.local/share/gash-card-battle/assets`)→ repo `frontend/assets/`;全部不存在時 SHALL 回報未安裝狀態並以使用者資料夾為建議安裝位置。

@@ -1488,3 +1488,29 @@ def test_schedule_next_spell_bonus_optional_flag():
     run(g, tree.ScheduleNextSpellBonus(mamodo="スギナ", power_delta=-1000, cost_delta=-1, optional=True))
     run(g, tree.ScheduleNextSpellBonus(mamodo="フェイン", power_delta=4000))
     assert [sb.data.get("optional") for sb in g.state.standby] == [True, None]
+
+
+# ================================================================ 登記與命名慣例(effect-tree spec)
+
+EFFECTS_DIR = __import__("pathlib").Path(tree.__file__).parent
+
+
+def test_node_and_function_names_have_no_card_numbers():
+    import inspect
+    import re
+    names = [n for n, obj in vars(tree).items()
+             if (inspect.isclass(obj) or inspect.isfunction(obj)) and getattr(obj, "__module__", "") == tree.__name__]
+    assert names and not [n for n in names if re.search(r"[empsEMPS]_?\d{3}", n)]
+
+
+def test_registration_file_is_sorted_by_card_number_and_has_no_logic():
+    import re
+    source = (EFFECTS_DIR / "tree_cards.py").read_text(encoding="utf-8")
+    numbers = re.findall(r'^reg\.\w+\("([EMPS]-\d{3})"', source, re.M)
+    assert numbers and numbers == sorted(numbers)          # 依卡號排序,同一張卡的登記因此相鄰
+    assert "lambda" not in source and not re.search(r"^\s*def ", source, re.M)
+
+
+def test_effects_package_has_no_per_card_handler_files():
+    files = {p.name for p in EFFECTS_DIR.glob("*.py")}
+    assert files == {"__init__.py", "registry.py", "primitives.py", "tree.py", "tree_cards.py"}
