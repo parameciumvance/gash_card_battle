@@ -7,5 +7,3 @@
 - 卡片效果結構化
 - 無關魔力勝負 on_declare?
 - 干擾 回溯?
-
-- 效果樹:前端 choice.title.* 改為依節點種類命名,取代帶卡號的 e001_pick 等 prompt

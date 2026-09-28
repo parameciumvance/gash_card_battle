@@ -30,6 +30,12 @@
   - `data["tree_cont"]`(常數 `tree.CONT_KEY`):擲幣確認鏈結束、待命觸發時的 callback payload,經通用 resolver `effect_tree_resume` 交給節點的 `resume`。`CoinWithPaidReflip` 的確認鏈停點也用這個鍵。
 - 目標以穩定的 slot UID 綁定,執行當下才重新查找;目標已離場時無效果、不發事件,也不改選別的目標。
 
+## 決策種類
+
+- `Choose` / `CoinWithPaidReflip` 的 `prompt` 就是 pending 與 `choice_required` 的 `kind`,也是前端 `choice.title.<kind>` 的 key。分派不看它(看 `tree_choice` 鍵),所以它只影響顯示與逾時預設(`rooms.default_command`)。
+- 依「選的是什麼」命名,以 `pick_` 開頭(如 `pick_own_mamodo`、`pick_opponent_partner`);非選取型的詢問例外(`paid_reflip`)。不同卡的相同選擇共用同一種類,不寫卡片專屬的標題;卡片脈絡由前端對話框顯示來源卡(pending 的 `source`)提供。
+- 不用節點或選項規格的類別自動產生:同一個選項規格可能用在意義不同的選擇,規格類別改名也不該改變 API 值。
+
 ## 擲幣
 
 - `Coin` 只在第一次執行時消耗 `game.rng`;恢復時不重擲。玩家合法要求的 M-012 / M-019 重擲照原流程消耗 RNG。
@@ -61,5 +67,4 @@
 ## 已知限制
 
 - `Standby.then` 只能同步完成(見「待命」)。目前沒有卡需要會停下的 `then`(E-001 在使用時就選擇魔物,見 `card-effects/design.md`);將來要支援,需先把開始階段改成可恢復的流程。
-- 部分 `Choose` 的 `prompt`(= pending kind、前端 `choice.title.*` 的 key)仍含卡號,如 `e001_pick`。待另案改為依節點種類命名(`openspec/changes/todo.md`)。
 - 續體的 `path` 依賴樹的形狀。房間狀態目前只存在單一行程的記憶體(`online-room`),樹只在啟動時建立一次,所以不會遇到樹版本不一致;若日後要持久化對局,需處理樹版本。
