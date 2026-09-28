@@ -29,7 +29,8 @@
   /* 負傷卡:旋轉前為實卡比例(63:88),轉 90° 後長邊恰為魔物欄寬 */
   --injured-h: var(--cell-w);
   --injured-w: calc(var(--cell-w) * .716);
-  --injured-art-h: 72px;
+  /* 盤面卡圖框的長寬比 = (卡寬 - 內距 12 - 框線 4) / --art-h;負傷卡沿用同比例,cover 裁到的範圍才相同 */
+  --art-ratio: 88 / 75;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -124,7 +125,7 @@ body {
 #board .card.small { width: var(--card-w); height: var(--card-h); }  /* 搭檔卡與魔物同尺寸 */
 #board .card img.art { height: var(--art-h); flex-shrink: 0; }
 #board .card.injured { width: var(--injured-w); height: var(--injured-h); }
-#board .card.injured img.art { height: var(--injured-art-h); }
+#board .card.injured img.art { height: auto; aspect-ratio: var(--art-ratio); }
 /* 盤面卡面只留卡名:隱藏費用/魔力/傷害(cmeta)、效果全文、日文名、卡號 */
 #board .card .cmeta,
 #board .card .ceffect,
@@ -670,7 +671,7 @@ body {
    堆疊序(上→下):對手魔本(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
                    我方魔物 → 我方搭檔 → 我方魔本(對頁+MP) */
 @media (max-width: 700px) {
-  :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --injured-art-h: 52px; }
+  :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --art-ratio: 72 / 64; }
 
   #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
   #topbar #title { display: none; }

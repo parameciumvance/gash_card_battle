@@ -60,3 +60,21 @@ def test_healed_card_stands_upright_without_frame(page):
     m = page.evaluate(MEASURE, False)
     assert m["frame"] is None
     assert abs(m["card"]["w"] - m["healthy"]["w"]) < 1 and abs(m["card"]["h"] - m["healthy"]["h"]) < 1
+
+
+ART_RATIOS = """() => {
+  S.players[1].slots[0].injured = true;
+  render();
+  const ratio = (sel) => { const img = document.querySelector(sel + ' [data-zone-kind="mamodo"] img.art');
+    return img.offsetWidth / img.offsetHeight; };    // 版面尺寸(不受旋轉影響)
+  return {injured: ratio('#zone-top'), healthy: ratio('#zone-bottom')};
+}"""
+
+
+@pytest.mark.parametrize("which", ["desktop", "phone"])
+def test_injured_card_art_shows_same_region_as_upright(which, page, phone):
+    """卡圖以 cover 從上方裁切:框的長寬比相同,裁到的範圍才相同。"""
+    view = page if which == "desktop" else phone
+    start_local(view)
+    r = view.evaluate(ART_RATIOS)
+    assert abs(r["injured"] - r["healthy"]) < 0.02, r
