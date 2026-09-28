@@ -1,7 +1,9 @@
-/* 事件驅動動畫層 — 統一管線:量測 → 阻塞演出 → 重繪 → 疊加特效。
+/* 事件驅動動畫層 — 統一管線:量測 → 時間軸(聚焦展示與阻塞演出依事件順序)→ 重繪 → 疊加特效。
  * 疊加式(翻頁/飛卡/MP token/負傷棄牌)不阻塞盤面更新;
  * 阻塞式(coin_flipped、showdown)短暫延後重繪(500-800ms),帶 1.5s 硬性逾時保底。
- * prefers-reduced-motion 時全部跳過直接重繪。裁決在伺服器,動畫不影響指令與計時。 */
+ * 聚焦展示:對手行動(與對自己不利的結果)在畫面中央停留,整批播完才重繪;點擊跳過。
+ * 動畫開關依演出設定(未設定時依 prefers-reduced-motion);聚焦不屬於動畫,只看聚焦設定。
+ * 裁決在伺服器,動畫與聚焦不影響指令與計時。 */
 
 "use strict";
 
@@ -9,9 +11,84 @@ const Anim = (() => {
   const HARD_TIMEOUT = 1500;
   const BLOCKING = new Set(["coin_flipped", "showdown"]);
   let queue = Promise.resolve();
+  let pending = 0;   // 排隊中的批數(含播放中),用於追趕
 
-  function reduced() {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // ---------------------------------------------------------------- 聚焦展示的事件分類
+  // 卡片聚焦:事件 → 要展示的卡號
+  const CARD_EVENTS = {
+    card_played: (ev) => ev.card,
+    book_card_used: (ev) => ev.card,
+    ability_used: (ev) => ev.card,
+    battle_in_check: (ev) => ev.spell || ev.mamodo,
+    defense_declared: (ev) => ev.spell,
+    effect_negated: (ev) => ev.source,
+  };
+  // 文字聚焦(跟在卡片之後時併為結果行)
+  const TEXT_EVENTS = new Set([
+    "turn_started", "passed", "no_defense", "damage_dealt", "protected", "mamodo_injured",
+    "mamodo_discarded", "mamodo_healed", "card_discarded", "pages_turned", "mp_changed",
+    "attack_negated", "defense_negated", "game_ended",
+  ]);
+  const CARD_NO = /^[EMPS]-\d{3}$/;
+  // MP 增減只在「效果造成」時列出(reason 為卡號);支付費用(spell:… 等)不列
+  function mpByEffect(ev) { return typeof ev.reason === "string" && CARD_NO.test(ev.reason); }
+
+  // 自己發起的這批事件中,只聚焦對自己不利的結果
+  function unfavorable(ev, me) {
+    switch (ev.type) {
+      case "damage_dealt":
+      case "mamodo_injured":
+      case "mamodo_discarded": return ev.player === me;
+      case "pages_turned": return ev.player === me && ev.count > 0;
+      case "card_discarded": return ev.player === me && ev.reason !== "cost";
+      case "mp_changed": return ev.player === me && ev.delta < 0 && mpByEffect(ev);
+      case "attack_negated":
+      case "defense_negated": return ev.player !== me;
+      case "game_ended": return true;
+      default: return false;
+    }
+  }
+
+  function textWorthy(ev, others, me) {
+    if (!TEXT_EVENTS.has(ev.type)) return false;
+    if (ev.type === "mp_changed" && !mpByEffect(ev)) return false;
+    return others || unfavorable(ev, me);
+  }
+
+  function blocking(ev) {
+    return BLOCKING.has(ev.type) && !(ev.type === "coin_flipped" && ev.source === "setup");
+  }
+
+  // 依事件順序組成時間軸:卡片格 / 文字格 / 阻塞演出;阻塞演出之後的文字另起一格
+  function timeline(events, actor, motion) {
+    const me = selfPlayer();                      // 0 / 1;本機與觀戰為 null(雙方都聚焦)
+    const spot = actor !== null && actor !== undefined && spotlightMode() !== "off" && !document.hidden;
+    const others = me === null || actor !== me;
+    const steps = [];
+    let cur = null;
+    for (const ev of events) {
+      if (blocking(ev)) {
+        if (motion) steps.push({ kind: "anim", ev });
+        cur = null;
+        continue;
+      }
+      if (!spot) continue;
+      const card = CARD_EVENTS[ev.type] && others ? CARD_EVENTS[ev.type](ev) : null;
+      if (card) {
+        cur = { kind: "card", card, caption: logLine(ev), lines: [], pass: false };
+        steps.push(cur);
+      } else if (textWorthy(ev, others, me)) {
+        const line = logLine(ev);
+        if (!line) continue;
+        if (!cur) {
+          cur = { kind: "text", caption: null, lines: [], pass: true };
+          steps.push(cur);
+        }
+        cur.lines.push(line);
+        cur.pass = cur.pass && ev.type === "passed";
+      }
+    }
+    return steps;
   }
 
   function overlay() { return document.getElementById("anim-overlay"); }
@@ -27,27 +104,93 @@ const Anim = (() => {
 
   function wait(ms) { return new Promise((res) => setTimeout(res, ms)); }
 
-  // 進入點:批次排隊,確保前一批演完才處理下一批(全域 S 永遠渲染最新)
-  function apply(events, prevState, renderFn) {
+  // 進入點:批次排隊,確保前一批演完才處理下一批(全域 S 永遠渲染最新)。
+  // actor:發起這批事件的玩家(伺服器推送 / 回應標明;金手指、開局等為 null → 不聚焦)
+  function apply(events, prevState, renderFn, actor = null) {
+    pending += 1;
     queue = queue
-      .then(() => run(events, prevState, renderFn))
-      .catch(() => { try { renderFn(); } catch (_) { /* 保底 */ } });
+      .then(() => run(events, prevState, renderFn, actor))
+      .catch(() => { try { renderFn(); } catch (_) { /* 保底 */ } })
+      .finally(() => { pending -= 1; });
     return queue;
   }
 
-  async function run(events, prevState, renderFn) {
-    if (reduced() || !events.length || !boardVisible() || !overlay()) {
+  async function run(events, prevState, renderFn, actor) {
+    if (!events.length || !boardVisible() || !overlay()) {
       renderFn();
       return;
     }
-    const marks = measure(events);
-    const blocking = events.filter((ev) =>
-      BLOCKING.has(ev.type) && !(ev.type === "coin_flipped" && ev.source === "setup"));
-    for (const ev of blocking) {
-      await withTimeout(playBlocking(ev, prevState), HARD_TIMEOUT);
+    const motion = !motionOff();
+    const marks = motion ? measure(events) : null;
+    // 追趕:排隊太多批時跳過這批的聚焦(最後一批仍會播)
+    const steps = timeline(events, pending >= 5 ? null : actor, motion);
+    for (const step of steps) {
+      if (step.kind === "anim") await withTimeout(playBlocking(step.ev, prevState), HARD_TIMEOUT);
+      else await spotlight(step, motion);
     }
     renderFn();
-    playOverlays(events, marks);
+    if (motion) playOverlays(events, marks);
+  }
+
+  // ---------------------------------------------------------------- 聚焦展示
+
+  function spotlightMs(step) {
+    const fast = spotlightMode() === "fast" || pending >= 2;   // 落後時自動加快
+    const base = fast ? 500 : 1000;
+    return step.pass ? base / 2 : base;
+  }
+
+  function spotlight(step, motion) {
+    const el = document.getElementById("spotlight");
+    if (!el) return Promise.resolve();
+    const ms = spotlightMs(step);
+    const panel = document.createElement("div");
+    panel.className = "spot-panel" + (step.kind === "card" ? " with-card" : "");
+    if (step.kind === "card") {
+      const art = document.createElement("img");
+      art.className = "spot-art";
+      art.src = `/static/assets/cards/${step.card}.jpg`;
+      art.onerror = () => { art.onerror = null; art.src = "/static/back.jpg"; };
+      const info = document.createElement("div");
+      info.className = "spot-info";
+      const caption = document.createElement("div");
+      caption.className = "spot-caption";
+      caption.textContent = step.caption || "";
+      const name = document.createElement("div");
+      name.className = "spot-name";
+      name.textContent = cname(step.card);
+      const effect = document.createElement("div");
+      effect.className = "spot-effect";
+      effect.textContent = (ZH[step.card] && ZH[step.card].effect) || "";
+      info.append(caption, name, effect);
+      panel.append(art, info);
+    }
+    if (step.lines.length) {
+      const list = document.createElement("div");
+      list.className = "spot-lines";
+      for (const line of step.lines) {
+        const row = document.createElement("div");
+        row.textContent = (step.kind === "card" ? "→ " : "") + line;
+        list.appendChild(row);
+      }
+      panel.appendChild(list);
+    }
+    el.replaceChildren(panel);
+    el.dataset.ms = String(ms);
+    el.classList.toggle("no-motion", !motion);
+    el.classList.remove("hidden");
+    return new Promise((done) => {
+      let timer = null;
+      const finish = () => {
+        clearTimeout(timer);
+        el.onclick = null;
+        el.classList.add("hidden");
+        el.replaceChildren();
+        done();
+      };
+      el.onclick = finish;                         // 點擊跳過
+      timer = setTimeout(finish, ms);
+    });
   }
 
   // ---------------------------------------------------------------- 量測(重繪前)

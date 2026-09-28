@@ -67,9 +67,60 @@ function cname(num) {
   return z.attr && CARDS[num] && CARDS[num].type === "mamodo" ? `${z.name}《${z.attr}》` : z.name;
 }
 
+// ---------------------------------------------------------------- 演出設定(存於瀏覽器)
+
+const PREFS = { spotlight: ["normal", "fast", "off"], motion: ["on", "off", "system"] };
+
+function pref(name) {
+  let value = null;
+  try { value = localStorage.getItem(`gash-${name}`); } catch (_) { /* 無法存取時用缺省 */ }
+  return PREFS[name].includes(value) ? value : PREFS[name][name === "motion" ? 2 : 0];
+}
+
+function setPref(name, value) {
+  try { localStorage.setItem(`gash-${name}`, value); } catch (_) { /* 仍於本次生效 */ }
+}
+
+function spotlightMode() { return pref("spotlight"); }   // normal | fast | off
+
+// 動畫關閉:玩家設定優先,未設定(跟隨系統)時依 prefers-reduced-motion
+function motionOff() {
+  const m = pref("motion");
+  if (m !== "system") return m === "off";
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function applyMotionClass() {
+  document.documentElement.classList.toggle("motion-off", motionOff());
+}
+window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", applyMotionClass);
+
+function renderPrefsInfo() {
+  const group = (name) => {
+    const sec = document.createElement("div");
+    sec.className = "info-section";
+    const h = document.createElement("h4");
+    h.textContent = t(`ui.prefs.${name}`);
+    const row = document.createElement("div");
+    row.className = "prefs-options";
+    for (const value of PREFS[name]) {
+      const btn = document.createElement("button");
+      btn.textContent = t(`ui.prefs.${name}.${value}`);
+      btn.setAttribute("aria-pressed", String(pref(name) === value));
+      btn.onclick = () => { setPref(name, value); applyMotionClass(); renderPrefsInfo(); };
+      row.appendChild(btn);
+    }
+    sec.append(h, row);
+    return sec;
+  };
+  showInfo("prefs", t("ui.prefs.title"), [group("spotlight"), group("motion")]);
+}
+
 // ---------------------------------------------------------------- session / 身分
 
 function myViewer() { return SESSION ? SESSION.viewer : null; }   // 0|1|"all"|"spectator"
+// 聚焦展示用的「自己」:本機(全視角)與觀戰沒有自己的一方 → null(雙方都聚焦)
+function selfPlayer() { const v = myViewer(); return v === 0 || v === 1 ? v : null; }
 function isLocal() { return SESSION && SESSION.mode === "local"; }
 function isNpc() { return SESSION && SESSION.mode === "npc"; }
 function iControl(p) {
@@ -128,7 +179,7 @@ function applyPayload(body) {
   // 同批事件經 HTTP 回應與 WS 推送各到一次,以 seq 游標去重,只演第一次
   const fresh = (body.events || []).filter((ev) => ev.seq >= animSeq);
   for (const ev of fresh) animSeq = Math.max(animSeq, ev.seq + 1);
-  Anim.apply(fresh, prevS, render);
+  Anim.apply(fresh, prevS, render, body.actor);
 }
 
 function toast(msg) {
@@ -862,6 +913,8 @@ function renderTopbar() {
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  const prefsToggle = document.getElementById("prefs-toggle");
+  prefsToggle.textContent = t("ui.prefs.toggle");
   const effectsToggle = document.getElementById("effects-toggle");
   effectsToggle.classList.toggle("hidden", !(SESSION && S));
   effectsToggle.textContent = t("ui.effects.toggle", { n: S && S.effects ? S.effects.length : 0 });
@@ -1598,6 +1651,7 @@ function effectWhen(e) {
 }
 
 document.getElementById("effects-toggle").onclick = () => renderEffectsInfo();
+document.getElementById("prefs-toggle").onclick = () => renderPrefsInfo();
 
 function showDiscard(p) {
   const ps = S.players[p];
@@ -2287,6 +2341,7 @@ async function boot() {
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
   ]);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
+  applyMotionClass();
   renderLanding();
   renderTopbar();
 

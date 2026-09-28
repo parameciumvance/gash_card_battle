@@ -409,7 +409,7 @@ body {
 .info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
 .breakdown-ref { color: var(--accent-blue); cursor: pointer; text-decoration: underline dotted; margin-left: 4px; }
 #stage-content .side-total { cursor: pointer; text-decoration: underline dotted; }
-#effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
+#prefs-toggle, #effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
   color: var(--ink); border-radius: 6px; cursor: pointer; }
 
 #toast {
@@ -507,6 +507,36 @@ body {
   color: #2c3038; transform: rotateX(180deg);
 }
 
+/* 對手行動聚焦展示:蓋住盤面(點擊跳過),內容置中 */
+#spotlight {
+  position: fixed; inset: 0; z-index: 45; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8, 10, 18, .35);
+}
+#spotlight .spot-panel {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; justify-content: center;
+  width: min(460px, 92vw); padding: 16px 18px; border-radius: 14px;
+  background: rgba(20, 14, 26, .94); border: 2px solid var(--gold);
+  box-shadow: 0 0 30px rgba(255, 157, 108, .35);
+  animation: spot-in .15s ease-out;
+}
+#spotlight.no-motion .spot-panel { animation: none; }
+@keyframes spot-in { 0% { opacity: 0; transform: scale(.94); } }
+#spotlight .spot-art { width: 140px; border-radius: 8px; flex-shrink: 0; }
+#spotlight .spot-info { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+#spotlight .spot-caption { font-size: 13px; color: var(--ink-dim); }
+#spotlight .spot-name { font-size: 18px; font-weight: bold; color: var(--glow); }
+#spotlight .spot-effect { font-size: 13px; line-height: 1.5; color: var(--ink); }
+#spotlight .spot-lines { flex-basis: 100%; font-size: 15px; line-height: 1.7; color: var(--ink); text-align: center; }
+#spotlight .with-card .spot-lines { text-align: left; font-size: 14px; color: var(--accent-green); }
+.prefs-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.prefs-options button { padding: 6px 14px; border-radius: 6px; cursor: pointer; min-height: 34px;
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
+.prefs-options button[aria-pressed="true"] { border-color: var(--glow); color: var(--glow); }
+@media (max-width: 700px) {
+  #spotlight .spot-art { width: 110px; }
+}
+
 /* 魔力對決橫幅 */
 .fx-showdown {
   left: 50%; top: 44%; transform: translate(-50%, -50%);
@@ -531,8 +561,9 @@ body {
   75% { transform: translateX(-3px); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+/* 動畫關閉(演出設定;未設定時依 prefers-reduced-motion,由 app.js 切換 html.motion-off) */
+.motion-off *, .motion-off *::before, .motion-off *::after {
+  animation: none !important; transition: none !important;
 }
 
 /* ---------------- 入口頁與房間(online-battle) ---------------- */

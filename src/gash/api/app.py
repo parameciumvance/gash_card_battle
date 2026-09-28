@@ -272,12 +272,14 @@ def _start_game(room: Room) -> None:
     room.reset_deadline()
 
 
-async def _broadcast(room: Room, events: list[dict]) -> None:
+async def _broadcast(room: Room, events: list[dict], actor: int | None = None) -> None:
+    """推送一批事件;actor 為發起這批事件的玩家(金手指、開局等為 None),前端據以決定聚焦展示。"""
     for ws, viewer in list(room.sockets):
         ev = _effective_viewer(room, viewer)
         try:
             await ws.send_json({
                 "type": "update",
+                "actor": actor,
                 "events": filter_events(events, ev),
                 **_state_payload(room, viewer),
             })
@@ -411,10 +413,10 @@ async def post_command(code: str, body: CommandBody,
             raise HTTPException(400, detail={"code": exc.code, "message": str(exc)})
         room.touch()
         room.reset_deadline()
-    await _broadcast(room, events)
+    await _broadcast(room, events, actor=viewer)
     _kick_npc(room)
     ev = _effective_viewer(room, viewer)
-    return {"events": filter_events(events, ev), **_state_payload(room, viewer)}
+    return {"actor": viewer, "events": filter_events(events, ev), **_state_payload(room, viewer)}
 
 
 def _debug_state_payload(room: Room) -> dict:
@@ -543,7 +545,7 @@ async def _fire_due_timeouts(now: float | None = None) -> None:
                 ev["timeout"] = True  # 事件標記逾時(回放一致)
             room.touch()
             room.reset_deadline()
-        await _broadcast(room, events)
+        await _broadcast(room, events, actor=player)
 
 
 async def _timeout_loop() -> None:
@@ -559,8 +561,9 @@ async def _timeout_loop() -> None:
 
 # ---------------------------------------------------------------- NPC 驅動
 
-NPC_QUIET_DELAY = 0.3     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)送出前的等待秒數
-NPC_ACTION_DELAY = 0.9    # 其他指令
+# NPC 送出前的等待秒數:略長於標準速度的聚焦展示(pass 0.5 秒、其他 1 秒),畫面才跟得上
+NPC_QUIET_DELAY = 0.7     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)
+NPC_ACTION_DELAY = 1.3    # 其他指令
 _QUIET_COMMANDS = {"pass", "battle_in_response", "no_defense"}
 _log = logging.getLogger(__name__)
 
@@ -617,7 +620,7 @@ async def _drive_npc(room: Room) -> None:
             events = result[1]
             room.touch()
             room.reset_deadline()
-        await _broadcast(room, events)
+        await _broadcast(room, events, actor=room.npc.seat)
 
 
 # ---------------------------------------------------------------- 靜態資源
