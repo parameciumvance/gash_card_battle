@@ -38,6 +38,6 @@
 
 ### 寫法
 
-- 新卡一律以效果樹實作:節點與規格在 `src/gash/engine/effects/tree.py`,登記在 `tree_cards.py`(依卡號排序,排版規則見檔案開頭)。節點名稱語意化、不含卡號。
+- 新卡一律以效果樹實作:節點與規格在 `src/gash/engine/effects/tree.py`,登記在 `effects/cards/` 對應類別的檔案(`events.py` / `mamodo.py` / `partners.py` / `spells.py`,依卡號排序,排版規則見 `cards/__init__.py`)。節點名稱語意化、不含卡號。
 - 共用函式不可覆寫呼叫端傳入的資料鍵(E-020 曾因 `flip_coins` 用擲幣者蓋掉呼叫端的 `data["player"]`,把 MP 給錯人)。
 - 決策種類(`Choose` 的 `prompt`)依選擇的內容命名、不含卡號,先沿用既有種類(`frontend/i18n/zh-TW.json` 的 `choice.title.*`);確實需要新種類時才新增,並補 `choice.title.<kind>` 通用標題(測試會檢查)。對話框會另外顯示來源卡,標題不必寫卡片專屬的說明。新的選項標籤要在 `frontend/app.js` 的選項對應中處理。

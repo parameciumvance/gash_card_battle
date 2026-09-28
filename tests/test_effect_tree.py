@@ -1503,17 +1503,26 @@ def test_node_and_function_names_have_no_card_numbers():
     assert names and not [n for n in names if re.search(r"[empsEMPS]_?\d{3}", n)]
 
 
-def test_registration_file_is_sorted_by_card_number_and_has_no_logic():
+CARD_FILES = {"events.py": "E", "mamodo.py": "M", "partners.py": "P", "spells.py": "S"}
+
+
+def _card_sources():
+    return {name: (EFFECTS_DIR / "cards" / name).read_text(encoding="utf-8") for name in CARD_FILES}
+
+
+@pytest.mark.parametrize("name", sorted(CARD_FILES))
+def test_registration_files_split_by_card_type_sorted_and_without_logic(name):
     import re
-    source = (EFFECTS_DIR / "tree_cards.py").read_text(encoding="utf-8")
+    source = _card_sources()[name]
     numbers = re.findall(r'^reg\.\w+\("([EMPS]-\d{3})"', source, re.M)
-    assert numbers and numbers == sorted(numbers)          # 依卡號排序,同一張卡的登記因此相鄰
+    assert numbers and {n[0] for n in numbers} == {CARD_FILES[name]}   # 只含該類別的卡
+    assert numbers == sorted(numbers)                      # 依卡號排序,同一張卡的登記因此相鄰
     assert "lambda" not in source and not re.search(r"^\s*def ", source, re.M)
 
 
 def test_effects_package_has_no_per_card_handler_files():
-    files = {p.name for p in EFFECTS_DIR.glob("*.py")}
-    assert files == {"__init__.py", "registry.py", "primitives.py", "tree.py", "tree_cards.py"}
+    assert {p.name for p in EFFECTS_DIR.glob("*.py")} == {"__init__.py", "registry.py", "primitives.py", "tree.py"}
+    assert {p.name for p in (EFFECTS_DIR / "cards").glob("*.py")} == {"__init__.py", *CARD_FILES}
 
 
 def _engine_choice_kinds():
@@ -1527,7 +1536,7 @@ def _engine_choice_kinds():
 
 def _tree_choice_kinds():
     import re
-    return set(re.findall(r'prompt="([^"]+)"', (EFFECTS_DIR / "tree_cards.py").read_text(encoding="utf-8")))
+    return {k for source in _card_sources().values() for k in re.findall(r'prompt="([^"]+)"', source)}
 
 
 def test_choice_kinds_have_no_card_numbers():

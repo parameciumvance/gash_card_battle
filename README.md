@@ -224,9 +224,11 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 
 ## 卡片效果的寫法
 
-新卡片一律以**效果樹**註冊:效果由 `effects/tree.py` 的節點組合(節點名稱不含卡號),註冊檔
-`effects/tree_cards.py` 依卡號排序、每張卡的登記集中一處(多個掛鉤各一個 `reg.xxx(...)` 且相鄰),容器節點換行縮排以顯示巢狀層次。效果停下來等待(玩家選擇、擲幣確認、
-待命)時,只存 `(effect_id, path, ctx)` 這份純資料,不存閉包。註冊入口:
+新卡片一律以**效果樹**註冊:效果由 `effects/tree.py` 的節點組合(節點名稱不含卡號),登記放在
+`effects/cards/`,依卡片類別分檔(`events.py` / `mamodo.py` / `partners.py` / `spells.py`),
+每檔依卡號排序、每張卡的登記集中一處(多個掛鉤各一個 `reg.xxx(...)` 且相鄰),容器節點換行縮排以顯示巢狀層次
+(排版規則見 `effects/cards/__init__.py`)。效果停下來等待(玩家選擇、擲幣確認、待命)時,只存續體這份純資料,
+不存閉包。註冊入口:
 
 - 事件卡 / 術卡:`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage= / on_declare= /
   on_win= / on_defense_damaged=…)`、`reg.spell_nonbattle(number, effect=…)`。
@@ -235,7 +237,7 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 - 只回傳值的查詢(常駐魔力加成、使用條件、傷害免疫、術相容、`damage_bonus`)不是效果,
   用 `tree.py` 裡不可變、可呼叫的規格物件登記(如 `reg.static_power(number, value=…)`)。
 
-- 所有卡片都已遷移到效果樹,`tree_cards.py` 是唯一的逐卡註冊檔。`registry.py` 仍接受舊的
+- 所有卡片都已遷移到效果樹,逐卡登記只在 `effects/cards/`。`registry.py` 仍接受舊的
   `@reg.xxx` 裝飾器寫法(只剩測試使用),新卡不要用;同一張卡的同一掛鉤不能兩種都註冊。
 - `Standby.then` 目前只能同步完成(不可包含 `Choose` / `Coin`),註冊時檢查。
 - 實作或修改卡片效果前先讀 `AGENTS.md`「實作 / 修改卡片效果」:以日文效果文為準、不可悄悄簡化、
@@ -262,7 +264,7 @@ src/gash/
       registry.py       引擎 ↔ 卡片效果的掛鉤介面
       primitives.py     效果原語(加魔力、禁止旗標、待命、互動式硬幣…)
       tree.py           效果樹:不可變節點(Choose / Coin / Standby / AddPower…)+ 直譯器
-      tree_cards.py     全部卡片的效果登記,依卡號排序、每卡的登記集中一處
+      cards/            全部卡片的效果登記,依類別分檔(events / mamodo / partners / spells),各檔依卡號排序
   api/
     app.py              FastAPI:房間端點、指令轉發、WebSocket 推送、逾時代打
     rooms.py            房間模型、token 身分、計時器(等待者推導與安全預設指令)
