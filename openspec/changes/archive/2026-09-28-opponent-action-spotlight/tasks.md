@@ -23,7 +23,7 @@
 
 ## 5. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 5.1 同步 delta spec 回 `battle-ui`、`battle-api` 主 spec
-- [ ] 5.2 Reconcile affected capability design and rationale:`battle-api/design.md` 補 `actor`;`online-room/design.md` 的 NPC 等待秒數;`battle-ui` 尚無 design.md,聚焦的分類表與時間軸寫在新建的 `battle-ui/design.md`
-- [ ] 5.3 Update capability map:`battle-ui` 的 design 覆蓋改為 Partial
-- [ ] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 5.1 同步 delta spec 回 `battle-ui`、`battle-api` 主 spec
+- [x] 5.2 Reconcile affected capability design and rationale:`battle-api/design.md` 補 `actor`;`online-room/design.md` 的 NPC 等待秒數;`battle-ui` 尚無 design.md,聚焦的分類表與時間軸寫在新建的 `battle-ui/design.md`
+- [x] 5.3 Update capability map:`battle-ui` 的 design 覆蓋改為 Partial
+- [x] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔

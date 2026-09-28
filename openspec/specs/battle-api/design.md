@@ -19,3 +19,13 @@
   - 新增效果種類時,若要在清單顯示額外資訊,把欄位加進白名單並確認它是公開資訊。
 
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
+
+## 推送的行動者(`actor`)
+
+- `update` 推送與指令回應帶 `actor`,前端用來決定聚焦展示(見 `battle-ui/design.md`)。
+- 來源集中在 `app.py` 的呼叫端,`_broadcast(room, events, actor)`:
+  - `post_command`:token 對應的玩家。
+  - NPC 驅動:NPC 座位。
+  - 逾時代打:`awaited_player`。
+  - 金手指與開局:`None`。
+- `actor` 只標明誰發起,不影響事件內容與視角過濾。
