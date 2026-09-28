@@ -147,4 +147,4 @@ M-008 的「スギナの術」判定與 P-005 / P-007 一起改為以使用術�
 
 - [x] 6.1 確認 `mamodo.py`/`partners.py`/`events.py` 只剩檔案說明註解(或整個檔案可以刪除),`tree_cards.py` 是唯一的逐卡註冊檔(`spells.py` 已於 `972a5fe` 刪除)。— 四個舊檔都已刪除(`events.py` `ca87c12`、`mamodo.py` `eb3daa1`、`partners.py` `e7141c2`)
 - [x] 6.2 更新 README「卡片效果的寫法」段落與 `openspec/changes/todo.md`,移除「其餘卡片遷移」項目。
-- [ ] 6.3 依 AGENTS.md 流程:`/opsx:sync` 同步 delta spec 回主 spec,再 `/opsx:archive` 歸檔本 change。
+- [x] 6.3 依 AGENTS.md 流程:`/opsx:sync` 同步 delta spec 回主 spec,再 `/opsx:archive` 歸檔本 change。— 同步 `3c53939`,2026-09-28 歸檔
