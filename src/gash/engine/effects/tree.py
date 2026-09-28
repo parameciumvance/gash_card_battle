@@ -1968,19 +1968,22 @@ def _negatable_opponent_spell(game, player, which):
 
 @dataclass(frozen=True)
 class OwnPageTurnEffectAvailable:
-    """本回合尚未使用「翻自己魔本」的效果(P-010;E-005 反反也算;依效果文,翻完魔本而敗北也可以使用)。"""
+    """本回合尚未使用「翻自己魔本」的效果、也未受「合計1回」限制(P-010;E-005 反反也算;
+    依效果文,翻完魔本而敗北也可以使用)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
-        return not game.state.players[player].page_effect_used
+        ps = game.state.players[player]
+        return not (ps.page_effect_used or ps.page_effect_limited)
 
 
 @dataclass(frozen=True)
 class OwnPageTurnBackEffectAvailable:
-    """本回合尚未使用「回翻自己魔本」的效果(E-005 正正也算),且魔本不在第一頁(P-018;在第一頁時無法回翻)。"""
+    """本回合尚未使用「回翻自己魔本」的效果、也未受「合計1回」限制(P-018;E-005 正正也算)。
+    依效果文,魔本在第一頁時也能使用(回翻 0 張,但 P-018 本身仍算 1 次)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
         ps = game.state.players[player]
-        return not ps.page_back_effect_used and ps.pos > 2
+        return not (ps.page_back_effect_used or ps.page_back_effect_limited)
 
 
 @dataclass(frozen=True)

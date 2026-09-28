@@ -260,6 +260,7 @@ def test_s057_sets_injure_instead_standby():
     g.state.players[0].mp = 5
     to_battle(g, 0)
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending is None          # 擲出正面時不詢問是否使用(宣告使用即表示意願)
     submit(g, {"type": "pass", "player": 1})
     assert any(sb.kind == "injure_instead" and sb.owner == 0 for sb in g.state.standby)
 
@@ -1474,17 +1475,42 @@ def test_p018_turn_back_one_leaf():
     assert [e["count"] for e in events if e["type"] == "pages_turned"] == [-1]
 
 
-def test_p018_not_usable_on_first_page():
-    # 保留舊寫法的限制:魔本在第一頁時無法回翻(否則會空用效果並誤觸對手的 P-019)
-    g, _ = mk(book("M-001"), book("M-001"))
+def _p018_first_page_game(coins=()):
+    """玩家 0:M-001 裝 P-018,第 3 頁為 E-005;對手 M-001 裝 P-019。魔本在第一頁。"""
+    g, _ = mk(book("M-001", "S-029", "E-005"), book("M-001"))
     st = g.state
-    me = st.players[0].slots[0]
-    me.partner = "P-018"
+    st.players[0].mp = st.players[1].mp = 10
+    st.players[0].slots[0].partner = "P-018"
+    st.players[1].slots[0].partner = "P-019"
+    g.rng = Rng(*coins)
     to_battle(g, 0)
     assert st.players[0].pos == 2
-    with pytest.raises(IllegalCommand) as e:
-        _use_partner(g, 0, me)
-    assert e.value.code == "ability.condition"
+    return g
+
+
+def test_p018_usable_on_first_page_turns_nothing_but_counts_as_the_one_use():
+    # 效果文沒有限制(專案負責人決定依效果文):第一頁也能使用;回翻 0 張,但 P-018 本身算 1 次
+    g = _p018_first_page_game(coins=(HEADS, HEADS))
+    st = g.state
+    first = st.players[0].slots[0]
+    events = _use_partner(g, 0, first)
+    assert first.partner is None and "P-018" in st.players[0].discarded_this_turn
+    assert st.players[0].pos == 2 and st.players[1].mp == 10          # 沒回翻,對手 P-019 不觸發
+    assert not [e for e in events if e["type"] == "pages_turned"]
+    submit(g, {"type": "pass", "player": 1})
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 3})   # E-005 正正:合計1回已用掉
+    assert [e["source"] for e in events if e["type"] == "page_turn_restricted"] == ["E-005"]
+
+
+def test_p018_usable_after_e005_turned_back_nothing_on_first_page():
+    # 回翻 0 張不算用過回翻效果(Inferred)→ 之後仍可使用 P-018
+    g = _p018_first_page_game(coins=(HEADS, HEADS))
+    st = g.state
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 3})   # E-005 正正,在第一頁
+    assert not [e for e in events if e["type"] in ("pages_turned", "page_turn_restricted")]
+    submit(g, {"type": "pass", "player": 1})
+    _use_partner(g, 0, st.players[0].slots[0])
+    assert st.players[0].slots[0].partner is None
 
 
 # ---------------------------------------------------------------- 「このターン中の次のバトル」(P-001 / P-007 / M-008)
