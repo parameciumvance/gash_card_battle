@@ -11,8 +11,8 @@
 
 ## 3. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 3.1 同步 delta spec 回 `battle-ui` 主 spec
-- [ ] 3.2 Reconcile affected capability design and rationale(`battle-ui` 尚無 design.md;確認不需新增)
-- [ ] 3.3 Update capability map(確認無需變更)
-- [ ] 3.4 從 `openspec/changes/todo.md` 移除「UI負傷橫向顯示」
-- [ ] 3.5 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 3.1 同步 delta spec 回 `battle-ui` 主 spec
+- [x] 3.2 Reconcile affected capability design and rationale(`battle-ui` 尚無 design.md;確認不需新增)
+- [x] 3.3 Update capability map(確認無需變更)
+- [x] 3.4 從 `openspec/changes/todo.md` 移除「UI負傷橫向顯示」
+- [x] 3.5 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
