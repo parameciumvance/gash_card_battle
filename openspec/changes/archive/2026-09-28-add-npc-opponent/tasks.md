@@ -37,11 +37,11 @@
 
 ## 6. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 6.1 同步 delta spec 回主 spec:新增 `npc-opponent/spec.md`(寫入 Purpose 與 scope);`online-room`、`battle-ui` 的 MODIFIED / ADDED;`local-test-mode` 的 RENAMED + MODIFIED,並更新其 Purpose(不再只限本機房)
-- [ ] 6.2 Reconcile affected capability design and rationale:
+- [x] 6.1 同步 delta spec 回主 spec:新增 `npc-opponent/spec.md`(寫入 Purpose 與 scope);`online-room`、`battle-ui` 的 MODIFIED / ADDED;`local-test-mode` 的 RENAMED + MODIFIED,並更新其 Purpose(不再只限本機房)
+- [x] 6.2 Reconcile affected capability design and rationale:
   - 新增 `npc-opponent/design.md`:架構、determinize 關卡、一般難度的流程、評估特徵、思考量上限與同步執行的理由。
   - 新增 `online-room/design.md`:NPC 座位與驅動、逾時代打共用 `engine/awaiting.py`。
   - `game-engine/design.md` 註記 `awaiting.py` 的查詢。
-- [ ] 6.3 Update capability map:新增 `npc-opponent`(遊戲核心或對戰服務子系統,覆蓋程度)、`online-room` 的 design 覆蓋、系統概觀與對戰指令 flow 加入 NPC 座位
-- [ ] 6.4 從 `openspec/changes/todo.md` 移除「NPC對戰」
-- [ ] 6.5 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 6.3 Update capability map:新增 `npc-opponent`(遊戲核心或對戰服務子系統,覆蓋程度)、`online-room` 的 design 覆蓋、系統概觀與對戰指令 flow 加入 NPC 座位
+- [x] 6.4 從 `openspec/changes/todo.md` 移除「NPC對戰」
+- [x] 6.5 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
