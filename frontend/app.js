@@ -614,6 +614,27 @@ document.getElementById("zoom-overlay").onclick = closeZoom;
 
 function inNonBattle() { return S.phase === "battle" && !S.battle && !S.battle_in && !S.pending; }
 
+// 目前的時機(時機指示、行動欄摘要與提示共用):start / nonbattle / battle_in / defense / effects / end / over。
+// 結束階段沒有自己的 phase 值,只在魔物消失處理等待選頁時停下
+function currentTiming() {
+  if (S.phase === "game_over") return "over";
+  if (S.pending && S.pending.kind === "deploy_page") return "end";
+  if (S.phase === "start") return "start";
+  if (S.battle_in) return "battle_in";
+  if (S.battle) return S.battle.step === "defense" ? "defense" : "effects";
+  return "nonbattle";
+}
+
+// 目前等待輸入的玩家(與伺服器的 awaited_player 相同規則,由快照推得)
+function awaitedPlayer() {
+  if (S.phase === "game_over") return null;
+  if (S.pending) return S.pending.player;
+  if (S.phase === "start") return S.turn_player;
+  if (S.battle) return S.battle.step === "defense" ? 1 - S.battle.attacker : S.battle.effect_turn;
+  if (S.battle_in) return 1 - S.battle_in.attacker;
+  return S.action_player;
+}
+
 function canActNow(p) {
   if (!iControl(p)) return false;
   if (S.pending) return false;
@@ -686,6 +707,7 @@ function render() {
   if (!S) return;
   renderPlayerZone(document.getElementById("zone-top"), topPlayerIndex(), true);
   renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex(), false);
+  renderTimingTrack();
   renderBattleStage();
   renderActionBar();
   renderPendingDialog();
@@ -974,14 +996,8 @@ function renderPlayerZone(zone, p, isTop) {
   zone.innerHTML = "";
   zone.dataset.player = p;
   const ps = S.players[p];
-  const active =
-    (S.phase === "start" && S.turn_player === p) ||
-    (S.pending && S.pending.player === p) ||
-    (!S.pending && S.battle && S.battle.step === "defense" && p === 1 - S.battle.attacker) ||
-    (!S.pending && S.battle && S.battle.step === "effects" && p === S.battle.effect_turn) ||
-    (!S.pending && !S.battle && S.battle_in && p === 1 - S.battle_in.attacker) ||
-    (!S.pending && inNonBattle() && S.action_player === p);
-  zone.classList.toggle("active", !!active);
+  const active = awaitedPlayer() === p;               // 行動權:等待輸入的一方
+  zone.classList.toggle("active", active);
 
   const head = document.createElement("div");
   head.className = "pz-head";
@@ -989,6 +1005,14 @@ function renderPlayerZone(zone, p, isTop) {
   nameSpan.className = "pname";
   nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? "(你)" : "");
   head.appendChild(nameSpan);
+  const badge = (cls, key) => {
+    const el = document.createElement("span");
+    el.className = cls;
+    el.textContent = t(key);
+    head.appendChild(el);
+  };
+  if (S.phase !== "game_over" && S.turn_player === p) badge("turn-marker", "ui.turn_marker");   // 整個回合都在
+  if (active) badge("acting-label", "ui.acting_label");
   const rest = document.createElement("span");
   rest.className = "pz-head-rest";
   rest.innerHTML =
@@ -1179,11 +1203,19 @@ function slotButtons(p, slot) {
 }
 
 function slotEl(p, slot) {
-  return cardEl(slot.top, {
+  return markUsable(cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
     zoomCtx: { kind: "slot", p, uid: slot.uid },
-  });
+  }), { kind: "slot", p, uid: slot.uid });
+}
+
+// 可用卡發光:可操作的一方的卡片,放大檢視中有任一啟用的行動按鈕(同一套判斷)
+function markUsable(el, ctx) {
+  if (iControl(ctx.p) && (zoomActions(ctx).buttons || []).some((b) => !b.disabled)) {
+    el.classList.add("usable");
+  }
+  return el;
 }
 
 function partnerButtons(p, slot) {
@@ -1202,7 +1234,8 @@ function partnerButtons(p, slot) {
 }
 
 function partnerEl(p, slot) {
-  return cardEl(slot.partner, { small: true, zoomCtx: { kind: "partner", p, uid: slot.uid } });
+  const ctx = { kind: "partner", p, uid: slot.uid };
+  return markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx }), ctx);
 }
 
 function abilityUsableNow(p, ab) {
@@ -1224,15 +1257,20 @@ function pageButtons(p, entry) {
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
+      // 夥伴卡:對應魔物須在場上且未裝夥伴(魔物卡可能疊放,前端不判斷場上是否已滿,以伺服器為準)
+      const target = def.type === "partner" ? mamodoInPlay(p, def.related_mamodo) : null;
+      const blocked = def.type !== "partner" ? null
+        : !target ? t("ui.play.no_mamodo") : target.partner ? t("ui.play.partner_exists") : null;
       buttons.push({
-        label: t("ui.play"), primary: true,
+        label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
         onclick: () => send({ type: "play_card", player: p, page: entry.page }),
       });
     } else if (def.type === "event") {
       const ps = S.players[p];
       const blocked = ps.used_event_this_turn ? t("ui.used")
         : (def.cost || 0) > ps.mp ? `MP < ${def.cost}`
-        : (def.ad === "A" && p !== S.turn_player) ? t("ui.error", { msg: "" }) : null;
+        : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
+        : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
       buttons.push({
         label: t("ui.use_event"), primary: true, disabled: !!blocked, reason: blocked,
         onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
@@ -1281,7 +1319,8 @@ function pageButtons(p, entry) {
 }
 
 function openPageEl(p, entry) {
-  const el = cardEl(entry.card, { cost: entry.cost, zoomCtx: { kind: "page", p, page: entry.page } });
+  const ctx = { kind: "page", p, page: entry.page };
+  const el = markUsable(cardEl(entry.card, { cost: entry.cost, zoomCtx: ctx }), ctx);
   if (entry.in_use) el.classList.add("in-use");  // 宣告中的攻防術:發光標示
   return el;
 }
@@ -1293,6 +1332,36 @@ function attackerName(player, slotUid) {
 }
 
 // 對決舞台:非戰鬥時收為發光細線,battle_in/battle 時展開承載攻防資訊與合計魔力
+// 時機指示(中線):開始 › 戰鬥階段〔非戰鬥中 ⇄ 戰鬥中:開始確認 → 防禦 → 效果〕 › 結束
+const IN_BATTLE_STEPS = ["battle_in", "defense", "effects"];
+
+function renderTimingTrack() {
+  const track = document.getElementById("timing-track");
+  const timing = currentTiming();
+  track.replaceChildren();
+  track.classList.toggle("hidden", timing === "over");
+  if (timing === "over") return;
+  const span = (cls, text) => {
+    const el = document.createElement("span");
+    el.className = cls;
+    el.textContent = text;
+    return el;
+  };
+  const step = (key) => {
+    const el = span("step" + (key === timing ? " current" : ""), t(`track.${key}`));
+    el.dataset.step = key;
+    return el;
+  };
+  const inBattle = span("seg-battle" + (IN_BATTLE_STEPS.includes(timing) ? "" : " collapsed"), t("track.in_battle"));
+  IN_BATTLE_STEPS.forEach((key, i) => {
+    if (i) inBattle.appendChild(span("sep", "→"));
+    inBattle.appendChild(step(key));
+  });
+  const phase = span("seg-phase", t("track.battle"));
+  phase.append(span("sep", "〔"), step("nonbattle"), span("sep", "⇄"), inBattle, span("sep", "〕"));
+  track.append(step("start"), span("sep", "›"), phase, span("sep", "›"), step("end"));
+}
+
 function renderBattleStage() {
   const stage = document.getElementById("battle-stage");
   const content = document.getElementById("stage-content");
@@ -1364,11 +1433,71 @@ function renderBattleStage() {
   }
 }
 
+// 行動欄摘要:輪到誰、誰的回合、目前的時機。可操作的一方以「你」稱呼(本機與觀戰以名稱)
+function actionSummary(awaited, timing) {
+  const me = selfPlayer();
+  const turn = me === null ? t("ui.turn_of.named", { player: pname(S.turn_player) })
+    : t(S.turn_player === me ? "ui.turn_of.mine" : "ui.turn_of.opp");
+  const params = { turn, timing: t(`timing.${timing}`), player: pname(awaited) };
+  if (me !== null && awaited === me) return t("ui.summary.mine", params);
+  if (me !== null) return t("ui.summary.wait", params);
+  return t("ui.summary.named", params);
+}
+
+// 詳細提示:依時機與是否回合玩家,對應規則書「戰鬥階段可做的事」
+function actionHints(awaited, timing) {
+  if (S.pending && timing !== "end") return ["hint.pending"];
+  if (timing === "nonbattle") return awaited === S.turn_player ? HINTS.nonbattle_turn : HINTS.nonbattle_other;
+  return HINTS[timing] || [];
+}
+const HINTS = {
+  start: ["hint.start"],
+  nonbattle_turn: ["hint.play", "hint.field_effect", "hint.own_turn_cards", "hint.attack", "hint.pass_end"],
+  nonbattle_other: ["hint.play", "hint.field_effect", "hint.opp_turn_cards", "hint.pass_end"],
+  battle_in: ["hint.allow_battle", "hint.insert_action"],
+  defense: ["hint.defend", "hint.no_defense"],
+  effects: ["hint.battle_effects", "hint.pass_showdown"],
+  end: ["hint.deploy"],
+};
+
+function hintsShown() {
+  try { return localStorage.getItem("gash-action-hints") === "shown"; } catch (_) { return false; }
+}
+
 function renderActionBar() {
   const bar = document.getElementById("action-bar");
   bar.innerHTML = "";
-  if (!S || S.phase === "game_over" || S.pending) return;
+  bar.classList.remove("mine");
+  if (!S || S.phase === "game_over") return;
+  const timing = currentTiming();
+  const awaited = awaitedPlayer();
+  const mine = awaited !== null && iControl(awaited);
+  bar.classList.toggle("mine", mine);                // 輪到自己:行動欄醒目
 
+  const summary = document.createElement("span");
+  summary.className = "summary";
+  summary.textContent = actionSummary(awaited, timing);
+  bar.appendChild(summary);
+  let details = null;
+  if (mine) {                                          // 詳細提示只對可操作的一方
+    const toggle = document.createElement("button");
+    toggle.className = "hint-toggle";
+    toggle.textContent = t(hintsShown() ? "ui.hints.hide" : "ui.hints.show");
+    toggle.onclick = () => {
+      try { localStorage.setItem("gash-action-hints", hintsShown() ? "hidden" : "shown"); } catch (_) { /* 本次不記 */ }
+      renderActionBar();
+    };
+    bar.appendChild(toggle);
+    if (hintsShown()) {
+      details = document.createElement("ul");
+      details.className = "hint-details";
+      for (const key of actionHints(awaited, timing)) {
+        const li = document.createElement("li");
+        li.textContent = t(key);
+        details.appendChild(li);
+      }
+    }
+  }
   const addBtn = (label, onclick, primary) => {
     const btn = document.createElement("button");
     btn.textContent = label;
@@ -1376,55 +1505,25 @@ function renderActionBar() {
     btn.onclick = onclick;
     bar.appendChild(btn);
   };
-  const hint = (msg) => {
-    const el = document.createElement("span");
-    el.className = "hint";
-    el.textContent = msg;
-    bar.appendChild(el);
-  };
-  const waitHint = () => hint(t("ui.opponent_thinking"));
 
-  if (S.phase === "start") {
-    const tp = S.turn_player;
-    if (!iControl(tp)) { waitHint(); return; }
-    hint(pname(tp) + "・" + t("ui.phase.start"));
-    const maxFlip = Math.min(3, Math.floor((32 - S.players[tp].pos) / 2));
-    for (let n = 0; n <= maxFlip; n++) {
-      addBtn(n === 0 ? t("ui.flip_0") : t("ui.flip_n", { n, mp: 2 * n }),
-        () => send({ type: "flip_pages", player: tp, count: n }), n === maxFlip);
-    }
-    return;
-  }
-
-  if (S.battle_in) {
-    const dp = 1 - S.battle_in.attacker;
-    if (!iControl(dp)) { waitHint(); return; }
-    hint(pname(dp));
-    addBtn(t("ui.allow_battle"),
-      () => send({ type: "battle_in_response", player: dp, allow: true }), true);
-    return;
-  }
-
-  if (S.battle) {
-    const b = S.battle;
-    if (b.step === "defense") {
-      const dp = 1 - b.attacker;
-      if (!iControl(dp)) { waitHint(); return; }
-      hint(pname(dp));
-      addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: dp }));
+  if (mine && !S.pending) {
+    if (timing === "start") {
+      const tp = S.turn_player;
+      const maxFlip = Math.min(3, Math.floor((32 - S.players[tp].pos) / 2));
+      for (let n = 0; n <= maxFlip; n++) {
+        addBtn(n === 0 ? t("ui.flip_0") : t("ui.flip_n", { n, mp: 2 * n }),
+          () => send({ type: "flip_pages", player: tp, count: n }), n === maxFlip);
+      }
+    } else if (timing === "battle_in") {
+      addBtn(t("ui.allow_battle"),
+        () => send({ type: "battle_in_response", player: awaited, allow: true }), true);
+    } else if (timing === "defense") {
+      addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
-      if (!iControl(b.effect_turn)) { waitHint(); return; }
-      hint(pname(b.effect_turn));
-      addBtn(t("ui.pass"), () => send({ type: "pass", player: b.effect_turn }));
+      addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }));
     }
-    return;
   }
-
-  if (S.action_player !== null) {
-    if (!iControl(S.action_player)) { waitHint(); return; }
-    hint(pname(S.action_player));
-    addBtn(t("ui.pass"), () => send({ type: "pass", player: S.action_player }));
-  }
+  if (details) bar.appendChild(details);
 }
 
 // ---------------------------------------------------------------- 決策對話框

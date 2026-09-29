@@ -66,6 +66,10 @@ body {
 .pz-head .discard-btn { cursor: pointer; color: var(--ink-dim); text-decoration: underline; }
 .pz-head-rest { display: inline-flex; gap: 14px; align-items: center; }
 .pz-head .review-btn { cursor: pointer; color: var(--gold-soft); text-decoration: underline; }
+/* 回合玩家記號(整個回合)與行動權標籤(等待輸入的一方) */
+.pz-head .turn-marker { background: var(--gold); color: #3a2a08; font-size: 11px; font-weight: bold;
+  padding: 1px 8px; border-radius: 10px; }
+.pz-head .acting-label { color: var(--accent-green); font-size: 12px; font-weight: bold; }
 .pz-head .review-btn:hover { color: var(--glow); }
 .name-input { text-transform: none !important; }
 
@@ -248,6 +252,7 @@ body {
 /* ---------------- 對決舞台(中線) ---------------- */
 #battle-stage {
   position: relative; margin: 0 14px; border-radius: 8px;
+  flex-shrink: 0;   /* 盤面比視窗高時不可被壓扁(否則時機指示與對決內容會溢出蓋到玩家區) */
   min-height: 4px; background: linear-gradient(90deg,
     rgba(255,209,102,0), rgba(255,209,102,.55), rgba(255,209,102,0));
   box-shadow: 0 0 8px rgba(255,209,102,.35);
@@ -277,6 +282,23 @@ body {
   position: sticky; bottom: 0; backdrop-filter: blur(3px);
 }
 #action-bar .hint { font-size: 12px; color: var(--glow); margin-right: 8px; }
+/* 行動欄:摘要、提示開關、詳細提示;輪到自己時醒目 */
+#action-bar.mine { background: rgba(28, 58, 40, .94); box-shadow: inset 0 3px 0 var(--accent-green); }
+#action-bar .summary { font-size: 13px; font-weight: bold; color: var(--ink); margin-right: 4px; }
+#action-bar.mine .summary { color: var(--accent-green); }
+#action-bar .hint-toggle { font-size: 12px; padding: 3px 10px; }
+#action-bar .hint-details { flex-basis: 100%; margin: 2px 0 0 20px; font-size: 12px; line-height: 1.7;
+  color: var(--ink-dim); }
+/* 可用卡發光:當下有可執行行動的卡 */
+#board .card.usable { box-shadow: 0 0 0 2px var(--accent-green), 0 0 12px rgba(126, 224, 163, .6); }
+/* 時機指示(中線) */
+#timing-track { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
+  padding: 3px 8px; font-size: 12px; color: var(--ink-dim); }
+#timing-track .seg-phase, #timing-track .seg-battle { display: inline-flex; align-items: center; gap: 4px; }
+#timing-track .step { padding: 1px 8px; border-radius: 10px; }
+#timing-track .step.current { background: var(--glow); color: #3a2a08; font-weight: bold; }
+#timing-track .sep { opacity: .6; }
+#spotlight .spot-panel.banner .spot-lines { font-size: 22px; font-weight: bold; color: var(--glow); }
 #action-bar button { font-size: 13px; padding: 6px 14px; }
 
 #log-panel {
@@ -746,6 +768,9 @@ body {
   #zoom-actions button { min-height: 44px; font-size: 15px; }
   #dialog-options button { min-height: 44px; font-size: 14px; }
   #action-bar button { min-height: 40px; font-size: 14px; padding: 8px 14px; }
+  #timing-track { font-size: 11px; gap: 2px; }
+  #timing-track .step { padding: 1px 5px; }
+  #timing-track .seg-battle.collapsed .step, #timing-track .seg-battle.collapsed .sep { display: none; }
   #dialog { max-width: 94vw; }
   #zoom-card .card { width: min(300px, 86vw); }
   #zoom-actions { width: min(300px, 86vw); }

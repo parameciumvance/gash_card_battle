@@ -36,6 +36,7 @@ def start_as(page, me):
     """開本機房,視角設為 me:'defender'(非回合玩家,回合玩家即對手)或 'turn'。回傳對手的玩家編號。"""
     page.evaluate("startLocal()")
     page.wait_for_function("S && S.phase === 'start'")
+    page.evaluate("Anim.idle()")                                         # 等開局的回合開始橫幅播完
     return page.evaluate(f"""() => {{
         const tp = S.turn_player;
         const me = '{me}' === 'turn' ? tp : 1 - tp;

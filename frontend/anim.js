@@ -25,7 +25,7 @@ const Anim = (() => {
   };
   // 文字聚焦(跟在卡片之後時併為結果行)
   const TEXT_EVENTS = new Set([
-    "turn_started", "passed", "no_defense", "damage_dealt", "protected", "mamodo_injured",
+    "passed", "no_defense", "damage_dealt", "protected", "mamodo_injured",
     "mamodo_discarded", "mamodo_healed", "card_discarded", "pages_turned", "mp_changed",
     "attack_negated", "defense_negated", "game_ended",
   ]);
@@ -59,16 +59,27 @@ const Anim = (() => {
     return BLOCKING.has(ev.type) && !(ev.type === "coin_flipped" && ev.source === "setup");
   }
 
-  // 依事件順序組成時間軸:卡片格 / 文字格 / 阻塞演出;阻塞演出之後的文字另起一格
-  function timeline(events, actor, motion) {
+  // 依事件順序組成時間軸:卡片格 / 文字格 / 回合開始橫幅 / 阻塞演出;阻塞演出與橫幅之後的文字另起一格。
+  // skip:排隊過多時跳過這批的聚焦(含橫幅)
+  function timeline(events, actor, motion, skip) {
     const me = selfPlayer();                      // 0 / 1;本機與觀戰為 null(雙方都聚焦)
-    const spot = actor !== null && actor !== undefined && spotlightMode() !== "off" && !document.hidden;
+    const enabled = !skip && spotlightMode() !== "off" && !document.hidden;
+    const spot = enabled && actor !== null && actor !== undefined;
     const others = me === null || actor !== me;
     const steps = [];
     let cur = null;
     for (const ev of events) {
       if (blocking(ev)) {
         if (motion) steps.push({ kind: "anim", ev });
+        cur = null;
+        continue;
+      }
+      if (ev.type === "turn_started") {           // 回合開始橫幅:每回合都顯示,不論行動者
+        if (enabled) {
+          const text = me !== null && ev.player === me ? t("ui.turn_banner.mine")
+            : t("ui.turn_banner.named", { player: pname(ev.player) });
+          steps.push({ kind: "text", caption: null, lines: [text], pass: true, banner: true });
+        }
         cur = null;
         continue;
       }
@@ -123,7 +134,7 @@ const Anim = (() => {
     const motion = !motionOff();
     const marks = motion ? measure(events) : null;
     // 追趕:排隊太多批時跳過這批的聚焦(最後一批仍會播)
-    const steps = timeline(events, pending >= 5 ? null : actor, motion);
+    const steps = timeline(events, actor, motion, pending >= 5);
     for (const step of steps) {
       if (step.kind === "anim") await withTimeout(playBlocking(step.ev, prevState), HARD_TIMEOUT);
       else await spotlight(step, motion);
@@ -145,7 +156,7 @@ const Anim = (() => {
     if (!el) return Promise.resolve();
     const ms = spotlightMs(step);
     const panel = document.createElement("div");
-    panel.className = "spot-panel" + (step.kind === "card" ? " with-card" : "");
+    panel.className = "spot-panel" + (step.kind === "card" ? " with-card" : "") + (step.banner ? " banner" : "");
     if (step.kind === "card") {
       const art = document.createElement("img");
       art.className = "spot-art";
@@ -420,5 +431,6 @@ const Anim = (() => {
     wrap.remove();
   }
 
-  return { apply };
+  // idle:目前排隊中的播放全部結束時完成(測試與需要等畫面追上的流程使用)
+  return { apply, idle: () => queue };
 })();
