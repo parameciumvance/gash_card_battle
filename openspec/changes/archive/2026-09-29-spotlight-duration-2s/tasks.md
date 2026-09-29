@@ -6,7 +6,7 @@
 
 ## 2. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 2.1 同步 delta spec 回 `battle-ui` 主 spec
-- [ ] 2.2 Reconcile affected capability design and rationale:`battle-ui/design.md`、`online-room/design.md` 的數字
-- [ ] 2.3 Update capability map(確認無需變更)
-- [ ] 2.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 2.1 同步 delta spec 回 `battle-ui` 主 spec
+- [x] 2.2 Reconcile affected capability design and rationale:`battle-ui/design.md`、`online-room/design.md` 的數字
+- [x] 2.3 Update capability map(確認無需變更)
+- [x] 2.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
