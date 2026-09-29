@@ -28,7 +28,7 @@
 | `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Partial | 初評;design 只整理了快照的公開 / 私有界線 |
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |
 | `npc-opponent` | NPC 對手的決策:資訊可見範圍、只送出引擎接受的指令、難度與基本判斷、可重現 | Documented | Documented | 測試在 `tests/test_npc.py`;NPC 房與驅動見 `online-room` |
-| `battle-ui` | 對戰畫面:首頁入口、盤面、操作與決策、行動記錄、動畫與聚焦展示、演出設定、i18n | Partial | Partial | 初評;design 只整理了事件動畫與聚焦展示 |
+| `battle-ui` | 對戰畫面:首頁入口、盤面、回合與時機指示、操作與決策、行動記錄、動畫與聚焦展示、演出設定、i18n | Partial | Partial | 初評;design 只整理了事件動畫、聚焦展示與回合和時機指示 |
 | `deck-builder` | 魔本構築:對頁編輯、合法性提示、瀏覽器儲存、文字碼 | Partial | Not documented | 初評 |
 | `standalone-release` | 單機發行:資源目錄解析、啟動器、公開通道、打包 | Partial | Not documented | 初評 |
 | `docker-deployment` | VPS 容器部署:映像檔、反向代理、CI 分流、自動更新 | Partial | Not documented | 初評 |

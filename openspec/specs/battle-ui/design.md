@@ -1,6 +1,6 @@
 # battle-ui — 設計
 
-目前只整理了事件動畫與對手行動聚焦展示;其餘畫面設計以 `frontend/` 程式與測試為準。
+目前只整理了事件動畫、對手行動聚焦展示與回合和時機指示;其餘畫面設計以 `frontend/` 程式與測試為準。
 
 ## 事件動畫管線(`frontend/anim.js`)
 
@@ -24,6 +24,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - `TEXT_EVENTS`:文字聚焦的事件。
   - 未列入的事件不聚焦,只進行動記錄。新增事件時在這裡補上。
 - **時間軸**:
+  - `turn_started` 一律插入一格回合開始橫幅(不論 `actor`,只看聚焦設定與追趕),自成一格;開局的第 1 回合也會顯示。
   - 卡片事件開新的一格;之後的文字事件併入為結果行。
   - 擲硬幣 / 魔力對決會結束目前這格,之後的文字另起一格。
   - 說明文字沿用行動記錄的 `logLine(ev)`,卡圖、卡名、效果文取自 `CARDS` / `ZH`。
@@ -38,6 +39,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - ≥ 5 批時跳過該批聚焦(最後一批仍播)。
   - 分頁在背景時不聚焦。
 - **遮罩**:`#spotlight` 蓋住盤面,點擊即結束目前這格,也避免按到尚未重繪的過時按鈕。`data-ms` 記錄這格的停留時間(測試用)。
+- `Anim.idle()`:目前排隊的播放全部結束時完成,測試用來等開局橫幅播完。
 
 ## 演出設定
 
@@ -46,3 +48,16 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - CSS 動畫只看 `html.motion-off`(由 `applyMotionClass()` 在啟動、設定變更、系統偏好變更時切換),不直接用 media query,遊戲內的「開」才能蓋過系統偏好。
 - 聚焦不屬於動畫:動畫關時仍顯示,只因 `motion-off` 而沒有淡入。
 - 瀏覽器測試的 fixture 預設 `gash-spotlight=off`(本機模式雙方都會聚焦,遮罩會擋住操作);聚焦的測試另外開啟。
+
+## 回合與時機指示
+
+- **單一來源**:`currentTiming()`(start / nonbattle / battle_in / defense / effects / end / over)與 `awaitedPlayer()` 由快照推得,區塊標示、時機指示、行動欄摘要與提示共用。
+  - 結束階段沒有自己的 `phase` 值:引擎在結束處理期間 `phase` 仍為 battle,只有魔物消失處理等待選頁時停下,以 `pending.kind == "deploy_page"` 判斷為 end。
+  - `awaitedPlayer()` 與伺服器的 `awaited_player` 同一規則。
+- **區塊**:回合玩家記號依 `turn_player`(整個回合);「行動中」依 `awaitedPlayer()`;輪到可操作的一方時行動欄加 `mine`。
+- **時機指示**:`#timing-track` 在中線(`#battle-stage`)內、對決內容之上。窄螢幕時,不在戰鬥中的「戰鬥中」子步驟收起。`#battle-stage` 設 `flex-shrink: 0`,盤面比視窗高時不被壓扁。
+- **行動欄**:摘要一律顯示;詳細提示只對可操作的一方,條目依時機與是否回合玩家取自 `HINTS`(內容對應規則書「戰鬥階段可做的事」),展開狀態存 `gash-action-hints`,缺省收起。
+- **可用卡發光**:`markUsable` 對可操作的一方的場上魔物、夥伴與翻開頁,以 `zoomActions(ctx)` 的按鈕判斷,有任一啟用即加 `usable`。發光與放大檢視按鈕同一套判斷,前端判斷不精確的地方兩者一起錯,修一處即可:
+  - 夥伴卡:對應魔物須在場上且未裝夥伴。
+  - 事件卡:依「自己的回合 / 對手的回合」圖示與是否回合玩家。
+  - 魔物卡不判斷場上是否已滿:M-007 / M-010 / M-027 可疊放,前端無從得知,以伺服器為準。

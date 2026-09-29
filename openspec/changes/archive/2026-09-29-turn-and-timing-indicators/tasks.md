@@ -14,7 +14,7 @@
 
 ## 3. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 3.1 同步 delta spec 回 `battle-ui` 主 spec
-- [ ] 3.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補回合與時機指示(時機判斷、可用卡發光)與回合開始橫幅
-- [ ] 3.3 Update capability map(確認無需變更)
-- [ ] 3.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 3.1 同步 delta spec 回 `battle-ui` 主 spec
+- [x] 3.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補回合與時機指示(時機判斷、可用卡發光)與回合開始橫幅
+- [x] 3.3 Update capability map(`battle-ui` 的責任與 design 備註補上回合與時機指示)
+- [x] 3.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
