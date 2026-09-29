@@ -56,7 +56,7 @@ def test_opponent_card_use_is_spotlighted_before_board_updates(spot):
     spot.wait_for_selector(SPOT)
     assert spot.locator("#spotlight .spot-name").text_content() == spot.evaluate("cname('S-001')")
     assert spot.locator("#spotlight .spot-effect").text_content() == spot.evaluate("ZH['S-001'].effect")
-    assert spot.locator("#spotlight").get_attribute("data-ms") == "1000"
+    assert spot.locator("#spotlight").get_attribute("data-ms") == "2000"
     assert spot.locator("#battle-stage.open").count() == 0                # 播完才重繪
     spot.wait_for_selector("#spotlight.hidden", state="attached")
     spot.wait_for_selector("#battle-stage.open")
@@ -68,7 +68,7 @@ def test_opponent_pass_is_shown_briefly(spot):
     send(spot, opp, {"type": "pass"})
     spot.wait_for_selector(SPOT)
     assert "pass" in spot.locator("#spotlight").text_content()
-    assert spot.locator("#spotlight").get_attribute("data-ms") == "500"
+    assert spot.locator("#spotlight").get_attribute("data-ms") == "1000"
 
 
 def test_own_action_is_not_spotlighted(spot):
@@ -93,7 +93,7 @@ def test_own_unfavorable_result_is_spotlighted(spot):
     spot.wait_for_function("""() => {
         const el = document.querySelector('#spotlight:not(.hidden)');
         return el && el.textContent.includes('魔本受到');
-    }""", timeout=15000)
+    }""", timeout=30000)
 
 
 def test_click_skips_current_spotlight(spot):
@@ -102,7 +102,7 @@ def test_click_skips_current_spotlight(spot):
     send(spot, opp, {"type": "declare_attack", "page": 3})
     spot.wait_for_selector(SPOT)
     spot.locator("#spotlight").click()
-    assert spot.locator(SPOT).count() == 0                                # 立即結束,不等 1 秒
+    assert spot.locator(SPOT).count() == 0                                # 立即結束,不等 2 秒
     spot.wait_for_selector("#battle-stage.open")
 
 
@@ -120,11 +120,11 @@ def test_backlog_speeds_up(spot):
         return true;
     }}""")
     assert passes
-    spot.wait_for_function("window.__ms.length >= 3", timeout=5000)
-    assert spot.evaluate("window.__ms[0]") == "250"                       # 排隊 3 批:加快(pass 為一半)
+    spot.wait_for_function("window.__ms.length >= 3", timeout=8000)
+    assert spot.evaluate("window.__ms[0]") == "500"                       # 排隊 3 批:加快(pass 為一半)
     spot.evaluate(f"Anim.apply([{{seq: 90004, type: 'passed', player: {opp}}}], S, render, {opp})")
-    spot.wait_for_function("window.__ms.length >= 4", timeout=5000)
-    assert spot.evaluate("window.__ms[3]") == "500"                       # 追上後恢復
+    spot.wait_for_function("window.__ms.length >= 4", timeout=8000)
+    assert spot.evaluate("window.__ms[3]") == "1000"                       # 追上後恢復
 
 
 def test_prefs_are_remembered_and_motion_follows_system(browser, server):  # noqa: F811

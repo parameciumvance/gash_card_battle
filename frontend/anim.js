@@ -136,7 +136,7 @@ const Anim = (() => {
 
   function spotlightMs(step) {
     const fast = spotlightMode() === "fast" || pending >= 2;   // 落後時自動加快
-    const base = fast ? 500 : 1000;
+    const base = fast ? 1000 : 2000;          // 標準 2 秒、快 1 秒
     return step.pass ? base / 2 : base;
   }
 

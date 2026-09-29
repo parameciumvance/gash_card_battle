@@ -561,9 +561,9 @@ async def _timeout_loop() -> None:
 
 # ---------------------------------------------------------------- NPC 驅動
 
-# NPC 送出前的等待秒數:略長於標準速度的聚焦展示(pass 0.5 秒、其他 1 秒),畫面才跟得上
-NPC_QUIET_DELAY = 0.7     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)
-NPC_ACTION_DELAY = 1.3    # 其他指令
+# NPC 送出前的等待秒數:略長於標準速度的聚焦展示(pass 1 秒、其他 2 秒),畫面才跟得上
+NPC_QUIET_DELAY = 1.2     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)
+NPC_ACTION_DELAY = 2.3    # 其他指令
 _QUIET_COMMANDS = {"pass", "battle_in_response", "no_defense"}
 _log = logging.getLogger(__name__)
 
