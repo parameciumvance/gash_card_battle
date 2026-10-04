@@ -1354,13 +1354,18 @@ function renderTimingTrack() {
     el.onclick = () => openRules(RULE_LINKS[`timing.${key}`]);   // 連到規則頁的說明
     return el;
   };
-  const inBattle = span("seg-battle" + (IN_BATTLE_STEPS.includes(timing) ? "" : " collapsed"), t("track.in_battle"));
+  // 窄螢幕只顯示當下所在的一層:不在戰鬥中收起戰鬥中的子步驟,在戰鬥中收起外層(開始、戰鬥階段、結束)
+  const battling = IN_BATTLE_STEPS.includes(timing);
+  track.classList.toggle("in-battle", battling);
+  const inBattle = span("seg-battle" + (battling ? "" : " collapsed"), "");
+  inBattle.appendChild(span("seg-label", t("track.in_battle")));
   IN_BATTLE_STEPS.forEach((key, i) => {
     if (i) inBattle.appendChild(span("sep", "→"));
     inBattle.appendChild(step(key));
   });
-  const phase = span("seg-phase", t("track.battle"));
-  phase.append(span("sep", "〔"), step("nonbattle"), span("sep", "⇄"), inBattle, span("sep", "〕"));
+  const phase = span("seg-phase", "");
+  phase.append(span("seg-label", t("track.battle")), span("sep outer", "〔"), step("nonbattle"),
+    span("sep", "⇄"), inBattle, span("sep outer", "〕"));
   track.append(step("start"), span("sep", "›"), phase, span("sep", "›"), step("end"));
 }
 

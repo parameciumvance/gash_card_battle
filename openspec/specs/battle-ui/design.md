@@ -68,7 +68,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 結束階段沒有自己的 `phase` 值:引擎在結束處理期間 `phase` 仍為 battle,只有魔物消失處理等待選頁時停下,以 `pending.kind == "deploy_page"` 判斷為 end。
   - `awaitedPlayer()` 與伺服器的 `awaited_player` 同一規則。
 - **區塊**:回合玩家記號依 `turn_player`(整個回合);「行動中」依 `awaitedPlayer()`;輪到可操作的一方時行動欄加 `mine`。
-- **時機指示**:`#timing-track` 在中線(`#battle-stage`)內、對決內容之上。窄螢幕時,不在戰鬥中的「戰鬥中」子步驟收起。`#battle-stage` 設 `flex-shrink: 0`,盤面比視窗高時不被壓扁。
+- **時機指示**:`#timing-track` 在中線(`#battle-stage`)內、對決內容之上。窄螢幕時只顯示當下所在的一層,維持單行:不在戰鬥中時收起「戰鬥中」的子步驟;在戰鬥中時收起外層的開始、戰鬥階段與結束,只留「非戰鬥中 ⇄ 戰鬥中:開始確認 → 防禦 → 效果」。步驟文字不斷行,更窄的螢幕上只在步驟之間換行。`#battle-stage` 設 `flex-shrink: 0`,盤面比視窗高時不被壓扁。
 - **行動欄**:摘要一律顯示;詳細提示只對可操作的一方,條目依時機與是否回合玩家取自 `HINTS`(內容對應規則書「戰鬥階段可做的事」),展開狀態存 `gash-action-hints`,缺省收起。
 - **可用卡發光**:`markUsable` 對可操作的一方的場上魔物、夥伴與翻開頁,以 `zoomActions(ctx)` 的按鈕判斷,有任一啟用即加 `usable`。發光與放大檢視按鈕同一套判斷,前端判斷不精確的地方兩者一起錯,修一處即可:
   - 夥伴卡:對應魔物須在場上且未裝夥伴。

@@ -307,7 +307,9 @@ body {
 #timing-track { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
   padding: 3px 8px; font-size: 12px; color: var(--on-page-dim); }
 #battle-stage.open #timing-track { color: var(--ink-dim); }
-#timing-track .seg-phase, #timing-track .seg-battle { display: inline-flex; align-items: center; gap: 4px; }
+#timing-track .seg-phase, #timing-track .seg-battle { display: inline-flex; align-items: center; gap: 4px;
+  flex-wrap: wrap; justify-content: center; }
+#timing-track .step, #timing-track .seg-label { white-space: nowrap; }   /* 換行只發生在步驟之間 */
 #timing-track .step { padding: 1px 8px; border-radius: 10px; }
 #timing-track .step.current { background: var(--glow); color: #3a2a08; font-weight: bold; }
 #timing-track .sep { opacity: .6; }
@@ -867,6 +869,8 @@ body {
   #timing-track { font-size: 11px; gap: 2px; }
   #timing-track .step { padding: 1px 5px; }
   #timing-track .seg-battle.collapsed .step, #timing-track .seg-battle.collapsed .sep { display: none; }
+  #timing-track.in-battle > .step, #timing-track.in-battle > .sep,
+  #timing-track.in-battle .seg-phase > .seg-label, #timing-track.in-battle .seg-phase > .sep.outer { display: none; }
   #dialog { max-width: 94vw; }
   #zoom-card .card { width: min(300px, 86vw); }
   #zoom-actions { width: min(300px, 86vw); }

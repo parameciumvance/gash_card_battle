@@ -136,3 +136,32 @@ def test_turn_banner_every_turn(browser, server):  # noqa: F811
     assert not any("回合開始" in t or "—— 第" in t for t in page.evaluate("window.__spots"))
     context.close()
     assert not errors
+
+
+TRACK_ROW = """() => {
+    const steps = [...document.querySelectorAll('#timing-track .step')].filter(s => s.offsetParent);
+    const lineH = parseFloat(getComputedStyle(document.getElementById('timing-track')).fontSize) * 2;
+    return {
+        visible: steps.map(s => s.dataset.step),
+        oneRow: new Set(steps.map(s => s.offsetTop)).size === 1,
+        noWrap: steps.every(s => s.offsetHeight < lineH),
+    };
+}"""
+
+
+def test_phone_timing_track_stays_on_one_row(browser, server):  # noqa: F811
+    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
+    page = context.new_page()
+    page.goto(server)
+    page.wait_for_function("Object.keys(CARDS).length > 0")
+    tp, _ = start_as(page, "all")
+    send(page, tp, {"type": "flip_pages", "count": 0})
+    row = page.evaluate(TRACK_ROW)                                      # 非戰鬥中:戰鬥中的子步驟收起
+    assert row["visible"] == ["start", "nonbattle", "end"] and row["oneRow"] and row["noWrap"]
+    send(page, tp, {"type": "declare_attack", "page": 3})
+    page.wait_for_function("S.battle_in")
+    row = page.evaluate(TRACK_ROW)                                      # 戰鬥中:外層的開始、結束收起
+    assert row["visible"] == ["nonbattle", "battle_in", "defense", "effects"]
+    assert row["oneRow"] and row["noWrap"]
+    context.close()
