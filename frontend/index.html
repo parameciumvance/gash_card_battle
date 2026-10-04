@@ -27,55 +27,60 @@
     <h1 id="landing-title"></h1>
     <div id="assets-hint" class="hidden"></div>
     <div id="landing-cards">
-      <div class="entry" id="entry-local">
-        <h2></h2><p></p>
-        <label class="deck-label" id="name-local-0-label"></label>
-        <input id="name-local-0" class="name-input" maxlength="16">
-        <label class="deck-label" id="deck-local-0-label"></label>
-        <select id="deck-local-0" class="deck-select"></select>
-        <label class="deck-label" id="name-local-1-label"></label>
-        <input id="name-local-1" class="name-input" maxlength="16">
-        <label class="deck-label" id="deck-local-1-label"></label>
-        <select id="deck-local-1" class="deck-select"></select>
-        <button class="primary"></button>
+      <button class="entry" id="entry-npc"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-friend"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-local"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-builder"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-rules"><span class="entry-title"></span><span class="entry-desc"></span></button>
+    </div>
+  </section>
+
+  <!-- 設定頁(NPC 對戰 / 與朋友對戰 / 本機測試) -->
+  <section id="setup" class="hidden">
+    <div id="setup-head">
+      <button id="setup-back"></button>
+      <h2 id="setup-title"></h2>
+    </div>
+    <div class="setup-panel" id="setup-npc">
+      <label class="deck-label" id="name-npc-label" for="name-npc"></label>
+      <input id="name-npc" class="name-input" maxlength="16">
+      <label class="deck-label" id="deck-npc-label" for="deck-npc"></label>
+      <select id="deck-npc" class="deck-select"></select>
+      <label class="deck-label" id="deck-npc-opp-label" for="deck-npc-opp"></label>
+      <select id="deck-npc-opp" class="deck-select"></select>
+      <label class="deck-label" id="npc-level-label" for="npc-level"></label>
+      <select id="npc-level"></select>
+      <button class="primary" id="npc-start"></button>
+    </div>
+    <div class="setup-panel" id="setup-friend">
+      <div id="friend-mode" class="seg">
+        <button data-mode="create"></button><button data-mode="join"></button>
       </div>
-      <div class="entry" id="entry-npc">
-        <h2></h2><p></p>
-        <label class="deck-label" id="name-npc-label"></label>
-        <input id="name-npc" class="name-input" maxlength="16">
-        <label class="deck-label" id="deck-npc-label"></label>
-        <select id="deck-npc" class="deck-select"></select>
-        <label class="deck-label" id="deck-npc-opp-label"></label>
-        <select id="deck-npc-opp" class="deck-select"></select>
-        <label class="deck-label" id="npc-level-label"></label>
-        <select id="npc-level"></select>
-        <button class="primary"></button>
-      </div>
-      <div class="entry" id="entry-create">
-        <h2></h2><p></p>
-        <label class="deck-label" id="name-create-label"></label>
-        <input id="name-create" class="name-input" maxlength="16">
-        <label id="timer-label"></label>
+      <p id="friend-desc"></p>
+      <label class="deck-label" id="name-friend-label" for="name-friend"></label>
+      <input id="name-friend" class="name-input" maxlength="16">
+      <label class="deck-label" id="deck-friend-label" for="deck-friend"></label>
+      <select id="deck-friend" class="deck-select"></select>
+      <div class="field" id="friend-timer-row">
+        <label class="deck-label" id="timer-label" for="timer-select"></label>
         <select id="timer-select"></select>
-        <label class="deck-label" id="deck-create-label"></label>
-        <select id="deck-create" class="deck-select"></select>
-        <button class="primary"></button>
       </div>
-      <div class="entry" id="entry-join">
-        <h2></h2><p></p>
+      <div class="field" id="friend-code-row">
+        <label class="deck-label" id="join-code-label" for="join-code"></label>
         <input id="join-code" maxlength="6" placeholder="ABC123">
-        <label class="deck-label" id="name-join-label"></label>
-        <input id="name-join" class="name-input" maxlength="16">
-        <label class="deck-label" id="deck-join-label"></label>
-        <select id="deck-join" class="deck-select"></select>
-        <button class="primary"></button>
       </div>
-      <div class="entry" id="entry-builder">
-        <h2></h2><p></p><button class="primary"></button>
-      </div>
-      <div class="entry" id="entry-rules">
-        <h2></h2><p></p><button class="primary"></button>
-      </div>
+      <button class="primary" id="friend-submit"></button>
+    </div>
+    <div class="setup-panel" id="setup-local">
+      <label class="deck-label" id="name-local-0-label" for="name-local-0"></label>
+      <input id="name-local-0" class="name-input" maxlength="16">
+      <label class="deck-label" id="deck-local-0-label" for="deck-local-0"></label>
+      <select id="deck-local-0" class="deck-select"></select>
+      <label class="deck-label" id="name-local-1-label" for="name-local-1"></label>
+      <input id="name-local-1" class="name-input" maxlength="16">
+      <label class="deck-label" id="deck-local-1-label" for="deck-local-1"></label>
+      <select id="deck-local-1" class="deck-select"></select>
+      <button class="primary" id="local-start"></button>
     </div>
   </section>
 

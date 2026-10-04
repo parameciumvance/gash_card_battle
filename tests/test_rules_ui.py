@@ -3,6 +3,7 @@
 Run: python -m pytest tests/test_rules_ui.py -q
 """
 from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(聚焦預設關閉)
+from tests.test_npc_ui import start_npc, open_npc_setup
 from tests.test_spotlight_ui import open_page
 
 CURRENT = "#rules-toc .current"
@@ -19,7 +20,7 @@ def section_in_view(page, sid):
 
 
 def test_landing_entry_opens_and_closes_rules(page):
-    page.locator("#entry-rules button").click()
+    page.locator("#entry-rules").click()
     assert page.locator("#rules-overlay").is_visible()
     assert page.locator("#rules-body .rules-section").count() >= 11
     page.locator("#rules-close").click()
@@ -51,9 +52,10 @@ def test_timing_step_and_hint_link_open_matching_section(page):
 
 def test_rules_in_game_do_not_block_play(browser, server):  # noqa: F811
     context, page, errors = open_page(browser, server, prefs={"spotlight": "off"})
+    open_npc_setup(page)
     page.select_option("#npc-level", "dummy")
-    page.locator("#entry-npc button").click()
-    page.wait_for_function("SESSION && SESSION.mode === 'npc' && S && R && R.awaited_player === 0", timeout=20000)
+    start_npc(page)
+    page.wait_for_function("R.awaited_player === 0", timeout=20000)
     page.locator("#rules-toggle").click()
     assert page.locator("#rules-overlay").is_visible()
     before = page.evaluate("S.event_count")

@@ -236,7 +236,7 @@ function setConn(ok) {
 
 function show(sectionId) {
   if (sectionId !== "layout") closeCheat();
-  for (const id of ["landing", "waiting", "layout", "builder"]) {
+  for (const id of ["landing", "setup", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
 }
@@ -327,7 +327,7 @@ async function createRoom() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null,
-      deck: deckPayload("deck-create"), name: saveNick(document.getElementById("name-create").value) }),
+      deck: deckPayload("deck-friend"), name: saveNick(document.getElementById("name-friend").value) }),
   });
   SESSION = { code: body.code, mode: "online", viewer: 0,
               tokens: { me: body.player_token } };
@@ -353,8 +353,8 @@ async function joinRoom(code) {
   try {
     const body = await api(`/api/rooms/${code}/join`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deck: deckPayload("deck-join"),
-                             name: saveNick(document.getElementById("name-join").value) }),
+      body: JSON.stringify({ deck: deckPayload("deck-friend"),
+                             name: saveNick(document.getElementById("name-friend").value) }),
     });
     SESSION = { code: code.toUpperCase(), mode: "online", viewer: 1,
                 tokens: { me: body.player_token } };
@@ -365,8 +365,7 @@ async function joinRoom(code) {
     show("layout");
     openWS();
   } catch (err) {
-    toast(t("ui.error", { msg: err.message }));
-    show("landing");
+    toast(t("ui.error", { msg: err.message }));   // 留在設定頁,可修正房號再加入
   }
 }
 
@@ -2514,21 +2513,121 @@ function showIO(title, text, readonly, onConfirm) {
   overlay.classList.remove("hidden");
 }
 
+// ---------------------------------------------------------------- 設定頁
+
+const SETUP_MODES = ["npc", "friend", "local"];
+let friendMode = "create";
+
+// 上次的選擇(localStorage gash-setup):{npc: {deck, opp, level}, friend: {deck, timer, mode}, local: {deck0, deck1}}
+const SETUP_FIELDS = {
+  "deck-npc": ["npc", "deck"], "deck-npc-opp": ["npc", "opp"], "npc-level": ["npc", "level"],
+  "deck-friend": ["friend", "deck"], "timer-select": ["friend", "timer"],
+  "deck-local-0": ["local", "deck0"], "deck-local-1": ["local", "deck1"],
+};
+
+function loadSetup() {
+  try {
+    const v = JSON.parse(localStorage.getItem("gash-setup"));
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function setupPref(mode) {
+  const v = loadSetup()[mode];
+  return v && typeof v === "object" ? v : {};
+}
+
+function rememberSetup(mode, key, value) {
+  const all = loadSetup();
+  all[mode] = { ...setupPref(mode), [key]: value };
+  try { localStorage.setItem("gash-setup", JSON.stringify(all)); } catch (_) { /* 不可用時不記 */ }
+}
+
+// 選單重新產生後還原:記住的值是可選的選項才選,否則維持缺省
+function restoreSetup() {
+  for (const [id, [mode, key]] of Object.entries(SETUP_FIELDS)) {
+    const sel = document.getElementById(id);
+    const value = setupPref(mode)[key];
+    const opt = [...sel.options].find((o) => o.value === value);
+    if (opt && !opt.disabled) sel.value = value;
+  }
+}
+
+function openSetup(mode, opts = {}) {
+  for (const m of SETUP_MODES) {
+    document.getElementById(`setup-${m}`).classList.toggle("hidden", m !== mode);
+  }
+  document.getElementById("setup-title").textContent = t(`ui.landing.${mode}`);
+  if (mode === "friend") {
+    const saved = setupPref("friend").mode;
+    setFriendMode(opts.friendMode || (saved === "join" ? "join" : "create"), false);
+  }
+  show("setup");
+}
+
+function closeSetup() {
+  history.replaceState(null, "", "/");   // 由加入連結進來時,避免重新整理又回到加入模式
+  show("landing");
+}
+
+// 與朋友對戰:建立 / 加入切換,只改顯示,不清除已填的值;remember 為 false 時(加入連結)不記住
+function setFriendMode(mode, remember = true) {
+  friendMode = mode;
+  for (const btn of document.querySelectorAll("#friend-mode button")) {
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  }
+  document.getElementById("friend-desc").textContent = t(`ui.landing.${mode}_desc`);
+  document.getElementById("friend-timer-row").classList.toggle("hidden", mode !== "create");
+  document.getElementById("friend-code-row").classList.toggle("hidden", mode !== "join");
+  document.getElementById("friend-submit").textContent = t(`ui.landing.${mode}`);
+  if (remember) rememberSetup("friend", "mode", mode);
+}
+
+function submitFriend() {
+  if (friendMode === "create") { createRoom(); return; }
+  const code = document.getElementById("join-code").value.trim();
+  if (code) joinRoom(code);
+}
+
 // ---------------------------------------------------------------- 入口頁渲染與啟動
 
 function renderLanding() {
   document.getElementById("landing-title").textContent = t("app.title");
-  const local = document.getElementById("entry-local");
-  local.querySelector("h2").textContent = t("ui.landing.local");
-  local.querySelector("p").textContent = t("ui.landing.local_desc");
-  local.querySelector("button").textContent = t("ui.landing.go");
-  local.querySelector("button").onclick = startLocal;
+  const entries = {
+    npc: () => openSetup("npc"),
+    friend: () => openSetup("friend"),
+    local: () => openSetup("local"),
+    builder: () => {
+      history.replaceState(null, "", "/?builder=1");
+      showBuilder();
+    },
+    rules: () => openRules(),
+  };
+  for (const [key, onclick] of Object.entries(entries)) {
+    const entry = document.getElementById(`entry-${key}`);
+    entry.querySelector(".entry-title").textContent = t(`ui.landing.${key}`);
+    entry.querySelector(".entry-desc").textContent = t(`ui.landing.${key}_desc`);
+    entry.onclick = onclick;
+  }
 
-  const npcEntry = document.getElementById("entry-npc");
-  npcEntry.querySelector("h2").textContent = t("ui.landing.npc");
-  npcEntry.querySelector("p").textContent = t("ui.landing.npc_desc");
-  npcEntry.querySelector("button").textContent = t("ui.landing.go");
-  npcEntry.querySelector("button").onclick = startNpc;
+  // 設定頁
+  document.getElementById("setup-back").textContent = t("ui.setup.back");
+  document.getElementById("setup-back").onclick = closeSetup;
+  document.getElementById("npc-start").textContent = t("ui.landing.go");
+  document.getElementById("npc-start").onclick = startNpc;
+  document.getElementById("local-start").textContent = t("ui.landing.go");
+  document.getElementById("local-start").onclick = startLocal;
+  document.getElementById("friend-submit").onclick = submitFriend;
+  for (const btn of document.querySelectorAll("#friend-mode button")) {
+    btn.textContent = t(`ui.landing.${btn.dataset.mode}`);
+    btn.onclick = () => setFriendMode(btn.dataset.mode);
+  }
+  setFriendMode(friendMode, false);
+
   document.getElementById("npc-level-label").textContent = t("ui.npc.level");
   const levelSel = document.getElementById("npc-level");
   levelSel.innerHTML = "";
@@ -2539,9 +2638,6 @@ function renderLanding() {
     levelSel.appendChild(opt);
   }
 
-  const create = document.getElementById("entry-create");
-  create.querySelector("h2").textContent = t("ui.landing.create");
-  create.querySelector("p").textContent = t("ui.landing.create_desc");
   document.getElementById("timer-label").textContent = t("ui.landing.timer");
   const sel = document.getElementById("timer-select");
   sel.innerHTML = "";
@@ -2553,54 +2649,27 @@ function renderLanding() {
     opt.textContent = label;
     sel.appendChild(opt);
   }
-  create.querySelector("button").textContent = t("ui.landing.go");
-  create.querySelector("button").onclick = createRoom;
+  document.getElementById("join-code-label").textContent = t("ui.landing.room_code");
 
-  const join = document.getElementById("entry-join");
-  join.querySelector("h2").textContent = t("ui.landing.join");
-  join.querySelector("p").textContent = t("ui.landing.join_desc");
-  join.querySelector("button").textContent = t("ui.landing.go");
-  join.querySelector("button").onclick = () => {
-    const code = document.getElementById("join-code").value.trim();
-    if (code) joinRoom(code);
-  };
-
-  const rulesEntry = document.getElementById("entry-rules");
-  rulesEntry.querySelector("h2").textContent = t("ui.landing.rules");
-  rulesEntry.querySelector("p").textContent = t("ui.landing.rules_desc");
-  rulesEntry.querySelector("button").textContent = t("ui.landing.go");
-  rulesEntry.querySelector("button").onclick = () => openRules();
-
-  const builderEntry = document.getElementById("entry-builder");
-  builderEntry.querySelector("h2").textContent = t("ui.landing.builder");
-  builderEntry.querySelector("p").textContent = t("ui.landing.builder_desc");
-  builderEntry.querySelector("button").textContent = t("ui.landing.go");
-  builderEntry.querySelector("button").onclick = () => {
-    history.replaceState(null, "", "/?builder=1");
-    showBuilder();
-  };
-
-  // 暱稱欄位(標籤/placeholder/預填上次)
+  // 暱稱欄位(標籤/placeholder/預填上次;本機測試的兩個暱稱不預填)
   document.getElementById("name-local-0-label").textContent = t("ui.name.p1");
   document.getElementById("name-local-1-label").textContent = t("ui.name.p2");
-  document.getElementById("name-create-label").textContent = t("ui.name.self");
-  document.getElementById("name-join-label").textContent = t("ui.name.self");
+  document.getElementById("name-friend-label").textContent = t("ui.name.self");
   document.getElementById("name-npc-label").textContent = t("ui.name.self");
-  for (const id of ["name-local-0", "name-local-1", "name-npc", "name-create", "name-join"]) {
+  for (const id of ["name-local-0", "name-local-1", "name-npc", "name-friend"]) {
     document.getElementById(id).placeholder = t("ui.name.placeholder");
   }
-  for (const id of ["name-npc", "name-create", "name-join"]) {
+  for (const id of ["name-npc", "name-friend"]) {
     document.getElementById(id).value = loadNick();
   }
 
-  // 牌組選單(本機×2 / 建房 / 加入)
+  // 牌組選單(本機×2 / NPC / 與朋友對戰)
   document.getElementById("deck-local-0-label").textContent = t("ui.deck.p1");
   document.getElementById("deck-local-1-label").textContent = t("ui.deck.p2");
-  document.getElementById("deck-create-label").textContent = t("ui.deck.select");
-  document.getElementById("deck-join-label").textContent = t("ui.deck.select");
+  document.getElementById("deck-friend-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-opp-label").textContent = t("ui.deck.npc");
-  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-create", "deck-join"]) {
+  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-friend"]) {
     deckOptions(document.getElementById(id));
   }
   const npcDeck = document.getElementById("deck-npc-opp");
@@ -2609,6 +2678,13 @@ function renderLanding() {
   random.textContent = t("ui.deck.random");
   npcDeck.prepend(random);
   npcDeck.value = NPC_RANDOM_DECK;
+
+  // 上次的選擇:變更時就記住(先去構築器再回來也保留),重新產生選單後還原
+  for (const [id, [mode, key]] of Object.entries(SETUP_FIELDS)) {
+    const field = document.getElementById(id);
+    field.onchange = () => rememberSetup(mode, key, field.value);
+  }
+  restoreSetup();
 
   document.getElementById("share-join-label").textContent = t("ui.share.join");
   document.getElementById("share-spec-label").textContent = t("ui.share.spectate");
@@ -2668,9 +2744,9 @@ async function boot() {
 
   const params = new URLSearchParams(location.search);
   if (params.has("join")) {
-    // 停在入口頁預填房號,讓加入者先選牌組再加入
+    // 開與朋友對戰的加入模式並預填房號,讓加入者先選暱稱與牌組再加入
     document.getElementById("join-code").value = params.get("join").toUpperCase();
-    show("landing");
+    openSetup("friend", { friendMode: "join" });
   } else if (params.has("spectate")) {
     enterSpectate(params.get("spectate"), params.get("token") || "");
   } else if (params.has("room")) {

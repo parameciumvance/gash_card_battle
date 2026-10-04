@@ -16,13 +16,21 @@ def room_posts(page):
     return posts
 
 
+def open_npc_setup(page):
+    """從首頁進入 NPC 對戰設定頁(已在設定頁時不動)。"""
+    if not page.locator("#setup-npc").is_visible():
+        page.locator("#entry-npc").click()
+
+
 def start_npc(page):
-    page.locator("#entry-npc button").click()
+    open_npc_setup(page)
+    page.locator("#npc-start").click()
     page.wait_for_function("SESSION && SESSION.mode === 'npc' && S && R && R.npc")
 
 
 def test_start_npc_battle_with_chosen_deck_and_level(page):
     posts = room_posts(page)
+    open_npc_setup(page)
     assert page.locator("#deck-npc-opp").input_value() == "npc:random"        # 缺省隨機
     assert page.locator("#npc-level").input_value() == "normal"               # 缺省一般
     page.select_option("#deck-npc-opp", "preset:level2")
@@ -47,6 +55,7 @@ def test_random_npc_deck_sends_presets_and_valid_saved_decks(page):
         DeckStore.create('broken', Array(32).fill('M-001'));
         renderLanding();
     }""")
+    open_npc_setup(page)
     assert page.locator("#deck-npc-opp").input_value() == "npc:random"
     start_npc(page)
     candidates = posts[-1]["npc_decks"]
@@ -69,6 +78,7 @@ def test_npc_actions_reach_the_board(page):
 
 
 def test_cheat_panel_in_npc_room_loads_npc_book(page):
+    open_npc_setup(page)
     page.select_option("#npc-level", "dummy")
     start_npc(page)
     page.locator("#cheat-toggle").click()
