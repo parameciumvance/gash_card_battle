@@ -21,7 +21,7 @@
 
 ## 4. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 4.1 同步 delta spec 回 `battle-ui` 主 spec
-- [ ] 4.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補「首頁與設定頁」(視圖結構、記住選擇的時機與還原、加入連結不自動加入的理由、本機測試暱稱不預填、不動瀏覽器歷史)
-- [ ] 4.3 Update capability map(`battle-ui` 責任的「首頁入口」改為「首頁與設定頁」)
-- [ ] 4.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 4.1 同步 delta spec 回 `battle-ui` 主 spec
+- [x] 4.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補「首頁與設定頁」(視圖結構、記住選擇的時機與還原、加入連結不自動加入的理由、本機測試暱稱不預填、不動瀏覽器歷史)
+- [x] 4.3 Update capability map(`battle-ui` 責任的「首頁入口」改為「首頁與設定頁」)
+- [x] 4.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
