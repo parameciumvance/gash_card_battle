@@ -11,7 +11,4 @@ RUN apt-get update && apt-get install -y \
 
 RUN npm install -g @fission-ai/openspec@latest
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
 CMD ["bash"]

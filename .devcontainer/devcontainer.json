@@ -3,7 +3,7 @@
     "dockerfile": "Dockerfile"
   },
 
-  "postCreateCommand": "pip install -r requirements.txt",
+  "postCreateCommand": "pip install --root-user-action=ignore -e \".[dev]\"",
 
   "customizations": {
     "vscode": {
