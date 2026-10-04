@@ -10,6 +10,7 @@ let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let ZH = {};          // 卡片中文文本
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { tunnel_url: null, assets: null };  // /api/meta:通道網址與卡圖安裝狀態
+let RULES = null;     // 規則頁內容(i18n/rules.<lang>.json)
 
 // 窄螢幕(手機直向)偵測:佈局由 CSS 切換,JS 僅供 log 抽屜等行為分支
 const NARROW_MQ = window.matchMedia("(max-width: 700px)");
@@ -935,6 +936,7 @@ function renderTopbar() {
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
   const prefsToggle = document.getElementById("prefs-toggle");
   prefsToggle.textContent = t("ui.prefs.toggle");
   const effectsToggle = document.getElementById("effects-toggle");
@@ -1350,6 +1352,7 @@ function renderTimingTrack() {
   const step = (key) => {
     const el = span("step" + (key === timing ? " current" : ""), t(`track.${key}`));
     el.dataset.step = key;
+    el.onclick = () => openRules(RULE_LINKS[`timing.${key}`]);   // 連到規則頁的說明
     return el;
   };
   const inBattle = span("seg-battle" + (IN_BATTLE_STEPS.includes(timing) ? "" : " collapsed"), t("track.in_battle"));
@@ -1494,6 +1497,14 @@ function renderActionBar() {
       for (const key of actionHints(awaited, timing)) {
         const li = document.createElement("li");
         li.textContent = t(key);
+        if (RULE_LINKS[key]) {                         // 連到規則頁的對應段落
+          const link = document.createElement("button");
+          link.className = "rule-link";
+          link.textContent = "?";
+          link.title = t("ui.rules.link");
+          link.onclick = () => openRules(RULE_LINKS[key]);
+          li.appendChild(link);
+        }
         details.appendChild(li);
       }
     }
@@ -1751,6 +1762,210 @@ function effectWhen(e) {
 
 document.getElementById("effects-toggle").onclick = () => renderEffectsInfo();
 document.getElementById("prefs-toggle").onclick = () => renderPrefsInfo();
+
+// ---------------------------------------------------------------- 規則頁
+
+// 時機指示的步驟與行動欄提示 → 規則頁段落(測試檢查每個段落都存在)
+const RULE_LINKS = {
+  "timing.start": "turn",
+  "timing.nonbattle": "actions",
+  "timing.battle_in": "battle",
+  "timing.defense": "battle",
+  "timing.effects": "battle",
+  "timing.end": "advanced",
+  "hint.start": "turn",
+  "hint.play": "actions",
+  "hint.field_effect": "actions",
+  "hint.own_turn_cards": "actions",
+  "hint.opp_turn_cards": "actions",
+  "hint.pass_end": "actions",
+  "hint.attack": "battle",
+  "hint.allow_battle": "battle",
+  "hint.insert_action": "battle",
+  "hint.defend": "battle",
+  "hint.no_defense": "battle",
+  "hint.battle_effects": "battle",
+  "hint.pass_showdown": "battle",
+  "hint.deploy": "advanced",
+};
+
+// 範例卡上各圖示的位置:卡圖(465×679)上的像素框 [範例卡, x, y, w, h],換成百分比後與卡圖一起等比例縮放。
+// 範例卡標示與圖示對照共用這份位置表;換卡圖版本時只需調整這裡
+const ART_W = 465, ART_H = 679;
+const ART_BOXES = {
+  type: ["M-001", 18, 28, 88, 88],
+  power: ["M-001", 28, 575, 94, 70],
+  battle: ["M-001", 30, 488, 54, 42],
+  cost: ["S-001", 378, 26, 58, 56],
+  attack: ["S-001", 380, 90, 60, 58],
+  defense: ["S-001", 382, 155, 54, 54],
+  damage: ["S-001", 362, 598, 62, 56],
+  nobattle: ["S-026", 380, 155, 60, 60],
+  cutin: ["M-026", 30, 492, 54, 50],
+};
+const RULE_FIGURES = ["M-001", "S-001", "S-026", "M-026"];
+const RULE_ICONS = ["cost", "attack", "defense", "nobattle", "battle", "cutin", "power", "damage"];
+const ICON_FALLBACK = { cost: "1", attack: "A", defense: "D", nobattle: "NO BATTLE", battle: "BATTLE",
+                        cutin: "CUT-IN", power: "Power", damage: "1→" };   // 缺圖時的文字標籤
+
+function artUrl(num) { return `/static/assets/cards/${num}.jpg`; }
+
+// 卡圖是玩家另外安裝的外部資源:逐張探測,載入失敗時改以文字呈現
+const artProbe = {};
+function probeArt(num) {
+  if (!artProbe[num]) {
+    artProbe[num] = new Promise((done) => {
+      const img = new Image();
+      img.onload = () => done(true);
+      img.onerror = () => done(false);
+      img.src = artUrl(num);
+    });
+  }
+  return artProbe[num];
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function rulesMissingNote(body) {
+  if (!body.querySelector(".rules-missing-art")) {
+    body.querySelector(".rules-figure-wrap").prepend(el("div", "rules-missing-art", RULES.figure.missing));
+  }
+}
+
+function renderRuleFigure(body) {
+  const wrap = el("div", "rules-figure-wrap");
+  const row = el("div", "rules-figures");
+  const legend = el("ol", "rules-legend");
+  let n = 0;
+  for (const card of RULE_FIGURES) {
+    const box = el("figure", "rules-figure");
+    const frame = el("div", "rules-art");
+    const img = el("img");
+    img.alt = cname(card);
+    frame.appendChild(img);
+    for (const [key, [owner, x, y, w, h]] of Object.entries(ART_BOXES)) {
+      if (owner !== card) continue;
+      n += 1;
+      const ring = el("span", "rules-mark");          // 框住圖示、編號放在角落,不遮住圖示
+      Object.assign(ring.style, { left: `${(x / ART_W) * 100}%`, top: `${(y / ART_H) * 100}%`,
+        width: `${(w / ART_W) * 100}%`, height: `${(h / ART_H) * 100}%` });
+      ring.appendChild(el("span", "rules-mark-no", String(n)));
+      frame.appendChild(ring);
+      legend.appendChild(el("li", null, RULES.figure.marks[key]));
+    }
+    box.append(frame, el("figcaption", null, cname(card)));
+    row.appendChild(box);
+    probeArt(card).then((ok) => {
+      if (ok) { img.src = artUrl(card); return; }
+      frame.replaceChildren(el("div", "rules-art-missing", cname(card)));
+      rulesMissingNote(body);
+    });
+  }
+  wrap.append(el("h4", null, RULES.figure.title), row, legend);
+  return wrap;
+}
+
+function renderRuleIcons(body) {
+  const wrap = el("div", "rules-icons");
+  wrap.appendChild(el("h4", null, RULES.figure.icons_title));
+  for (const key of RULE_ICONS) {
+    const [card, x, y, w, h] = ART_BOXES[key];
+    const fallback = ICON_FALLBACK[key];
+    const item = el("div", "rules-icon");
+    const slot = el("span", "icon-slot");
+    item.append(slot, el("span", null, RULES.figure.marks[key]));
+    wrap.appendChild(item);
+    probeArt(card).then((ok) => {
+      if (!ok) {
+        slot.replaceChildren(el("span", "icon-fallback", fallback));
+        rulesMissingNote(body);
+        return;
+      }
+      const crop = el("span", "icon-crop");   // 以百分比裁出卡圖上的單一圖示
+      crop.style.backgroundImage = `url(${artUrl(card)})`;
+      crop.style.aspectRatio = `${w} / ${h}`;
+      crop.style.backgroundSize = `${(ART_W / w) * 100}% auto`;
+      crop.style.backgroundPosition = `${(x / (ART_W - w)) * 100}% ${(y / (ART_H - h)) * 100}%`;
+      slot.replaceChildren(crop);
+    });
+  }
+  return wrap;
+}
+
+function buildRules() {
+  const body = document.getElementById("rules-body");
+  const toc = document.getElementById("rules-toc");
+  if (body.dataset.built) return;
+  body.dataset.built = "1";
+  document.getElementById("rules-title").textContent = RULES.title;
+  toc.replaceChildren(el("div", "rules-toc-title", RULES.toc));
+  for (const sec of RULES.sections) {
+    const link = el("button", "rules-toc-item", sec.title);
+    link.dataset.section = sec.id;
+    link.onclick = () => scrollToRule(sec.id);
+    toc.appendChild(link);
+    const box = el("section", "rules-section");
+    box.id = `rules-sec-${sec.id}`;
+    box.appendChild(el("h4", null, sec.title));
+    for (const block of sec.blocks) {
+      if (block.p) box.appendChild(el("p", null, block.p));
+      if (block.list) {
+        const ul = el("ul");
+        for (const item of block.list) ul.appendChild(el("li", null, item));
+        box.appendChild(ul);
+      }
+      if (block.figure) box.appendChild(renderRuleFigure(body));
+      if (block.icons) box.appendChild(renderRuleIcons(body));
+    }
+    body.appendChild(box);
+  }
+  body.addEventListener("scroll", markRuleToc);
+}
+
+// 目錄標示:內容區頂端所在的段落
+function markRuleToc() {
+  const body = document.getElementById("rules-body");
+  const top = body.getBoundingClientRect().top + 50;
+  let current = RULES.sections[0].id;
+  for (const sec of RULES.sections) {
+    if (document.getElementById(`rules-sec-${sec.id}`).getBoundingClientRect().top <= top) current = sec.id;
+  }
+  for (const item of document.querySelectorAll("#rules-toc .rules-toc-item")) {
+    item.classList.toggle("current", item.dataset.section === current);
+  }
+}
+
+function scrollToRule(sectionId) {
+  const sec = document.getElementById(`rules-sec-${sectionId}`);
+  const body = document.getElementById("rules-body");
+  if (sec) body.scrollTop += sec.getBoundingClientRect().top - body.getBoundingClientRect().top;
+  markRuleToc();
+}
+
+// 開啟規則頁(可指定段落);只是蓋在畫面上,對局照常進行
+function openRules(sectionId = null) {
+  if (!RULES) return;
+  buildRules();
+  const close = document.getElementById("rules-close");
+  close.textContent = RULES.close;
+  close.onclick = closeRules;
+  document.getElementById("rules-overlay").classList.remove("hidden");
+  if (sectionId) scrollToRule(sectionId);
+  else markRuleToc();
+}
+
+function closeRules() {
+  document.getElementById("rules-overlay").classList.add("hidden");
+}
+document.getElementById("rules-overlay").onclick = (e) => {
+  if (e.target.id === "rules-overlay") closeRules();
+};
+document.getElementById("rules-toggle").onclick = () => openRules();
 
 function showDiscard(p) {
   const ps = S.players[p];
@@ -2350,6 +2565,12 @@ function renderLanding() {
     if (code) joinRoom(code);
   };
 
+  const rulesEntry = document.getElementById("entry-rules");
+  rulesEntry.querySelector("h2").textContent = t("ui.landing.rules");
+  rulesEntry.querySelector("p").textContent = t("ui.landing.rules_desc");
+  rulesEntry.querySelector("button").textContent = t("ui.landing.go");
+  rulesEntry.querySelector("button").onclick = () => openRules();
+
   const builderEntry = document.getElementById("entry-builder");
   builderEntry.querySelector("h2").textContent = t("ui.landing.builder");
   builderEntry.querySelector("p").textContent = t("ui.landing.builder_desc");
@@ -2439,6 +2660,7 @@ async function boot() {
     fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
   ]);
+  RULES = await fetch("/static/i18n/rules.zh-TW.json").then((r) => r.json()).catch(() => null);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   applyMotionClass();
   renderLanding();

@@ -68,15 +68,15 @@ def test_hint_details_toggle_is_remembered(page):
     assert page.locator("#action-bar .hint-details").count() == 0         # 缺省收起
     page.locator("#action-bar .hint-toggle").click()
     details = page.locator("#action-bar .hint-details").text_content()
-    assert "宣告攻擊" in details and "自己的回合" in details
-    assert "對手的回合" not in details                                   # 回合玩家不能用「對手的回合」的卡
+    assert "宣告攻擊" in details and "攻(A)" in details
+    assert "防(D)" not in details                                        # 回合玩家不能用帶「防(D)」的事件卡與非戰鬥術
     page.reload()
     page.wait_for_function("S && S.phase === 'battle'")
     assert page.locator("#action-bar .hint-details").count() == 1        # 重新整理後仍展開
     send(page, tp, {"type": "pass"})                                     # 輪到非回合玩家
     page.wait_for_function(f"S.action_player === {1 - tp}")
     details = page.locator("#action-bar .hint-details").text_content()
-    assert "對手的回合" in details and "宣告攻擊" not in details
+    assert "防(D)" in details and "宣告攻擊" not in details
 
 
 GLOW_SETUP = """async (me) => {

@@ -15,6 +15,7 @@
     <span id="acting-info"></span>
     <span id="countdown"></span>
     <span id="conn-status"></span>
+    <button id="rules-toggle"></button>
     <button id="prefs-toggle"></button>
     <button id="effects-toggle" class="hidden"></button>
     <button id="cheat-toggle" class="hidden"></button>
@@ -70,6 +71,9 @@
         <button class="primary"></button>
       </div>
       <div class="entry" id="entry-builder">
+        <h2></h2><p></p><button class="primary"></button>
+      </div>
+      <div class="entry" id="entry-rules">
         <h2></h2><p></p><button class="primary"></button>
       </div>
     </div>
@@ -175,6 +179,14 @@
       <div id="dialog-source" class="hidden"></div>
       <div id="dialog-notes" class="hidden"></div>
       <div id="dialog-options"></div>
+    </div>
+  </div>
+
+  <!-- 規則頁:首頁與對局中都可開啟,只是蓋在畫面上,不影響對局 -->
+  <div id="rules-overlay" class="hidden">
+    <div id="rules-dialog">
+      <div id="rules-head"><h3 id="rules-title"></h3><button id="rules-close"></button></div>
+      <div id="rules-main"><nav id="rules-toc"></nav><div id="rules-body"></div></div>
     </div>
   </div>
 
