@@ -21,7 +21,7 @@
 
 ## 5. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 5.1 同步 delta spec 回 `battle-ui` 主 spec
-- [ ] 5.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補規則頁(內容檔、連結對應、圖示裁切與缺圖替代、規格改動時須同步規則頁)
-- [ ] 5.3 Update capability map(`battle-ui` 責任補上規則頁)
-- [ ] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
+- [x] 5.1 同步 delta spec 回 `battle-ui` 主 spec
+- [x] 5.2 Reconcile affected capability design and rationale:`battle-ui/design.md` 補規則頁(內容檔、連結對應、圖示裁切與缺圖替代、規格改動時須同步規則頁)
+- [x] 5.3 Update capability map(`battle-ui` 責任補上規則頁)
+- [x] 5.4 `openspec validate --all --strict`、`python -m pytest` 全過後歸檔
