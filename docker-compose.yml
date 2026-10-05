@@ -1,5 +1,8 @@
-# VPS 部署用。app 不對外開放埠,只有 caddy 對外;卡圖 volume 需手動放入(見 README「卡圖」)。
-# 更新機制是 watchtower 定期 poll GHCR,不是 CI 主動 SSH 進來重啟——CI 只需要能 push
+# VPS 部署用。對外經 Cloudflare Tunnel:cloudflared 主動向 Cloudflare 建立 outbound 連線,
+# 公開網域的請求經通道轉送到 app。所有服務都不發布埠(Docker 發布的埠會繞過 ufw),
+# VPS 不需要為網頁服務開放任何 inbound 埠。通道 token 放在同目錄的 `.env`(見 README),
+# 卡圖 volume 需手動放入(見 README「卡圖」)。
+# 更新機制是 watchtower 定期 poll registry,不是 CI 主動 SSH 進來重啟——CI 只需要能 push
 # image,完全不用碰這台機器的網路邊界(不加入 tailnet、不需要任何 SSH 金鑰)。
 services:
   app:
@@ -18,22 +21,24 @@ services:
       retries: 3
       start_period: 10s
 
-  caddy:
-    image: caddy:2-alpine
+  # 轉送規則(card-battle.zatchholic.com → http://app:8000)設定在 Cloudflare 後台,
+  # 這裡只需要通道 token。`:?` 讓沒設定 token 時 compose 直接失敗,不會啟動一個連不上的連接器。
+  # 版本更新交給 watchtower(所以關掉 cloudflared 自己的 autoupdate):重啟連接器只會讓
+  # WebSocket 斷線後自動重連,不像重啟 app 會讓對局消失。
+  cloudflared:
+    image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:?在 .env 設定 Cloudflare Tunnel 的 token(見 README)}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       - app
 
-  # 定期檢查 GHCR 上 `app` 服務用的 image 有沒有新版,有的話自動 pull + 重啟該容器
-  # (WATCHTOWER_LABEL_ENABLE=true 讓它只管理有上面那個 label 的容器,不會去動 caddy
-  # 或它自己)。這就是整個部署的「觸發點」——沒有 CI 主動連進來這件事。
+  # 定期檢查 registry 上 `app` 與 `cloudflared` 的 image 有沒有新版,有的話自動 pull + 重啟
+  # 該容器(WATCHTOWER_LABEL_ENABLE=true 讓它只管理有上面那個 label 的容器,不會去動
+  # 它自己)。這就是整個部署的「觸發點」——沒有 CI 主動連進來這件事。
   watchtower:
     # 原本的 containrrr/watchtower 已於 2025-12-17 由原作者封存(不再更新),
     # 舊版綁的 Docker API client 太舊,連不上新版 Docker Engine(`client version
@@ -54,5 +59,3 @@ services:
 
 volumes:
   card-assets:
-  caddy-data:
-  caddy-config:

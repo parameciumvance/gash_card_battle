@@ -119,16 +119,22 @@ python tools/build_release.py                 # 於 Windows 上執行產出 win6
 流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並推上 GHCR,平時不會打斷
 進行中的對局。**CI 只負責 build + push image,不會、也不需要連進 VPS**——VPS 上跑一個
 [watchtower](https://github.com/nicholas-fedor/watchtower)(原 `containrrr/watchtower` 已於
-2025-12-17 封存,改用社群接手維護的分支)容器,定期自己檢查 GHCR 有沒有新版、
-有的話自動拉取重啟。這樣 GitHub 那邊完全不需要任何能連進 VPS 的憑證(不用 SSH 金鑰、
-不用 VPN/Tailscale),外洩風險最高也就是能推一個惡意 image 上你的 registry,碰不到
-VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而是等 watchtower 下一次
-輪詢(預設 5 分鐘)。
+2025-12-17 封存,改用社群接手維護的分支)容器,定期自己檢查 `app` 與 `cloudflared` 的
+映像檔有沒有新版、有的話自動拉取重啟。這樣 GitHub 那邊完全不需要任何能連進 VPS 的憑證
+(不用 SSH 金鑰、不用 VPN/Tailscale),外洩風險最高也就是能推一個惡意 image 上你的
+registry,碰不到 VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而是等
+watchtower 下一次輪詢(預設 5 分鐘)。
+
+**對外連線走 Cloudflare Tunnel**:VPS 上的 `cloudflared` 容器主動向 Cloudflare 建立連線,
+玩家連 `https://card-battle.zatchholic.com` 的請求經這條通道轉到 `app`。compose 裡沒有任何
+服務發布埠,VPS 不需要為網頁服務開放任何 inbound 埠,HTTPS 憑證也由 Cloudflare 處理。
+代價是不能再用 VPS 的 IP 直接連線,服務可用性也依賴 Cloudflare。
 
 **已知限制**:房間狀態存在單一行程的記憶體裡,**服務 MUST 只跑單一 uvicorn 行程**,
 不能開多個容器/多個 worker 分攤流量(那樣同一房間的請求可能被路由到沒有該房間資料的行程)。
-**每次部署重啟容器,當下進行中的對局都會消失**——這也是為什麼用「打 tag」而非「每次 push」
-觸發建置,方便你挑對局少的時間點發布。
+**每次部署重啟 `app` 容器,當下進行中的對局都會消失**——這也是為什麼用「打 tag」而非
+「每次 push」觸發建置,方便你挑對局少的時間點發布。`cloudflared` 重啟則不影響對局,
+前端會自動重連。
 
 ### 一次性設置
 
@@ -143,20 +149,37 @@ VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而�
    mkdir -p /opt/gash-card-battle
    ```
 
-3. **(本機)把 `docker-compose.yml` 與 `Caddyfile` 傳到 VPS 剛建立的目錄**(這兩個檔案在
-   repo 根目錄,在你本機的 repo 資料夾下執行):
+3. **(Cloudflare)建立通道**(`zatchholic.com` 的 DNS 已在 Cloudflare):
+   1. Cloudflare 後台 → Zero Trust → Networks → Tunnels → Create a tunnel,類型選
+      **Cloudflared**,名稱自訂(如 `gash-card-battle`)。後台選單名稱偶有調整,找不到時搜尋「Tunnels」。
+   2. 安裝連接器的頁面會顯示一段含 token 的指令,**只複製 token**(`eyJ` 開頭那一長串)。
+      不用在 VPS 上照它的指令安裝,連接器由 compose 的 `cloudflared` 容器執行。
+   3. 新增 Public Hostname:Subdomain `card-battle`、Domain `zatchholic.com`、
+      Service Type `HTTP`、URL `app:8000`。Cloudflare 會自動建立 `card-battle` 的 CNAME 記錄;
+      若 DNS 裡已經有同名的 A 記錄,先刪掉。
+
+4. **(VPS)寫入通道 token**:用 `read -s` 輸入,token 不會留在 shell history,
+   `umask 077` 讓 `.env` 一建立就只有自己能讀:
    ```bash
-   scp docker-compose.yml Caddyfile youruser@your-vps-ip:/opt/gash-card-battle/
+   cd /opt/gash-card-battle
+   (umask 077; read -rsp 'Tunnel token: ' t; echo; printf 'TUNNEL_TOKEN=%s\n' "$t" > .env)
    ```
-   VPS 上**不需要**整份 repo 原始碼,只需要這兩個檔案——服務本體是從 GHCR 拉映像檔運行的。
+   `.env` 只放在 VPS,不要 commit(repo 的 `.gitignore` 已排除)。沒有 `.env` 時
+   `docker compose` 會直接報錯,提示缺少 `TUNNEL_TOKEN`。
+
+5. **(本機)把 `docker-compose.yml` 傳到 VPS 剛建立的目錄**(在你本機的 repo 資料夾下執行):
+   ```bash
+   scp docker-compose.yml youruser@your-vps-ip:/opt/gash-card-battle/
+   ```
+   VPS 上**不需要**整份 repo 原始碼,只需要這個檔案和上一步的 `.env`——服務本體是從
+   GHCR 拉映像檔運行的。
 
    **這份是手動複製過去的快照,repo 更新不會自動同步。** 之後如果又改了
-   `docker-compose.yml` 或 `Caddyfile`(例如新增服務、調整設定),記得重新
-   `scp` 覆蓋過去,並在 **(VPS)** 執行 `docker compose up -d` 套用——單純
-   `docker compose pull` 只會拉新的 image,不會套用 compose 檔案本身的變更
-   (watchtower 這類新增的服務不會自己冒出來)。
+   `docker-compose.yml`(例如新增服務、調整設定),記得重新 `scp` 覆蓋過去,並在
+   **(VPS)** 執行 `docker compose up -d` 套用——單純 `docker compose pull` 只會拉新的
+   image,不會套用 compose 檔案本身的變更(新增的服務不會自己冒出來)。
 
-4. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
+6. **確認 GHCR 映像檔可被 VPS 拉取**:如果 repo 是 public,建置後第一次要到
    `https://github.com/<你的帳號>?tab=packages` 把對應的 package 設為 public,
    之後 `docker compose pull`/watchtower 才不需要登入就能拉;如果 repo 是 private,
    要 SSH 進 **VPS** 先 `docker login ghcr.io`(用一組有 `read:packages` 權限的
@@ -165,13 +188,19 @@ VPS 的網路邊界。代價是部署不是「打 tag 後幾秒內生效」,而�
    註解掉的 `- ${HOME}/.docker/config.json:/config.json:ro` 取消註解即可
    (compose 檔案不會展開 `~`,MUST 用 `${HOME}` 或絕對路徑)。
 
-5. **(VPS)啟動服務**:
+7. **(VPS)啟動服務**:
    ```bash
    cd /opt/gash-card-battle
    docker compose up -d
+   docker compose logs -f cloudflared   # 出現 Registered tunnel connection 表示通道已連上
    ```
-   之後平常不需要手動介入,watchtower 會自己偵測新版並更新 `app` 容器
-   (`caddy` 跟 `watchtower` 自己不受它管理,只有貼了 label 的 `app` 服務會被更新)。
+   Cloudflare 後台的通道狀態變成 HEALTHY 後,就能開 `https://card-battle.zatchholic.com`。
+   之後平常不需要手動介入,watchtower 會自己偵測新版並更新 `app` 與 `cloudflared`
+   (`watchtower` 自己不受它管理,只有貼了 label 的服務會被更新)。
+
+8. **(雲端主控台)防火牆**:VPS 供應商的防火牆(如 Linode Cloud Firewall)**不需要開放 80 / 443**,
+   已經開放的規則可以刪掉。`cloudflared` 只需要對外連線(outbound 7844 埠),防火牆預設允許
+   outbound 的話不用另外設定。
 
 ### 發布新版本
 
@@ -185,13 +214,53 @@ git push origin v0.1.0
 執行進度。VPS 上的 watchtower 最慢 5 分鐘內會偵測到新版自動更新;想立刻生效,
 **(VPS)** 手動執行 `docker compose pull && docker compose up -d` 也可以。
 
-### 之後補上網域
+### 網域與 Cloudflare Tunnel
 
-**(本機)** 把 `Caddyfile` 裡的 `:80` 改成你的網域(如 `example.com`),
-`scp Caddyfile youruser@your-vps-ip:/opt/gash-card-battle/` 覆蓋過去;
-**(VPS)** 再執行 `docker compose restart caddy`——Caddy 會自動申請並續期 HTTPS 憑證,
-不需要另外裝 certbot 或手動管理憑證,前端也不用改(WebSocket 連線本來就是依當下的
-`http`/`https` 自動切換成 `ws`/`wss`)。
+服務網址是 `https://card-battle.zatchholic.com`。轉送規則(Public Hostname →
+`HTTP` / `app:8000`)設定在 Cloudflare 後台,不在 repo 裡;要換網域或新增網址都在後台改,
+VPS 不用動。前端也不用改:WebSocket 依頁面協定自動使用 `wss`,分享連結取自目前的網址。
+
+- **建議開啟 Always Use HTTPS**(Cloudflare → `zatchholic.com` → SSL/TLS → Edge Certificates),
+  讓 `http://` 自動導向 `https://`,否則從 `http://` 進來的玩家連 WebSocket 也會走明碼的 `ws://`。
+  這是整個 `zatchholic.com` 的設定;如果其他子網域需要明碼 HTTP,改用只針對
+  `card-battle.zatchholic.com` 的 Redirect Rule(HTTP 導向 HTTPS)。
+- **懷疑 token 外洩時**:拿到 token 的人可以用這條通道跑自己的連接器、分走流量。到 Cloudflare
+  後台替通道重新產生 token(或刪掉通道重建),再依「一次性設置」第 4 步更新 `.env`,
+  **(VPS)** 執行 `docker compose up -d` 讓 `cloudflared` 以新 token 重建。
+- **`cloudflared` 自動更新後出問題時**:把 `docker-compose.yml` 裡的
+  `cloudflare/cloudflared:latest` 改成上一個正常版本的 tag(版本號見 Docker Hub 的
+  `cloudflare/cloudflared`),再執行 `docker compose up -d`。釘選版本後就不會再自動更新,
+  問題排除後記得改回 `latest`。
+- 伺服器看到的連線來源都是 `cloudflared` 容器。目前沒有功能用到玩家 IP;之後若需要
+  (例如依 IP 限流),改讀 Cloudflare 的 `CF-Connecting-IP` 標頭。
+
+### 從 Caddy 版遷移
+
+舊版部署是 `caddy` 反向代理、發布 80 埠、以 VPS 的 IP 連線。遷移過程不會重啟 `app`,
+進行中的對局不受影響。
+
+1. 完成「一次性設置」的第 3、4 步(建立通道、寫入 `.env`)。
+2. **(本機)** `scp docker-compose.yml youruser@your-vps-ip:/opt/gash-card-battle/`。
+3. **(VPS)** `docker compose up -d --remove-orphans`:`caddy` 被移除、`cloudflared` 啟動;
+   `app` 的設定沒有變,不會被重建。
+4. 開 `https://card-battle.zatchholic.com`,實際建一間線上房間確認對戰正常。
+5. 收尾:
+   - 依「一次性設置」第 8 步刪掉防火牆的 80 / 443 規則,從外部確認 VPS 的 IP 已經連不上。
+   - **(VPS)** `rm Caddyfile`;`docker volume ls` 找出名稱以 `caddy-data`、`caddy-config`
+     結尾的 volume,用 `docker volume rm` 刪掉。
+
+**回退**(在刪掉 Caddy 的 volume 之前都可以直接回退):在本機 repo 取出遷移前的
+`docker-compose.yml` 與 `Caddyfile`,傳上 VPS 後重新套用,並重新開放防火牆的 80 埠:
+```bash
+# 本機:刪除 Caddyfile 的 commit 的前一版
+c=$(git log -1 --format=%H -- Caddyfile)^
+mkdir -p /tmp/gash-rollback
+git show "$c:docker-compose.yml" > /tmp/gash-rollback/docker-compose.yml
+git show "$c:Caddyfile" > /tmp/gash-rollback/Caddyfile
+scp /tmp/gash-rollback/* youruser@your-vps-ip:/opt/gash-card-battle/
+# VPS
+docker compose up -d --remove-orphans
+```
 
 ### 卡圖
 

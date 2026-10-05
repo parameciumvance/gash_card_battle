@@ -7,3 +7,4 @@ gash.spec
 .codex
 .claude/
 frontend/assets/cards/
+.env
