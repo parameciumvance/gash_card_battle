@@ -31,7 +31,7 @@
 | `battle-ui` | 對戰畫面:首頁與設定頁、盤面、回合與時機指示、操作與決策、行動記錄、動畫與聚焦展示、演出設定、規則頁、中英日語言選擇與 i18n | Partial | Partial | 初評;design 只整理了首頁與設定頁、事件動畫、聚焦展示、回合和時機指示、規則頁與語言 |
 | `deck-builder` | 魔本構築:對頁編輯、合法性提示、瀏覽器儲存、文字碼 | Partial | Not documented | 初評 |
 | `standalone-release` | 單機發行:資源目錄解析、啟動器、公開通道、打包 | Partial | Not documented | 初評 |
-| `docker-deployment` | VPS 容器部署:映像檔、反向代理、CI 分流、自動更新 | Partial | Not documented | 初評 |
+| `docker-deployment` | VPS 容器部署:映像檔、Cloudflare Tunnel 對外、CI 分流、自動更新 | Partial | Partial | 初評;design 整理了架構、映像檔、發布與更新、對外服務 |
 
 ## 重要關係與 flow
 
