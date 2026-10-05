@@ -156,9 +156,9 @@ def _load_i18n() -> dict:
 
 
 def _scan_presets() -> dict[str, dict]:
-    """掃描 data/decks/*.json 建 {id: {"path", "name"}} 對照表;壞檔排除記 log。
+    """掃描 data/decks/*.json 建 {id: {"path", "name", "name_key"}} 對照表;壞檔排除記 log。
 
-    顯示名:name_key(經 i18n 字典解析)→ 內嵌 name → id。
+    顯示名:name_key(經中文 i18n 字典解析)→ 內嵌 name → id;前端另以 name_key 依目前語言解析。
     """
     import json
     import logging
@@ -175,7 +175,7 @@ def _scan_presets() -> dict[str, dict]:
             logging.getLogger(__name__).warning("跳過無效預組 %s: %s", path.name, exc)
             continue
         name = i18n.get(raw.get("name_key", ""), None) or raw.get("name") or deck_id
-        presets[deck_id] = {"path": path, "name": name}
+        presets[deck_id] = {"path": path, "name": name, "name_key": raw.get("name_key") or None}
     return presets
 
 
@@ -192,7 +192,8 @@ def _presets() -> dict[str, dict]:
 
 def preset_list() -> list[dict]:
     """對外清單:預設預組置頂,其餘依 id 排序。"""
-    items = [{"id": pid, "name": p["name"]} for pid, p in _presets().items()]
+    items = [{"id": pid, "name": p["name"], **({"name_key": p["name_key"]} if p["name_key"] else {})}
+             for pid, p in _presets().items()]
     items.sort(key=lambda x: (x["id"] != DEFAULT_PRESET, x["id"]))
     return items
 

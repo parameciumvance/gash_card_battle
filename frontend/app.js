@@ -5,9 +5,9 @@
 
 "use strict";
 
-let DICT = {};        // i18n 字典
+let DICT = {};        // i18n 字典(目前語言)
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
-let ZH = {};          // 卡片中文文本
+let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { tunnel_url: null, assets: null };  // /api/meta:通道網址與卡圖安裝狀態
 let RULES = null;     // 規則頁內容(i18n/rules.<lang>.json)
@@ -37,17 +37,62 @@ function t(key, params = {}) {
   return s.replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? params[k] : `{${k}}`));
 }
 
+// 語言:清單在 i18n/languages.json(順序即選單順序);選擇記在 localStorage,切換時重新載入頁面
+const LANG_KEY = "gash-lang";
+const FALLBACK_LANG = "zh-TW";
+let LANGS = [{ code: FALLBACK_LANG, name: "中文" }];
+let LANG = FALLBACK_LANG;
+
+// 玩家選過的語言優先;未選過時依瀏覽器偏好語言,取第一個能對應(主語言相同)者,都不符合為英文
+function detectLang() {
+  const codes = LANGS.map((l) => l.code);
+  let saved = null;
+  try { saved = localStorage.getItem(LANG_KEY); } catch (_) { /* 無法存取時依瀏覽器 */ }
+  if (codes.includes(saved)) return saved;
+  const primary = (code) => code.toLowerCase().split("-")[0];
+  for (const pref of navigator.languages || [navigator.language || ""]) {
+    const hit = codes.find((c) => primary(c) === primary(pref));
+    if (hit) return hit;
+  }
+  return codes.includes("en") ? "en" : FALLBACK_LANG;
+}
+
+function setLang(code) {
+  try { localStorage.setItem(LANG_KEY, code); } catch (_) { /* 只在本次生效 */ }
+  location.reload();   // 走既有的接回路徑:對局、觀戰、構築器、加入連結都回到原處,行動記錄以新語言重建
+}
+
+function renderLangInfo() {
+  const row = document.createElement("div");
+  row.className = "prefs-options";
+  for (const l of LANGS) {
+    const btn = document.createElement("button");
+    btn.textContent = l.name;
+    btn.lang = l.code;
+    btn.dataset.lang = l.code;
+    btn.setAttribute("aria-pressed", String(l.code === LANG));
+    btn.onclick = () => { if (l.code === LANG) closeInfo(); else setLang(l.code); };
+    row.appendChild(btn);
+  }
+  showInfo("lang", t("ui.lang.title"), [row]);
+}
+
 function pname(p) {
   if (R && R.npc && R.npc.seat === p) return t(`ui.npc.name.${R.npc.level}`);
   const custom = R && R.names && R.names[p];
   return custom || t("ui.player", { n: p + 1 });
 }
 
+// 預組名稱:name_key 依目前語言解析,字典沒有時用伺服器給的 name
+function presetName(p) {
+  return p.name_key && DICT[p.name_key] !== undefined ? t(p.name_key) : p.name;
+}
+
 // NPC 使用的牌組(對局結束後才由房間 meta 公開):預組名稱 / 本機儲存牌組名稱 / 「自訂牌組」
 function npcDeckName(deck) {
   if (deck.preset) {
     const preset = PRESETS.find((p) => p.id === deck.preset);
-    return preset ? preset.name : deck.preset;
+    return preset ? presetName(preset) : deck.preset;
   }
   const key = JSON.stringify(deck.pages);
   const saved = DeckStore.list().find((d) => JSON.stringify(d.pages) === key);
@@ -62,10 +107,12 @@ function saveNick(v) {
   return clean || null;
 }
 
+// 卡名:同名魔物以效果名區分(格式依語言,ui.card_with_attr)
 function cname(num) {
-  const z = ZH[num];
+  const z = TEXT[num];
   if (!z) return num;
-  return z.attr && CARDS[num] && CARDS[num].type === "mamodo" ? `${z.name}《${z.attr}》` : z.name;
+  return z.attr && CARDS[num] && CARDS[num].type === "mamodo"
+    ? t("ui.card_with_attr", { name: z.name, attr: z.attr }) : z.name;
 }
 
 // ---------------------------------------------------------------- 演出設定(存於瀏覽器)
@@ -149,9 +196,12 @@ async function api(path, opts = {}) {
   const res = await fetch(path, opts);
   const body = await res.json();
   if (!res.ok) {
-    const msg = body.detail && body.detail.message ? body.detail.message : JSON.stringify(body);
+    // 依錯誤碼以目前語言顯示;字典沒有該錯誤碼時用伺服器原文
+    const code = body.detail && body.detail.code;
+    const msg = code && DICT[`error.${code}`] !== undefined ? t(`error.${code}`)
+      : body.detail && body.detail.message ? body.detail.message : JSON.stringify(body);
     const err = new Error(msg);
-    err.code = body.detail && body.detail.code;
+    err.code = code;
     throw err;
   }
   return body;
@@ -248,7 +298,7 @@ function deckOptions(sel) {
   for (const p of PRESETS) {                 // 探索得到的預組(value 帶 preset: 前綴)
     const opt = document.createElement("option");
     opt.value = `preset:${p.id}`;
-    opt.textContent = p.name;
+    opt.textContent = presetName(p);
     sel.appendChild(opt);
   }
   for (const d of DeckStore.list()) {
@@ -427,7 +477,7 @@ function resetLog() {
 
 function cardEl(num, opts = {}) {
   const def = CARDS[num] || {};
-  const z = ZH[num] || { name: num };
+  const z = TEXT[num] || { name: num };
   const el = document.createElement("div");
   el.className = `card type-${def.type || "mamodo"}` + (opts.small ? " small" : "") +
     (opts.injured ? " injured" : "");
@@ -444,13 +494,16 @@ function cardEl(num, opts = {}) {
 
   const cn = document.createElement("div");
   cn.className = "cname";
-  cn.textContent = z.name;
+  cn.textContent = opts.fullName ? cname(num) : z.name;   // 放大檢視以效果名區分同名魔物
   el.appendChild(cn);
 
-  const ja = document.createElement("div");
-  ja.className = "cname-ja";
-  ja.textContent = z.name_ja || "";
-  el.appendChild(ja);
+  if (LANG !== "ja") {   // 日文原名小字;日文時與卡名重複,不顯示
+    const ja = document.createElement("div");
+    ja.className = "cname-ja";
+    ja.lang = "ja";
+    ja.textContent = z.name_ja || "";
+    el.appendChild(ja);
+  }
 
   const meta = document.createElement("div");
   meta.className = "cmeta";
@@ -463,7 +516,7 @@ function cardEl(num, opts = {}) {
   }
   if (def.damage) bits.push(t("ui.damage", { n: def.damage }));
   if (def.ad) bits.push(def.ad);
-  meta.textContent = bits.join("・");
+  meta.textContent = bits.join(t("ui.sep.meta"));
   el.appendChild(meta);
 
   const eff = document.createElement("div");
@@ -580,6 +633,7 @@ function renderZoom() {
     }
   }
 
+  opts.fullName = true;
   const card = cardEl(ZOOM.num, opts);
   card.onclick = (ev) => ev.stopPropagation();  // 點卡面不關閉、不重開
   holder.appendChild(card);
@@ -720,7 +774,7 @@ function updateLogTab() {
   const panel = document.getElementById("log-panel");
   if (isNarrow() && !panel.classList.contains("open")) {
     const last = document.querySelector("#log .ev:last-child");
-    title.textContent = t("ui.log") + (last ? "|" + last.textContent : "");
+    title.textContent = t("ui.log") + (last ? t("ui.sep.bar") + last.textContent : "");
   } else {
     title.textContent = t("ui.log");
   }
@@ -936,6 +990,9 @@ function renderTopbar() {
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
+  const current = LANGS.find((l) => l.code === LANG);
+  document.getElementById("lang-toggle").textContent = `🌐 ${current ? current.name : LANG}`;
+  document.getElementById("lang-toggle").title = t("ui.lang.title");
   const prefsToggle = document.getElementById("prefs-toggle");
   prefsToggle.textContent = t("ui.prefs.toggle");
   const effectsToggle = document.getElementById("effects-toggle");
@@ -964,20 +1021,20 @@ function renderTopbar() {
     return;
   }
   document.getElementById("turn-info").textContent =
-    t("ui.turn", { n: S.turn_no }) + "|" + pname(S.turn_player);
+    t("ui.turn", { n: S.turn_no }) + t("ui.sep.bar") + pname(S.turn_player);
   document.getElementById("phase-info").textContent =
     t(`ui.phase.${S.phase === "game_over" ? "game_over" : S.phase}`);
 
   const acting = document.getElementById("acting-info");
   if (S.phase === "game_over") {
     acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
-      "(" + t(`ui.reason.${S.end_reason}`) + ")" +
-      (R && R.npc && R.npc.deck ? "|" + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
+      t("ui.paren", { text: t(`ui.reason.${S.end_reason}`) }) +
+      (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
   } else if (S.pending) {
     const results = (S.pending.info && S.pending.info.results) || [];
     acting.textContent = (iControl(S.pending.player)
       ? t("ui.waiting_choice", { player: pname(S.pending.player) })
-      : t("ui.opponent_choosing")) + (results.length ? "|" + coinResultsText(results) : "");
+      : t("ui.opponent_choosing")) + (results.length ? t("ui.sep.bar") + coinResultsText(results) : "");
   } else if (S.battle) {
     acting.textContent = S.battle.step === "defense"
       ? t("ui.battle_no_defense_yet")
@@ -1004,7 +1061,7 @@ function renderPlayerZone(zone, p, isTop) {
   head.className = "pz-head";
   const nameSpan = document.createElement("span");   // 暱稱以 textContent 呈現(防注入)
   nameSpan.className = "pname";
-  nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? "(你)" : "");
+  nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? t("ui.you_suffix") : "");
   head.appendChild(nameSpan);
   const badge = (cls, key) => {
     const el = document.createElement("span");
@@ -1556,7 +1613,7 @@ function showDialog(title, options, sourceNum = null, notes = []) {
   // 來源卡:通用標題之外,以來源卡的名稱與效果文提供脈絡(效果文為中譯,只供閱讀)
   const source = document.getElementById("dialog-source");
   source.innerHTML = "";
-  const z = sourceNum ? ZH[sourceNum] : null;
+  const z = sourceNum ? TEXT[sourceNum] : null;
   if (z) {
     const name = document.createElement("div");
     name.className = "src-name";
@@ -1593,7 +1650,7 @@ function renderPendingDialog() {
   const pd = S.pending;
   const p = pd.player;
   const titleKey = `choice.title.${pd.kind}`;
-  const title = pname(p) + ":" + (DICT[titleKey] ? t(titleKey) : pd.kind);
+  const title = t("ui.choice_title", { player: pname(p), title: DICT[titleKey] ? t(titleKey) : pd.kind });
   const choose = (value) => send({ type: "choose", player: p, value });
   const results = (pd.info && pd.info.results) || [];
 
@@ -1635,7 +1692,7 @@ function renderPendingDialog() {
 // 目前擲幣結果:「第 1 枚:正面、第 2 枚:反面」
 function coinResultsText(results) {
   return t("ui.coin_results", { list: results.map((r, i) =>
-    t("ui.coin_n", { n: i + 1, face: t(`ui.coin_face.${r}`) })).join("、") });
+    t("ui.coin_n", { n: i + 1, face: t(`ui.coin_face.${r}`) })).join(t("ui.sep.list")) });
 }
 
 // ---------------------------------------------------------------- 純展示資訊(魔力明細、作用中效果)
@@ -1728,7 +1785,7 @@ function renderEffectsInfo() {
 
 function mamodoName(family) {
   const num = Object.keys(CARDS).find((n) => CARDS[n].type === "mamodo" && CARDS[n].related_mamodo === family);
-  return num && ZH[num] ? ZH[num].name : family;
+  return num && TEXT[num] ? TEXT[num].name : family;
 }
 
 function effectTarget(e) {
@@ -1744,14 +1801,14 @@ function effectText(e) {
   let key = e.type === "modifier" && e.kind === "restriction"
     ? `effect.restriction.${e.flag}` : `effect.${e.type}.${e.kind}`;
   if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
-  if (DICT[key] === undefined) return (ZH[e.source] && ZH[e.source].effect) || e.source;
+  if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
   if (e.power_delta) changes.push(t("effect.piece.power", { n: signed(e.power_delta) }));
   if (e.cost_delta) changes.push(t("effect.piece.cost", { n: signed(e.cost_delta) }));
   if (e.optional) changes.push(t("effect.piece.optional"));
   return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
     mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
-    card: e.card ? cname(e.card) : "", changes: changes.join("、") });
+    card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")) });
 }
 
 // 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
@@ -1766,6 +1823,7 @@ function effectWhen(e) {
 
 document.getElementById("effects-toggle").onclick = () => renderEffectsInfo();
 document.getElementById("prefs-toggle").onclick = () => renderPrefsInfo();
+document.getElementById("lang-toggle").onclick = () => renderLangInfo();
 
 // ---------------------------------------------------------------- 規則頁
 
@@ -1973,7 +2031,7 @@ document.getElementById("rules-toggle").onclick = () => openRules();
 
 function showDiscard(p) {
   const ps = S.players[p];
-  showDialog(pname(p) + "・" + t("ui.discard", { n: ps.discard.length }),
+  showDialog(pname(p) + t("ui.sep.meta") + t("ui.discard", { n: ps.discard.length }),
     ps.discard.length
       ? ps.discard.map((num) => ({ cardNum: num, onpick: () => zoom(num) }))
       : [{ label: t("ui.close"), onpick: () => {} }]);
@@ -2285,7 +2343,7 @@ function renderNewSelect() {
   sel.appendChild(head);
   const opts = [["blank", t("builder.new_blank")]];
   for (const p of PRESETS) {                 // 從探索得到的每個預組複製起手
-    opts.push(["preset:" + p.id, t("builder.new_from_deck", { name: p.name })]);
+    opts.push(["preset:" + p.id, t("builder.new_from_deck", { name: presetName(p) })]);
   }
   for (const d of DeckStore.list()) {
     opts.push(["copy:" + d.id, t("builder.new_from_deck", { name: d.name })]);
@@ -2334,8 +2392,8 @@ function renderCardPoolFilters(holder, filters, onChange) {
   for (const name of names) {
     const numAny = Object.values(CARDS).find(
       (c) => c.type === "mamodo" && c.related_mamodo === name);
-    const zh = numAny && ZH[numAny.number] ? ZH[numAny.number].name : name;
-    mamodoSel.innerHTML += `<option value="${name}">${zh}</option>`;
+    const label = numAny && TEXT[numAny.number] ? TEXT[numAny.number].name : name;
+    mamodoSel.innerHTML += `<option value="${name}">${label}</option>`;
   }
   mamodoSel.setAttribute("aria-label", t("builder.filter.mamodo"));
   mamodoSel.value = filters.fmamodo;
@@ -2731,17 +2789,37 @@ async function fetchPresetPages(id) {
   }
 }
 
+async function fetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  return res.json();
+}
+
+// 目前語言的字典與卡片文字;載入失敗時退回中文,不讓頁面空白
+async function loadLanguage() {
+  LANGS = await fetchJson("/static/i18n/languages.json").catch(() => LANGS);
+  LANG = detectLang();
+  const files = (lang) => Promise.all([fetchJson(`/static/i18n/${lang}.json`), fetchJson(`/data/cards.${lang}.json`)]);
+  try {
+    [DICT, TEXT] = await files(LANG);
+  } catch (_) {
+    LANG = FALLBACK_LANG;
+    [DICT, TEXT] = await files(LANG);
+  }
+  RULES = await fetchJson(`/static/i18n/rules.${LANG}.json`)
+    .catch(() => fetchJson(`/static/i18n/rules.${FALLBACK_LANG}.json`)).catch(() => null);
+  document.documentElement.lang = LANG;   // 日文以 :lang(ja) 換日文字型
+}
+
 async function boot() {
   let presets;
-  [DICT, CARDS, ZH, presets, META] = await Promise.all([
-    fetch("/static/i18n/zh-TW.json").then((r) => r.json()),
+  [, CARDS, presets, META] = await Promise.all([
+    loadLanguage(),
     fetch("/data/cards.json").then((r) => r.json()).then((list) =>
       Object.fromEntries(list.map((c) => [c.number, c]))),
-    fetch("/data/cards.zh-TW.json").then((r) => r.json()),
     fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
   ]);
-  RULES = await fetch("/static/i18n/rules.zh-TW.json").then((r) => r.json()).catch(() => null);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   applyMotionClass();
   renderLanding();

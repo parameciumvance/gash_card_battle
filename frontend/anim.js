@@ -172,7 +172,7 @@ const Anim = (() => {
       name.textContent = cname(step.card);
       const effect = document.createElement("div");
       effect.className = "spot-effect";
-      effect.textContent = (ZH[step.card] && ZH[step.card].effect) || "";
+      effect.textContent = (TEXT[step.card] && TEXT[step.card].effect) || "";
       info.append(caption, name, effect);
       panel.append(art, info);
     }

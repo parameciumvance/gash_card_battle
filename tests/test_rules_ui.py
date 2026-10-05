@@ -79,7 +79,7 @@ def test_icons_use_installed_card_art(page):
 
 
 def test_icons_fall_back_to_text_without_card_art(browser, server):  # noqa: F811
-    context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce")
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce", locale="zh-TW")
     context.route("**/static/assets/cards/**", lambda route: route.fulfill(status=404))
     page = context.new_page()
     page.goto(server)

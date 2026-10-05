@@ -22,6 +22,7 @@ def test_list_decks_contains_level1():
     lvl1 = next(d for d in decks if d["id"] == "level1")
     assert lvl1["name"]  # 有可顯示名(name_key 解析不到 → fallback 到內嵌 name)
     assert decks[0]["id"] == "level1"  # 預設預組置頂
+    assert lvl1["name_key"] == "deck.level1"  # 前端依目前語言解析
 
 
 def test_dropping_a_deck_file_appears(tmp_path):
@@ -38,6 +39,7 @@ def test_dropping_a_deck_file_appears(tmp_path):
         decks = client.get("/api/decks").json()["decks"]
         entry = next((x for x in decks if x["id"] == "_e2e_tmp_preset"), None)
         assert entry is not None and entry["name"] == "臨時測試預組"
+        assert "name_key" not in entry
         # 可用它開本機局
         res = client.post("/api/rooms", json={"mode": "local",
                           "decks": [{"preset": "_e2e_tmp_preset"}, {"preset": "level1"}]})

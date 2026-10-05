@@ -22,7 +22,7 @@ MEASURE = """(injured) => {
 
 @pytest.fixture
 def phone(browser, server):  # noqa: F811
-    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce", locale="zh-TW")
     context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")  # 聚焦遮罩會擋住操作;聚焦測試另開
     page = context.new_page()
     errors = []

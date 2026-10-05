@@ -11,7 +11,7 @@ SPOT = "#spotlight:not(.hidden)"
 
 
 def open_page(browser, server, *, motion="reduce", prefs=None):  # noqa: F811
-    context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion=motion)
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion=motion, locale="zh-TW")
     if prefs:
         script = "".join(f"localStorage.setItem('gash-{k}', '{v}');" for k, v in prefs.items())
         context.add_init_script(script)
@@ -56,7 +56,7 @@ def test_opponent_card_use_is_spotlighted_before_board_updates(spot):
     send(spot, opp, {"type": "declare_attack", "page": 3})               # S-001
     spot.wait_for_selector(SPOT)
     assert spot.locator("#spotlight .spot-name").text_content() == spot.evaluate("cname('S-001')")
-    assert spot.locator("#spotlight .spot-effect").text_content() == spot.evaluate("ZH['S-001'].effect")
+    assert spot.locator("#spotlight .spot-effect").text_content() == spot.evaluate("TEXT['S-001'].effect")
     assert spot.locator("#spotlight").get_attribute("data-ms") == "2000"
     assert spot.locator("#battle-stage.open").count() == 0                # 播完才重繪
     spot.wait_for_selector("#spotlight.hidden", state="attached")

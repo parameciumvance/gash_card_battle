@@ -28,6 +28,11 @@ uvicorn gash.api.app:app --reload
 - **規則**:遊戲規則與卡面圖示說明(依本遊戲實際採用的規則撰寫)。對局中也能從頂欄的「規則」打開;
   點畫面中央的時機指示、或行動欄提示旁的「?」,會直接跳到對應的段落。
 
+**語言**:介面支援中文、English、日本語。第一次開啟時依瀏覽器語言決定(日文 → 日本語、中文 → 中文、其他 → English),
+之後可隨時點頂欄的「🌐」切換,選擇記在瀏覽器;對局中切換會重新載入並接回原對局,同房的玩家可各用不同語言。
+日文與英文為**初版翻譯,尚未經母語者校對**。英文的卡片效果文是**依日文效果文翻譯**的,
+與卡圖(民間英譯版)或 TTS 卡表上的英文不完全相同——遊戲行為依日文效果文,畫面上的文字與行為一致,以畫面為準。
+
 ## 牌組構築
 
 魔本構築是**排版**:頁位=出牌時機、對頁=同時翻開的手牌、最後一頁的術費用為 0。
@@ -40,7 +45,7 @@ uvicorn gash.api.app:app --reload
 - 牌組存在瀏覽器(localStorage);「匯出牌組碼」產生一行 `gash1:...` 文字,
   可備份或貼給朋友,對方「匯入牌組碼」即得同一副。清瀏覽器資料前記得匯出。
 
-預組「賈修+蒂歐+凱喬美」(`data/decks/level1.json`)永遠可選,也可作為構築起手複製。
+預組「LEVEL:1 紅書與魔鬼」(`data/decks/level1.json`)永遠可選,也可作為構築起手複製。
 
 ### 新增一個預設牌組
 
@@ -56,8 +61,9 @@ uvicorn gash.api.app:app --reload
 }
 ```
 
-- **顯示名**依序解析:`name_key`(經 i18n 字典 `frontend/i18n/zh-TW.json` 解析,可多語)→ 內嵌 `name` → `id`。
-  只要在地化就加 `name_key` 並補各語系 i18n 條目;否則直接寫 `name` 即可。
+- **顯示名**:`GET /api/decks` 回傳 `name_key` 與 `name`;前端以 `name_key` 依目前語言查字典,
+  字典沒有時用 `name`(伺服器依序以中文字典解析 `name_key` → 內嵌 `name` → `id`)。
+  要在地化就加 `name_key` 並在三種語言的 i18n 字典補條目;否則直接寫 `name` 即可。
 - 檔案若無法通過構築驗證,啟動掃描時會被排除(記 log),不影響其他預組。
 - 請求端只以 `{preset: <id>}` 指定,伺服器用 id 查掃描到的白名單載入,絕不轉為任意檔案路徑。
 
@@ -283,17 +289,22 @@ src/gash/
     settle.py           模擬到停點:對手的簡單回應規則
     evaluate.py         局面評估與權重
     views.py            視角過濾:snapshot(game, viewer) 與事件過濾(資訊不外洩的單點)
-frontend/               無框架靜態前端(中文 UI,文字全走 i18n 字典)
-  i18n/zh-TW.json       介面文字與行動記錄模板
+frontend/               無框架靜態前端(中、英、日介面,文字全走 i18n 字典)
+  i18n/languages.json   語言清單(順序即選單順序)
+  i18n/<lang>.json      介面文字、行動記錄模板與錯誤碼訊息(zh-TW / en / ja,條目一致)
+  i18n/rules.<lang>.json 規則頁內容
   assets/cards/         卡圖(缺圖時自動以文字卡面呈現)
 data/
   cards_ja.csv          日文權威來源(atwiki 抓取結果),cards.json 的轉換輸入
   cards.json            卡片結構化數值資料(由 cards_ja.csv 轉換,日文為準)
   cards.zh-TW.json      卡片中文文本(卡名/效果),獨立於數值、可自由校對
+  cards.ja.json         卡片日文文本(由 tools/build_card_texts.py 自 cards_ja.csv 產生,勿手改)
+  cards.en.json         卡片英文文本(名稱取自 TTS 卡表,效果依日文效果文翻譯)
   decks/level1.json     預組魔本(32 頁)
 tools/
   scrape_ja_effects.py  atwiki 日文權威資料抓取 → data/cards_ja.csv
   build_cards_json.py   cards_ja.csv → cards.json 轉換
+  build_card_texts.py   產生 cards.ja.json,並把 TTS 卡表的英文名稱寫入 cards.en.json
   download_images.py    卡圖批次下載(Google Drive,支援續抓與失敗清單)
   build_release.py      發行打包(PyInstaller onedir → 單一 zip,不含卡圖)
 ```
@@ -308,14 +319,21 @@ tools/
 
 ## 翻譯校對
 
-卡片中文文本集中在 `data/cards.zh-TW.json`,以卡號為 key:
+卡片文字依語言分檔:`data/cards.zh-TW.json`、`data/cards.en.json`、`data/cards.ja.json`,以卡號為 key:
 
 ```json
 "S-001": {"name": "薩喀爾", "name_ja": "ザケル", "attr": "雷", "effect": "…"}
 ```
 
-改動此檔只影響顯示,不影響任何遊戲邏輯;介面用語則在 `frontend/i18n/zh-TW.json`。
-未來新增語言 = 並列新增 `cards.<lang>.json` 與 `i18n/<lang>.json`。
+改動這些檔只影響顯示,不影響任何遊戲邏輯;介面用語在 `frontend/i18n/<lang>.json`,規則頁在 `frontend/i18n/rules.<lang>.json`。
+
+- `cards.ja.json` 由 `python tools/build_card_texts.py` 自 `data/cards_ja.csv` 產生,不要手改(測試會比對)。
+- `cards.en.json` 的 `name` / `attr` 由同一工具自 TTS 卡表寫入;`effect` 是依 `effect_ja` 手寫的翻譯,工具會保留。
+  翻譯時「」括起的卡名改成該卡的英文名;卡表與卡圖的英文效果文只作用語參考(兩者與日文效果文有出入)。
+- 日文與英文是初版翻譯,尚未經母語者校對,歡迎修正。
+
+新增語言 = 新增 `i18n/<lang>.json`、`i18n/rules.<lang>.json`、`data/cards.<lang>.json`,並登記到 `i18n/languages.json`。
+`tests/test_i18n_languages.py` 會檢查各語言的條目、參數、規則頁段落、卡片涵蓋與錯誤碼是否一致。
 
 ## 架構備註
 

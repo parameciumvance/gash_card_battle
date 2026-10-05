@@ -127,4 +127,4 @@ def test_effect_without_text_falls_back_to_card_effect(page):
         renderEffectsInfo();
         return document.querySelector('#info-body .info-row').textContent;
     }""")
-    assert page.evaluate("ZH['E-006'].effect") in text
+    assert page.evaluate("TEXT['E-006'].effect") in text

@@ -150,7 +150,7 @@ TRACK_ROW = """() => {
 
 
 def test_phone_timing_track_stays_on_one_row(browser, server):  # noqa: F811
-    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce", locale="zh-TW")
     context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
     page = context.new_page()
     page.goto(server)

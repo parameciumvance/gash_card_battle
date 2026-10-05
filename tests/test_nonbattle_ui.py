@@ -165,6 +165,6 @@ def test_choice_dialog_shows_generic_title_and_source_card(page):
     assert source.is_visible()
     text = source.inner_text()
     assert page.evaluate("cname('E-009')") in text
-    assert page.evaluate("ZH['E-009'].effect").split()[0] in text
+    assert page.evaluate("TEXT['E-009'].effect").split()[0] in text
     page.evaluate("() => { S.pending.source = null; renderPendingDialog(); }")
     assert not page.locator("#dialog-source").is_visible()

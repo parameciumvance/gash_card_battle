@@ -1,0 +1,164 @@
+{
+  "title": "Game rules",
+  "toc": "Contents",
+  "close": "Close",
+  "sections": [
+    {
+      "id": "goal",
+      "title": "Goal and how to win",
+      "blocks": [
+        {"p": "Each player battles with a 32-page Spell Book. The Spell Book is both where your cards come from and your life: turning its pages gives you MP, and taking damage also forces you to turn pages."},
+        {"list": [
+          "You win when your opponent has to turn their Spell Book but has no pages left to turn.",
+          "You win when your opponent has no MAMODO left in play and cannot play another one."
+        ]}
+      ]
+    },
+    {
+      "id": "cards",
+      "title": "Card types",
+      "blocks": [
+        {"p": "Some cards are put into play and some are used from inside the Spell Book. You can only use cards on the pair of pages currently open in your own Spell Book."},
+        {"list": [
+          "MAMODO: put into play. You can have up to 3 in play, and only 1 MAMODO with the same name (unless a card says otherwise). Some MAMODO can be stacked on their pre-transformation MAMODO (transformation).",
+          "Partner: equipped to the matching MAMODO in your play area, 1 per MAMODO, and only 1 Partner with the same name. When a MAMODO is discarded, its Partner is discarded with it.",
+          "SPELL: used from the Spell Book by paying its cost. The matching MAMODO must be in your play area; command SPELLs (orders to a MAMODO) can be used by any MAMODO. A SPELL that has been used cannot be used again until the next turn.",
+          "Event: used from the Spell Book by paying its cost. Each player can use only 1 Event per turn."
+        ]}
+      ]
+    },
+    {
+      "id": "icons",
+      "title": "Card icons",
+      "blocks": [
+        {"figure": "anatomy"},
+        {"p": "The number at the top right of a card is its cost, the bottom left is its Power (a “+” on a SPELL is Power added to the MAMODO that uses it), and the number at the bottom right is its damage."},
+        {"p": "The A (Attack) and D (Defense) icons mean different things depending on the card:"},
+        {"list": [
+          "SPELLs used in BATTLE: A (Attack) can be used when attacking, D (Defense) can be used when defending; a SPELL with both can do either.",
+          "Events and NO BATTLE SPELLs: A (Attack) can only be used when you are the turn player, D (Defense) only when you are not the turn player."
+        ]},
+        {"list": [
+          "NO BATTLE: this SPELL is used when not in BATTLE, and using it does not start a BATTLE.",
+          "BATTLE: this effect of a card in play can only be used in BATTLE; effects without this mark are normally used when not in BATTLE.",
+          "CUT-IN (jammer): right after your opponent uses certain effects, you may pay the cost to negate that effect (the card says which effects)."
+        ]},
+        {"icons": true}
+      ]
+    },
+    {
+      "id": "setup",
+      "title": "Setup",
+      "blocks": [
+        {"list": [
+          "Both players put the MAMODO on page 1 of their Spell Book into play.",
+          "Both players open pages 2 and 3 of their Spell Book and get 2 MP each.",
+          "Flip a coin to decide who goes first."
+        ]}
+      ]
+    },
+    {
+      "id": "turn",
+      "title": "Turn sequence",
+      "blocks": [
+        {"p": "Players take turns. The player whose turn it is is the “turn player”. Each turn goes through the START PHASE, BATTLE PHASE and END PHASE in order."},
+        {"list": [
+          "START PHASE: the turn player turns 0–3 pages of their Spell Book (one page is one pair of pages), getting MP +2 for each, and cannot turn past the last page. Afterwards, effects and STANDBY effects that trigger in the START PHASE resolve.",
+          "BATTLE PHASE: players act alternately (see “What you can do in the BATTLE PHASE”). When both players pass in a row while not in BATTLE, the BATTLE PHASE ends.",
+          "END PHASE: effects that trigger in the END PHASE resolve; if you have no MAMODO in play, the no-MAMODO procedure happens (see “Advanced rules”). Finally the turn player must turn 1 page of their Spell Book, gets MP +2, and the opponent's turn begins."
+        ]}
+      ]
+    },
+    {
+      "id": "actions",
+      "title": "What you can do in the BATTLE PHASE",
+      "blocks": [
+        {"p": "In the BATTLE PHASE the turn player acts first, then players alternate, each time taking 1 action or passing. After you pass, you may act again as soon as your opponent takes another action. When a BATTLE ends and play returns to not in BATTLE, the turn player acts first again."},
+        {"list": [
+          "Play a MAMODO or Partner from your open pages: either player.",
+          "Use an effect of a card in play: either player (see “Effects of cards in play”).",
+          "Use an Event or NO BATTLE SPELL with A (Attack): only the turn player.",
+          "Use an Event or NO BATTLE SPELL with D (Defense): only the non-turn player.",
+          "Declare an attack with a SPELL that has A (Attack): only the turn player; this goes to the BATTLE start check (see “BATTLE sequence”). Some MAMODO can attack without a SPELL; their total Power and damage are fixed values given on the card."
+        ]},
+        {"p": "You cannot freely turn your Spell Book in the BATTLE PHASE, but when damage or an effect turns you to a new pair of pages, you can use the cards on those pages."}
+      ]
+    },
+    {
+      "id": "battle",
+      "title": "BATTLE sequence",
+      "blocks": [
+        {"list": [
+          "Start check: the turn player declares an attack with a SPELL (shows the SPELL and pays its cost). The non-turn player may accept, or insert 1 action (play a card, an in-play effect, or an Event or NO BATTLE SPELL with D (Defense)); inserting an action voids this check, and the turn player may declare again or do something else.",
+          "Defense: the non-turn player (the defender) may defend with a SPELL that has D (Defense), paying its cost, or not defend. Some effects make an attack impossible to defend.",
+          "Effects: starting with the attacker, players alternate using effects with BATTLE or passing; when both pass in a row, Power is compared.",
+          "Power showdown: total Power = Power of the MAMODO using the SPELL + Power of the SPELL (including all modifiers). If the attacker's total is greater than the defender's, the attack succeeds; if they are equal or the defender's is greater, it fails. Without a defense the defender's total is 0; a negated attack counts as a failure.",
+          "Damage and effects: when the attack succeeds, the attacker's SPELL effects resolve and damage is dealt; when it fails, none of the attacker's effects resolve, and of the defender's SPELLs only those marked “counter” resolve. Afterwards play returns to not in BATTLE."
+        ]},
+        {"p": "SPELL effects that choose targets or flip coins decide them when declared. During a game, click the total Power in the middle of the screen, or the Power showdown in the action log, to see the breakdown of the totals."}
+      ]
+    },
+    {
+      "id": "damage",
+      "title": "Damage, Injured and PROTECT",
+      "blocks": [
+        {"list": [
+          "The Spell Book takes N damage: turn N pages of the Spell Book without getting MP. If you have to turn but have no pages left, you lose.",
+          "A MAMODO takes damage: whatever the amount, it becomes Injured (the card is turned sideways). An Injured MAMODO that takes damage once more is discarded, together with its Partner.",
+          "PROTECT: when your Spell Book or a MAMODO would take damage, another MAMODO in your play area may take it instead. The protecting MAMODO takes 1 damage and the original target takes none. The same MAMODO can PROTECT any number of times per turn until it is discarded.",
+          "Effects that are not damage, such as “turn the Spell Book” or “discard”, cannot be PROTECTed against.",
+          "When several damages happen at once, the player taking them decides the order."
+        ]}
+      ]
+    },
+    {
+      "id": "effects",
+      "title": "Effects of cards in play",
+      "blocks": [
+        {"list": [
+          "Declare use →: used just by declaring it, no MP needed.",
+          "Reduce MP by N →: pay N MP, then use it.",
+          "Discard this card →: discard this card, then use it. If another effect discards the card, you cannot use this effect; and if you play another card with the same number after discarding, it cannot be used again that turn.",
+          "While this card is in play →: works for as long as the card is in play, takes no action, and triggers automatically at the given timing."
+        ]},
+        {"p": "Each effect of the first three kinds can be used only once per turn. STANDBY effects take effect at the given timing; STAY effects last until the given time limit. Effects currently active can be checked with “Active effects” in the top bar."}
+      ]
+    },
+    {
+      "id": "coins",
+      "title": "Coin flips",
+      "blocks": [
+        {"list": [
+          "Some effects flip coins, and the result depends on heads or tails. Both players can see the results.",
+          "Some cards let you re-flip, such as Kanchome's effect or an Event that re-flips for MP. When deciding whether to re-flip, the screen lists the current result of each coin."
+        ]}
+      ]
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced rules",
+      "blocks": [
+        {"list": [
+          "SPELL on the last page: when the Spell Book is open at its last page, the original cost of the SPELL on the last page is 0 (extra cost added by effects must still be paid).",
+          "No MAMODO in play: if you have no MAMODO in play in the END PHASE, you must play 1 MAMODO from your open pages; if your open pages have no MAMODO card, keep turning your Spell Book until you reach a page with one and play it (these turns give no MP). If you reach the end without finding a MAMODO card, you lose. Card effects cannot stop this procedure."
+        ]}
+      ]
+    }
+  ],
+  "figure": {
+    "title": "Example card",
+    "missing": "Card art is not installed, so the icons are shown as text below.",
+    "marks": {
+      "type": "Type (MAMODO, SPELL, Event…)",
+      "cost": "Cost",
+      "attack": "A (Attack)",
+      "defense": "D (Defense)",
+      "power": "Power",
+      "damage": "Damage",
+      "battle": "BATTLE",
+      "nobattle": "NO BATTLE",
+      "cutin": "CUT-IN (jammer)"
+    },
+    "icons_title": "Icon list"
+  }
+}

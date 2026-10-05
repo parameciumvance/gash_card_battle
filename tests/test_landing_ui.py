@@ -93,7 +93,7 @@ def test_join_link_prefills_then_joins(browser, server):  # noqa: F811
     host.wait_for_function("document.getElementById('waiting-code').textContent")
     code = host.locator("#waiting-code").text_content()
 
-    guest_ctx = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce")
+    guest_ctx = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce", locale="zh-TW")
     guest_ctx.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
     guest = guest_ctx.new_page()
     guest_errors = []

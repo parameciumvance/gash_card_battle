@@ -50,6 +50,8 @@ body {
   background: var(--page); color: var(--ink);
   height: 100vh; display: flex; flex-direction: column;
 }
+/* 日文以日文字型顯示,避免漢字以中文字形呈現(含中、英模式下的日文原名小字) */
+body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif; }
 
 #topbar {
   display: flex; align-items: center; gap: 16px;
@@ -57,6 +59,7 @@ body {
   font-size: 14px; color: var(--on-page);
 }
 #title { font-weight: bold; color: var(--on-page); }
+#topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
 #acting-info { color: var(--on-page-green); font-weight: bold; }
 
 #layout { display: flex; flex: 1; min-height: 0; }
@@ -503,7 +506,7 @@ body {
 .info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
 .breakdown-ref { color: var(--accent-blue); cursor: pointer; text-decoration: underline dotted; margin-left: 4px; }
 #stage-content .side-total { cursor: pointer; text-decoration: underline dotted; }
-#rules-toggle, #prefs-toggle, #effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
+#rules-toggle, #lang-toggle, #prefs-toggle, #effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
   color: var(--ink); border-radius: 6px; cursor: pointer; }
 
 #toast {
