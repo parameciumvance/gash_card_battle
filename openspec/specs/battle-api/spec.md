@@ -3,7 +3,9 @@
 ## Purpose
 
 FastAPI 薄殼:房間內對局的指令轉發、視角化狀態快照與事件、WebSocket 推送。引擎為唯一規則權威;所有回應經觀看者視角過濾。
+
 ## Requirements
+
 ### Requirement: 建立對局
 對局 SHALL 經由房間流程建立(見 `online-room`):線上房於雙方到齊時、本機房於建房時,載入預組魔本、初始化引擎(可選指定 RNG seed)、執行準備階段。牌組欄位 SHALL 解析為下列之一:`{preset: id}` 依 id 自掃描集合載入對應預組(id MUST 限縮在掃描到的集合,絕不轉為任意檔案路徑;未知 id 回 4xx);`{pages:[...]}` 自訂牌組以構築規則驗證(違規回 422);缺省(無牌組欄位或 `{preset:"level1"}`)為預設預組 level1。直接建立無主對局的舊端點 MUST 移除。
 
@@ -96,15 +98,19 @@ API SHALL 提供房間 WebSocket 端點:以 token 鑑別視角;連線即送 welc
 - **THEN** welcome 含 next_seq,前端以序號去重,不重複顯示既有記錄
 
 ### Requirement: 預組魔本探索
-API SHALL 提供 `GET /api/decks` 端點,回傳伺服器 `data/decks/` 目錄下所有預組魔本的清單(每項含 `id` 與顯示名 `name`)。顯示名 SHALL 依牌組 JSON 解析:有 `name_key` 則經 i18n 字典解析,否則用內嵌 `name`,再無則退回 `id`。清單 SHALL 於啟動時掃描並可快取;無法解析為合法牌組的檔案 MUST 被排除而不使端點失敗。
+API SHALL 提供 `GET /api/decks` 端點,回傳伺服器 `data/decks/` 目錄下所有預組魔本的清單(每項含 `id`、顯示名 `name`,以及牌組 JSON 有 `name_key` 時的 `name_key`)。顯示名 SHALL 依牌組 JSON 解析:有 `name_key` 則經中文 i18n 字典解析,否則用內嵌 `name`,再無則退回 `id`。前端 SHALL 以 `name_key` 依目前語言解析顯示名,字典中沒有時使用 `name`。清單 SHALL 於啟動時掃描並可快取;無法解析為合法牌組的檔案 MUST 被排除而不使端點失敗。
 
 #### Scenario: 列出預組
 - **WHEN** 前端請求 `GET /api/decks`
-- **THEN** 回應含至少 level1 一項,每項有 `id` 與可顯示的 `name`
+- **THEN** 回應含至少 level1 一項,每項有 `id` 與可顯示的 `name`;level1 另含 `name_key`
 
 #### Scenario: 丟檔即現
 - **WHEN** 開發者於 `data/decks/` 放入一個合法的新預組 JSON 並重啟伺服器
 - **THEN** 該預組出現在 `GET /api/decks` 回應中,無需其他程式碼改動
+
+#### Scenario: 預組名稱依語言
+- **WHEN** 語言為英文,玩家打開 NPC 對戰設定頁的牌組選單
+- **THEN** level1 以英文字典中 `deck.level1` 的名稱顯示
 
 ### Requirement: 執行環境中繼資訊
 API SHALL 提供 `GET /api/meta` 回傳執行環境資訊:`tunnel_url`(公開通道網址,無通道時為 null)與 `assets`(卡圖安裝狀態:`installed`、既有張數 `count`、應有張數 `expected`、建議安裝路徑 `install_dir`)。
