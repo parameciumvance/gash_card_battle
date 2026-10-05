@@ -68,7 +68,7 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 ### D4. 效果系統:共用原語 + 每卡 handler,不做 DSL
 
 - 67 張卡不值得發明 DSL。做法:
-  - **效果原語**(引擎提供):`gain_mp`、`add_power(target, amount, duration)`、`turn_pages(player, n)`、`set_restriction(flag, scope, duration)`(禁術/禁防禦/禁保護/夥伴失效)、`schedule_standby(trigger, effect)`、`flip_coin()`、`negate_attack()`、`modify_damage(delta, duration)`、`discard(card)`、`put_in_play(card)` 等。
+  - **效果原語**(引擎提供):`gain_mp`、`add_power(target, amount, duration)`、`turn_pages(player, n)`、`set_restriction(flag, scope, duration)`(禁術/禁防禦/禁保護/搭檔失效)、`schedule_standby(trigger, effect)`、`flip_coin()`、`negate_attack()`、`modify_damage(delta, duration)`、`discard(card)`、`put_in_play(card)` 等。
   - **每卡 handler**:`cards/handlers/` 下按卡號註冊(`@card("M-001")`),宣告觸發時機(此卡在場上/宣告使用/MP減少N/將此卡棄掉/攻擊勝利時/造成傷害時…)+ 用原語組合效果。約 18 張香草術卡(「攻擊勝利→對魔本傷害 N」)完全由資料表達,不需 handler。
 - **持續效果與時效**:掛在 GameState 上的 modifier 列表,每個帶 `duration`(本場戰鬥/本回合/至下回合結束階段/至下回合開始階段)與來源卡;階段轉換時統一過期。魔力計算 = 基礎值 + Σ有效 modifier,永遠即算不快取。
 - **一場遊戲限一次**(M-011 フェイン):per-game 已用旗標記在玩家狀態。
@@ -86,7 +86,7 @@ engine (純 Python, 無 IO): GameState × Command → (GameState', [Event])
 
 - 單頁靜態 HTML + 原生 JS(ES modules)+ CSS,由 FastAPI 直接 serve。不引入 React/Vue/建置工具——UI 本質是「渲染一份 JSON 狀態 + 按鈕發指令」,規模不需要框架,也符合工具鏈極簡(Python 優先)的偏好。
 - i18n:`i18n/zh-TW.json` key-value 字典 + `t(key, params)` 函式;事件 log 也用模板 key(如 `log.pages_flipped: "{player} 翻了 {n} 張魔本(MP +{mp})"`)。卡片文本從 `cards.zh-TW.json` 取。語言切換 = 換字典檔,結構上已就緒但 v1 只出 zh-TW。
-- 版面:中央雙方魔本對頁(當前頁的卡即「手牌」)、上下各自場區(魔物+夥伴)、MP 計數、右側行動 log、彈出式選擇對話框(目標選擇/保護/硬幣結果)。
+- 版面:中央雙方魔本對頁(當前頁的卡即「手牌」)、上下各自場區(魔物+搭檔)、MP 計數、右側行動 log、彈出式選擇對話框(目標選擇/保護/硬幣結果)。
 
 ### D7. 測試策略
 

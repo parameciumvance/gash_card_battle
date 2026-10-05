@@ -10,7 +10,7 @@
 
 ## What Changes
 
-- 依賴 `cards-json-schema-fixes` 新增的 `effect_icon` 欄位,補完 `_use_book_card` 對 `type=="spell"` 的處理:新增一個獨立的 handler 註冊表(非戰鬥術),檢查 `effect_icon=="nonbattle"`、依 `ad` 判斷回合時機(A=自分のターン、D=相手のターン,同 EVENT 卡邏輯)、檢查對應魔物是否在場(指示術/コマンド除外)、支付 MP、呼叫 handler。
+- 依賴 `cards-json-schema-fixes` 新增的 `effect_icon` 欄位,補完 `_use_book_card` 對 `type=="spell"` 的處理:新增一個獨立的 handler 註冊表(非戰鬥術),檢查 `effect_icon=="nonbattle"`、依 `ad` 判斷回合時機(A=自分のターン、D=相手のターン,同 EVENT 卡邏輯)、檢查對應魔物是否在場(指令術/コマンド除外)、支付 MP、呼叫 handler。
 - S-026/S-041/S-043/S-048/S-057 的 handler 改註冊到新的非戰鬥術通道,移除 `declare_attack`/`on_declare` 觸發路徑,移除 S-041/S-043/S-048/S-057 誤植的 `attack_undefendable = True`。各卡原有效果邏輯本體(擲幣判斷、羅布諾斯轉換、疊裝甲、待命設定)不變,只換觸發入口。
 - `S-036` 的 `_s036_on_win` 改為組一份 `items` 清單(魔本 1 筆 + 對手每隻魔物各 1 筆)呼叫 `_start_damage`,取代 `injure_or_discard`;`injure_or_discard` 函式本身刪除(改動後全專案不再有任何呼叫點)。
 - 新增 S-042/S-045/S-046 的 handler:

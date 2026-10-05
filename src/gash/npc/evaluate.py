@@ -20,7 +20,7 @@ MP_VALUE = 0.6
 MP_EXTRA_VALUE = 0.15
 MP_MIN_NEED = 2
 OPP_MP_NEED = 4
-# 場面:每隻魔物、每 1000 魔力、負傷折扣、夥伴、場上沒有魔物
+# 場面:每隻魔物、每 1000 魔力、負傷折扣、搭檔、場上沒有魔物
 MAMODO_VALUE = 3.0
 POWER_VALUE = 0.8
 INJURED_FACTOR = 0.5

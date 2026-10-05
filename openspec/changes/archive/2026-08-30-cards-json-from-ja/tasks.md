@@ -4,14 +4,14 @@
       **驗收條件**:執行 `python tools/build_cards_json.py` 成功結束(exit code 0),不需手動修補輸出即可被 `src/gash/engine/cards.py` 載入(`CardDef` 建構不拋例外)。
 - [x] 1.2 `power` 解析涵蓋四種格式(base/bonus/special/per_heads)與空字串。
       **驗收條件**:對 `cards_ja.csv` 全 135 筆執行轉換後,人工抽查至少各一筆四種格式各自的輸出(例如一張魔物卡的純數字、一張術卡的加號、`S-021` 的「特殊」、含「×」倍率後綴的卡),確認轉換後 `power_base`/`power_bonus`/`power_special` 三欄與來源語意一致。
-- [x] 1.3 `attr_name` 只在 `type=="spell"` 填入,魔物/夥伴卡一律 `null`。
+- [x] 1.3 `attr_name` 只在 `type=="spell"` 填入,魔物/搭檔卡一律 `null`。
       **驗收條件**:轉換後 `data/cards.json` 中所有 `type != "spell"` 的卡,`attr_name` 均為 `null`;隨機抽查 3 張術卡確認 `attr_name` 等於該卡 `cards_ja.csv` 的 `attr_ja`。
 - [x] 1.4 `image_url` 沿用轉換前 `data/cards.json` 的舊值,無對應舊卡號時為 `null`。
       **驗收條件**:轉換前後比對(用轉換前的備份檔案 diff),所有轉換前已存在的卡號 `image_url` 完全不變;S-042 的 `image_url` 為 `null`,轉換過程不拋例外、不中止。
 - [x] 1.5 `sets`(前端產品篩選用的收錄產品清單)沿用轉換前 `data/cards.json` 的舊值,無對應舊卡號時為 `[]`。
       **驗收條件**:轉換前後比對,所有轉換前已存在的卡號 `sets` 完全不變;S-042 的 `sets` 為 `[]`;`frontend/app.js` 的產品篩選下拉選單在手動開啟前端後仍列出與轉換前相同的產品清單。
-- [x] 1.6 `related_mamodo` 依卡片類型推導:術/夥伴/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除括號後綴推導。
-      **驗收條件**:M-006/M-007(ゴフレ家族)、M-009/M-010(コルル家族)、M-024/M-025(ロブノス形態)、M-027/M-028(バルトロ形態)這 8 張卡的 `related_mamodo` 兩兩家族內相等,且與同家族至少一張術卡或夥伴卡的 `related_mamodo_ja` 相等;所有指示術(`related_mamodo_ja == "コマンド"`)的 `related_mamodo` 等於新的 `COMMAND_ALL` 常數值。
+- [x] 1.6 `related_mamodo` 依卡片類型推導:術/搭檔/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除括號後綴推導。
+      **驗收條件**:M-006/M-007(ゴフレ家族)、M-009/M-010(コルル家族)、M-024/M-025(ロブノス形態)、M-027/M-028(バルトロ形態)這 8 張卡的 `related_mamodo` 兩兩家族內相等,且與同家族至少一張術卡或搭檔卡的 `related_mamodo_ja` 相等;所有指令術(`related_mamodo_ja == "コマンド"`)的 `related_mamodo` 等於新的 `COMMAND_ALL` 常數值。
 
 ## 2. 產生並核對 `data/cards.json`
 
@@ -25,11 +25,11 @@
 ## 3. 修正寫死英文字面值(原估 8 個,實作時全文複查發現另有 3 組遺漏,共 11 組)
 
 - [x] 3.1 `src/gash/engine/cards.py:21` `COMMAND_ALL = "Command: All"` → `"コマンド"`。
-      **驗收條件**:全文搜尋 `Command: All` 於 `src/` 下無殘留;既有涵蓋指示術判定的測試(`tests/test_cards.py` 或 `tests/test_engine*` 中含指示術情境的案例)重跑通過。
+      **驗收條件**:全文搜尋 `Command: All` 於 `src/` 下無殘留;既有涵蓋指令術判定的測試(`tests/test_cards.py` 或 `tests/test_engine*` 中含指令術情境的案例)重跑通過。
 - [x] 3.2 `src/gash/engine/effects/mamodo.py:322` `attr_name == "Wood"` → `== "木"`。
       **驗收條件**:M-023 的屬性相容性判定有至少一個測試案例(既有或新增)以「木」屬性術卡觸發並斷言其行為與修正前對「Wood」判定的既有測試等價;測試通過。
 - [x] 3.3 `src/gash/engine/effects/mamodo.py:394` `related_mamodo == "Zatch Bell"` → `== "ガッシュ・ベル"`;`mamodo.py:395` `"Zaker" in name_en` → `"ザケル" in name_ja`(或對應日文欄位)。
-      **驗收條件**:涉及葛虛(ガッシュ)/薩克魯(ザケル)身分判定的既有測試(如 `tests/test_cards.py` 中以 M-001 或其夥伴卡觸發的案例)重跑通過,且新增或確認至少一個案例實際執行到該分支(而非只改字串未被任何測試觸發)。
+      **驗收條件**:涉及葛虛(ガッシュ)/薩克魯(ザケル)身分判定的既有測試(如 `tests/test_cards.py` 中以 M-001 或其搭檔卡觸發的案例)重跑通過,且新增或確認至少一個案例實際執行到該分支(而非只改字串未被任何測試觸發)。
 - [x] 3.4 `mamodo.py:254/256/261` 三處 `"Tia"` → `"ティオ"`。
       **驗收條件**:涉及提歐(ティオ)身分判定的效果(對應魔物卡號,查 `cards_ja.csv` 確認卡名)有測試實際觸發該三處分支之一,重跑通過。
 - [x] 3.5 `mamodo.py:266/268/273` 三處 `"Hyde"` → `"ハイド"`。

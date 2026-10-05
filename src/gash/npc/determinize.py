@@ -12,7 +12,7 @@ import random
 
 from ..engine.state import BOOK_SIZE, Game, GameState
 
-# 抽樣先驗:與對手場上魔物同家族的卡(其術、夥伴)較可能在對手魔本中
+# 抽樣先驗:與對手場上魔物同家族的卡(其術、搭檔)較可能在對手魔本中
 FAMILY_WEIGHT = 6.0
 SEEN_WEIGHT = 3.0      # 對手用過的卡(同卡可重複放入魔本)
 BASE_WEIGHT = 1.0

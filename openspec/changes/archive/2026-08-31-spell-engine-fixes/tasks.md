@@ -8,7 +8,7 @@
 - [x] 1.3 把 `_validate_spell_declaration` 裡判斷「玩家場上是否存在對應魔物」的邏輯(`related_mamodo` 匹配或 `SPELL_COMPAT`)抽成共用函式。
       **驗收條件**:抽出後,既有 `declare_attack`/`declare_defense` 相關測試全數維持通過,行為不變。
       實際結果:抽出 `_spell_usable_by(game, player, slot, card)`,既有測試無異動全數通過。
-- [x] 1.4 補完 `_use_book_card` 的 `elif card.type == SPELL:` 分支:依序檢查 `effect_icon=="nonbattle"`、`ad` 回合時機、對應魔物在場(指示術除外)、`used_nonbattle_spells`、MP 支付,呼叫 `reg.SPELL_NONBATTLE` handler。
+- [x] 1.4 補完 `_use_book_card` 的 `elif card.type == SPELL:` 分支:依序檢查 `effect_icon=="nonbattle"`、`ad` 回合時機、對應魔物在場(指令術除外)、`used_nonbattle_spells`、MP 支付,呼叫 `reg.SPELL_NONBATTLE` handler。
       **驗收條件**:對每一種拒絕情境各寫一個測試(非非戰鬥術嘗試走此指令被拒、回合時機錯誤被拒、無對應魔物被拒、同回合重複使用被拒、MP 不足被拒);合法情境下效果正確觸發。
       實際結果:另外發現 `CardDef.can_attack()`/`can_defend()` 沒有排除 `effect_icon=="nonbattle"`,遷移後這 5 張卡仍可被 `declare_attack` 宣告——已一併修正這兩個方法,並以「暫時還原修正→確認測試失敗→改回」的方式驗證新測試真的會抓到迴歸。
 

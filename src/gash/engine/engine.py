@@ -86,7 +86,7 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot) -> tuple[int, lis
         if (m.kind == "power" and m.active(st.turn_no)
                 and m.target_player == player and m.target_slot == slot.uid):
             items.append(_item("modifier", m.source, m.amount))
-        # E-023:所有裝有夥伴的魔物 +N
+        # E-023:所有裝有搭檔的魔物 +N
         if (m.kind == "power_partnered" and m.active(st.turn_no)
                 and m.target_player == player and slot.partner):
             items.append(_item("partnered", m.source, m.amount))
@@ -128,7 +128,7 @@ def _full_immune(game: Game, player: int) -> bool:
 
 def spell_cost(game: Game, player: int, page: int, card: CardDef, slot: MamodoSlot | None = None,
                *, discount: bool = True) -> int:
-    """術卡費用。「某魔物的術」類的費用效果(P-005 / M-008)以「使用術的魔物」判定,指示術由該魔物
+    """術卡費用。「某魔物的術」類的費用效果(P-005 / M-008)以「使用術的魔物」判定,指令術由該魔物
     使用時也適用。slot 為使用的魔物;未指定時(畫面顯示、非戰鬥術)取自己場上可使用此術的魔物中最低的費用。
     discount=False 時不計可選的減費(M-008「1低いコストで使うことができる」選擇不使用時)。"""
     if slot is not None:
@@ -372,16 +372,16 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
         if target is None:
             raise IllegalCommand("play.no_mamodo", "對應魔物不在自己場上")
         if target.partner is not None:
-            raise IllegalCommand("play.partner_exists", "該魔物已裝有夥伴卡")
+            raise IllegalCommand("play.partner_exists", "該魔物已裝有搭檔卡")
         if same_name_in_play(game, player, card):
-            raise IllegalCommand("play.same_name", "同名夥伴已在場上")
+            raise IllegalCommand("play.same_name", "同名搭檔已在場上")
         target.partner = number
         ps.consumed_pages.add(command["page"])
         game.emit(batch, "card_played", player=player, card=number, slot=target.uid, zone="partner")
         if number in reg.ON_PLAY:
             reg.ON_PLAY[number](game, batch, player, target)
     else:
-        raise IllegalCommand("play.not_field_card", "只能放出魔物或夥伴卡")
+        raise IllegalCommand("play.not_field_card", "只能放出魔物或搭檔卡")
 
 
 def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict, in_battle: bool) -> None:
@@ -390,7 +390,7 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     slot = st.slot_by_uid(player, command.get("slot_uid", -1))
     borrow = None
     if slot is None and zone == "partner":
-        # E-010:借用對手夥伴卡的效果(一回合一次、效果解決後不棄掉)
+        # E-010:借用對手搭檔卡的效果(一回合一次、效果解決後不棄掉)
         opp_slot = st.slot_by_uid(1 - player, command.get("slot_uid", -1))
         if opp_slot is not None and opp_slot.partner:
             for m in st.modifiers:
@@ -404,12 +404,12 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
         raise IllegalCommand("ability.target", "找不到指定的場上卡片")
     number = slot.top if zone == "mamodo" else slot.partner
     if number is None:
-        raise IllegalCommand("ability.target", "該魔物未裝夥伴卡")
+        raise IllegalCommand("ability.target", "該魔物未裝搭檔卡")
     spec = reg.ACTIVATED.get(number)
     if spec is None:
         raise IllegalCommand("ability.none", f"{number} 沒有可啟動的效果")
     if zone == "partner" and restricted(game, player, NO_PARTNER_EFFECTS):
-        raise IllegalCommand("ability.partner_restricted", "夥伴卡效果目前失效")
+        raise IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效")
     if zone == "mamodo" and restricted(game, player, NO_MAMODO_EFFECTS):
         raise IllegalCommand("ability.mamodo_restricted", "魔物卡效果本回合失效")
     if zone == "mamodo" and slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
@@ -575,7 +575,7 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
             if len(st.players[player].slots) == 1:
                 slot = st.players[player].slots[0]
             else:
-                raise IllegalCommand("spell.need_slot", "指示術須指定使用的魔物")
+                raise IllegalCommand("spell.need_slot", "指令術須指定使用的魔物")
     else:
         explicit = st.slot_by_uid(player, slot_uid) if slot_uid is not None else None
         if explicit is not None and _spell_usable_by(game, player, explicit, card):

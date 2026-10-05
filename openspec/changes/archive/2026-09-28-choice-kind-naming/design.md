@@ -27,11 +27,11 @@ pending 的 `kind` 同時是引擎分派 resolver 的 key、前端 `choice.title
 | `pick_own_injured_mamodo` | e007_pick | 選擇自己的負傷魔物 |
 | `pick_opponent_mamodo` | e024 / p011_pick | 選擇對手的魔物 |
 | `pick_opponent_injured_mamodo` | m029_pick | 選擇對手的負傷魔物 |
-| `pick_opponent_partner` | e010 / m022 / p008 / s039_pick | 選擇對手的夥伴卡 |
-| `pick_partner_in_discard` | e011 / e022_pick | 選擇棄牌區的夥伴卡 |
-| `pick_partner_in_own_book` | e027_fetch、m020 / m021_pick | 選擇自己魔本中的夥伴卡 |
-| `pick_partner_to_keep` | e027_keep | 選擇要保留的夥伴卡(其餘棄掉) |
-| `pick_mamodo_for_partner` | e027_slot | 選擇要裝備夥伴的魔物 |
+| `pick_opponent_partner` | e010 / m022 / p008 / s039_pick | 選擇對手的搭檔卡 |
+| `pick_partner_in_discard` | e011 / e022_pick | 選擇棄牌區的搭檔卡 |
+| `pick_partner_in_own_book` | e027_fetch、m020 / m021_pick | 選擇自己魔本中的搭檔卡 |
+| `pick_partner_to_keep` | e027_keep | 選擇要保留的搭檔卡(其餘棄掉) |
+| `pick_mamodo_for_partner` | e027_slot | 選擇要裝備搭檔的魔物 |
 | `pick_mamodo_in_own_book` | e012_pick、s043_place_complete、s048_place | 選擇自己魔本中的魔物卡 |
 | `pick_opponent_book_card` | e016_pick(E-016 / E-017)、m011_pick | 選擇對手魔本中的卡 |
 | `pick_card_in_own_discard` | m025_pick | 選擇自己棄牌區的卡 |

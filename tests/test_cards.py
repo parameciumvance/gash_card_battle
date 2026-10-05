@@ -255,7 +255,7 @@ def test_m012_reflip_coin():
     dp = 1 - g.state.turn_player
     give(g, dp, "M-012")
     tp, _ = start_attack(g, 3)
-    # S-025 為指示術,防方有 2 隻魔物須指定使用者
+    # S-025 為指令術,防方有 2 隻魔物須指定使用者
     submit(g, {"type": "declare_defense", "player": dp, "page": 2,
                "slot_uid": slot0(g, dp).uid})
     assert g.state.pending.kind == "coin_confirm"
@@ -333,7 +333,7 @@ def test_m015_no_damage():
     assert not tia.injured
 
 
-# ================================================================ 夥伴
+# ================================================================ 搭檔
 
 def test_p001_attack_undefendable():
     g = game()
@@ -790,7 +790,7 @@ def test_e023_partnered_mamodo_plus_2000_until_end_next_turn():
     base_a, base_b = slot_power(g, 0, a), slot_power(g, 0, b)
     _use_event(g)
     assert slot_power(g, 0, a) == base_a + 2000
-    assert slot_power(g, 0, b) == base_b          # 無夥伴不受影響
+    assert slot_power(g, 0, b) == base_b          # 無搭檔不受影響
     end_turn(g)
     assert slot_power(g, 0, a) == base_a + 2000   # 下回合仍有效
     submit(g, {"type": "flip_pages", "player": 1, "count": 0})

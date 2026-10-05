@@ -124,10 +124,10 @@ FRAME_NOTE = "以上、枠囲み"
 # 黏在同一行(無 <br/> 分隔)。用 [^。] 排除句號,確保只切出「最後一個句號之後」的魔物名,
 # 不會把前面的敘述文字也吃進去;用 .search() 讓比對從最後一個句號之後的位置自然找到起點。
 SPELL_TAIL_RE = re.compile(r'([^。]+?)第(\d+)の?術$')
-COMMAND_SPELL_TAIL = "コマンド"  # 指示術(不屬於特定魔物,對應英文 related_mamodo="Command: All")
+COMMAND_SPELL_TAIL = "コマンド"  # 指令術(不屬於特定魔物,對應英文 related_mamodo="Command: All")
 COMMAND_SPELL_TAIL_RE = re.compile(r'コマンド$')
 PARTNER_TAIL_RE = re.compile(r'^魔物＝(.+)$')
-PARTNER_NAME_TAIL_RE = re.compile(r'^パートナー＝(.+)$')  # 魔物卡宣告綁定的夥伴(與上者鏡像對稱)
+PARTNER_NAME_TAIL_RE = re.compile(r'^パートナー＝(.+)$')  # 魔物卡宣告綁定的搭檔(與上者鏡像對稱)
 
 
 def classify_token(tok: str, header: dict, number: str) -> None:
@@ -244,7 +244,7 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
             remainder = last[:m.start()]  # 保留最後一個句號之前的敘述文字(可能與尾巴同一行)
             body_lines = body_lines[:-1] + ([remainder] if remainder else [])
         elif cmd:
-            result["related_mamodo_ja"] = COMMAND_SPELL_TAIL  # 指示術,不屬於特定魔物
+            result["related_mamodo_ja"] = COMMAND_SPELL_TAIL  # 指令術,不屬於特定魔物
             remainder = last[:cmd.start()]
             body_lines = body_lines[:-1] + ([remainder] if remainder else [])
     elif type_ == "partner" and body_lines:
@@ -257,7 +257,7 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
         if tail:
             result["related_partner_ja"] = tail.group(1).strip()
             body_lines = body_lines[:-1]
-    # 事件卡:不解析對應魔物/夥伴(見規格)
+    # 事件卡:不解析對應魔物/搭檔(見規格)
 
     def require_tail_field(field: str) -> None:
         if result[field]:

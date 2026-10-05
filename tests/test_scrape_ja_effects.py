@@ -114,7 +114,7 @@ T-001　テスト魔物
 <br />
 《テスト技》MPを1へらす→自分が攻撃するバトル中、この魔物の魔力を+500する。
 <br />
-パートナー＝テスト夥伴
+パートナー＝テスト搭檔
 
 </div>
 <hr />
@@ -147,7 +147,7 @@ T-002　テスト変身魔物
 <div>
 《テスト技2》MPを1へらす→仮の効果文。
 <br />
-パートナー＝テスト夥伴2
+パートナー＝テスト搭檔2
 
 </div>
 <hr />
@@ -160,11 +160,11 @@ LEVEL:テスト　テストパック
 </blockquote>
 """
 
-# 夥伴卡:最後一行「魔物＝X」宣告對應魔物(對應 P-001 真實案例)
+# 搭檔卡:最後一行「魔物＝X」宣告對應魔物(對應 P-001 真實案例)
 PARTNER_CARD_HTML = """
-<h2>T-301　テスト夥伴</h2>
+<h2>T-301　テスト搭檔</h2>
 <blockquote><div>
-T-301　テスト夥伴
+T-301　テスト搭檔
 <br />
 パートナー
 <br />
@@ -183,11 +183,11 @@ LEVEL:テスト　テストパック
 </blockquote>
 """
 
-# 夥伴卡:沒有「魔物＝X」尾行,最後一行應完整併入效果文
+# 搭檔卡:沒有「魔物＝X」尾行,最後一行應完整併入效果文
 PARTNER_CARD_NO_TAIL_HTML = """
-<h2>T-302　テスト夥伴2</h2>
+<h2>T-302　テスト搭檔2</h2>
 <blockquote><div>
-T-302　テスト夥伴2
+T-302　テスト搭檔2
 <br />
 パートナー
 <br />
@@ -225,7 +225,7 @@ LEVEL:テスト　テストパック
 </blockquote>
 """
 
-# 術卡:指示術(コマンド),不屬於特定魔物
+# 術卡:指令術(コマンド),不屬於特定魔物
 COMMAND_SPELL_HTML = """
 <h2>T-106　テストコマンド術</h2>
 <blockquote><div>
@@ -248,11 +248,11 @@ LEVEL:テスト　テストパック
 </blockquote>
 """
 
-# 夥伴卡:尾行格式跟登記過的已知缺漏(P-018)不同,應套用覆寫值而非報錯
+# 搭檔卡:尾行格式跟登記過的已知缺漏(P-018)不同,應套用覆寫值而非報錯
 PARTNER_CARD_KNOWN_GAP_HTML = """
-<h2>P-018　テスト夥伴3</h2>
+<h2>P-018　テスト搭檔3</h2>
 <blockquote><div>
-P-018　テスト夥伴3
+P-018　テスト搭檔3
 <br />
 パートナー
 <br />
@@ -406,7 +406,7 @@ def test_parse_card_page_spell_unlinked_related_mamodo():
 
 
 def test_parse_card_page_command_spell():
-    """指示術(コマンド)不屬於特定魔物,related_mamodo_ja 存為「コマンド」。"""
+    """指令術(コマンド)不屬於特定魔物,related_mamodo_ja 存為「コマンド」。"""
     r = parse_card_page(COMMAND_SPELL_HTML, "術", "T-106")
     assert r["related_mamodo_ja"] == "コマンド"
     assert r["effect_ja"] == "仮の効果文。"
@@ -441,14 +441,14 @@ def test_parse_card_page_mamodo_ability_text_not_misparsed():
     assert r["power"] == "3000"
     assert r["ad"] == ""
     assert "攻撃" in r["effect_ja"]
-    assert r["related_partner_ja"] == "テスト夥伴"
+    assert r["related_partner_ja"] == "テスト搭檔"
     assert r["related_mamodo_ja"] == ""
     assert r["flavor_ja"] == "テスト用の風味文その四。"
 
 
 def test_parse_card_page_mamodo_missing_partner_raises():
     html_without_partner_tail = MAMODO_CARD_HTML.replace(
-        "\nパートナー＝テスト夥伴\n", "\n")
+        "\nパートナー＝テスト搭檔\n", "\n")
     with pytest.raises(ValueError, match="related_partner_ja"):
         parse_card_page(html_without_partner_tail, "魔物", "T-999-no-partner")
 
@@ -459,7 +459,7 @@ def test_parse_card_page_mamodo_framed_rule_block():
     パートナー＝X 尾行要能從最後一段(而非第一段)正確解析出來。"""
     r = parse_card_page(MAMODO_CARD_FRAMED_RULE_HTML, "魔物", "T-002")
     assert r["power"] == "5000"
-    assert r["related_partner_ja"] == "テスト夥伴2"
+    assert r["related_partner_ja"] == "テスト搭檔2"
     assert "枠囲み" not in r["effect_ja"]
     assert "自分の「テスト魔物」に重ねる" in r["effect_ja"]
     assert "仮の効果文" in r["effect_ja"]

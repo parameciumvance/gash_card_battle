@@ -1,6 +1,6 @@
 ## Context
 
-`tree_cards.py` 目前以四個區段(事件卡 / 魔物卡 / 夥伴卡 / 術卡)依卡號排序登記全部卡片,開頭的說明寫著排版規則。`effects/__init__.py` 匯入它以完成登記。登記順序決定 `reg.START_PHASE` 等表的迭代順序。
+`tree_cards.py` 目前以四個區段(事件卡 / 魔物卡 / 搭檔卡 / 術卡)依卡號排序登記全部卡片,開頭的說明寫著排版規則。`effects/__init__.py` 匯入它以完成登記。登記順序決定 `reg.START_PHASE` 等表的迭代順序。
 
 ## Goals / Non-Goals
 

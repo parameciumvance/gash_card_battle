@@ -17,9 +17,9 @@
 
 **Non-Goals:**
 - 不重新命名 `CardDef.name_en` 欄位(如改叫 `name`/`name_ja`)。這是純粹的命名清晰度問題,不影響資料正確性,牽動範圍(欄位定義、8+ 處讀取、JSON schema key)會讓這次變更的焦點從「換資料來源」模糊成「順便重構欄位命名」,留待之後單獨評估。這次只要求欄位「裝的值」正確(日文),不要求欄位「名字」跟著改。
-- 不處理 `attr_name` 對魔物/夥伴卡的「技能名」語意(維持留空,見 Context)。
+- 不處理 `attr_name` 對魔物/搭檔卡的「技能名」語意(維持留空,見 Context)。
 - 不刪除 `openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 本體(僅刪除讀它的抽取腳本),保留作為歷史快照。
-- ~~不處理 M-007/M-010 等「變身形態要對應回 base 形態」的 `related_mamodo` 遷移~~ ← **實作階段更正**:這件事其實無法略過。`related_mamodo` 是引擎用來比對「魔物卡與其對應術/夥伴卡是否同一家族」的結構性欄位(`engine.py`/`state.py`/`partners.py` 多處動態比對),魔物卡本身的 `related_mamodo` 若沒填對值,M-007/M-010/M-024/M-025/M-027/M-028 這 6 張變身/形態卡的家族比對會直接失效,不是可以留到之後的顯示層問題。實作時發現規則其實很單純:魔物卡的 `related_mamodo` = 該卡 `name_ja` 去除括號後綴(如「（変身後）」「（分身体）」「（完全体）」「（アーマー体）」「（本体）」)後的字串,套用在全部 135 筆上與現有 `data/cards.json` 的英文 `related_mamodo`(如 M-007 "Gofure (Transformed)" → related_mamodo "Gofure")語意完全對應,且已用 `related_mamodo_ja`/`related_partner_ja` 交叉核對過(如 P-004/S-012/S-013 的 `related_mamodo_ja` 皆為「ゴフレ」,與 M-006/M-007 去括號後的「ゴフレ」一致)。不需要人工個案表,`ja-scraper-partner-mamodo` 當初「留給效果內文人工判斷」指的是效果文字本身如何敘述變身關係,與這個結構性 key 欄位無關。
+- ~~不處理 M-007/M-010 等「變身形態要對應回 base 形態」的 `related_mamodo` 遷移~~ ← **實作階段更正**:這件事其實無法略過。`related_mamodo` 是引擎用來比對「魔物卡與其對應術/搭檔卡是否同一家族」的結構性欄位(`engine.py`/`state.py`/`partners.py` 多處動態比對),魔物卡本身的 `related_mamodo` 若沒填對值,M-007/M-010/M-024/M-025/M-027/M-028 這 6 張變身/形態卡的家族比對會直接失效,不是可以留到之後的顯示層問題。實作時發現規則其實很單純:魔物卡的 `related_mamodo` = 該卡 `name_ja` 去除括號後綴(如「（変身後）」「（分身体）」「（完全体）」「（アーマー体）」「（本体）」)後的字串,套用在全部 135 筆上與現有 `data/cards.json` 的英文 `related_mamodo`(如 M-007 "Gofure (Transformed)" → related_mamodo "Gofure")語意完全對應,且已用 `related_mamodo_ja`/`related_partner_ja` 交叉核對過(如 P-004/S-012/S-013 的 `related_mamodo_ja` 皆為「ゴフレ」,與 M-006/M-007 去括號後的「ゴフレ」一致)。不需要人工個案表,`ja-scraper-partner-mamodo` 當初「留給效果內文人工判斷」指的是效果文字本身如何敘述變身關係,與這個結構性 key 欄位無關。
 
 ## Decisions
 
@@ -29,8 +29,8 @@
   - 加號+數字(如 `"+4000"`,術的魔力加值)→ `{"bonus": 4000}`
   - `"特殊"` → `{"special": true}`
   - 數字+倍率後綴(如 `"2000×"`,擲幣倍率型)→ `{"special": true, "per_heads": 2000}`
-  - 空字串(夥伴/事件卡)→ `{}`
-- **`related_mamodo` 依卡片類型分別推導**:術卡/夥伴卡/事件卡直接對應 `related_mamodo_ja`(空字串視為 `None`,對應無指定對象的事件卡);魔物卡沒有 `related_mamodo_ja`(爬蟲規格本就不要求),改用「`name_ja` 去除括號後綴」推導(見上方 Non-Goals 更正說明的驗證結果);指示術(對所有魔物的命令)沿用舊有 `COMMAND_ALL` 機制,由 `related_mamodo_ja == "コマンド"` 判定並填入新的 `COMMAND_ALL = "コマンド"` 常數值。
+  - 空字串(搭檔/事件卡)→ `{}`
+- **`related_mamodo` 依卡片類型分別推導**:術卡/搭檔卡/事件卡直接對應 `related_mamodo_ja`(空字串視為 `None`,對應無指定對象的事件卡);魔物卡沒有 `related_mamodo_ja`(爬蟲規格本就不要求),改用「`name_ja` 去除括號後綴」推導(見上方 Non-Goals 更正說明的驗證結果);指令術(對所有魔物的命令)沿用舊有 `COMMAND_ALL` 機制,由 `related_mamodo_ja == "コマンド"` 判定並填入新的 `COMMAND_ALL = "コマンド"` 常數值。
 - **`attr_name` 只在 `type=="spell"` 時填入 `attr_ja`,其餘一律 `None`**:對應 Context 段落的調查結論,只服務 M-023 這一個讀取點,不承擔顯示職責。
 - **`image_url` 從現有 `data/cards.json` 逐卡沿用,不重新取得**:`cards_ja.csv` 沒有這個欄位(wiki 卡圖連結是否可用、授權範圍都還沒調查過),沿用舊的 Google Drive 連結是最低風險的做法;S-042 沒有舊值可沿用,`image_url` 為 `null`,由前端既有的「缺圖以文字卡面呈現」機制處理,card-data spec 的「卡圖資產與備援」需求已涵蓋這個情境,不需要新增規格。
 - **`sets`(收錄產品清單)比照 `image_url` 從現有 `data/cards.json` 逐卡沿用**:實作階段發現 `frontend/app.js` 直接讀 `/data/cards.json` 的 `sets` 欄位做「依產品篩選」UI,但 `CardDef`(Python 端)並未定義此欄位,proposal/design 原先都沒提到它。`cards_ja.csv` 的 `sets_ja` 是完全不同的日文格式(如 `"LEVEL:2　Rパック・自販機|LEVEL:2　Nスターター"`),與舊有的英文 set 名稱(`"Series 1"`、`"Level 1"`)之間沒有已核對過的對應規則,貿然重新解析風險高於沿用舊值。S-042 沒有舊值可沿用,`sets` 為空陣列 `[]`,前端的產品篩選只是不會把 S-042 列入任何產品分類,不影響其他功能。

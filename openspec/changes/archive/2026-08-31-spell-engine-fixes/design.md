@@ -13,7 +13,7 @@
 - 新增 S-042(魔力門檻加傷害)、S-045/S-046(條件式不可防禦,這裡的 `attack_undefendable` 是正確用法,因為這兩張是真正透過戰鬥流程觸發的一般攻擊術,不是非戰鬥術)。
 
 **Non-Goals:**
-- 不處理 `effect_icon_ja` 為「ジャマー」的卡(如 M-026)——這類卡目前用 `timing="any"` 的既有機制(魔物/夥伴卡啟動效果),跟這次「非戰鬥術」是不同的既有機制,行為已經正確,不在此次範圍。
+- 不處理 `effect_icon_ja` 為「ジャマー」的卡(如 M-026)——這類卡目前用 `timing="any"` 的既有機制(魔物/搭檔卡啟動效果),跟這次「非戰鬥術」是不同的既有機制,行為已經正確,不在此次範圍。
 - 不重新設計「對手回合可用的非戰鬥術(`ad=="D"`)」這個分支的完整測試——目前 5 張要遷移的卡 `ad` 全是 `"A"`,`ad=="D"` 分支複用 EVENT 卡已驗證過的邏輯,但沒有一張現有卡會真正走到這個分支,留待未來有對應卡片時再補測試。
 - 不處理「效果 icon」為空字串、但效果文字仍隱含某種特殊時機限制的邊界情況(目前掃描過的候選卡都有明確的 `ad`/`effect_icon` 標記可用)。
 
@@ -23,7 +23,7 @@
 - **`_use_book_card` 的 SPELL 分支邏輯**(依序檢查,任一不符合即 `IllegalCommand`):
   1. `card.effect_icon == "nonbattle"`,否則沿用現況錯誤訊息(這張術沒有非戰鬥圖示)。
   2. 依 `card.ad` 判斷回合時機:`"A"` 僅能在 `player == turn_player` 使用,`"D"` 僅能在 `player != turn_player` 使用(邏輯與 EVENT 卡一致)。
-  3. 除指示術(`card.is_command_spell`,即 `related_mamodo == COMMAND_ALL`)外,MUST 檢查玩家場上存在至少一隻 `usable_by` 該卡的魔物(沿用 `_validate_spell_declaration` 的 `related_mamodo` 匹配或 `SPELL_COMPAT` 判斷邏輯,抽成共用函式)。
+  3. 除指令術(`card.is_command_spell`,即 `related_mamodo == COMMAND_ALL`)外,MUST 檢查玩家場上存在至少一隻 `usable_by` 該卡的魔物(沿用 `_validate_spell_declaration` 的 `related_mamodo` 匹配或 `SPELL_COMPAT` 判斷邏輯,抽成共用函式)。
   4. `key = f"nonbattle:{number}"`,若已在 `used_nonbattle_spells` 中則拒絕(每回合限 1 次)。
   5. 支付 `spell_cost()` 費用。
   6. 呼叫 `reg.SPELL_NONBATTLE[number]` handler。

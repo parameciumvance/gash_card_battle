@@ -1,4 +1,4 @@
-"""夥伴卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
+"""搭檔卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import DUR_TURN, NO_ATTACK_SPELL
 from .. import registry as reg
@@ -14,7 +14,7 @@ from ..tree import (
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
-# 「某魔物の術 / 某魔物による」類效果以「使用術的魔物」判定,指示術由該魔物使用時也適用。
+# 「某魔物の術 / 某魔物による」類效果以「使用術的魔物」判定,指令術由該魔物使用時也適用。
 
 reg.activated("P-001", mode="discard", timing="nonbattle",
               effect=MakeNextAttackUndefendable(mamodo="ガッシュ・ベル"))

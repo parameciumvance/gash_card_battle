@@ -1,8 +1,8 @@
 """從 data/cards_ja.csv(日文權威來源)轉換產出 data/cards.json。
 
 - `power` 單一字串欄位解析回 {base/bonus/special/per_heads} 結構。
-- `attr_name` 只在術卡填入 `attr_ja`,魔物/夥伴卡一律 None(僅 M-023 讀取,不承擔顯示職責)。
-- `related_mamodo`:術/夥伴/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除
+- `attr_name` 只在術卡填入 `attr_ja`,魔物/搭檔卡一律 None(僅 M-023 讀取,不承擔顯示職責)。
+- `related_mamodo`:術/搭檔/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除
   括號後綴(如「（変身後）」)推導,使變身/形態卡與基礎家族名一致。
 - `effect_icon`:バトル/非バトル/ジャマー 轉為 battle/nonbattle/jammer,空字串為 None。
 - `image_url` 直接從 xlsx 的 A 欄 HYPERLINK/儲存格超連結讀取(不沿用轉換前的 cards.json);

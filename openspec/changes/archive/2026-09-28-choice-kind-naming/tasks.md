@@ -16,7 +16,7 @@
 
 - [x] 3.1 `index.html` 加入來源卡區塊,CSS 樣式(窄螢幕可讀)
 - [x] 3.2 `app.js`:`showDialog` 接受來源卡,`renderPendingDialog` 傳入 `pending.source`
-- [x] 3.3 指示術選魔物的對話框(`pickSlotThen`)原本借用 E-009 的標題「選擇本回合 +3000 的魔物」,改用專屬標題 `ui.pick_command_user`
+- [x] 3.3 指令術選魔物的對話框(`pickSlotThen`)原本借用 E-009 的標題「選擇本回合 +3000 的魔物」,改用專屬標題 `ui.pick_command_user`
 - [x] 3.4 全部測試通過;以瀏覽器截圖確認桌面與窄螢幕的對話框呈現
 
 ## 4. 文件

@@ -59,7 +59,7 @@ def _field_abilities(game: Game, player: int) -> list[dict]:
             out.append({"type": "use_field_ability", "zone": "mamodo", "slot_uid": slot.uid})
         if slot.partner in reg.ACTIVATED:
             out.append({"type": "use_field_ability", "zone": "partner", "slot_uid": slot.uid})
-    # E-010:借用對手夥伴卡的效果
+    # E-010:借用對手搭檔卡的效果
     if any(m.kind == "borrow_partner" and m.owner == player for m in st.modifiers):
         for slot in st.players[1 - player].slots:
             if slot.partner in reg.ACTIVATED:

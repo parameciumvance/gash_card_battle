@@ -2,7 +2,7 @@
 
 - 介面文字已集中在 `frontend/i18n/zh-TW.json`(397 條),經 `t(key, params)` 取用;程式中寫死的顯示文字只剩「(你)」。行動記錄由前端依事件組成,伺服器不送文字(錯誤訊息除外)。
 - 卡片文字由 `ZH`(`data/cards.zh-TW.json`)提供,欄位為 `name`、`name_ja`、`attr`、`effect`;`cname()` 對魔物以「名稱《效果名》」區分同名魔物(ガッシュ・ベル、ブラゴ、キャンチョメ、ティオ 共 13 張)。
-- 日文來源:`data/cards_ja.csv`(權威)。魔物與夥伴的效果名不在 `attr_ja`,而是在 `effect_ja` 中以《》括起(如 M-001「《やさしい王様》MPを1へらす→…」)。
+- 日文來源:`data/cards_ja.csv`(權威)。魔物與搭檔的效果名不在 `attr_ja`,而是在 `effect_ja` 中以《》括起(如 M-001「《やさしい王様》MPを1へらす→…」)。
 - 英文來源:`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 有全部 135 張的英文卡名與 Attribute / Effect Name,以及英文效果文。玩家另外安裝的卡圖是民間英譯版(卡面印有「Zatch Bell! The Card Battle Scanlation Project」)。卡表與卡圖的英文效果文與日文效果文有出入(見 AGENTS.md 與 `2026-09-28-effect-tree-migration` design 第 4 節)。
 - 錯誤:伺服器以 `{code, message}` 回應,`message` 是中文;前端目前直接顯示 `message`。伺服器程式中共約 88 種錯誤碼(`IllegalCommand`、`DeckError`、`RoomError`、`HTTPException` 的 `code`)。
 - `GET /api/decks` 在伺服器端以中文字典解析 `name_key`;目前字典裡沒有 `deck.level1` / `deck.level2`,實際顯示的是牌組 JSON 內嵌的 `name`。
@@ -46,7 +46,7 @@
 
 ### D4:卡片文字檔
 
-- **`cards.ja.json`**:新增 `tools/build_card_texts.py` 由 `data/cards_ja.csv` 產生。`name` / `name_ja` = `name_ja`;`effect` = `effect_ja`;`attr`:術卡為 `attr_ja`,魔物與夥伴卡為 `effect_ja` 中第一個《》內的文字,沒有時 null;事件卡 null。測試以同一函式重新產生並比對,檔案不得手動修改。
+- **`cards.ja.json`**:新增 `tools/build_card_texts.py` 由 `data/cards_ja.csv` 產生。`name` / `name_ja` = `name_ja`;`effect` = `effect_ja`;`attr`:術卡為 `attr_ja`,魔物與搭檔卡為 `effect_ja` 中第一個《》內的文字,沒有時 null;事件卡 null。測試以同一函式重新產生並比對,檔案不得手動修改。
 - **`cards.en.json`**:`name`、`attr` 取自 TTS 卡表(同一工具產生並寫入,保留檔中既有的 `effect`);`effect` 依 `effect_ja` 逐卡翻譯(手寫,存於檔中)。翻譯時:
   - 用語對齊卡圖:MAMODO、SPELL、Spell Book、Power、MP、Partner、【STANDBY】、【STAY】、BATTLE、CUT-IN。
   - 「」括起的卡名 / 術名改為該卡的英文 `name`,保留引號,讓玩家能對到卡片。

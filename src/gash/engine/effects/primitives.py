@@ -164,7 +164,7 @@ def play_mamodo_from_book(game, batch, player, page):
 
 
 def attach_partner_from_book(game, batch, player, page, slot):
-    """效果指示:自魔本任意頁取夥伴卡裝備到指定魔物(已有夥伴時無效果)。"""
+    """效果指示:自魔本任意頁取搭檔卡裝備到指定魔物(已有搭檔時無效果)。"""
     if slot.partner is not None:
         return False
     number = take_from_book(game, batch, player, page)
@@ -188,7 +188,7 @@ def discard_from_book(game, batch, owner, page, source):
 
 
 def discard_partner(game, batch, player, slot, source):
-    """把場上魔物所裝的夥伴卡棄掉。"""
+    """把場上魔物所裝的搭檔卡棄掉。"""
     from ..engine import to_discard
     if not slot.partner:
         return None

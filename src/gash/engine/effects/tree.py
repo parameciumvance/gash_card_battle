@@ -236,7 +236,7 @@ class DetachedFromSelf:
 
 @dataclass(frozen=True)
 class OwnHasPartner:
-    """自己場上至少有一隻魔物裝有夥伴(E-027)。"""
+    """自己場上至少有一隻魔物裝有搭檔(E-027)。"""
 
     def test(self, game, ctx) -> bool:
         return any(s.partner for s in game.state.players[ctx["player"]].slots)
@@ -333,7 +333,7 @@ class OwnMamodo:
 
 @dataclass(frozen=True)
 class PlayablePartnerInDiscard:
-    """棄牌堆中的夥伴卡:其家族魔物在場上尚有空位,且場上沒有同名夥伴(E-011)。"""
+    """棄牌堆中的搭檔卡:其家族魔物在場上尚有空位,且場上沒有同名搭檔(E-011)。"""
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
@@ -359,7 +359,7 @@ class PlayablePartnerInDiscard:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
-            raise IllegalCommand("choose.invalid", "須選擇棄牌區中可放出的夥伴卡")
+            raise IllegalCommand("choose.invalid", "須選擇棄牌區中可放出的搭檔卡")
 
 
 @dataclass(frozen=True)
@@ -393,7 +393,7 @@ class OwnEarlierPages:
 
 @dataclass(frozen=True)
 class OwnBookPartnerNamed:
-    """自己魔本中(尚未離開的)名稱為 name 的夥伴卡頁(M-020 大海恵 / M-021 窪塚泳太)。"""
+    """自己魔本中(尚未離開的)名稱為 name 的搭檔卡頁(M-020 大海恵 / M-021 窪塚泳太)。"""
     name: str
 
     def options(self, game, ctx) -> list[dict]:
@@ -407,7 +407,7 @@ class OwnBookPartnerNamed:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中對應的夥伴卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔本中對應的搭檔卡")
 
 
 @dataclass(frozen=True)
@@ -462,7 +462,7 @@ class OwnEmptyBookPages:
 
 @dataclass(frozen=True)
 class OwnPartneredMamodo:
-    """自己場上裝有夥伴的魔物;選項值為 slot UID,顯示的卡為其夥伴(E-027 選保留哪張)。"""
+    """自己場上裝有搭檔的魔物;選項值為 slot UID,顯示的卡為其搭檔(E-027 選保留哪張)。"""
 
     def options(self, game, ctx) -> list[dict]:
         return [{"value": s.uid, "card": s.partner}
@@ -472,18 +472,18 @@ class OwnPartneredMamodo:
         from ..engine import IllegalCommand
         slot = game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1)
         if slot is None or not slot.partner:
-            raise IllegalCommand("choose.invalid", "須選擇自己場上裝有夥伴的魔物")
+            raise IllegalCommand("choose.invalid", "須選擇自己場上裝有搭檔的魔物")
 
 
 def _partner_slots(game, player, card) -> list:
-    """player 場上可裝備 card(夥伴卡)的魔物:同家族、尚未裝備夥伴。"""
+    """player 場上可裝備 card(搭檔卡)的魔物:同家族、尚未裝備搭檔。"""
     return [s for s in game.state.players[player].slots
             if game.db[s.top].related_mamodo == card.related_mamodo and s.partner is None]
 
 
 @dataclass(frozen=True)
 class AttachablePartnerPagesInOwnBook:
-    """自己魔本中(尚未離開的)夥伴卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
+    """自己魔本中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
@@ -500,12 +500,12 @@ class AttachablePartnerPagesInOwnBook:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的夥伴卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的搭檔卡")
 
 
 @dataclass(frozen=True)
 class SlotsForBookPartner:
-    """可裝備自己魔本 page 綁定那頁夥伴卡的魔物(E-027)。選項值為 slot UID。"""
+    """可裝備自己魔本 page 綁定那頁搭檔卡的魔物(E-027)。選項值為 slot UID。"""
     page: Ref = Ref("page")
 
     def options(self, game, ctx) -> list[dict]:
@@ -516,7 +516,7 @@ class SlotsForBookPartner:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇可裝備此夥伴的魔物")
+            raise IllegalCommand("choose.invalid", "須選擇可裝備此搭檔的魔物")
 
 
 @dataclass(frozen=True)
@@ -549,7 +549,7 @@ class OpponentMamodo:
 
 @dataclass(frozen=True)
 class PartnerDiscardedThisTurn:
-    """棄牌堆中本回合入墓的夥伴卡,且其家族魔物在場上尚有空位(尚未裝備夥伴)。"""
+    """棄牌堆中本回合入墓的搭檔卡,且其家族魔物在場上尚有空位(尚未裝備搭檔)。"""
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
@@ -573,12 +573,12 @@ class PartnerDiscardedThisTurn:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if not any(t["value"] == value for t in self._targets(game, ctx["player"])):
-            raise IllegalCommand("choose.invalid", "須選擇可放回的夥伴")
+            raise IllegalCommand("choose.invalid", "須選擇可放回的搭檔")
 
 
 @dataclass(frozen=True)
 class OpponentPartneredMamodo:
-    """對手場上裝有夥伴的魔物;以 slot UID 作為選項值,顯示的卡為其夥伴。"""
+    """對手場上裝有搭檔的魔物;以 slot UID 作為選項值,顯示的卡為其搭檔。"""
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
@@ -589,7 +589,7 @@ class OpponentPartneredMamodo:
         from ..engine import IllegalCommand
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
         if slot is None or not slot.partner:
-            raise IllegalCommand("choose.invalid", "須選擇對手場上的夥伴卡")
+            raise IllegalCommand("choose.invalid", "須選擇對手場上的搭檔卡")
 
 
 @dataclass(frozen=True)
@@ -970,7 +970,7 @@ class NegateAttack(Effect):
 @dataclass(frozen=True)
 class MakeNextAttackUndefendable(Effect):
     """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在由該家族的魔物攻擊時生效
-    (以使用術的魔物判定,指示術由該魔物使用時也適用)(P-001)。"""
+    (以使用術的魔物判定,指令術由該魔物使用時也適用)(P-001)。"""
     mamodo: str | None = None
 
     def run(self, rt, ctx, path):
@@ -1128,7 +1128,7 @@ class GainMpPerHeads(Effect):
 
 @dataclass(frozen=True)
 class AttachPartnerFromDiscard(Effect):
-    """把 Choose(spec) 選中的夥伴卡從棄牌堆裝到對應魔物上,並觸發其登場效果(E-011 / E-022)。
+    """把 Choose(spec) 選中的搭檔卡從棄牌堆裝到對應魔物上,並觸發其登場效果(E-011 / E-022)。
 
     spec 須提供 _targets(game, player) → [{"value": 棄牌索引, "slot_uid": ...}],與 Choose 用的相同。
     """
@@ -1156,7 +1156,7 @@ class AttachPartnerFromDiscard(Effect):
 
 @dataclass(frozen=True)
 class DiscardChosenPartner(Effect):
-    """棄掉 Choose(OpponentPartneredMamodo()) 選中魔物身上的夥伴卡(S-039)。"""
+    """棄掉 Choose(OpponentPartneredMamodo()) 選中魔物身上的搭檔卡(S-039)。"""
     target: Ref = Ref("choice")
 
     def run(self, rt, ctx, path):
@@ -1272,7 +1272,7 @@ class DamageOpponentBookAndAllMamodo(Effect):
 
 @dataclass(frozen=True)
 class RestrictBothPlayers(Effect):
-    """雙方各設置一個限制旗標,依玩家 0、1 的順序(E-002 禁術 / E-008 夥伴效果失效)。"""
+    """雙方各設置一個限制旗標,依玩家 0、1 的順序(E-002 禁術 / E-008 搭檔效果失效)。"""
     flag: str = ""
     duration: str = ""
 
@@ -1301,7 +1301,7 @@ class ZeroBothPlayersMp(Effect):
 
 @dataclass(frozen=True)
 class BorrowPartner(Effect):
-    """本回合借用 Choose(OpponentPartneredMamodo()) 選中的對手夥伴卡效果(E-010)。"""
+    """本回合借用 Choose(OpponentPartneredMamodo()) 選中的對手搭檔卡效果(E-010)。"""
     target: Ref = Ref("choice")
 
     def run(self, rt, ctx, path):
@@ -1366,7 +1366,7 @@ class HealFirstInjuredMamodo(Effect):
 
 @dataclass(frozen=True)
 class BoostPartneredMamodo(Effect):
-    """[持續] 自己場上裝有夥伴的魔物魔力加值(E-023)。"""
+    """[持續] 自己場上裝有搭檔的魔物魔力加值(E-023)。"""
     amount: int = 0
     duration: str = ""
 
@@ -1540,7 +1540,7 @@ class ReduceOpponentMpUnlessReducedLastTurn(Effect):
 
 @dataclass(frozen=True)
 class DiscardOtherPartners(Effect):
-    """自己場上的夥伴卡只保留 keep 綁定那隻魔物身上的,其餘依場上順序棄掉(E-027)。"""
+    """自己場上的搭檔卡只保留 keep 綁定那隻魔物身上的,其餘依場上順序棄掉(E-027)。"""
     keep: Ref = Ref("keep")
 
     def run(self, rt, ctx, path):
@@ -1554,7 +1554,7 @@ class DiscardOtherPartners(Effect):
 
 @dataclass(frozen=True)
 class AttachPartnerFromBookPage(Effect):
-    """把自己魔本 page 綁定那頁的夥伴卡裝到 slot 綁定的魔物上(觸發登場效果)(E-027)。"""
+    """把自己魔本 page 綁定那頁的搭檔卡裝到 slot 綁定的魔物上(觸發登場效果)(E-027)。"""
     page: Ref = Ref("page")
     slot: Ref = Ref("slot")
 
@@ -1712,7 +1712,7 @@ class DoubleAttackDamage(Effect):
 
 @dataclass(frozen=True)
 class SpellsCostZeroThisTurn(Effect):
-    """本回合 mamodo 使用的術費用為 0(以使用術的魔物判定,指示術也適用)(P-005)。"""
+    """本回合 mamodo 使用的術費用為 0(以使用術的魔物判定,指令術也適用)(P-005)。"""
     mamodo: str = ""
 
     def run(self, rt, ctx, path):
@@ -1856,7 +1856,7 @@ class ReduceOpponentMpPerPageTurnedBack(Effect):
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
 
-# ---- 魔物 / 夥伴卡的查詢:啟動條件 fn(game, player, slot) -> bool、常駐魔力加成
+# ---- 魔物 / 搭檔卡的查詢:啟動條件 fn(game, player, slot) -> bool、常駐魔力加成
 
 @dataclass(frozen=True)
 class SelfInBattleAs:
@@ -1882,7 +1882,7 @@ class SelfInjured:
 
 @dataclass(frozen=True)
 class SelfHasNoPartner:
-    """這隻魔物尚未裝備夥伴(M-020 / M-021)。"""
+    """這隻魔物尚未裝備搭檔(M-020 / M-021)。"""
 
     def __call__(self, game, player, slot) -> bool:
         return slot.partner is None
@@ -1890,7 +1890,7 @@ class SelfHasNoPartner:
 
 @dataclass(frozen=True)
 class SelfHasPartner:
-    """這隻魔物裝有夥伴(M-004)。"""
+    """這隻魔物裝有搭檔(M-004)。"""
 
     def __call__(self, game, player, slot) -> bool:
         return bool(slot.partner)
@@ -2177,7 +2177,7 @@ def register_spell_nonbattle(number: str, tree: Effect):
 
 
 def register_slot_hook(number: str, hook: str, tree: Effect, legacy_taken: bool = False):
-    """魔物 / 夥伴卡的效果掛鉤(activated / on_play / on_discard / start_phase)。
+    """魔物 / 搭檔卡的效果掛鉤(activated / on_play / on_discard / start_phase)。
     handler 簽名 fn(game, batch, player, slot);ctx["self_slot"] 為該卡所在魔物的 UID。"""
     effect_id = _install(number, hook, tree, legacy_taken)
 

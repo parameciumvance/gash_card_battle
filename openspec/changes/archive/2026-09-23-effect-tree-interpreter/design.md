@@ -159,5 +159,5 @@ Sequence(A, Choose(..., then=B), C)      Choose 停下 → 存 path=(1,)
 
 ## Open Questions
 
-- 本次只列舉六張卡用到的四種掛鉤(決策 5 的表)。魔物 / 夥伴的 `on_play`、`activated` 等掛鉤的 `effect_id` 命名,留待遷移那些卡時再依同一規則補入。
+- 本次只列舉六張卡用到的四種掛鉤(決策 5 的表)。魔物 / 搭檔的 `on_play`、`activated` 等掛鉤的 `effect_id` 命名,留待遷移那些卡時再依同一規則補入。
 - `Choose` 的選項規格是否要支援「魔本頁面」「對手魔物」等更多來源?本 change 僅需 `OwnMamodo()`,其餘留待遷移其他卡時再加。

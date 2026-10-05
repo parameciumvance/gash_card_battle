@@ -4,7 +4,7 @@
 
 `data/cards_ja.csv` 現在是乾淨完整的權威來源(135 筆,除 S-042 外與英文資料的 134 張全對得上;`related_partner_ja`/`related_mamodo_ja` 皆已補齊,零 `cards_ja_failed.txt` 失敗記錄)。`effect_ja` 欄位已經由 `tools/scrape_ja_effects.py` 排除掉身分尾行(「XX第N の術」「魔物＝X」「パートナー＝X」「コマンド」)與收錄產品資訊,只留下真正的效果文,可直接作為翻譯依據。
 
-魔物/夥伴卡的《技能名》(如「やさしい王様」)沒有拆成獨立欄位,黏在 `effect_ja` 最前面——已與使用者確認過不為此再擴充爬蟲,翻譯時直接讀 `effect_ja` 開頭的《...》段落即可。
+魔物/搭檔卡的《技能名》(如「やさしい王様」)沒有拆成獨立欄位,黏在 `effect_ja` 最前面——已與使用者確認過不為此再擴充爬蟲,翻譯時直接讀 `effect_ja` 開頭的《...》段落即可。
 
 ## Goals / Non-Goals
 

@@ -673,7 +673,7 @@ def test_discard_chosen_partner_and_stale_target_noop():
     target.partner = "P-001"
     run(g, tree.DiscardChosenPartner(), choice=target.uid)
     assert target.partner is None and "P-001" in g.state.players[1].discard
-    assert run(g, tree.DiscardChosenPartner(), choice=target.uid) == []   # 已無夥伴:無效果
+    assert run(g, tree.DiscardChosenPartner(), choice=target.uid) == []   # 已無搭檔:無效果
 
 
 # ================================================================ rider 新掛鉤(on_win / on_defense_damaged)與 damage_bonus
@@ -1107,7 +1107,7 @@ def test_discard_other_partners_keeps_chosen():
 
 def test_attachable_partner_pages_and_slots_specs():
     from .test_cards import book
-    g = game(book0=book())                                  # 預設牌組本身就有夥伴卡,改用空白魔本
+    g = game(book0=book())                                  # 預設牌組本身就有搭檔卡,改用空白魔本
     set_book(g, 0, p9="P-001", p10="P-002")               # P-002 為レイコム家族,場上沒有 → 不可裝
     assert [o["value"] for o in tree.AttachablePartnerPagesInOwnBook().options(g, {"player": 0})] == [9]
     m16 = give(g, 0, "M-016")
@@ -1135,7 +1135,7 @@ def test_when_condition_evaluated_once_even_if_then_changes_it():
 
 
 
-# ================================================================ 魔物 / 夥伴卡的掛鉤入口
+# ================================================================ 魔物 / 搭檔卡的掛鉤入口
 
 def test_activated_tree_keeps_engine_params_and_passes_self_slot():
     reg.activated("T-930", mode="mp", mp_cost=2, timing="battle", effect=Record("ACT", "self_slot"))
@@ -1363,7 +1363,7 @@ def test_spell_uses_per_turn_while_copies():
     assert spec(g, 0, biraitsu) == 2 and spec(g, 0, other) is None
 
 
-# ================================================================ 夥伴卡(P-001 ~ P-019)
+# ================================================================ 搭檔卡(P-001 ~ P-019)
 
 def _battle(g, attacker, attack_slot, attack_spell="S-001"):
     from gash.engine.state import BattleState
@@ -1448,7 +1448,7 @@ def test_turn_opponent_pages_counts_opponent_mamodo_cards_only():
     opp = g.state.players[1]
     pos = opp.pos
     run(g, node, event={"type": "mamodo_discarded", "player": 0, "cards": ["M-001"]})     # 自己的
-    run(g, node, event={"type": "card_discarded", "player": 1, "card": "P-006"})          # 夥伴卡
+    run(g, node, event={"type": "card_discarded", "player": 1, "card": "P-006"})          # 搭檔卡
     run(g, node, event={"type": "card_discarded", "player": 1, "card": "S-001"})          # 術卡
     assert opp.pos == pos
     run(g, node, event={"type": "mamodo_discarded", "player": 1, "cards": ["M-009", "M-010"]})

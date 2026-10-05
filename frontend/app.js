@@ -1315,7 +1315,7 @@ function pageButtons(p, entry) {
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
-      // 夥伴卡:對應魔物須在場上且未裝夥伴(魔物卡可能疊放,前端不判斷場上是否已滿,以伺服器為準)
+      // 搭檔卡:對應魔物須在場上且未裝搭檔(魔物卡可能疊放,前端不判斷場上是否已滿,以伺服器為準)
       const target = def.type === "partner" ? mamodoInPlay(p, def.related_mamodo) : null;
       const blocked = def.type !== "partner" ? null
         : !target ? t("ui.play.no_mamodo") : target.partner ? t("ui.play.partner_exists") : null;

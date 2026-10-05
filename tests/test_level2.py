@@ -253,7 +253,7 @@ def test_s043_fuse_two_doubles_into_complete():
 
 
 def test_s057_sets_injure_instead_standby():
-    # P1=M-001, P2=S-057(コマンド指示術,擲幣正→[待命] 下次攻擊獲勝改為負傷代替傷害)
+    # P1=M-001, P2=S-057(コマンド指令術,擲幣正→[待命] 下次攻擊獲勝改為負傷代替傷害)
     b0 = book("M-001", "S-057")
     g, tp = mk(b0, book("M-001"))
     g.rng = Rng(HEADS)
@@ -639,7 +639,7 @@ def test_s039_no_partner_no_effect():
 
 
 def _s056_battle(defender_bonus=0):
-    """玩家 0 以 S-029 攻擊;玩家 1 以 S-056(指示術,MP 0)防禦,雙方 pass 到魔力勝負。"""
+    """玩家 0 以 S-029 攻擊;玩家 1 以 S-056(指令術,MP 0)防禦,雙方 pass 到魔力勝負。"""
     from gash.engine.effects.primitives import add_power
     from gash.engine.state import DUR_TURN
     g, tp = mk(book("M-001", "S-029"), book("M-001", "S-056"))
@@ -1097,7 +1097,7 @@ def test_timeout_default_prefers_skip_option():
     assert default_command(g) == {"type": "choose", "value": None}
 
 
-# ---------------------------------------------------------------- 夥伴卡:依使用者決定與效果文
+# ---------------------------------------------------------------- 搭檔卡:依使用者決定與效果文
 
 def _pokkerio_uses_sugina_spell(setup):
     """場上有 M-008 スギナ 與 M-023 ポッケリオ(可用木屬性術);第 2 頁為スギナ的 S-014(木)。"""
@@ -1319,7 +1319,7 @@ def test_p010_usable_on_last_page_and_turning_past_end_loses():
     assert st.phase == "game_over" and st.winner == 1
 
 
-# ---------------------------------------------------------------- 夥伴卡(照原樣遷移者的行為測試)
+# ---------------------------------------------------------------- 搭檔卡(照原樣遷移者的行為測試)
 
 def _use_partner(g, player, slot):
     return submit(g, {"type": "use_field_ability", "player": player, "zone": "partner", "slot_uid": slot.uid})
@@ -2019,7 +2019,7 @@ def test_m022_discard_chosen_opponent_partner():
     g.state.players[0].mp = 10
     to_battle(g, 0)
     slot = g.state.players[0].slots[0]
-    with pytest.raises(IllegalCommand) as e:                   # 對手沒有夥伴
+    with pytest.raises(IllegalCommand) as e:                   # 對手沒有搭檔
         _use_ability(g, 0, slot)
     assert e.value.code == "ability.condition"
     opp = g.state.players[1]

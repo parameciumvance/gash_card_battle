@@ -32,7 +32,7 @@
 
 #### Scenario: 依卡片類別分檔
 - **WHEN** 檢視 `effects/cards/mamodo.py`
-- **THEN** 只有 `M-` 開頭卡號的登記,且依卡號排序;事件卡、夥伴卡、術卡各在自己的檔案
+- **THEN** 只有 `M-` 開頭卡號的登記,且依卡號排序;事件卡、搭檔卡、術卡各在自己的檔案
 
 ### Requirement: 決策種類依選擇內容命名
 效果樹節點建立的決策種類(`Choose` 與 `CoinWithPaidReflip` 的 `prompt`,即 pending 與 `choice_required` 的 `kind`)SHALL 依選擇的內容命名,MUST NOT 含卡號;不同卡片的相同選擇 SHALL 共用同一種類。每個決策種類 MUST 在前端 i18n 有對應的標題。

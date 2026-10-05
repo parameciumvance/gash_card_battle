@@ -9,7 +9,7 @@
 
 ## 實作 / 修改卡片效果
 
-過去第二彈卡片曾依英文翻譯實作、並在程式碼裡悄悄簡化,造成多張卡與效果文不符且長期沒被發現(E-018、E-020、E-027、M-008、M-024、M-025、M-026、M-029 與多張夥伴卡,經過見 `openspec/changes/archive/2026-09-28-effect-tree-migration/design.md` 第 4 節,現行的效果文解讀見 `openspec/specs/card-effects/design.md`「行為決定與理由」)。實作新卡或修改既有卡時:
+過去第二彈卡片曾依英文翻譯實作、並在程式碼裡悄悄簡化,造成多張卡與效果文不符且長期沒被發現(E-018、E-020、E-027、M-008、M-024、M-025、M-026、M-029 與多張搭檔卡,經過見 `openspec/changes/archive/2026-09-28-effect-tree-migration/design.md` 第 4 節,現行的效果文解讀見 `openspec/specs/card-effects/design.md`「行為決定與理由」)。實作新卡或修改既有卡時:
 
 ### 以日文效果文為準
 

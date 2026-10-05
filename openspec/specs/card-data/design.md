@@ -6,7 +6,7 @@
 
 - **分層**:遊戲邏輯只讀 `data/cards.json`(日文權威)。顯示用文字依語言分檔:`data/cards.zh-TW.json`、`data/cards.en.json`、`data/cards.ja.json`,結構相同(卡號 → `{name, name_ja, attr, effect}`),改動只影響顯示。
 - **日文 `cards.ja.json`**:由 `tools/build_card_texts.py` 自 `data/cards_ja.csv` 產生,不手動編輯;測試以同一函式(`build_ja`)重新產生並比對。
-  - 魔物與夥伴的效果名不在 `attr_ja`,而是 `effect_ja` 開頭《》括起的文字,工具取第一個《》作為 `attr`。`effect` 是原文全文,所以日文效果文本身也帶著《效果名》。
+  - 魔物與搭檔的效果名不在 `attr_ja`,而是 `effect_ja` 開頭《》括起的文字,工具取第一個《》作為 `attr`。`effect` 是原文全文,所以日文效果文本身也帶著《效果名》。
 - **英文 `cards.en.json`**:
   - `name` / `attr` 由同一工具自 TTS 卡表(`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx`,「The Table」工作表)寫入,「-」為 null;同一卡號有 e / j 兩版時名稱相同,取第一筆。卡表的名稱照用,不另行修正(例:S-011 卡表寫「Ion Gravirei」)。
   - `effect` 是依 `effect_ja` 手寫的翻譯,存在檔中,工具重新執行時保留。

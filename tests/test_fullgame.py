@@ -1,5 +1,5 @@
 """全流程劇本測試(tasks 6.2):雙方使用 level1 預組魔本,
-以合法指令串完整走過:放卡、夥伴待命(P-001 不可防禦)、保護、
+以合法指令串完整走過:放卡、搭檔待命(P-001 不可防禦)、保護、
 最後一頁バオウ・ザケルガ費用 0、魔本耗盡勝負判定。
 
 魔本頁面備忘:P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 ... P32=S-005
@@ -18,7 +18,7 @@ def test_story_full_game():
     g = new_game(deck.pages, seed=1)
     g.state.turn_player = 0
 
-    # ---- 第 1 回合(玩家0):放夥伴 → P-001 待命 → 不可防禦的攻擊 → 對手保護
+    # ---- 第 1 回合(玩家0):放搭檔 → P-001 待命 → 不可防禦的攻擊 → 對手保護
     submit(g, {"type": "flip_pages", "player": 0, "count": 1})   # pos=4, mp=4
     submit(g, {"type": "play_card", "player": 0, "page": 4})     # P-001 裝到賈修
     submit(g, {"type": "pass", "player": 1})

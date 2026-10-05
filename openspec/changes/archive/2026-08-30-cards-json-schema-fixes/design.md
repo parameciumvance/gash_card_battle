@@ -20,7 +20,7 @@
 
 - **`tools/build_cards_json.py` 直接同時讀取 `cards_ja.csv`(主要資料)與 xlsx(僅取 `image_url`),不再讀「轉換前的舊 `cards.json`」**:這樣每次重新生成都是「完全從權威來源重建」,不存在「必須先有上一版輸出才能產生下一版輸出」的自我依賴風險。取 `image_url` 的邏輯複用已刪除的 `extract_cards.py` 的 `parse_card_cell()` 判斷方式(A 欄儲存格若為 `=HYPERLINK(url, 卡號)` 公式則從公式取,否則讀儲存格的 hyperlink 物件),用卡號(去除 e/j 版本尾碼)比對 `cards_ja.csv` 的卡號做 join。`openpyxl` 依賴重新加回 `pyproject.toml`。
 - **S-042 沒有對應 xlsx 列,`image_url` 為 null,不視為錯誤**:延續前次變更的既定行為,xlsx 是舊版權威來源,新卡本來就不會出現在裡面。
-- **`effect_icon` 英文枚舉值:`battle`/`nonbattle`/`jammer`,空字串(魔物/夥伴/事件卡的多數情況)轉為 `null`**:直接音譯對應 `バトル`/`非バトル`/`ジャマー` 三個值,不額外創造抽象分類名稱,保持跟來源資料的可追溯性。
+- **`effect_icon` 英文枚舉值:`battle`/`nonbattle`/`jammer`,空字串(魔物/搭檔/事件卡的多數情況)轉為 `null`**:直接音譯對應 `バトル`/`非バトル`/`ジャマー` 三個值,不額外創造抽象分類名稱,保持跟來源資料的可追溯性。
 - **`CardDef` 欄位改名採「一次到位」,不留舊名相容別名**:專案目前只有一個消費端(自己的引擎與測試),沒有外部使用者需要相容期,保留別名只會增加維護負擔。
 
 ## Risks / Trade-offs

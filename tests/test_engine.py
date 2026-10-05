@@ -116,7 +116,7 @@ def test_play_mamodo_and_partner_rules():
     g = mk()
     tp = turn_of(g)
     submit(g, {"type": "flip_pages", "player": tp, "count": 3})  # pos=8: 開 8,9 頁
-    # 夥伴 P-009(大海惠, 蒂歐用)在第 8 頁,但蒂歐不在場 → 拒絕
+    # 搭檔 P-009(大海惠, 蒂歐用)在第 8 頁,但蒂歐不在場 → 拒絕
     with pytest.raises(IllegalCommand) as exc:
         submit(g, {"type": "play_card", "player": tp, "page": 8})
     assert exc.value.code == "play.no_mamodo"
@@ -193,7 +193,7 @@ def test_battle_in_voided_by_defender_action():
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     # 防方插入一個行動(pass 以外):用第 3 頁不行(是防方自己的頁),放不出卡 → 改用事件?
-    # 防方翻開頁 2,3:S-025(D術)不能當行動、無夥伴可放 → 用「回應允許」以外唯一合法:實際行動。
+    # 防方翻開頁 2,3:S-025(D術)不能當行動、無搭檔可放 → 用「回應允許」以外唯一合法:實際行動。
     # 這裡以防方放出魔物驗證:先給防方場上騰不出行動 → 直接驗證非法回應被拒。
     with pytest.raises(IllegalCommand):
         submit(g, {"type": "declare_attack", "player": dp, "page": 3})
@@ -289,7 +289,7 @@ def test_injured_mamodo_discarded_on_second_damage():
     types = ev_types(events)
     assert "mamodo_discarded" in types
     assert g.state.players[dp].slots == []
-    assert "P-001" in g.state.players[dp].discard  # 夥伴一併棄掉
+    assert "P-001" in g.state.players[dp].discard  # 搭檔一併棄掉
     assert "M-001" in g.state.players[dp].discard
 
 

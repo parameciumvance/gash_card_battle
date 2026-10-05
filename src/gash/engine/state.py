@@ -3,7 +3,7 @@
 魔本頁面模型:pos = 目前翻開對頁的第一頁(1-based)。
 - 準備階段後 pos=2(翻開第 2、3 頁);翻 1 張(1 對頁)= pos+2。
 - pos=32 時只剩最後一頁;pos>32 = 魔本耗盡(敗北條件)。
-- 已離開魔本的卡(魔物/夥伴放到場上)記錄於 consumed_pages;術/事件卡使用後仍留在魔本中。
+- 已離開魔本的卡(魔物/搭檔放到場上)記錄於 consumed_pages;術/事件卡使用後仍留在魔本中。
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ STEP_EFFECTS = "effects"       # 戰鬥中效果輪流
 
 # --- 禁止旗標 ---
 NO_SPELLS = "no_spells"                    # 不能使用術卡
-NO_PARTNER_EFFECTS = "no_partner_effects"  # 夥伴卡效果失效
+NO_PARTNER_EFFECTS = "no_partner_effects"  # 搭檔卡效果失效
 NO_PROTECT_BOOK = "no_protect_book"        # 不能保護魔本傷害(戰鬥時效)
 NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用術卡攻擊(P-014)

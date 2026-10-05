@@ -2,7 +2,7 @@
 
 - `data/cards.ja.json`:完全由 `data/cards_ja.csv`(日文權威來源)產生,不手動編輯。
   `name` / `name_ja` = `name_ja`;`effect` = `effect_ja`;`attr` 對術卡為 `attr_ja`(元素),
-  對魔物與夥伴卡為 `effect_ja` 中第一個《》括起的效果名,沒有時 None;事件卡 None。
+  對魔物與搭檔卡為 `effect_ja` 中第一個《》括起的效果名,沒有時 None;事件卡 None。
 - `data/cards.en.json`:`name` / `attr` 由 TTS 卡表(`Zatch Bell CCG List for TTS.xlsx`)的英文卡名與
   Attribute / Effect Name 寫入(「-」為 None);`effect` 是依 `effect_ja` 手寫的翻譯,保留檔中既有的值。
   卡表的英文效果文與日文效果文有出入,不作為翻譯依據。

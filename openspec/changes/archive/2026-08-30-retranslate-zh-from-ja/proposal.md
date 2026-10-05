@@ -6,7 +6,7 @@
 
 - `name_ja`(日文原名):134 張既有卡全部改為 `cards_ja.csv` 的 `name_ja`(直接取用,無翻譯判斷)。
 - `name`(中文譯名):逐卡核對是否仍貼合修正後的 `name_ja`;不符合的重新翻譯,措辭合理的維持不動。
-- `attr`(屬性或《技能名》中譯):術卡依 `cards_ja.csv` 的 `attr_ja`(元素屬性)翻譯;魔物/夥伴卡依 `effect_ja` 開頭的《技能名》段落翻譯(未拆成獨立欄位,人工從 `effect_ja` 開頭讀取)。
+- `attr`(屬性或《技能名》中譯):術卡依 `cards_ja.csv` 的 `attr_ja`(元素屬性)翻譯;魔物/搭檔卡依 `effect_ja` 開頭的《技能名》段落翻譯(未拆成獨立欄位,人工從 `effect_ja` 開頭讀取)。
 - `effect`(效果全文中譯):依 `cards_ja.csv` 的 `effect_ja` 重新核對/翻譯(該欄位已排除 `related_mamodo_ja`/`related_partner_ja`/收錄產品等身分尾行,不需要再手動處理)。
 - **範圍:134 張既有卡**(`cards.zh-TW.json` 現有卡號)。S-042(權威來源有、英文資料沒有的卡)不在此範圍,另案處理。
 - **不影響**:`data/cards.json` 的數值與遊戲邏輯——`card-data` spec 既有需求已保證翻譯檔修改不影響引擎行為,此次沿用該保證,不重新驗證。

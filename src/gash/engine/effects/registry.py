@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-# fn(game, batch, player, slot) — 魔物/夥伴進場時
+# fn(game, batch, player, slot) — 魔物/搭檔進場時
 ON_PLAY: dict[str, Callable] = {}
 
 # fn(game, batch, player, slot) — 該卡被棄掉時(M-009)

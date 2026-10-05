@@ -76,7 +76,7 @@
 - [x] 3.2 補 `static_power`、`on_play`、`start_phase`、`on_discard` 的樹入口。
 - [x] 3.3 補 `trigger.<event_type>`、`damage_immunity`、`spell_compat`、`mamodo_attack` 的樹入口(這幾種較少見,視 mamodo.py/partners.py 實際需求決定要不要先做)。
 
-入口於 `2b1be88` 補齊並以 17 張魔物卡驗證。`trigger` / `damage_immunity` / `spell_compat` 的入口已有單元測試,實際卡片(M-023 / M-028 / M-029 / M-031)在下一批遷移。`STACK_ON` / `MAX_COPIES` / `MAMODO_ATTACK` 等純資料登記仍留在 `mamodo.py`,與 M-024 / M-027 一起處理。借用對手夥伴(E-010)時,夥伴效果的 `self_slot` 會是對手的魔物,遷移夥伴卡時要留意。
+入口於 `2b1be88` 補齊並以 17 張魔物卡驗證。`trigger` / `damage_immunity` / `spell_compat` 的入口已有單元測試,實際卡片(M-023 / M-028 / M-029 / M-031)在下一批遷移。`STACK_ON` / `MAX_COPIES` / `MAMODO_ATTACK` 等純資料登記仍留在 `mamodo.py`,與 M-024 / M-027 一起處理。借用對手搭檔(E-010)時,搭檔效果的 `self_slot` 會是對手的魔物,遷移搭檔卡時要留意。
 
 ## 4. 魔物卡(mamodo.py)29 卡 — 全部完成,`mamodo.py` 已於 `eb3daa1` 刪除
 
@@ -111,7 +111,7 @@
 - [x] M-031 キクロプ(damage_immunity) — `f87fc87`
 另:M-024(`max_copies` 與「二身一体」)原本不在清單中(盤點時只看效果掛鉤),`f87fc87` 移入資料登記、`29e77c0` 補上原本缺漏的「二身一体」效果。
 
-## 5. 夥伴卡(partners.py)19 卡 — 全部完成,`partners.py` 已於 `e7141c2` 刪除
+## 5. 搭檔卡(partners.py)19 卡 — 全部完成,`partners.py` 已於 `e7141c2` 刪除
 
 - [x] P-001 高嶺清麿(activated) — `e7141c2`
 - [x] P-002 細川(activated) — `e7141c2`
