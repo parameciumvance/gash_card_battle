@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-112 -112 624 586" fill="none" stroke="#1c2d4a" stroke-opacity=".07" stroke-width="5" stroke-linejoin="round">
+  <!-- 魔本封面的五圓紋:圓心在沙漏形的四個頂點與交點 -->
+  <path d="M0 0H400L0 362H400Z"/>
+  <circle cx="0" cy="0" r="105"/>
+  <circle cx="400" cy="0" r="105"/>
+  <circle cx="200" cy="181" r="105"/>
+  <circle cx="0" cy="362" r="105"/>
+  <circle cx="400" cy="362" r="105"/>
+</svg>

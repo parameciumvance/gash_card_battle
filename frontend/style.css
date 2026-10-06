@@ -42,12 +42,15 @@
   --injured-w: calc(var(--cell-w) * .716);
   /* 盤面卡圖框的長寬比 = (卡寬 - 內距 12 - 框線 4) / --art-h;負傷卡沿用同比例,cover 裁到的範圍才相同 */
   --art-ratio: 88 / 75;
+  /* 背景的魔本五圓紋(淡,線條透明度寫在 SVG 內) */
+  --emblem: url("/static/emblem.svg");
+  --emblem-size: min(560px, 82vw) auto;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-  background: var(--page); color: var(--ink);
+  background: var(--page) var(--emblem) center / var(--emblem-size) no-repeat fixed; color: var(--ink);
   height: 100vh; display: flex; flex-direction: column;
 }
 /* 日文以日文字型顯示,避免漢字以中文字形呈現(含中、英模式下的日文原名小字) */
@@ -67,6 +70,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto;
   color: var(--on-page);
   background:
+    var(--emblem) center / var(--emblem-size) no-repeat,
     radial-gradient(ellipse at 50% 40%, var(--page-hi) 0%, var(--page) 62%),
     repeating-linear-gradient(45deg, rgba(30,60,110,.02) 0 2px, transparent 2px 6px);
 }
