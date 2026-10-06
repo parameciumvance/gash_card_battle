@@ -2753,6 +2753,8 @@ function renderLanding() {
     entry.querySelector(".entry-desc").textContent = t(`ui.landing.${key}_desc`);
     entry.onclick = onclick;
   }
+  document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
+  document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
 
   // 設定頁
   document.getElementById("setup-back").textContent = t("ui.setup.back");

@@ -214,3 +214,17 @@ def test_nickname_prefilled_except_local(page):
     page.locator("#entry-local").click()
     assert page.locator("#name-local-0").input_value() == ""
     assert page.locator("#name-local-1").input_value() == ""
+
+
+def test_disclaimer_on_landing_only(page):
+    disclaimer = page.locator("#landing-disclaimer")
+    assert disclaimer.is_visible()
+    assert disclaimer.evaluate("e => e.tagName") != "BUTTON"
+    text = disclaimer.text_content()
+    assert "非官方粉絲專案,與原作者及 BANDAI 無關,亦未經授權;免費且不涉商業行為。" in text
+    assert "作品與卡片相關權利屬於雷句誠、BANDAI 及各權利人;權利人如有疑慮,請透過「意見回報」聯絡。" in text
+    assert page.locator("#landing-disclaimer a, #landing-disclaimer button").count() == 0   # 意見回報不做成連結
+    box, cards = disclaimer.bounding_box(), page.locator("#landing-cards").bounding_box()
+    assert box["y"] >= cards["y"] + cards["height"]                       # 在入口下方,不遮住入口
+    page.locator("#entry-npc").click()
+    assert not disclaimer.is_visible()

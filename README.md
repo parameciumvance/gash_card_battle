@@ -4,6 +4,9 @@
 卡池為第一、二彈共 135 種卡;玩法說明見遊戲內的「規則」頁。
 規則以 `openspec/specs/game-engine` 的規格為準(開發時參考的規則書中譯 `ref/raw/rule3.md` 不在 repo 內)。
 
+> 非官方粉絲專案,與原作者及 BANDAI 無關,亦未經授權;免費且不涉商業行為。
+> 作品與卡片相關權利屬於雷句誠、BANDAI 及各權利人;權利人如有疑慮,請透過 [GitHub issue](https://github.com/parameciumvance/gash_card_battle/issues) 或遊戲內的「意見回報」聯絡。
+
 ## 啟動
 
 ```bash
