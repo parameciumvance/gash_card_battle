@@ -24,6 +24,6 @@ def test_unchanged_file_returns_304():
     assert res.headers["cache-control"] == "no-cache"
 
 
-@pytest.mark.parametrize("path", ["/static/assets/cards/S-001.jpg", "/api/meta"])
+@pytest.mark.parametrize("path", ["/static/assets/cards/S-001.webp", "/api/meta"])
 def test_card_art_and_api_not_marked(path):
     assert "no-cache" not in client.get(path).headers.get("cache-control", "")

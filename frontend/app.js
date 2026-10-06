@@ -488,6 +488,9 @@ function resetLog() {
 
 // ---------------------------------------------------------------- 卡片元件
 
+// 卡圖一律是 WebP;卡片元件、聚焦展示(anim.js)、規則頁共用
+function artUrl(num) { return `/static/assets/cards/${num}.webp`; }
+
 function cardEl(num, opts = {}) {
   const def = CARDS[num] || {};
   const z = TEXT[num] || { name: num };
@@ -497,7 +500,7 @@ function cardEl(num, opts = {}) {
 
   const art = document.createElement("img");
   art.className = "art";
-  art.src = `/static/assets/cards/${num}.jpg`;
+  art.src = artUrl(num);
   art.onerror = () => {  // 缺圖以卡背佔位(onerror 先清空避免佔位圖也缺時迴圈)
     art.onerror = () => art.remove();
     art.classList.add("placeholder");
@@ -2069,8 +2072,6 @@ const RULE_FIGURES = ["M-001", "S-001", "S-026", "M-026"];
 const RULE_ICONS = ["cost", "attack", "defense", "nobattle", "battle", "cutin", "power", "damage"];
 const ICON_FALLBACK = { cost: "1", attack: "A", defense: "D", nobattle: "NO BATTLE", battle: "BATTLE",
                         cutin: "CUT-IN", power: "Power", damage: "1→" };   // 缺圖時的文字標籤
-
-function artUrl(num) { return `/static/assets/cards/${num}.jpg`; }
 
 // 卡圖是玩家另外安裝的外部資源:逐張探測,載入失敗時改以文字呈現
 const artProbe = {};

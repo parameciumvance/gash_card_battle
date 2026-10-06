@@ -1,5 +1,7 @@
 """GET /api/meta 與卡圖靜態路由外部化。"""
 
+import dataclasses
+
 from fastapi.testclient import TestClient
 
 from gash.api import app as app_module
@@ -32,11 +34,22 @@ def test_meta_reports_tunnel_url():
 
 def test_card_art_served_from_assets_mount():
     # 開發模式等價:既有卡圖 URL 照常回應
-    res = client.get("/static/assets/cards/S-001.jpg")
+    res = client.get("/static/assets/cards/S-001.webp")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("image/")
 
 
 def test_missing_art_is_404_not_error():
-    res = client.get("/static/assets/cards/ZZ-999.jpg")
+    res = client.get("/static/assets/cards/ZZ-999.webp")
     assert res.status_code == 404
+
+
+def test_meta_counts_only_webp(tmp_path, monkeypatch):
+    cards = tmp_path / "cards"
+    cards.mkdir()
+    for num in ("S-001", "S-002"):
+        (cards / f"{num}.jpg").write_bytes(b"old")
+    monkeypatch.setattr(app_module, "ASSETS", dataclasses.replace(app_module.ASSETS, dir=tmp_path))
+    assert client.get("/api/meta").json()["assets"]["count"] == 0   # 舊格式不計入
+    (cards / "S-001.webp").write_bytes(b"new")
+    assert client.get("/api/meta").json()["assets"]["count"] == 1

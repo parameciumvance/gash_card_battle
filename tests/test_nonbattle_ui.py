@@ -135,7 +135,7 @@ def test_battle_command_spells_and_events(page):
 
 
 def test_number_layout_and_pure_detail(page):
-    page.route('**/static/assets/cards/S-026.jpg',lambda route:route.abort())
+    page.route('**/static/assets/cards/S-026.webp',lambda route:route.abort())
     page.evaluate("zoom('S-026')")
     pw.expect(page.locator('#zoom-card img')).to_have_attribute('src','/static/back.jpg')
     assert page.locator('#zoom-actions button').count() == 0

@@ -1,6 +1,7 @@
-"""從 data/cards.json 的 Google Drive 連結批次下載卡圖至 frontend/assets/cards/{卡號}.jpg。
+"""從 data/cards.json 的 Google Drive 連結批次下載卡圖至 frontend/assets/cards/{卡號}.webp。
 
-- 已存在的檔案自動跳過(支援中斷續抓)。
+- 原圖是帶透明圓角的 PNG,下載後轉成 WebP(q80,保留透明)再存檔。
+- 已存在 .webp 的卡自動跳過(支援中斷續抓);舊的 .jpg 不算,會重新下載。
 - 失敗不中斷,結束時輸出失敗清單至 frontend/assets/cards/_failed.txt。
 - 卡圖缺失不影響遊戲(前端以文字卡面呈現)。
 
@@ -9,6 +10,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import sys
@@ -16,12 +18,15 @@ import time
 import urllib.request
 from pathlib import Path
 
+from PIL import Image
+
 ROOT = Path(__file__).resolve().parent.parent
 CARDS = ROOT / "data/cards.json"
 OUT_DIR = ROOT / "frontend/assets/cards"
 FAILED = OUT_DIR / "_failed.txt"
 
 UA = {"User-Agent": "Mozilla/5.0 (deck-image-fetcher)"}
+WEBP_QUALITY = 80  # 卡面文字放大檢視仍清楚,每張約 80KB
 
 
 def drive_id(url: str) -> str | None:
@@ -39,6 +44,13 @@ def fetch(file_id: str) -> bytes | None:
     return data
 
 
+def to_webp(data: bytes) -> bytes:
+    """原圖轉成 WebP,尺寸不變、保留透明通道(卡片圓角)。"""
+    buf = io.BytesIO()
+    Image.open(io.BytesIO(data)).save(buf, "WEBP", quality=WEBP_QUALITY, method=6)
+    return buf.getvalue()
+
+
 def main() -> None:
     cards = json.loads(CARDS.read_text(encoding="utf-8"))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,7 +58,7 @@ def main() -> None:
     failures: list[str] = []
     for card in cards:
         number = card["number"]
-        dest = OUT_DIR / f"{number}.jpg"
+        dest = OUT_DIR / f"{number}.webp"
         if dest.exists():
             skip += 1
             continue
@@ -59,9 +71,10 @@ def main() -> None:
             data = fetch(file_id)
             if not data:
                 raise RuntimeError("interstitial page")
-            dest.write_bytes(data)
+            webp = to_webp(data)
+            dest.write_bytes(webp)
             ok += 1
-            print(f"✓ {number} ({len(data) // 1024} KB)")
+            print(f"✓ {number} ({len(webp) // 1024} KB)")
             time.sleep(0.4)  # 避免限流
         except Exception as exc:  # noqa: BLE001 — 記錄後繼續
             failures.append(f"{number}\t{exc}")

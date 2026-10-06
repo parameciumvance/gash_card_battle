@@ -3,9 +3,7 @@
 ## Purpose
 
 靜態 HTML + 原生 JS,由 FastAPI serve;中文、英文、日文三種語言的介面。支援本機(hotseat 全視角)、線上(自己在下方、對手翻開頁卡背)、NPC 對戰(呈現同線上)與觀戰四種模式。
-
 ## Requirements
-
 ### Requirement: i18n 字典
 UI 的所有顯示文字 SHALL 取自目前語言的 key-value 字典(`i18n/<lang>.json`,含參數模板),程式碼中 MUST NOT 硬編任何顯示用文字。各語言的字典 SHALL 有相同的條目,同一條目的參數名稱 MUST 一致。卡片文字(卡名、效果名、效果全文)SHALL 取自目前語言的卡片文字檔(`data/cards.<lang>.json`,見 `card-data`)。卡名下方的小字 SHALL 在中文(繁、簡)與英文時顯示日文原名,在日文時不顯示。新增語言 SHALL 只需新增字典、規則頁與卡片文字檔,並登記到語言清單。
 
@@ -769,3 +767,15 @@ UI SHALL 提供意見回報對話框,可從首頁的「意見回報」入口與�
 #### Scenario: 首頁顯示版本號
 - **WHEN** 服務的版本號為 `v0.9.1`,玩家開啟首頁
 - **THEN** 免責聲明下方顯示「版本 v0.9.1」
+
+### Requirement: 卡圖網址
+所有顯示卡圖的地方(卡片元件、聚焦展示、規則頁的範例卡與圖示)SHALL 以 `/static/assets/cards/{卡號}.webp` 請求卡圖(格式見 `card-data`「卡圖資產與備援」),MUST NOT 改請求其他副檔名。請求失敗時依「卡圖安裝狀態提示」與「規則頁」的缺圖呈現處理。
+
+#### Scenario: 卡片元件請求 WebP
+- **WHEN** 盤面渲染卡號 S-001 的卡
+- **THEN** 卡圖的網址為 `/static/assets/cards/S-001.webp`
+
+#### Scenario: 只裝舊格式卡圖
+- **WHEN** 卡圖目錄只有 `{卡號}.jpg`,盤面渲染該卡
+- **THEN** 卡圖區以卡背佔位,不改請求 `.jpg`
+

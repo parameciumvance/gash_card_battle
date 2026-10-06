@@ -3,9 +3,7 @@
 ## Purpose
 
 資料以 `tools/scrape_ja_effects.py` 從 atwiki 日文權威來源抓取為 `data/cards_ja.csv`,再由 `tools/build_cards_json.py` 轉換為 repo 內版本化的 `data/cards.json`;翻譯與卡圖為獨立層。
-
 ## Requirements
-
 ### Requirement: 卡片資料轉換
 `data/cards.json` SHALL 由 `data/cards_ja.csv`(日文權威來源的抓取結果)轉換產生,而非由 xlsx 抽取。轉換 MUST 涵蓋該檔全部列(含未存在於舊 xlsx 來源的卡號),欄位對應規則:
 
@@ -73,11 +71,19 @@
 - **THEN** 載入失敗並回報違反的規則
 
 ### Requirement: 卡圖資產與備援
-卡圖下載腳本 SHALL 依 cards.json 中的 Google Drive 連結批次下載至 `frontend/assets/cards/{卡號}.jpg`,支援續抓並輸出失敗清單;卡圖缺失 MUST NOT 影響遊戲功能(前端以文字卡面呈現)。
+卡圖檔 SHALL 為 WebP,檔名 `{卡號}.webp`,尺寸與原圖相同並保留透明通道(卡片圓角)。卡圖下載腳本 SHALL 依 cards.json 中的 Google Drive 連結下載原圖,轉成 WebP 後存至 `frontend/assets/cards/{卡號}.webp`;已存在 `{卡號}.webp` 的卡 SHALL 跳過(續抓),失敗 SHALL 寫入失敗清單並繼續。其他格式的卡圖檔(例如舊的 `{卡號}.jpg`)MUST NOT 被當作已安裝的卡圖。卡圖缺失 MUST NOT 影響遊戲功能(前端以文字卡面呈現)。
 
 #### Scenario: 下載失敗不阻塞
 - **WHEN** 某卡的 Drive 連結無法存取
 - **THEN** 腳本記錄至失敗清單並繼續,遊戲中該卡以文字卡面顯示
+
+#### Scenario: 下載後存為 WebP
+- **WHEN** 腳本下載到某卡的 PNG 原圖(含透明圓角)
+- **THEN** 存成 `{卡號}.webp`,內容為 WebP,尺寸與原圖相同,圓角仍為透明
+
+#### Scenario: 續抓只認 WebP
+- **WHEN** 某卡已有 `{卡號}.webp`,另一卡只有舊的 `{卡號}.jpg`
+- **THEN** 前者跳過不下載,後者重新下載並存成 `{卡號}.webp`
 
 ### Requirement: 日文權威資料抓取(atwiki)
 `tools/scrape_ja_effects.py` SHALL 從 atwiki 的產品頁(如 LEVEL:1/2 booster 頁)的「収録カード」區塊,依 魔物/術/パートナー/イベント 分類取得每張卡的卡號、名稱與個別卡頁連結;逐一抓個別卡頁,解析 `<blockquote>` 內的官方資料區塊。`<blockquote>` 內以 `<hr/>` 分隔的 `<div>` 段數 MUST NOT 假設固定為 2 段——部分卡片(如卡面印有變身疊放條件、術相容性規則等「框線規則」的魔物卡)會多出中間段落。解析 MUST 一律取第一段當資料頭來源、最後一段當風味文/收錄產品來源,中間任意段數的內容 MUST 併入效果文,唯獨字面完全等於「以上、枠囲み」(純排版提示,表示前一段內容印在卡面框線內,非遊戲內容)的段落 MUST 被過濾、不併入效果文:
@@ -170,3 +176,4 @@
 #### Scenario: 繁中修改後未重新產生
 - **WHEN** 修改 `cards.zh-TW.json` 某卡的卡名但沒有重新執行工具
 - **THEN** 檢查同步的測試失敗
+

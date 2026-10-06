@@ -88,7 +88,7 @@ uvicorn gash.api.app:app --reload
 ### 玩家怎麼用(三步驟)
 
 1. **解壓** `gash-card-battle-vX-win64.zip` 到任意資料夾。
-2. **(選配)放卡圖**:把另行取得的 `assets` 資料夾(內含 `cards/*.jpg`)放到
+2. **(選配)放卡圖**:把另行取得的 `assets` 資料夾(內含 `cards/*.webp`)放到
    `%LOCALAPPDATA%\gash-card-battle\assets`(首次啟動會自動建好這個資料夾;
    之後更新版本不必重放,所有版本共用)。沒放也能玩,缺圖卡面以卡背佔位。
 3. **點兩下 `gash.exe`**:伺服器啟動、瀏覽器自動開啟。終端機會顯示
@@ -276,14 +276,15 @@ docker compose up -d --remove-orphans
 ### 卡圖
 
 `docker-compose.yml` 已經預留一個 volume(`card-assets`)掛到 `GASH_ASSETS_DIR`
-(`/app/assets`),服務會從 `/app/assets/cards/{卡號}.jpg` 讀圖。映像檔不含卡圖,也不含
+(`/app/assets`),服務會從 `/app/assets/cards/{卡號}.webp` 讀圖。映像檔不含卡圖,也不含
 `tools/`,所以要在本機下載後再傳上去——照單機發行的提醒,卡圖含版權素材,請自行斟酌散布範圍。
 
 1. **(本機)下載卡圖**:
 
    ```bash
-   python tools/download_images.py    # 產出 frontend/assets/cards/*.jpg,支援續抓
-   scp -r frontend/assets/cards youruser@your-vps-ip:/tmp/cards
+   python tools/download_images.py    # 產出 frontend/assets/cards/*.webp,支援續抓(需先裝 .[dev])
+   ssh youruser@your-vps-ip mkdir -p /tmp/cards
+   scp frontend/assets/cards/*.webp youruser@your-vps-ip:/tmp/cards/
    ```
 
 2. **(VPS)複製進 `app` 容器的 volume**(在 `/opt/gash-card-battle` 目錄下):
@@ -298,12 +299,21 @@ docker compose up -d --remove-orphans
 3. **驗證**:
 
    ```bash
-   docker compose exec app ls /app/assets/cards | wc -l
+   docker compose exec app sh -c 'ls /app/assets/cards/*.webp | wc -l'
    ```
 
 卡圖是靜態檔,放進去後不需要重啟;若第一次放圖後網頁仍沒顯示,執行一次
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
+
+**從舊的 `.jpg` 卡圖換成 WebP(一次性)**:服務只讀 `.webp`,所以順序是
+
+1. 依上面步驟 1–2 把 WebP 放進 volume(`/app/assets/cards` 已存在,用 `/tmp/cards/.` 那種寫法)。
+   舊的 `.jpg` 先留著,換版前的服務照常讀它。
+2. 打新版 tag,等 watchtower 換上新映像檔,確認卡面正常。
+3. 刪掉舊檔:`docker compose exec app sh -c 'rm -f /app/assets/cards/*.jpg'`。
+
+順序反過來的話,從新版上線到放好 WebP 之間,所有卡面都會是卡背。
 
 ## 意見回報
 
@@ -388,7 +398,7 @@ frontend/               無框架靜態前端(中、英、日介面,文字全走
   i18n/languages.json   語言清單(順序即選單順序)
   i18n/<lang>.json      介面文字、行動記錄模板與錯誤碼訊息(zh-TW / en / ja,條目一致)
   i18n/rules.<lang>.json 規則頁內容
-  assets/cards/         卡圖(缺圖時自動以文字卡面呈現)
+  assets/cards/         卡圖 {卡號}.webp(缺圖時自動以文字卡面呈現)
 data/
   cards_ja.csv          日文權威來源(atwiki 抓取結果),cards.json 的轉換輸入
   cards.json            卡片結構化數值資料(由 cards_ja.csv 轉換,日文為準)
@@ -409,7 +419,7 @@ tools/
 1. `python tools/scrape_ja_effects.py` 抓取 atwiki.jp 日文權威頁面,輸出 `data/cards_ja.csv`。
 2. `python tools/build_cards_json.py` 將 `data/cards_ja.csv` 轉換為 `data/cards.json`;
    `image_url`/`sets` 沿用轉換前既有 `data/cards.json` 的舊值(新卡無舊值可沿用時為空)。
-3. `python tools/download_images.py` 批次下載卡圖至 `frontend/assets/cards/{卡號}.jpg`;
+3. `python tools/download_images.py` 批次下載卡圖,轉成 WebP 存至 `frontend/assets/cards/{卡號}.webp`;
    已存在自動跳過,失敗清單寫入 `_failed.txt`,缺圖不影響遊戲。
 
 ## 翻譯校對

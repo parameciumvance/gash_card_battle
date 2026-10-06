@@ -23,7 +23,7 @@
 | `game-engine` | 遊戲規則:階段、行動權、戰鬥流程、傷害與保護、勝敗、中途決策 | Partial | Partial | 初評。規則依 `ref/raw/rule3.md`;design 只有架構與 pending |
 | `card-effects` | 第一、二彈全部卡片的效果行為,效果原語、持續效果、待命、被動觸發 | Partial | Partial | 逐卡行為以日文效果文為準,spec 情境只列解讀與易錯處;design 只整理了效果樹遷移以來的機制與解讀 |
 | `effect-tree` | 卡片效果的執行機制:節點、直譯器、續體、登記入口 | Documented | Documented | 每條需求都有對應測試(`tests/test_effect_tree.py`,擲幣確認鏈另見 `tests/test_effect_characterization.py`) |
-| `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔本資料 | Partial | Partial | 初評;design 只整理了卡片文字檔 |
+| `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔本資料 | Partial | Partial | 初評;design 整理了卡片文字檔與卡圖格式 |
 | `online-room` | 房號約戰、token 身分、回合計時與逾時代打、斷線重連、觀戰、NPC 房與 NPC 座位的驅動 | Partial | Partial | 初評;design 只整理了等待者與 NPC 座位 |
 | `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Partial | 初評;design 只整理了快照的公開 / 私有界線 |
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |

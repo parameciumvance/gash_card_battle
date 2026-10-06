@@ -3,9 +3,7 @@
 ## Purpose
 
 FastAPI 薄殼:房間內對局的指令轉發、視角化狀態快照與事件、WebSocket 推送。引擎為唯一規則權威;所有回應經觀看者視角過濾。
-
 ## Requirements
-
 ### Requirement: 建立對局
 對局 SHALL 經由房間流程建立(見 `online-room`):線上房於雙方到齊時、本機房於建房時,載入預組魔本、初始化引擎(可選指定 RNG seed)、執行準備階段。牌組欄位 SHALL 解析為下列之一:`{preset: id}` 依 id 自掃描集合載入對應預組(id MUST 限縮在掃描到的集合,絕不轉為任意檔案路徑;未知 id 回 4xx);`{pages:[...]}` 自訂牌組以構築規則驗證(違規回 422);缺省(無牌組欄位或 `{preset:"level1"}`)為預設預組 level1。直接建立無主對局的舊端點 MUST 移除。
 
@@ -113,7 +111,7 @@ API SHALL 提供 `GET /api/decks` 端點,回傳伺服器 `data/decks/` 目錄下
 - **THEN** level1 以英文字典中 `deck.level1` 的名稱顯示
 
 ### Requirement: 執行環境中繼資訊
-API SHALL 提供 `GET /api/meta` 回傳執行環境資訊:`tunnel_url`(公開通道網址,無通道時為 null)與 `assets`(卡圖安裝狀態:`installed`、既有張數 `count`、應有張數 `expected`、建議安裝路徑 `install_dir`)與 `version`(版本號:部署時的 git tag 名稱,單機版為打包時的 `git describe`,開發環境為當下的 `git describe`,都取不到時為 `dev`)。
+API SHALL 提供 `GET /api/meta` 回傳執行環境資訊:`tunnel_url`(公開通道網址,無通道時為 null)與 `assets`(卡圖安裝狀態:`installed`、既有張數 `count`、應有張數 `expected`、建議安裝路徑 `install_dir`)與 `version`(版本號:部署時的 git tag 名稱,單機版為打包時的 `git describe`,開發環境為當下的 `git describe`,都取不到時為 `dev`)。`count` SHALL 只計卡圖目錄中的 `{卡號}.webp`(格式見 `card-data`「卡圖資產與備援」),其他格式的檔案 MUST NOT 計入。
 
 #### Scenario: 有通道時回報網址
 - **WHEN** launcher 已建立公開通道後前端請求 `GET /api/meta`
@@ -123,6 +121,10 @@ API SHALL 提供 `GET /api/meta` 回傳執行環境資訊:`tunnel_url`(公開通
 - **WHEN** 卡圖目錄不存在時請求 `GET /api/meta`
 - **THEN** `assets.installed` 為 false 且 `install_dir` 為建議安裝路徑
 
+#### Scenario: 舊格式卡圖不計入
+- **WHEN** 卡圖目錄只有 `.jpg` 卡圖時請求 `GET /api/meta`
+- **THEN** `assets.count` 為 0
+
 #### Scenario: 回報版本號
 - **WHEN** 以 `GASH_VERSION=v0.9.1` 啟動的服務收到 `GET /api/meta`
 - **THEN** 回應的 `version` 為 `v0.9.1`
@@ -131,7 +133,7 @@ API SHALL 提供 `GET /api/meta` 回傳執行環境資訊:`tunnel_url`(公開通
 卡圖靜態路由(`/static/assets/`)SHALL 掛載自資源解析模組決定的卡圖目錄,而非寫死於前端目錄之下;開發模式下(卡圖目錄即 repo `frontend/assets/`)對外行為 SHALL 與現況等價。
 
 #### Scenario: 外部卡圖目錄生效
-- **WHEN** 卡圖解析至使用者資料夾且前端請求 `/static/assets/cards/S-001.jpg`
+- **WHEN** 卡圖解析至使用者資料夾且前端請求 `/static/assets/cards/S-001.webp`
 - **THEN** 回應該使用者資料夾中的對應圖檔
 
 #### Scenario: 開發模式等價
@@ -223,5 +225,6 @@ WebSocket 的更新推送與指令提交的回應 SHALL 帶 `actor`,標明發起
 - **THEN** 伺服器回 304,不傳送內容
 
 #### Scenario: 卡圖不套用
-- **WHEN** 瀏覽器請求 `/static/assets/cards/S-001.jpg`
+- **WHEN** 瀏覽器請求 `/static/assets/cards/S-001.webp`
 - **THEN** 回應不帶 `Cache-Control: no-cache`
+

@@ -225,7 +225,7 @@ def test_initial_failure_and_stale_response_cannot_reopen_or_overwrite(page):
 
 
 def test_filters_fallback_mobile_and_modal_permissions(page):
-    page.route("**/static/assets/cards/E-001.jpg", lambda route: route.abort())
+    page.route("**/static/assets/cards/E-001.webp", lambda route: route.abort())
     open_local(page)
     filters = page.locator("#cheat-filters select")
     card = page.evaluate("Object.values(CARDS).find(c => c.type === 'spell' && c.related_mamodo && c.related_mamodo !== 'Command: All' && c.sets.length)")

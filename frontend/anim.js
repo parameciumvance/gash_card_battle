@@ -160,7 +160,7 @@ const Anim = (() => {
     if (step.kind === "card") {
       const art = document.createElement("img");
       art.className = "spot-art";
-      art.src = `/static/assets/cards/${step.card}.jpg`;
+      art.src = artUrl(step.card);
       art.onerror = () => { art.onerror = null; art.src = "/static/back.jpg"; };
       const info = document.createElement("div");
       info.className = "spot-info";
