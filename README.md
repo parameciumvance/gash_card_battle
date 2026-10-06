@@ -294,6 +294,21 @@ docker compose up -d --remove-orphans
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
+## 意見回報
+
+首頁的「意見回報」與頂欄的「回報」會開啟同一個對話框,提供兩個管道:
+
+- **回報表單**(Google 表單,不需要帳號):連結會預填環境資訊(語言、模式、房號、回合、階段、瀏覽器)。
+- **GitHub issue**(需要帳號):範本在 [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/),分為問題回報、卡片效果不符、建議三種。
+
+表單網址設在 `frontend/app.js` 開頭的 `FEEDBACK`;`formUrl` 空白時對話框只顯示 GitHub。建立表單的方式:
+
+1. 建立 Google 表單,建議題目:類型(問題 / 卡片效果不符 / 建議)、內容(段落)、卡號(選填)、
+   **環境資訊**(段落,選填)、聯絡方式(選填)。不要用「檔案上傳」題,填寫者必須登入 Google 才能上傳。
+2. 表單右上「⋮ → 取得預先填入的連結」,在環境資訊欄填任意文字後取得連結。連結中
+   `entry.<數字>=` 的 `entry.<數字>` 就是 `contextEntry`,`?` 之前的 `.../viewform` 是 `formUrl`。
+3. 填入 `FEEDBACK`,並在 `.github/ISSUE_TEMPLATE/config.yml` 的 `contact_links` 加上表單連結。
+
 ## 規格與設計文件
 
 規格與設計知識的組織方式、維護原則與變更流程定義在 [`docs/specification-guide.md`](docs/specification-guide.md),

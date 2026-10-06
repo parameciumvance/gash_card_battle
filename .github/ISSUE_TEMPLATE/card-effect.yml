@@ -1,0 +1,33 @@
+name: 卡片效果不符 / Card effect mismatch
+description: 卡片的行為和效果文不一樣
+labels: [card-effect]
+body:
+  - type: input
+    id: card
+    attributes:
+      label: 卡號 / Card number
+      placeholder: 例如 M-008、S-026
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 實際發生的情況 / What happened
+      description: 當時的場面、使用的順序、結果。可以直接貼上截圖。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 依效果文應該如何 / Expected by the card text
+      description: 以日文效果文為準;有引用的話請貼上原文。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境資訊 / Environment
+      description: 在遊戲內點「回報」,複製對話框裡的環境資訊貼在這裡。
+      render: text
+    validations:
+      required: false

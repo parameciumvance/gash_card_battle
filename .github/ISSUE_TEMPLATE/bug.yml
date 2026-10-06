@@ -1,0 +1,25 @@
+name: 問題回報 / Bug report
+description: 畫面錯誤、無法操作、連線或其他不正常的情況
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生了什麼 / What happened
+      description: 做了什麼操作、看到什麼結果。可以直接貼上截圖。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期的結果 / Expected
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境資訊 / Environment
+      description: 在遊戲內點「回報」,複製對話框裡的環境資訊貼在這裡。
+      render: text
+    validations:
+      required: false

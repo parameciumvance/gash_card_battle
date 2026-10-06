@@ -20,6 +20,12 @@ NARROW_MQ.addEventListener("change", () => {
   if (S) render();
 });
 const DEFAULT_PRESET = "level1";  // 缺省預組 id(與後端一致)
+// 意見回報管道。formUrl 空白時只顯示 GitHub;contextEntry 是表單「環境資訊」欄位的 entry id(預填用)
+const FEEDBACK = {
+  formUrl: "https://docs.google.com/forms/d/e/1FAIpQLSdPa_q5eS3ONbpkIF30uVFrR_AZblxFrdF4pGOLnU-chfkfGQ/viewform",
+  contextEntry: "entry.1381931511",
+  issuesUrl: "https://github.com/parameciumvance/gash_card_battle/issues/new/choose",
+};
 let S = null;         // 最新遊戲狀態快照(視角化)
 let R = null;         // 房間 meta {code, mode, you, deadline, ...}
 let SESSION = null;   // {code, mode, viewer, tokens:{playerIndex→token} 或 {me:token}}
@@ -990,6 +996,7 @@ function renderTopbar() {
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
+  document.getElementById("feedback-toggle").textContent = t("ui.feedback.toggle");
   const current = LANGS.find((l) => l.code === LANG);
   document.getElementById("lang-toggle").textContent = `🌐 ${current ? current.name : LANG}`;
   document.getElementById("lang-toggle").title = t("ui.lang.title");
@@ -1824,6 +1831,75 @@ function effectWhen(e) {
 document.getElementById("effects-toggle").onclick = () => renderEffectsInfo();
 document.getElementById("prefs-toggle").onclick = () => renderPrefsInfo();
 document.getElementById("lang-toggle").onclick = () => renderLangInfo();
+
+// ---------------------------------------------------------------- 意見回報
+
+// 給開發者看的環境資訊:固定格式、不翻譯;不帶 token、暱稱、牌組
+function feedbackContext() {
+  const parts = [`lang=${LANG}`];
+  if (SESSION) parts.push(`mode=${SESSION.mode}`, `room=${SESSION.code}`);
+  if (S) parts.push(`turn=${S.turn_no}`, `phase=${S.phase}`);
+  parts.push(`ua=${navigator.userAgent}`);
+  return parts.join("; ");
+}
+
+function feedbackFormUrl(context) {
+  const url = new URL(FEEDBACK.formUrl);
+  if (FEEDBACK.contextEntry) {
+    url.searchParams.set("usp", "pp_url");
+    url.searchParams.set(FEEDBACK.contextEntry, context);
+  }
+  return url.href;
+}
+
+function openFeedback() {
+  const context = feedbackContext();
+  const channel = (kind, href) => {
+    const sec = document.createElement("div");
+    sec.className = "info-section feedback-channel";
+    const link = document.createElement("a");
+    link.className = `feedback-${kind}`;
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = t(`ui.feedback.${kind}`);
+    const desc = document.createElement("p");
+    desc.className = "feedback-desc";
+    desc.textContent = t(`ui.feedback.${kind}_desc`);
+    sec.append(link, desc);
+    return sec;
+  };
+  const body = [];
+  const intro = document.createElement("p");
+  intro.className = "feedback-desc";
+  intro.textContent = t("ui.feedback.intro");
+  body.push(intro);
+  if (FEEDBACK.formUrl) body.push(channel("form", feedbackFormUrl(context)));
+  body.push(channel("github", FEEDBACK.issuesUrl));
+
+  const sec = document.createElement("div");
+  sec.className = "info-section";
+  const h = document.createElement("h4");
+  h.textContent = t("ui.feedback.context");
+  const text = document.createElement("code");
+  text.className = "feedback-context";
+  text.textContent = context;
+  const copy = document.createElement("button");
+  copy.className = "feedback-copy";
+  copy.textContent = t("ui.feedback.copy");
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(context);
+      copy.textContent = t("ui.feedback.copied");
+    } catch {
+      copy.textContent = t("ui.feedback.copy_failed");
+    }
+  };
+  sec.append(h, text, copy);
+  body.push(sec);
+  showInfo("feedback", t("ui.feedback.title"), body);
+}
+document.getElementById("feedback-toggle").onclick = () => openFeedback();
 
 // ---------------------------------------------------------------- 規則頁
 
@@ -2669,6 +2745,7 @@ function renderLanding() {
       showBuilder();
     },
     rules: () => openRules(),
+    feedback: () => openFeedback(),
   };
   for (const [key, onclick] of Object.entries(entries)) {
     const entry = document.getElementById(`entry-${key}`);

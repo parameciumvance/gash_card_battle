@@ -6,7 +6,7 @@ from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 
 from tests.test_npc_ui import room_posts
 from tests.test_spotlight_ui import open_page
 
-ENTRIES = ["entry-npc", "entry-friend", "entry-local", "entry-builder", "entry-rules"]
+ENTRIES = ["entry-npc", "entry-friend", "entry-local", "entry-builder", "entry-rules", "entry-feedback"]
 
 
 def visible_panel(page):

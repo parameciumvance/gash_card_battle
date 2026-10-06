@@ -1,0 +1,25 @@
+name: 建議 / Suggestion
+description: 新功能、介面或操作上的建議
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 建議內容 / Idea
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: 為什麼需要 / Why
+      description: 目前遇到的不便或想做到的事。
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境資訊 / Environment
+      description: 在遊戲內點「回報」,複製對話框裡的環境資訊貼在這裡(選填)。
+      render: text
+    validations:
+      required: false

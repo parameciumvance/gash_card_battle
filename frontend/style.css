@@ -504,9 +504,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .info-row .info-when { color: var(--ink-dim); white-space: nowrap; }
 .info-empty { font-size: 13px; color: var(--ink-dim); }
 .info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
+/* 意見回報 */
+.feedback-desc { font-size: 13px; color: var(--ink-dim); margin: 2px 0 12px; }
+.feedback-channel .feedback-desc { margin-bottom: 0; }
+.feedback-channel a { font-size: 14px; font-weight: bold; color: var(--accent-blue); }
+.feedback-context { display: block; font-size: 12px; color: var(--ink); background: rgba(0, 0, 0, .25);
+  padding: 6px 8px; border-radius: 6px; word-break: break-all; user-select: all; margin-bottom: 6px; }
+.feedback-copy { padding: 4px 12px; border-radius: 6px; cursor: pointer; min-height: 30px;
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
 .breakdown-ref { color: var(--accent-blue); cursor: pointer; text-decoration: underline dotted; margin-left: 4px; }
 #stage-content .side-total { cursor: pointer; text-decoration: underline dotted; }
-#rules-toggle, #lang-toggle, #prefs-toggle, #effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
+#rules-toggle, #feedback-toggle, #lang-toggle, #prefs-toggle, #effects-toggle, #cheat-toggle { padding: 4px 12px; border: 1px solid #4a5a80; background: #23304d;
   color: var(--ink); border-radius: 6px; cursor: pointer; }
 
 #toast {
@@ -665,7 +673,10 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 
 /* ---------------- 入口頁與房間(online-battle) ---------------- */
 #landing { flex: 1; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 26px; padding: 24px 16px; overflow-y: auto; }
+  gap: 26px; padding: 24px 16px; overflow-y: auto; }
+/* 以 auto margin 垂直置中:內容比畫面高時從頂端排起可捲動,不會像 justify-content: center 往上溢出 */
+#landing > :first-child { margin-top: auto; }
+#landing > :last-child { margin-bottom: auto; }
 #landing h1 { color: var(--on-page); font-size: 22px; text-align: center; }
 #assets-hint { max-width: 720px; padding: 8px 14px; border-radius: 8px; font-size: 13px;
   color: var(--on-page-amber); background: rgba(217, 164, 65, 0.15);

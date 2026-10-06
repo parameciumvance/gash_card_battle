@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 回報表單(不需要帳號)/ Feedback form (no account needed)
+    url: https://docs.google.com/forms/d/e/1FAIpQLSdPa_q5eS3ONbpkIF30uVFrR_AZblxFrdF4pGOLnU-chfkfGQ/viewform
+    about: 沒有 GitHub 帳號的話,請改用這個表單。
