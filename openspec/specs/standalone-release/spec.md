@@ -7,6 +7,7 @@
 Scope:資源目錄解析(程式資源與卡圖)、啟動器、cloudflared 公開通道、發行打包。不含 VPS 部署(見 `docker-deployment`)與遊戲功能本身。
 
 ## Requirements
+
 ### Requirement: 資源目錄解析
 系統 SHALL 以單一模組解析資源目錄,區分「程式資源」(frontend/、data/)與「卡圖資源」。程式資源:PyInstaller 凍結環境下 SHALL 取自打包目錄(`sys._MEIPASS`),否則取 repo 佈局。卡圖資源 SHALL 依序取第一個存在的目錄:`GASH_ASSETS_DIR` 環境變數 → 執行檔旁 `assets/` → 使用者資料夾(Windows `%LOCALAPPDATA%\gash-card-battle\assets`,其他平台 `~/.local/share/gash-card-battle/assets`)→ repo `frontend/assets/`;全部不存在時 SHALL 回報未安裝狀態並以使用者資料夾為建議安裝位置。
 
@@ -57,7 +58,7 @@ launcher SHALL 在執行檔旁存在 cloudflared 時,以子行程建立 Quick Tu
 - **THEN** launcher 放棄通道並降級,終端保留各次原始輸出供除錯
 
 ### Requirement: 發行打包
-打包 SHALL 產出單一 zip(PyInstaller onedir):含執行檔、Python runtime、前端與資料檔、cloudflared;MUST NOT 含卡圖(`assets/cards/`)。各版本 zip SHALL 獨立解壓即用,不依賴先前版本的檔案(卡圖除外,其為選配外部資源)。zip 命名 SHALL 含 `pyproject.toml` 的版本號。
+打包 SHALL 產出單一 zip(PyInstaller onedir):含執行檔、Python runtime、前端與資料檔、cloudflared;MUST NOT 含卡圖(`assets/cards/`)。各版本 zip SHALL 獨立解壓即用,不依賴先前版本的檔案(卡圖除外,其為選配外部資源)。zip 命名 SHALL 含 `pyproject.toml` 的版本號。發行物 SHALL 含打包時 `git describe --tags --always --dirty` 的結果(`data/version.txt`),作為執行時回報的版本號。
 
 #### Scenario: 新版本獨立安裝
 - **WHEN** 玩家將新版本 zip 解壓至任意新資料夾並執行
@@ -67,3 +68,6 @@ launcher SHALL 在執行檔旁存在 cloudflared 時,以子行程建立 Quick Tu
 - **WHEN** 檢查發行 zip 內容
 - **THEN** 不存在任何 `assets/cards/` 卡圖檔
 
+#### Scenario: 發行物帶版本號
+- **WHEN** 在 tag `v0.9.1` 的 commit 上打包,玩家解壓後執行
+- **THEN** `GET /api/meta` 的 `version` 為 `v0.9.1`

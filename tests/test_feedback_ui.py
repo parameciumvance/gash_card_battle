@@ -115,3 +115,12 @@ def test_issue_forms_have_environment_field():
         assert "environment" in ids, name
     config = yaml.safe_load((folder / "config.yml").read_text(encoding="utf-8"))
     assert config["blank_issues_enabled"] is True
+
+
+def test_context_and_landing_show_version(page):
+    ver = page.evaluate("META.version")
+    assert ver
+    assert page.locator("#landing-version").inner_text() == f"版本 {ver}"
+    page.locator("#feedback-toggle").click()
+    ctx = page.locator("#info-body .feedback-context").text_content()
+    assert ctx.startswith(f"lang=zh-TW; ver={ver}; ")

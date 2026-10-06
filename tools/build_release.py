@@ -29,6 +29,12 @@ def version() -> str:
         return tomllib.load(f)["project"]["version"]
 
 
+def git_version() -> str:
+    out = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
+                         capture_output=True, text=True)
+    return out.stdout.strip() or "dev"
+
+
 def stage_program_data() -> tuple[Path, Path]:
     """過濾後的 frontend(排除卡圖)與 data 暫存副本,供 --add-data 使用。"""
     if STAGE.exists():
@@ -39,6 +45,8 @@ def stage_program_data() -> tuple[Path, Path]:
     assert not (fe / "assets" / "cards").exists(), "卡圖不得進入發行物"
     data = STAGE / "data"
     shutil.copytree(ROOT / "data", data, ignore=shutil.ignore_patterns("__pycache__"))
+    # 版本號:執行時由 gash.version 讀取(發行物裡沒有 .git)
+    (data / "version.txt").write_text(git_version() + "\n", encoding="utf-8")
     return fe, data
 
 

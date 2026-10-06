@@ -9,7 +9,7 @@ let DICT = {};        // i18n 字典(目前語言)
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
-let META = { tunnel_url: null, assets: null };  // /api/meta:通道網址與卡圖安裝狀態
+let META = { tunnel_url: null, assets: null, version: null };  // /api/meta:通道網址、卡圖安裝狀態、版本號
 let RULES = null;     // 規則頁內容(i18n/rules.<lang>.json)
 
 // 窄螢幕(手機直向)偵測:佈局由 CSS 切換,JS 僅供 log 抽屜等行為分支
@@ -1960,7 +1960,7 @@ document.getElementById("lang-toggle").onclick = () => renderLangInfo();
 
 // 給開發者看的環境資訊:固定格式、不翻譯;不帶 token、暱稱、牌組
 function feedbackContext() {
-  const parts = [`lang=${LANG}`];
+  const parts = [`lang=${LANG}`, `ver=${META.version || "unknown"}`];
   if (SESSION) parts.push(`mode=${SESSION.mode}`, `room=${SESSION.code}`);
   if (S) parts.push(`turn=${S.turn_no}`, `phase=${S.phase}`);
   parts.push(`ua=${navigator.userAgent}`);
@@ -2904,6 +2904,7 @@ function renderLanding() {
   }
   document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
   document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
+  document.getElementById("landing-version").textContent = META.version ? t("ui.version", { v: META.version }) : "";
 
   // 設定頁
   document.getElementById("setup-back").textContent = t("ui.setup.back");

@@ -1,6 +1,6 @@
 # battle-api — 設計
 
-目前只整理了快照中「公開 / 私有」的界線與前端資源快取;其餘(端點、WebSocket)以 `src/gash/api/app.py` 與測試為準。
+目前只整理了快照中「公開 / 私有」的界線、前端資源快取與版本號;其餘(端點、WebSocket)以 `src/gash/api/app.py` 與測試為準。
 
 ## 視角過濾的單點
 
@@ -37,3 +37,10 @@
   - 不用版本號網址:`app.js` 在執行時還會載入 `i18n/*.json`、`data/*.json`、規則頁,全部帶版本號需要建置步驟;`no-cache` 一個 middleware 就涵蓋全部,代價只是幾個 304 往返。
   - 卡圖內容固定、由玩家另外安裝,維持瀏覽器自行快取。回應已有 `Cache-Control` 時不覆寫。
   - Cloudflare 依來源的 `Cache-Control` 不在邊緣快取這些檔案,VPS 與單機版行為相同。
+  - Cloudflare 的 Browser Cache TTL 若不是 Respect Existing Headers,會把送給瀏覽器的 `Cache-Control` 改寫成 `max-age=14400`(見 `docker-deployment/design.md`)。
+
+## 版本號
+
+- `gash.version.app_version()` 依序取:環境變數 `GASH_VERSION`(Docker,CI 以 tag 名稱傳入)→ `data/version.txt`(單機版,`tools/build_release.py` 打包時寫入,不進版控)→ `git describe --tags --always --dirty`(開發環境)→ `dev`。行程內快取。
+- 以 tag 為版本號是因為部署只由推送 `v*` tag 觸發,tag 就是「線上是哪一版」;`pyproject.toml` 的 `version` 沒有在更新,不採用。
+- `/api/meta` 回傳 `version`;首頁免責聲明下方顯示,意見回報的環境資訊帶 `ver=`。

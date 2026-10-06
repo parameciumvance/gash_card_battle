@@ -13,6 +13,10 @@ COPY data/ ./data/
 # 以定位 frontend/、data/,非 editable 安裝會把檔案複製進 site-packages 而算錯路徑。
 RUN pip install --no-cache-dir -e .
 
+# 版本號:CI 以觸發部署的 tag 名稱傳入(映像檔裡沒有 .git),/api/meta 回報、首頁顯示
+ARG GASH_VERSION=dev
+ENV GASH_VERSION=$GASH_VERSION
+
 EXPOSE 8000
 
 CMD ["uvicorn", "gash.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

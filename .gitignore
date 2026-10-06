@@ -8,3 +8,4 @@ gash.spec
 .claude/
 frontend/assets/cards/
 .env
+data/version.txt

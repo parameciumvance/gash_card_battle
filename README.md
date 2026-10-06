@@ -217,6 +217,14 @@ git push origin v0.1.0
 執行進度。VPS 上的 watchtower 最慢 5 分鐘內會偵測到新版自動更新;想立刻生效,
 **(VPS)** 手動執行 `docker compose pull && docker compose up -d` 也可以。
 
+tag 名稱就是版本號:CI 以 build arg `GASH_VERSION` 帶進映像檔,首頁免責聲明下方會顯示
+「版本 v0.1.0」,意見回報的環境資訊也會帶上 `ver=v0.1.0`。部署後看首頁的版本號,就能確認
+新版是否已經上線。單機版顯示打包時的 `git describe`,開發環境顯示當下的 `git describe`。
+
+前端檔案帶 `Cache-Control: no-cache`,但 Cloudflare 的 **Browser Cache TTL** 預設會把
+JS / CSS 改寫成快取 4 小時。請在 Cloudflare 後台 Caching → Configuration →
+Browser Cache TTL 設為 **Respect Existing Headers**,部署後玩家才會立刻拿到新版。
+
 ### 網域與 Cloudflare Tunnel
 
 服務網址是 `https://card-battle.zatchholic.com`。轉送規則(Public Hostname →

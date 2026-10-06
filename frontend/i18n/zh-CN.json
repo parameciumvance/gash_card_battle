@@ -201,6 +201,7 @@
   "ui.landing.feedback_desc": "回报问题或提供建议",
   "ui.landing.disclaimer_fan": "非官方粉丝项目,与原作者及 BANDAI 无关,亦未经授权;免费且不涉商业行为。",
   "ui.landing.disclaimer_rights": "作品与卡片相关权利属于雷句诚、BANDAI 及各权利人;权利人如有疑虑,请通过「{feedback}」联系。",
+  "ui.version": "版本 {v}",
   "ui.play.no_mamodo": "对应的魔物不在场上",
   "ui.play.partner_exists": "对应的魔物已装有搭档",
   "effect.any_mamodo": "魔物",

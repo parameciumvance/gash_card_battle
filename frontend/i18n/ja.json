@@ -201,6 +201,7 @@
   "ui.landing.feedback_desc": "不具合の報告やご意見",
   "ui.landing.disclaimer_fan": "本サイトは非公式のファンプロジェクトであり、原作者および BANDAI とは一切関係なく、許諾も受けていません。無料で、営利目的ではありません。",
   "ui.landing.disclaimer_rights": "作品およびカードに関する権利は、雷句誠氏、BANDAI および各権利者に帰属します。権利者の方でご懸念がございましたら、「{feedback}」よりご連絡ください。",
+  "ui.version": "バージョン {v}",
   "ui.play.no_mamodo": "対応する魔物が場にいない",
   "ui.play.partner_exists": "対応する魔物にはすでにパートナーがついている",
   "effect.any_mamodo": "魔物",

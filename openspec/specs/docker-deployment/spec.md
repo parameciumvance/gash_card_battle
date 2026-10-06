@@ -5,9 +5,11 @@
 在 VPS 上以容器長期常駐提供線上對戰服務。
 
 Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的測試 / 建置分流、VPS 端的自動更新與健康檢查。不含單機發行(見 `standalone-release`)與房間 / 對戰行為本身(見 `online-room`、`battle-api`)。
+
 ## Requirements
+
 ### Requirement: Production 容器映像檔
-專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。
+專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。映像檔 SHALL 以 build arg `GASH_VERSION` 帶入版本號並設為同名環境變數;CI 建置時 SHALL 傳入觸發部署的 tag 名稱。
 
 #### Scenario: 映像檔不含開發工具與測試檔案
 - **WHEN** 建置 production 映像檔
@@ -16,6 +18,10 @@ Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的�
 #### Scenario: 容器啟動即提供服務
 - **WHEN** 以此映像檔啟動容器並對映對外埠
 - **THEN** 瀏覽器可連上首頁,且可建立本機測試模式或線上房間並完成一局對戰
+
+#### Scenario: 映像檔帶版本號
+- **WHEN** 推送 tag `v0.9.1` 觸發建置,並以產出的映像檔啟動容器
+- **THEN** `GET /api/meta` 的 `version` 為 `v0.9.1`
 
 ### Requirement: CI 測試與建置分流
 CI SHALL 區分「一般提交」與「正式發布」兩種流程:push 或 pull request 到主分支時只執行測試套件,不得觸碰部署環境;僅當推送符合版本號格式(`v*`)的 tag 時,才建置映像檔並推送至容器登錄庫。CI MUST NOT 持有任何能連進 VPS 的常駐憑證(SSH 金鑰、VPN 授權等)——容器更新由 VPS 端自行輪詢容器登錄庫觸發,不是 CI 主動推送。
@@ -59,4 +65,3 @@ VPS 端 SHALL 執行一個定期輪詢容器登錄庫的更新代理,偵測到�
 #### Scenario: 缺少通道 token
 - **WHEN** VPS 部署目錄沒有設定 `TUNNEL_TOKEN` 就執行 `docker compose up -d`
 - **THEN** 指令直接失敗並指出缺少 `TUNNEL_TOKEN`,不會啟動任何容器
-

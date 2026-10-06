@@ -24,6 +24,7 @@ from ..engine.state import BOOK_SIZE, GAME_OVER
 from ..npc import LEVELS as NPC_LEVELS
 from ..npc import decide, submit_ranked
 from ..paths import frontend_dir, resolve_assets
+from ..version import app_version
 from .rooms import NpcSeat, Room, RoomError, RoomStore
 from .views import filter_events, snapshot
 
@@ -324,7 +325,7 @@ async def list_decks():
 
 @app.get("/api/meta")
 async def get_meta():
-    """執行環境資訊:公開通道網址與卡圖安裝狀態(供前端組邀請連結、顯示安裝提示)。"""
+    """執行環境資訊:公開通道網址、卡圖安裝狀態與版本號(供前端組邀請連結、顯示安裝提示與版本)。"""
     cards_dir = ASSETS.dir / "cards"
     count = sum(1 for p in cards_dir.glob("*.jpg")) if cards_dir.is_dir() else 0
     return {
@@ -335,6 +336,7 @@ async def get_meta():
             "expected": len(card_db()),
             "install_dir": str(ASSETS.install_dir),
         },
+        "version": app_version(),
     }
 
 

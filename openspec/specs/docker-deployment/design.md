@@ -35,6 +35,12 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 - `cloudflared` 使用 `latest`,有新版就自動更新,容器內關閉它自己的更新機制(`--no-autoupdate`)。
   - 理由:重啟 `cloudflared` 不會重啟 `app`,房間狀態保留,前端的 WebSocket 斷線後 1.5 秒自動重連並由 `welcome` 取回完整狀態,所以不需要挑時間;不更新反而會逐漸落後於 Cloudflare 支援的版本。新版有問題時,把 image 改釘到上一個正常的版本。
 
+## 版本號
+
+- 版本號就是觸發部署的 tag 名稱:`deploy.yml` 以 `build-args: GASH_VERSION=${{ github.ref_name }}` 傳入,`Dockerfile` 的 `ARG` / `ENV` 存成環境變數(映像檔裡沒有 `.git`,不能執行 `git describe`)。沒有傳入時為 `dev`。
+- 首頁顯示版本號,部署後可以直接確認新版是否上線(見 `battle-api/design.md`)。
+- Cloudflare 的 Browser Cache TTL 須設為 Respect Existing Headers:預設會把 JS / CSS 的 `Cache-Control` 改寫成 `max-age=14400`,蓋掉來源的 `no-cache`,瀏覽器會沿用舊檔最多 4 小時。這是 Cloudflare 後台的設定,不在 repo 中。
+
 ## 對外服務
 
 - **Cloudflare Tunnel**:`cloudflared` 主動向 Cloudflare 建立 outbound 連線,VPS 不需要為網頁服務開放任何 inbound 埠。TLS 在 Cloudflare 邊緣終止,VPS 不做憑證管理。
