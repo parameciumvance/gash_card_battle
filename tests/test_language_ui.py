@@ -75,6 +75,21 @@ def test_default_follows_browser_chinese(opened):
     assert page.locator("#entry-npc .entry-title").text_content() == "NPC 對戰"
 
 
+@pytest.mark.parametrize("locale", ["zh-CN", "zh-SG", "zh-Hans-CN"])
+def test_default_follows_browser_simplified_chinese(opened, locale):
+    page = opened(locale)
+    assert current_lang(page) == "zh-CN"
+    assert "简体中文" in page.locator("#lang-toggle").text_content()
+    assert page.locator("#entry-npc .entry-title").text_content() == "NPC 对战"
+
+
+@pytest.mark.parametrize("locale", ["zh", "zh-HK", "zh-Hant-TW"])
+def test_other_chinese_defaults_to_traditional(opened, locale):
+    page = opened(locale)
+    assert current_lang(page) == "zh-TW"
+    assert "繁體中文" in page.locator("#lang-toggle").text_content()
+
+
 def test_other_browser_language_defaults_to_english(opened):
     page = opened("fr-FR")
     assert current_lang(page) == "en"
@@ -86,7 +101,7 @@ def test_language_dialog_lists_languages_in_their_own_names(opened):
     page = opened("zh-TW")
     page.locator("#lang-toggle").click()
     buttons = page.locator("#info-body button[data-lang]")
-    assert buttons.all_text_contents() == ["中文", "English", "日本語"]
+    assert buttons.all_text_contents() == ["繁體中文", "简体中文", "English", "日本語"]
     assert page.locator('#info-body button[data-lang="zh-TW"]').get_attribute("aria-pressed") == "true"
 
 
@@ -188,6 +203,14 @@ def test_japanese_card_text(opened):
                      if c["number"] == "M-001")["effect_ja"]
     assert card.locator(".ceffect").text_content() == effect_ja
     assert card.locator(".cname-ja").count() == 0 or not card.locator(".cname-ja").text_content()
+
+
+def test_simplified_chinese_card_text_shows_japanese_subtitle(opened):
+    page = opened("zh-CN")
+    page.evaluate("zoom('M-001')")
+    card = page.locator("#zoom-card .card")
+    assert card.locator(".cname").text_content() == "贾修・贝尔《慈悲的王者》"
+    assert card.locator(".cname-ja").text_content() == "ガッシュ・ベル"
 
 
 def test_english_card_text_shows_japanese_subtitle(opened):

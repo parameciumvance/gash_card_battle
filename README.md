@@ -406,7 +406,7 @@ tools/
 
 ## 翻譯校對
 
-卡片文字依語言分檔:`data/cards.zh-TW.json`、`data/cards.en.json`、`data/cards.ja.json`,以卡號為 key:
+卡片文字依語言分檔:`data/cards.zh-TW.json`、`data/cards.zh-CN.json`、`data/cards.en.json`、`data/cards.ja.json`,以卡號為 key:
 
 ```json
 "S-001": {"name": "薩喀爾", "name_ja": "ザケル", "attr": "雷", "effect": "…"}
@@ -417,7 +417,10 @@ tools/
 - `cards.ja.json` 由 `python tools/build_card_texts.py` 自 `data/cards_ja.csv` 產生,不要手改(測試會比對)。
 - `cards.en.json` 的 `name` / `attr` 由同一工具自 TTS 卡表寫入;`effect` 是依 `effect_ja` 手寫的翻譯,工具會保留。
   翻譯時「」括起的卡名改成該卡的英文名;卡表與卡圖的英文效果文只作用語參考(兩者與日文效果文有出入)。
-- 日文與英文是初版翻譯,尚未經母語者校對,歡迎修正。
+- 簡體中文的三個檔(`i18n/zh-CN.json`、`i18n/rules.zh-CN.json`、`data/cards.zh-CN.json`)由
+  `python tools/build_zh_cn.py` 自對應的繁中檔產生(OpenCC `tw2sp` + 工具內的術語表 `TERMS`),不要手改。
+  **改了繁中就要重跑**,否則測試會失敗。譯名只轉字形(賈修→贾修);要保留或改寫的詞語加進 `TERMS`。
+- 日文與英文是初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。歡迎修正。
 
 新增語言 = 新增 `i18n/<lang>.json`、`i18n/rules.<lang>.json`、`data/cards.<lang>.json`,並登記到 `i18n/languages.json`。
 `tests/test_i18n_languages.py` 會檢查各語言的條目、參數、規則頁段落、卡片涵蓋與錯誤碼是否一致。

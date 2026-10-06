@@ -111,7 +111,9 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 ## 語言
 
 - **語言清單**:`frontend/i18n/languages.json`(`[{code, name}]`,順序即選單順序,`name` 是各語言自己的稱呼)。每種語言有三個檔:介面字典 `i18n/<lang>.json`、規則頁 `i18n/rules.<lang>.json`、卡片文字 `data/cards.<lang>.json`。新增語言只要補這三個檔並登記到清單。
-- **偵測**:localStorage `gash-lang` 有值且在清單中就用它;否則依 `navigator.languages` 逐一以主語言(`-` 前)比對清單,取第一個能對應者;都不符合為 `en`。
+- **偵測**:localStorage `gash-lang` 有值且在清單中就用它;否則依 `navigator.languages` 逐一比對,取第一個能對應者;都不符合為 `en`。
+  - 簡中別名(`zh-cn`、`zh-sg`、`zh-my`、以 `zh-hans` 開頭)→ `zh-CN`(`isSimplifiedChinese()`)。
+  - 其他依主語言(`-` 前)比對清單,所以 `zh-HK`、`zh-Hant-*` 與只有 `zh` 都落在排在前面的 `zh-TW`(使用者決定預設繁中)。
   - 不預設中文:看不懂中文的人第一眼就要能用。
 - **載入**:`loadLanguage()` 在 `boot()` 中與卡片數值、預組、meta 平行載入;字典或卡片文字載入失敗時整組退回 `zh-TW`,規則頁另外退回。`<html lang>` 設為目前語言,CSS 以 `body:lang(ja), [lang="ja"]` 換日文字型(避免漢字以中文字形顯示);中、英模式下的日文原名小字也標 `lang="ja"`。
 - **切換**:頂欄 `#lang-toggle`(「🌐 + 目前語言稱呼」,所有畫面都在)開啟資訊對話框列出語言;選擇後寫入 `gash-lang` 並 `location.reload()`。
@@ -124,4 +126,5 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **標點與分隔**:清單分隔、卡片資訊分隔、頂欄分隔、括號與「玩家:標題」也走字典(`ui.sep.*`、`ui.paren`、`ui.choice_title`、`ui.you_suffix`),英文用半形與空白。
 - **用語**:日文採規則書用語(スタートフェイズ、ターンプレイヤー、魔本、術、パートナー、捨て札、負傷状態、かばう、スタンバイ、ステイ、ジャマー、表 / 裏);英文對齊卡圖與 TTS 卡表(START PHASE、turn player、Spell Book、SPELL、MAMODO、Partner、Event、Power、Injured、PROTECT、STANDBY、STAY、Discard Pile、heads / tails)。卡面圖示三種語言都用卡面上的稱呼:「攻(A)」「防(D)」(英文 A (Attack) / D (Defense))、BATTLE、NO BATTLE、CUT-IN。
   - 英文標籤較長,手機版時機指示用較短的英文標籤(No BATTLE、BATTLE:、Check)維持單行;頂欄按鈕不換行。
-- **翻譯狀態**:日文與英文是初版翻譯,尚未經母語者校對;測試只保證條目、參數、段落與涵蓋一致,不檢查品質。
+- **簡體中文**:三個檔都由 `tools/build_zh_cn.py` 自繁中產生,不手動編輯(轉換規則見 `card-data/design.md`)。選單上繁中稱「繁體中文」、簡中稱「简体中文」:有兩種中文時必須區分。
+- **翻譯狀態**:日文與英文是初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。測試只保證條目、參數、段落與涵蓋一致,不檢查品質。

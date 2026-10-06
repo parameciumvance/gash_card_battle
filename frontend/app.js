@@ -46,10 +46,16 @@ function t(key, params = {}) {
 // 語言:清單在 i18n/languages.json(順序即選單順序);選擇記在 localStorage,切換時重新載入頁面
 const LANG_KEY = "gash-lang";
 const FALLBACK_LANG = "zh-TW";
-let LANGS = [{ code: FALLBACK_LANG, name: "中文" }];
+let LANGS = [{ code: FALLBACK_LANG, name: "繁體中文" }];
 let LANG = FALLBACK_LANG;
 
-// 玩家選過的語言優先;未選過時依瀏覽器偏好語言,取第一個能對應(主語言相同)者,都不符合為英文
+// 簡體中文的瀏覽器語言;其他 zh(含只有 zh)依主語言落在清單中排在前面的繁中
+function isSimplifiedChinese(pref) {
+  const tag = pref.toLowerCase();
+  return ["zh-cn", "zh-sg", "zh-my"].includes(tag) || tag.startsWith("zh-hans");
+}
+
+// 玩家選過的語言優先;未選過時依瀏覽器偏好語言,取第一個能對應(簡中別名,或主語言相同)者,都不符合為英文
 function detectLang() {
   const codes = LANGS.map((l) => l.code);
   let saved = null;
@@ -57,6 +63,7 @@ function detectLang() {
   if (codes.includes(saved)) return saved;
   const primary = (code) => code.toLowerCase().split("-")[0];
   for (const pref of navigator.languages || [navigator.language || ""]) {
+    if (isSimplifiedChinese(pref) && codes.includes("zh-CN")) return "zh-CN";
     const hit = codes.find((c) => primary(c) === primary(pref));
     if (hit) return hit;
   }

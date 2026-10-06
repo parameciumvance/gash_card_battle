@@ -12,19 +12,21 @@ from tools.build_card_texts import build_ja, load_csv, load_tts_names
 ROOT = Path(__file__).resolve().parents[1]
 I18N = ROOT / "frontend/i18n"
 DATA = ROOT / "data"
-LANGS = ("zh-TW", "en", "ja")
+LANGS = ("zh-TW", "zh-CN", "en", "ja")
 PARAM_RE = re.compile(r"\{(\w+)\}")
 KANA_RE = re.compile(r"[぀-ヿ]")
 
 # 規則書中有、但本遊戲(第一、二彈卡池)不存在的機制,依語言的稱呼
 ABSENT = {
     "zh-TW": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴爾肯", "飛行"),
+    "zh-CN": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴尔肯", "飞行"),
     "ja": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "バルカン", "飛行"),
     "en": ("stone tablet", "w mamodo", "vs mamodo", "s mamodo", "h mamodo", "mj12", "vulcan", "flying"),
 }
 # 「攻(A)」「防(D)」的兩種意思:攻防用的術(攻擊 / 防禦時)與事件卡、非戰鬥術(回合玩家)
 ICON_TERMS = {
     "zh-TW": ("攻(A)", "防(D)", "攻擊時", "防禦時", "回合玩家"),
+    "zh-CN": ("攻(A)", "防(D)", "攻击时", "防御时", "回合玩家"),
     "ja": ("攻(A)", "防(D)", "攻撃するとき", "防御するとき", "ターンプレイヤー"),
     "en": ("A (Attack)", "D (Defense)", "when attacking", "when defending", "turn player"),
 }
@@ -46,11 +48,11 @@ def card_texts(lang):
 
 def test_language_list():
     langs = load("languages.json")
-    assert [x["code"] for x in langs] == ["zh-TW", "en", "ja"]
-    assert [x["name"] for x in langs] == ["中文", "English", "日本語"]
+    assert [x["code"] for x in langs] == ["zh-TW", "zh-CN", "en", "ja"]
+    assert [x["name"] for x in langs] == ["繁體中文", "简体中文", "English", "日本語"]
 
 
-@pytest.mark.parametrize("lang", ["en", "ja"])
+@pytest.mark.parametrize("lang", ["zh-CN", "en", "ja"])
 def test_dictionaries_have_same_keys_and_params(lang):
     base, other = load("zh-TW.json"), load(f"{lang}.json")
     assert sorted(set(base) - set(other)) == []
@@ -74,6 +76,7 @@ def test_dictionary_values_are_translated(lang):
 
 def test_card_name_format_by_language():
     assert load("zh-TW.json")["ui.card_with_attr"] == "{name}《{attr}》"
+    assert load("zh-CN.json")["ui.card_with_attr"] == "{name}《{attr}》"
     assert load("ja.json")["ui.card_with_attr"] == "{name}《{attr}》"
     assert load("en.json")["ui.card_with_attr"] == "{name} ({attr})"
 
@@ -87,7 +90,7 @@ def test_hints_name_card_icons_as_printed(lang):
 
 # ---------------------------------------------------------------- 規則頁
 
-@pytest.mark.parametrize("lang", ["en", "ja"])
+@pytest.mark.parametrize("lang", ["zh-CN", "en", "ja"])
 def test_rules_have_same_sections(lang):
     base, other = load("rules.zh-TW.json"), load(f"rules.{lang}.json")
     assert [s["id"] for s in other["sections"]] == [s["id"] for s in base["sections"]]
@@ -131,6 +134,35 @@ def test_card_text_name_ja_matches_csv(lang):
 
 def test_ja_card_texts_are_generated():
     assert card_texts("ja") == build_ja(load_csv())
+
+
+# ---------------------------------------------------------------- 簡體中文(由繁中產生)
+
+def test_zh_cn_files_are_generated_from_zh_tw():
+    """繁中改了而沒有重跑 tools/build_zh_cn.py 時失敗。"""
+    build_zh_cn = pytest.importorskip("tools.build_zh_cn")
+    stale = [str(path.relative_to(ROOT)) for path, data in build_zh_cn.build().items()
+             if json.loads(path.read_text(encoding="utf-8")) != data]
+    assert stale == []
+
+
+def test_zh_cn_converts_script_and_keeps_names():
+    zh_tw, zh_cn = card_texts("zh-TW"), card_texts("zh-CN")
+    assert zh_cn["M-001"]["name"] == "贾修・贝尔"                     # 譯名只轉字形
+    assert {n: t["name_ja"] for n, t in zh_cn.items() if isinstance(t, dict)} == \
+        {n: t["name_ja"] for n, t in zh_tw.items() if isinstance(t, dict)}   # 日文原名不轉換
+    assert load("zh-CN.json")["app.title"] == load("zh-TW.json")["app.title"]
+    assert load("zh-CN.json")["ui.landing.npc"] == "NPC 对战"
+
+
+def test_zh_cn_terms():
+    effects = "".join(t["effect"] for t in card_texts("zh-CN").values() if isinstance(t, dict))
+    assert "【宣告使用→】" in effects and "声明" not in effects        # 遊戲術語保留
+    rules = (I18N / "rules.zh-CN.json").read_text(encoding="utf-8")
+    assert "进阶规则" in rules and "高端" not in rules
+    d = load("zh-CN.json")
+    assert d["ui.name.placeholder"] == "留白用默认"
+    assert "复制" in d["ui.feedback.copy"]
 
 
 def test_ja_card_text_examples():
