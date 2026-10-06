@@ -1304,7 +1304,7 @@ def _finish_battle_damage(game: Game, batch: list[dict], ctx: dict) -> None:
 
 def _maybe_discard_protector(game: Game, batch: list[dict], player: int,
                              slot: MamodoSlot, ctx: dict) -> None:
-    """P-012 雪莉:對自己布拉哥攻擊傷害進行保護的魔物,承受後直接入墓。"""
+    """P-012 雪莉:對自己布拉葛攻擊傷害進行保護的魔物,承受後直接入墓。"""
     st = game.state
     battle = st.battle
     if battle is None or ctx.get("cause") != "battle_attack":

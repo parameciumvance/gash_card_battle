@@ -37,7 +37,7 @@
 - [x] 3.6 `src/gash/engine/effects/partners.py:14` `"Zatch Bell"` → `"ガッシュ・ベル"`。
       **驗收條件**:該判定所屬效果(查對應卡號)有測試觸發,重跑通過。
 - [x] 3.7 `partners.py:41,182` 兩處 `"Brago"` → `"ブラゴ"`。
-      **驗收條件**:布拉哥(ブラゴ)身分判定所屬效果有測試觸發兩處分支之一,重跑通過。
+      **驗收條件**:布拉葛(ブラゴ)身分判定所屬效果有測試觸發兩處分支之一,重跑通過。
 - [x] 3.8 `partners.py:203` `data={"spell_name": "Biraitsu"}` → `data={"spell_name": "ビライツ"}`,並確認下游讀取點(`engine.py:453/584/664` 讀 `sb.data.get("spell_name")` 並與 S-042 名稱比對之處)同步使用日文值比對。
       **驗收條件**:S-042(比雷茲/ビライツ)相關的施放判定有測試觸發此比對鏈路,重跑通過;全文搜尋 `Biraitsu` 於 `src/` 下無殘留。
 - [x] 3.9 `partners.py:50`(P-004 相容判定 `_battle_attack_by(g, p, "Gofure")`)`"Gofure"` → `"ゴフレ"`。

@@ -58,9 +58,9 @@ def slot_uid(g, player, top):
 # ---------------------------------------------------------------- 無術攻擊(M-027 / S-048)
 
 def test_mamodo_attack_full_battle():
-    # P1=M-028 巴爾特羅, P2=S-048 傑貝爾, P3=M-027 裝甲
+    # P1=M-028 巴爾多羅, P2=S-048 傑貝爾, P3=M-027 裝甲
     b0 = book("M-028", "S-048", "M-027")
-    b1 = book("M-028")  # 對手也用巴爾特羅當初始魔物
+    b1 = book("M-028")  # 對手也用巴爾多羅當初始魔物
     g, tp = mk(b0, b1)
     if tp != 0:
         # 讓玩家 0 先攻:換 seed
@@ -131,8 +131,8 @@ def test_s032_damage_cap():
 # ---------------------------------------------------------------- 被動觸發器(P-013)
 
 def test_p013_trigger_on_opponent_discard():
-    # 玩家0 有 P-013 可可(裝在佐菲斯上);玩家1 一隻魔物入墓 → 玩家1 被翻 1 頁
-    b0 = book("M-022", "P-013")  # P-013 對應佐菲斯
+    # 玩家0 有 P-013 可可(裝在索菲絲上);玩家1 一隻魔物入墓 → 玩家1 被翻 1 頁
+    b0 = book("M-022", "P-013")  # P-013 對應索菲絲
     g, tp = mk(b0, book("M-001"))
     to_battle(g, 0)
     submit(g, {"type": "play_card", "player": 0, "page": 2})  # 裝 P-013
@@ -193,7 +193,7 @@ def test_m021_attach_partner_from_book():
 # ---------------------------------------------------------------- 術相容擴充(M-023 可用木屬性術)
 
 def test_m023_wood_attr_spell_compat():
-    # M-023 波克利歐搭配 S-014(スギナ家族、木屬性)攻擊:家族不同但屬性相容
+    # M-023 波基李歐搭配 S-014(スギナ家族、木屬性)攻擊:家族不同但屬性相容
     b0 = book("M-023", "S-014")
     g, tp = mk(b0, book("M-001"))
     g.state.players[0].mp = 10
@@ -223,7 +223,7 @@ def test_p015_allows_spell_from_closed_page():
 # ---------------------------------------------------------------- 非戰鬥術(S-026/S-041/S-043/S-048/S-057)
 
 def test_s041_self_immune():
-    # P1=M-023 波克利歐(ポッケリオ家族),P2=S-041(擲幣正→自身免疫)
+    # P1=M-023 波基李歐(ポッケリオ家族),P2=S-041(擲幣正→自身免疫)
     b0 = book("M-023", "S-041")
     g, tp = mk(b0, book("M-001"))
     g.rng = Rng(HEADS)
@@ -360,7 +360,7 @@ def _resolve_damage_choices(g, receiver, protect_index=None):
 
 
 def test_s036_damages_book_and_all_mamodo():
-    # 玩家0 用 M-005(布拉哥) + S-036;對手 1 隻魔物(不保護),魔本+魔物皆應受傷害
+    # 玩家0 用 M-005(布拉葛) + S-036;對手 1 隻魔物(不保護),魔本+魔物皆應受傷害
     from gash.engine.state import MamodoSlot
     b0 = book("M-005", "S-036")
     g, tp = mk(b0, book("M-001"))
@@ -1207,7 +1207,7 @@ def test_p008_discarded_partner_counts_as_discarded_this_turn():
 
 
 def _armored_attack_until_defender_acts():
-    """玩家 0 以裝甲巴爾特羅無術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
+    """玩家 0 以裝甲巴爾多羅無術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
     g, _ = mk(book("M-028", "S-048", "M-027"), book("M-004"))
     st = g.state
     st.players[0].mp = 10
@@ -2134,9 +2134,9 @@ def test_s058_injure_instead_in_battle():
 
 
 def test_no_attack_spell_restriction():
-    # 玩家1 用 P-014 禁玩家0 攻擊術(佩利可對應波克利歐)
-    b0 = book("M-023", "S-029")  # 波克利歐 + 賈修香草術(相容需 M-023?否)
-    # 用 S-023 波克利歐術更準確;此處僅測 restriction 生效
+    # 玩家1 用 P-014 禁玩家0 攻擊術(佩利可對應波基李歐)
+    b0 = book("M-023", "S-029")  # 波基李歐 + 賈修香草術(相容需 M-023?否)
+    # 用 S-023 波基李歐術更準確;此處僅測 restriction 生效
     from gash.engine.state import DUR_TURN, NO_ATTACK_SPELL
     from gash.engine.effects.primitives import add_restriction
     g, tp = mk(book("M-001", "S-029"), book("M-001"))

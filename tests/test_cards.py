@@ -925,7 +925,7 @@ def test_s017_attack_bonus():
     submit(g, {"type": "no_defense", "player": dp})
     events = both_pass(g)
     sd = showdown_of(events)
-    assert sd["attacker_total"] == 1000 + 3000 + 2000  # 可露露+術+攻擊加值 = 6000
+    assert sd["attacker_total"] == 1000 + 3000 + 2000  # 可魯魯+術+攻擊加值 = 6000
     assert sd["winner"] == "attacker"
 
 
@@ -939,7 +939,7 @@ def test_s017_no_bonus_on_defense():
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     sd = showdown_of(events)
-    assert sd["defender_total"] == 1000 + 3000  # 可露露+術,防禦時不再加值 = 4000
+    assert sd["defender_total"] == 1000 + 3000  # 可魯魯+術,防禦時不再加值 = 4000
 
 
 def test_s019_next_attack_undefendable():

@@ -244,7 +244,7 @@ class OwnHasPartner:
 
 @dataclass(frozen=True)
 class OwnFieldHas:
-    """自己場上有頂層為 number 的魔物(S-048 需要巴爾特羅本體 / P-006 需要コルル(変身後))。
+    """自己場上有頂層為 number 的魔物(S-048 需要巴爾多羅本體 / P-006 需要コルル(変身後))。
     可當 When 條件(test),也可當啟動條件(fn(game, player, slot))。"""
     number: str
 

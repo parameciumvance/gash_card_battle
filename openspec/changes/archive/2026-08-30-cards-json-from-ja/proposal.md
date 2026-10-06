@@ -10,7 +10,7 @@
   - `attr_name` 只在術卡填入元素(`attr_ja`);魔物/搭檔卡的 `attr_name` 留空——已確認此欄位在引擎裡只有 M-023 一處讀取(檢查術卡是否為「木」屬性),從未被當成顯示欄位讀取,魔物卡的《技能名》顯示完全由 `cards.zh-TW.json` 的 `attr` 欄位負責。
   - `image_url` 逐卡從現有 `data/cards.json` 沿用舊值(`cards_ja.csv` 沒有這個欄位);S-042 是新卡,沒有舊值可沿用,`image_url` 留空(前端既有的缺圖容錯機制會以文字卡面呈現,不是新問題)。
   - S-042 隨著整批轉換自然併入 135 張,不特判、不額外處理。
-- 修正寫死英文字面值的身分識別比對,改為對應的日文字串。原提案估計 8 個/約 15 處呼叫點,實作階段對 `mamodo.py`/`partners.py` 全文重新 grep 後,發現另有 3 組遺漏(`"Gofure"`、`"Sugino"`、`"Fein"`——P-004/M-007 相容判定、M-007/P-005 的須基納家族、P-007 的菲恩家族),實際合計 11 組字面值、18 處呼叫點:`"Command: All"`→`コマンド`、`"Wood"`→`木`、`"Zatch Bell"`→`ガッシュ・ベル`、`"Zaker"`→`ザケル`、`"Tia"`→`ティオ`、`"Hyde"`→`ハイド`、`"Sugino"`→`スギナ`、`"Gofure"`→`ゴフレ`、`"Fein"`→`フェイン`、`"Brago"`→`ブラゴ`、`"Biraitsu"`→`ビライツ`,分布於 `cards.py`/`mamodo.py`/`partners.py`。其餘「拿卡片自己的欄位值互相動態比對」的地方(如 `events.py`/`engine.py` 數處 `name_en == name_en`)不需要修改,語言無關。
+- 修正寫死英文字面值的身分識別比對,改為對應的日文字串。原提案估計 8 個/約 15 處呼叫點,實作階段對 `mamodo.py`/`partners.py` 全文重新 grep 後,發現另有 3 組遺漏(`"Gofure"`、`"Sugino"`、`"Fein"`——P-004/M-007 相容判定、M-007/P-005 的筆頭菜家族、P-007 的菲恩家族),實際合計 11 組字面值、18 處呼叫點:`"Command: All"`→`コマンド`、`"Wood"`→`木`、`"Zatch Bell"`→`ガッシュ・ベル`、`"Zaker"`→`ザケル`、`"Tia"`→`ティオ`、`"Hyde"`→`ハイド`、`"Sugino"`→`スギナ`、`"Gofure"`→`ゴフレ`、`"Fein"`→`フェイン`、`"Brago"`→`ブラゴ`、`"Biraitsu"`→`ビライツ`,分布於 `cards.py`/`mamodo.py`/`partners.py`。其餘「拿卡片自己的欄位值互相動態比對」的地方(如 `events.py`/`engine.py` 數處 `name_en == name_en`)不需要修改,語言無關。
 - 淘汰舊的 xlsx 抽取管線:刪除 `tools/extract_cards.py`(不再有任何東西呼叫它,成為死程式碼);`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx` 保留作為歷史快照,不刪除。
 - 重新產生 `data/cards.json` 後,核對 196 個既有測試;因數值差異(已知至少 E-027/M-013)導致的斷言錯誤,一律以 `cards_ja.csv` 的值為準修正測試,不得為了讓測試通過而回頭竄改資料。
 
