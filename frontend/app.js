@@ -623,6 +623,7 @@ function zoomActions(ctx) {
     const entry = ps.open_pages.find((e) => e.page === ctx.page && e.card);
     return entry ? { buttons: pageButtons(ctx.p, entry) } : { gone: true };
   }
+  if (ctx.kind === "pick") return pickValue(ctx) !== undefined ? { buttons: [] } : { gone: true };   // 魔本網格、棄牌區中的目標
   return { buttons: [] };
 }
 
@@ -639,7 +640,7 @@ function renderZoom() {
   if (ZOOM.ctx) {
     const r = zoomActions(ZOOM.ctx);
     if (r.gone) { closeZoom(); return; }  // 卡片已離場(狀態更新)→ 自動關閉
-    buttons = r.buttons;
+    buttons = [...pickButtons(ZOOM.ctx), ...r.buttons];
     if (ZOOM.ctx.kind === "page") {
       const entry = S.players[ZOOM.ctx.p].open_pages.find((e) => e.page === ZOOM.ctx.page);
       if (entry) opts.cost = entry.cost;
@@ -772,12 +773,13 @@ function topPlayerIndex() {
 function render() {
   renderTopbar();
   if (!S) return;
+  PICK = pickState();
   renderPlayerZone(document.getElementById("zone-top"), topPlayerIndex(), true);
   renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex(), false);
   renderTimingTrack();
   renderBattleStage();
   renderActionBar();
-  renderPendingDialog();
+  if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔本網格依新狀態重繪(決策結束時不再可選)
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
 }
 
@@ -1275,11 +1277,12 @@ function slotButtons(p, slot) {
 }
 
 function slotEl(p, slot) {
-  return markUsable(cardEl(slot.top, {
+  const ctx = { kind: "slot", p, uid: slot.uid };
+  return markPickable(markUsable(cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
-    zoomCtx: { kind: "slot", p, uid: slot.uid },
-  }), { kind: "slot", p, uid: slot.uid });
+    zoomCtx: ctx,
+  }), ctx), ctx);
 }
 
 // 可用卡發光:可操作的一方的卡片,放大檢視中有任一啟用的行動按鈕(同一套判斷)
@@ -1307,7 +1310,7 @@ function partnerButtons(p, slot) {
 
 function partnerEl(p, slot) {
   const ctx = { kind: "partner", p, uid: slot.uid };
-  return markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx }), ctx);
+  return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx }), ctx), ctx);
 }
 
 function abilityUsableNow(p, ab) {
@@ -1392,7 +1395,7 @@ function pageButtons(p, entry) {
 
 function openPageEl(p, entry) {
   const ctx = { kind: "page", p, page: entry.page };
-  const el = markUsable(cardEl(entry.card, { cost: entry.cost, zoomCtx: ctx }), ctx);
+  const el = markPickable(markUsable(cardEl(entry.card, { cost: entry.cost, zoomCtx: ctx }), ctx), ctx);
   if (entry.in_use) el.classList.add("in-use");  // 宣告中的攻防術:發光標示
   return el;
 }
@@ -1557,6 +1560,10 @@ function renderActionBar() {
   summary.textContent = actionSummary(awaited, timing);
   bar.appendChild(summary);
   let details = null;
+  if (mine && PICK) {                                  // 決策:行動欄顯示決策區塊,目標在原位置選
+    bar.appendChild(choicePromptEl());
+    return;
+  }
   if (mine) {                                          // 詳細提示只對可操作的一方
     const toggle = document.createElement("button");
     toggle.className = "hint-toggle";
@@ -1643,6 +1650,7 @@ function showDialog(title, options, sourceNum = null, notes = []) {
   for (const opt of options) {
     if (opt.cardNum) {
       const el = cardEl(opt.cardNum, { small: true });
+      if (opt.pickable) el.classList.add("pickable");
       el.onclick = () => { overlay.classList.add("hidden"); opt.onpick(); };
       holder.appendChild(el);
     } else {
@@ -1655,52 +1663,161 @@ function showDialog(title, options, sourceNum = null, notes = []) {
   overlay.classList.remove("hidden");
 }
 
-function renderPendingDialog() {
-  const overlay = document.getElementById("dialog-overlay");
-  if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) {
-    overlay.classList.add("hidden");
-    return;
-  }
-  const pd = S.pending;
-  const p = pd.player;
-  const titleKey = `choice.title.${pd.kind}`;
-  const title = t("ui.choice_title", { player: pname(p), title: DICT[titleKey] ? t(titleKey) : pd.kind });
-  const choose = (value) => send({ type: "choose", player: p, value });
-  const results = (pd.info && pd.info.results) || [];
+// ---------------------------------------------------------------- 決策:在原位置選擇
 
-  const options = pd.options.map((opt) => {
-    if (opt.label === "no_protect") return { label: t("choice.no_protect"), onpick: () => choose(null) };
-    if (opt.label === "keep") return { label: t("choice.keep"), onpick: () => choose(null) };
-    if (opt.label === "reflip") {
+// 目前決策的選項(只對決策者):目標依選項的 zone 對應到畫面位置,其餘為按鈕或直接列出的卡
+//   slot:    "玩家:uid:mamodo|partner" → value       book: "玩家:頁碼" → {value, card}
+//   discard: "玩家:索引" → value                     buttons / cards:提示區的按鈕與退回列出的卡
+let PICK = null;
+
+function pickState() {
+  if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) return null;
+  const pd = S.pending;
+  const results = (pd.info && pd.info.results) || [];
+  const pick = { player: pd.player, slot: new Map(), book: new Map(), discard: new Map(),
+                 buttons: [], cards: [], books: new Set(), discards: new Set() };
+  for (const opt of pd.options) {
+    const value = opt.index !== undefined ? opt.index : opt.value !== undefined ? opt.value : opt.page;
+    const label = choiceLabel(opt, results);
+    if (label !== null) { pick.buttons.push({ label, value }); continue; }
+    if (opt.zone === "slot") {
+      const slot = S.players[opt.player]?.slots.find((x) => x.uid === opt.slot);
+      const part = slot && opt.card && opt.card === slot.partner && opt.card !== slot.top ? "partner" : "mamodo";
+      if (slot) { pick.slot.set(`${opt.player}:${opt.slot}:${part}`, value); continue; }
+    } else if (opt.zone === "book") {
+      pick.book.set(`${opt.player}:${opt.page}`, { value, card: opt.card });
+      pick.books.add(opt.player);
+      continue;
+    } else if (opt.zone === "discard") {
+      pick.discard.set(`${opt.player}:${opt.index}`, value);
+      pick.discards.add(opt.player);
+      continue;
+    }
+    if (opt.card) pick.cards.push({ card: opt.card, value });            // 對應不到位置:直接列出
+    else if (opt.page !== undefined) pick.buttons.push({ label: t("ui.page_n", { n: opt.page }), value });
+    else pick.buttons.push({ label: String(value), value });
+  }
+  return pick;
+}
+
+// 純選項的按鈕文字;不是純選項時回傳 null
+function choiceLabel(opt, results) {
+  switch (opt.label) {
+    case "no_protect": return t("choice.no_protect");
+    case "keep": return t("choice.keep");
+    case "reflip": {
       const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
-      return { label: t("choice.reflip", { n: opt.value + 1, face }), onpick: () => choose(opt.value) };
+      return t("choice.reflip", { n: opt.value + 1, face });
     }
-    if (opt.label === "pay_reflip") return { label: t("choice.pay_reflip"), onpick: () => choose(true) };
-    if (opt.label === "stop") return { label: t("choice.stop"), onpick: () => choose(false) };
-    if (opt.label === "skip") return { label: t("choice.skip"), onpick: () => choose(null) };
-    if (opt.label === "jammer_use") return { label: t("choice.jammer_use", { card: cname(opt.card) }), onpick: () => choose(true) };
-    if (opt.label === "spell_discount_use") return { label: t("choice.spell_discount_use"), onpick: () => choose(true) };
-    if (opt.label === "s043_fuse") return { label: t("choice.s043_fuse"), onpick: () => choose("fuse") };
-    if (opt.label === "s043_split") return { label: t("choice.s043_split"), onpick: () => choose("split") };
-    if (opt.card) {
-      const value = opt.value !== undefined ? opt.value : opt.page;
-      return { cardNum: opt.card, onpick: () => choose(value) };
+    case "pay_reflip": return t("choice.pay_reflip");
+    case "stop": return t("choice.stop");
+    case "skip": return t("choice.skip");
+    case "jammer_use": return t("choice.jammer_use", { card: cname(opt.card) });
+    case "spell_discount_use": return t("choice.spell_discount_use");
+    case "s043_fuse": return t("choice.s043_fuse");
+    case "s043_split": return t("choice.s043_split");
+  }
+  if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔本項
+  return null;
+}
+
+function choosePick(value) {
+  if (BOOK_VIEW !== null) closeBookReview();   // 從魔本網格選完就關閉,回到場面
+  send({ type: "choose", player: PICK.player, value });
+}
+
+// 實例是否為可選目標:回傳選項值,不是時 undefined
+function pickValue(ctx) {
+  if (!PICK || !ctx) return undefined;
+  if (ctx.kind === "slot") return PICK.slot.get(`${ctx.p}:${ctx.uid}:mamodo`);
+  if (ctx.kind === "partner") return PICK.slot.get(`${ctx.p}:${ctx.uid}:partner`);
+  if (ctx.kind === "page" || (ctx.kind === "pick" && ctx.zone === "book")) return PICK.book.get(`${ctx.p}:${ctx.page}`)?.value;
+  if (ctx.kind === "pick" && ctx.zone === "discard") return PICK.discard.get(`${ctx.p}:${ctx.index}`);
+  return undefined;
+}
+
+function markPickable(el, ctx) {
+  if (pickValue(ctx) !== undefined) el.classList.add("pickable");
+  return el;
+}
+
+// 放大檢視的「選擇」按鈕
+function pickButtons(ctx) {
+  const value = pickValue(ctx);
+  if (value === undefined) return [];
+  return [{ label: t("ui.pick"), primary: true, onclick: () => choosePick(value) }];
+}
+
+// 行動欄的決策區塊:標題、來源卡、公開脈絡、提示、按鈕;對應不到位置的卡直接列出
+function choicePromptEl() {
+  const pd = S.pending;
+  const box = document.createElement("div");
+  box.className = "choice-prompt";
+  const titleKey = `choice.title.${pd.kind}`;
+  const title = document.createElement("div");
+  title.className = "choice-title";
+  title.textContent = t("ui.choice_title", { player: pname(pd.player), title: DICT[titleKey] ? t(titleKey) : pd.kind });
+  box.appendChild(title);
+  const z = pd.source ? TEXT[pd.source] : null;
+  if (z) {                     // 來源卡:名稱與效果文(效果文為譯文,只供閱讀)
+    const source = document.createElement("div");
+    source.className = "choice-source";
+    const name = document.createElement("div");
+    name.className = "src-name";
+    name.textContent = t("ui.choice_source", { card: cname(pd.source) });
+    const effect = document.createElement("div");
+    effect.className = "src-effect";
+    effect.textContent = z.effect || "";
+    source.append(name, effect);
+    box.appendChild(source);
+  }
+  const results = (pd.info && pd.info.results) || [];
+  if (results.length) {
+    const notes = document.createElement("div");
+    notes.className = "choice-notes";
+    notes.textContent = coinResultsText(results);
+    box.appendChild(notes);
+  }
+  const hints = [];
+  if (PICK.slot.size) hints.push(t("ui.pick_hint.slot"));
+  if (PICK.books.size) hints.push(t("ui.pick_hint.book"));
+  if (PICK.discards.size) hints.push(t("ui.pick_hint.discard"));
+  if (hints.length) {
+    const hint = document.createElement("div");
+    hint.className = "choice-hint";
+    hint.textContent = hints.join(t("ui.sep.list"));
+    box.appendChild(hint);
+  }
+  const row = document.createElement("div");
+  row.className = "choice-options";
+  const addBtn = (label, onclick, primary) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    if (primary) btn.classList.add("primary");
+    btn.onclick = onclick;
+    row.appendChild(btn);
+  };
+  for (const q of PICK.books) {
+    addBtn(PICK.books.size > 1 || q !== PICK.player ? t("ui.pick_open_book_of", { player: pname(q) }) : t("ui.pick_open_book"),
+      () => showBookReview(q), true);
+  }
+  for (const q of PICK.discards) {
+    addBtn(PICK.discards.size > 1 || q !== PICK.player ? t("ui.pick_open_discard_of", { player: pname(q) }) : t("ui.pick_open_discard"),
+      () => showDiscard(q), true);
+  }
+  for (const b of PICK.buttons) addBtn(b.label, () => choosePick(b.value));
+  box.appendChild(row);
+  if (PICK.cards.length) {
+    const cards = document.createElement("div");
+    cards.className = "choice-cards";
+    for (const c of PICK.cards) {
+      const el = cardEl(c.card, { small: true });
+      el.onclick = () => choosePick(c.value);
+      cards.appendChild(el);
     }
-    if (opt.page !== undefined) return { label: t("ui.page_n", { n: opt.page }), onpick: () => choose(opt.page) };
-    if (opt.index !== undefined) {
-      const item = opt.item || {};
-      if (item.kind === "book") {
-        return { label: pname(item.player) + t("ui.book"), onpick: () => choose(opt.index) };
-      }
-      if (item.kind === "slot") {
-        const slot = S.players[item.player]?.slots.find((s) => s.uid === item.slot_uid);
-        if (slot) return { cardNum: slot.top, onpick: () => choose(opt.index) };
-      }
-      return { label: `#${opt.index}`, onpick: () => choose(opt.index) };
-    }
-    return { label: String(opt.value), onpick: () => choose(opt.value) };
-  });
-  showDialog(title, options, pd.source, results.length ? [coinResultsText(results)] : []);
+    box.appendChild(cards);
+  }
+  return box;
 }
 
 // 目前擲幣結果:「第 1 枚:正面、第 2 枚:反面」
@@ -2116,19 +2233,29 @@ function showDiscard(p) {
   const ps = S.players[p];
   showDialog(pname(p) + t("ui.sep.meta") + t("ui.discard", { n: ps.discard.length }),
     ps.discard.length
-      ? ps.discard.map((num) => ({ cardNum: num, onpick: () => zoom(num) }))
+      ? ps.discard.map((num, index) => {
+        const ctx = { kind: "pick", zone: "discard", p, index };   // 決策目標:放大檢視提供「選擇」
+        const target = pickValue(ctx) !== undefined;
+        return { cardNum: num, pickable: target, onpick: () => zoom(num, target ? ctx : undefined) };
+      })
       : [{ label: t("ui.close"), onpick: () => {} }]);
 }
 
-// 查閱己方全魔本:對頁網格呈現 32 頁,標示當前翻開/已離場/已用術頁(純唯讀)
+// 查閱魔本:對頁網格呈現 32 頁,標示當前翻開 / 已離場 / 已用術頁。
+// 決策目標在魔本中時,可選頁發光,點了在放大檢視選擇;對手的魔本只有選項中的頁有卡面,其他頁為卡背
+let BOOK_VIEW = null;   // 開啟中的魔本網格屬於哪位玩家
+
 function showBookReview(p) {
   const ps = S.players[p];
-  if (!ps.book) return;
+  const targets = PICK ? [...PICK.book.keys()].filter((k) => k.startsWith(`${p}:`)) : [];
   const overlay = document.getElementById("book-review-overlay");
-  document.getElementById("book-review-title").textContent = t("ui.book_review_title");
+  if (!ps.book && !targets.length) { closeBookReview(); return; }
+  BOOK_VIEW = p;
+  document.getElementById("book-review-title").textContent =
+    ps.book && iControl(p) ? t("ui.book_review_title") : pname(p) + t("ui.book");
   const close = document.getElementById("book-review-close");
   close.textContent = t("ui.close");
-  close.onclick = () => overlay.classList.add("hidden");
+  close.onclick = closeBookReview;
   const grid = document.getElementById("book-review-grid");
   grid.innerHTML = "";
   const consumed = new Set(ps.consumed_pages || []);
@@ -2136,16 +2263,27 @@ function showBookReview(p) {
   const isOpen = (pg) => pg === ps.pos || pg === ps.pos + 1;
 
   const cell = (pg) => {
-    const num = ps.book[pg - 1];
+    const ctx = { kind: "pick", zone: "book", p, page: pg };
+    const target = PICK && PICK.book.get(`${p}:${pg}`);
+    const num = ps.book ? ps.book[pg - 1] : target && target.card;
     const wrap = document.createElement("div");
     wrap.className = "review-cell";
     if (isOpen(pg) && !consumed.has(pg)) wrap.classList.add("open");
+    if (target) wrap.classList.add("pickable");
     const tag = (cls, key) => `<span class="review-tag ${cls}">${t(key)}</span>`;
     let marks = "";
     if (isOpen(pg) && !consumed.has(pg)) marks += tag("cur", "ui.book_page_current");
     if (consumed.has(pg)) marks += tag("left", "ui.book_page_left");
     else if (usedSpell.has(pg)) marks += tag("used", "ui.book_spell_used");
-    const card = consumed.has(pg) ? cardBackEl(pg, true) : cardEl(num, { small: true });
+    let card;
+    if (num && !consumed.has(pg)) {
+      card = cardEl(num, { small: true, zoomCtx: target ? ctx : undefined });
+      card.dataset.card = num;
+      if (target) card.classList.add("pickable");
+    } else {
+      card = cardBackEl(pg, consumed.has(pg));
+      if (target) card.onclick = () => choosePick(target.value);   // 空頁:沒有卡面可放大,點了即選
+    }
     wrap.appendChild(card);
     const foot = document.createElement("div");
     foot.className = "review-foot";
@@ -2165,9 +2303,13 @@ function showBookReview(p) {
   spread([32], true);
   overlay.classList.remove("hidden");
 }
+
+function closeBookReview() {
+  BOOK_VIEW = null;
+  document.getElementById("book-review-overlay").classList.add("hidden");
+}
 document.getElementById("book-review-overlay").onclick = (e) => {
-  if (e.target.id === "book-review-overlay")
-    e.currentTarget.classList.add("hidden");
+  if (e.target.id === "book-review-overlay") closeBookReview();
 };
 
 // ---------------------------------------------------------------- 行動記錄

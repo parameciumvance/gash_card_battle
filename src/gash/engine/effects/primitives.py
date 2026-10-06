@@ -122,7 +122,7 @@ def book_page_options(game, player, pred=None, exclude_last=False):
             continue
         number = ps.card_at(page)
         if pred is None or pred(page, game.db[number]):
-            opts.append({"page": page, "card": number, "value": page})
+            opts.append(page_option(player, page, number))
     return opts
 
 
@@ -229,6 +229,30 @@ def own_page_turnback_effect(game, batch, player, leaves, source):
     """P-018:回翻自己的魔本,之後本回合的「回翻自己魔本」效果合計只能 1 次。"""
     own_book_turn_effect(game, batch, player, -leaves, source)
     game.state.players[player].page_back_effect_limited = True
+
+
+# ---------------------------------------------------------------- 選項的位置
+
+# 目標為卡片的選項標示卡片所在位置(zone / player / 定位欄位),前端據此在畫面上的位置選擇;
+# value 是決策指令的值,不受位置欄位影響。extra 為呼叫端的附加欄位(例如 slot_uid),不可覆寫位置欄位。
+
+def slot_option(player, slot, card=None, **extra):
+    """場上魔物槽;card 預設為魔物本身,目標是搭檔時傳 slot.partner。"""
+    return {**extra, "value": slot.uid, "card": card or slot.top,
+            "zone": "slot", "player": player, "slot": slot.uid}
+
+
+def page_option(player, page, card=None, **extra):
+    """魔本的頁;card 為 None 時(空頁)不帶卡號。"""
+    opt = {**extra, "value": page, "page": page, "zone": "book", "player": player}
+    if card is not None:
+        opt["card"] = card
+    return opt
+
+
+def discard_option(player, index, card, **extra):
+    """棄牌區第 index 張。"""
+    return {**extra, "value": index, "card": card, "zone": "discard", "player": player, "index": index}
 
 
 # ---------------------------------------------------------------- 選擇

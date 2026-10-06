@@ -310,6 +310,20 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   color: var(--ink-dim); }
 /* 可用卡發光:當下有可執行行動的卡 */
 #board .card.usable { box-shadow: 0 0 0 2px var(--accent-green), 0 0 12px rgba(126, 224, 163, .6); }
+/* 決策目標:可選的卡(場上、魔本網格、棄牌區),和可用卡的綠光區分 */
+.card.pickable { box-shadow: 0 0 0 3px var(--glow), 0 0 16px rgba(255, 209, 102, .85); cursor: pointer; }
+.review-cell.pickable .review-pno { color: var(--glow); font-weight: bold; }
+/* 行動欄的決策區塊 */
+#action-bar .choice-prompt { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; }
+#action-bar .choice-title { font-size: 14px; font-weight: bold; color: var(--glow); }
+#action-bar .choice-source { font-size: 12px; color: var(--ink-dim); border-left: 3px solid var(--gold-soft);
+  padding-left: 8px; max-height: 5.4em; overflow-y: auto; }
+#action-bar .choice-source .src-name { color: var(--ink); font-weight: bold; }
+#action-bar .choice-notes { font-size: 12px; color: var(--ink); }
+#action-bar .choice-hint { font-size: 12px; color: var(--accent-green); }
+#action-bar .choice-options { display: flex; gap: 8px; flex-wrap: wrap; }
+#action-bar .choice-cards { display: flex; gap: 8px; flex-wrap: wrap; }
+#action-bar .choice-cards .card { cursor: pointer; }
 /* 時機指示(中線) */
 #timing-track { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
   padding: 3px 8px; font-size: 12px; color: var(--on-page-dim); }
@@ -393,7 +407,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   position: fixed; inset: 0; background: rgba(8, 10, 18, .72);
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
-#zoom-overlay { flex-direction: column; gap: 12px; }
+#zoom-overlay { flex-direction: column; gap: 12px; z-index: 56; }   /* 在魔本網格之上:網格中的卡可放大選擇 */
 /* 檢視內行動區:卡片實例的統一操作入口 */
 #zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
 .zoom-action { display: flex; align-items: center; gap: 8px; }
@@ -884,6 +898,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   /* 觸控目標 */
   #zoom-actions button { min-height: 44px; font-size: 15px; }
   #dialog-options button { min-height: 44px; font-size: 14px; }
+  #action-bar .choice-options button { min-height: 44px; font-size: 14px; }
   #action-bar button { min-height: 40px; font-size: 14px; padding: 8px 14px; }
   #timing-track { font-size: 11px; gap: 2px; }
   #timing-track .step { padding: 1px 5px; }

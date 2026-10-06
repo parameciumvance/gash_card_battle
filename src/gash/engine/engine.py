@@ -10,7 +10,7 @@ import random
 
 from .cards import EVENT, MAMODO, PARTNER, SPELL, CardDef, card_db
 from .effects import registry as reg
-from .effects.primitives import add_spell_power
+from .effects.primitives import add_spell_power, page_option, slot_option
 from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
@@ -1001,8 +1001,16 @@ def _injure_instead_of_damage(game: Game, batch: list[dict]) -> None:
         return
     st.pending = PendingChoice(
         kind="injure_instead_target", player=battle.attacker, source=battle.attack_spell,
-        options=[{"value": s.uid, "card": s.top} for s in targets], data={"ctx": ctx})
+        options=[slot_option(battle.defender, s) for s in targets], data={"ctx": ctx})
     game.emit(batch, "choice_required", kind="injure_instead_target", player=battle.attacker)
+
+
+def _damage_order_option(index: int, item: dict) -> dict:
+    """受傷順序的選項:魔物項標示所在的魔物槽;魔本項維持按鈕。"""
+    opt = {"index": index, "item": item}
+    if item["kind"] == "slot":
+        opt.update(zone="slot", player=item["player"], slot=item["slot_uid"])
+    return opt
 
 
 def _injure_instead_resolver(game: Game, batch: list[dict], value, data) -> None:
@@ -1171,7 +1179,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
             receiver = ctx["items"][0]["player"]
             st.pending = PendingChoice(
                 kind="damage_order", player=receiver, source=ctx.get("source"),
-                options=[{"index": i, "item": it} for i, it in enumerate(ctx["items"])],
+                options=[_damage_order_option(i, it) for i, it in enumerate(ctx["items"])],
                 data={"ctx": ctx})
             game.emit(batch, "choice_required", kind="damage_order", player=receiver)
             return
@@ -1182,7 +1190,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
             st.pending = PendingChoice(
                 kind="protect", player=receiver, source=ctx.get("source"),
                 options=[{"value": None, "label": "no_protect"}]
-                + [{"value": s.uid, "card": s.top} for s in protectors],
+                + [slot_option(receiver, s) for s in protectors],
                 data={"ctx": ctx})
             game.emit(batch, "choice_required", kind="protect", player=receiver,
                       item=dict(item))
@@ -1359,7 +1367,7 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
             st.pending = PendingChoice(
                 kind="protect", player=first["player"], source=ctx.get("source"),
                 options=[{"value": None, "label": "no_protect"}]
-                + [{"value": s.uid, "card": s.top} for s in protectors],
+                + [slot_option(first["player"], s) for s in protectors],
                 data={"ctx": ctx})
             game.emit(batch, "choice_required", kind="protect", player=first["player"], item=dict(first))
             return
@@ -1479,7 +1487,7 @@ def _mamodo_gone_processing(game: Game, batch: list[dict], player: int, next_sta
         if len(candidates) > 1:
             st.pending = PendingChoice(
                 kind="deploy_page", player=player,
-                options=[{"page": p, "card": ps.card_at(p)} for p in candidates],
+                options=[page_option(player, p, ps.card_at(p)) for p in candidates],
                 data={"stage": next_stage})
             game.emit(batch, "choice_required", kind="deploy_page", player=player)
             return False

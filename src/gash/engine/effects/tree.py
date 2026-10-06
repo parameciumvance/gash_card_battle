@@ -18,10 +18,10 @@ from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, PendingChoice
 from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
-    discard_from_book, discard_partner, flip_coins,
-    heal_slot, mark_opp_mp_reduced, own_book_turn_effect, play_mamodo_from_book, reduce_mp,
+    discard_from_book, discard_option, discard_partner, flip_coins,
+    heal_slot, mark_opp_mp_reduced, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
     reduce_opponent_mp, return_to_book,
-    schedule_standby, take_from_book,
+    schedule_standby, slot_option, take_from_book,
     turn_pages,
 )
 
@@ -323,7 +323,8 @@ class OwnMamodo:
     """自己場上的魔物;以穩定的 slot UID 作為選項值。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": s.uid, "card": s.top} for s in game.state.players[ctx["player"]].slots]
+        player = ctx["player"]
+        return [slot_option(player, s) for s in game.state.players[player].slots]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -350,7 +351,7 @@ class PlayablePartnerInDiscard:
                 continue
             if any(game.db[s.partner].name_ja == card.name_ja for s in ps.slots if s.partner):
                 continue
-            out.append({"value": i, "card": number, "slot_uid": slot.uid})
+            out.append(discard_option(player, i, number, slot_uid=slot.uid))
         return out
 
     def options(self, game, ctx) -> list[dict]:
@@ -368,7 +369,7 @@ class OwnOpenPages:
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
-        return [{"value": p, "card": ps.card_at(p)} for p in ps.open_pages()]
+        return [page_option(ctx["player"], p, ps.card_at(p)) for p in ps.open_pages()]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -382,7 +383,7 @@ class OwnEarlierPages:
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
-        return [{"value": p, "card": ps.card_at(p)}
+        return [page_option(ctx["player"], p, ps.card_at(p))
                 for p in range(1, ps.pos) if p not in ps.consumed_pages]
 
     def validate(self, game, ctx, value) -> None:
@@ -398,7 +399,7 @@ class OwnBookPartnerNamed:
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
-        return [{"value": p, "card": ps.card_at(p), "page": p}
+        return [page_option(ctx["player"], p, ps.card_at(p))
                 for p in range(1, 33)
                 if p not in ps.consumed_pages
                 and game.db[ps.card_at(p)].type == PARTNER
@@ -415,8 +416,8 @@ class OpponentInjuredMamodo:
     """對手場上負傷的魔物(M-029)。選項值為 slot UID。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": s.uid, "card": s.top}
-                for s in game.state.players[1 - ctx["player"]].slots if s.injured]
+        opp = 1 - ctx["player"]
+        return [slot_option(opp, s) for s in game.state.players[opp].slots if s.injured]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -435,7 +436,7 @@ class DiscardedCardsToReturn:
         ps = game.state.players[player]
         if not ps.consumed_pages:
             return []
-        return [{"value": i, "card": n} for i, n in enumerate(ps.discard) if n in self.numbers]
+        return [discard_option(player, i, n) for i, n in enumerate(ps.discard) if n in self.numbers]
 
     def options(self, game, ctx) -> list[dict]:
         targets = self._targets(game, ctx["player"])
@@ -452,7 +453,7 @@ class OwnEmptyBookPages:
     """自己魔本的空頁(卡片已離開的頁),依頁序(M-025 放回)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": p, "page": p} for p in sorted(game.state.players[ctx["player"]].consumed_pages)]
+        return [page_option(ctx["player"], p) for p in sorted(game.state.players[ctx["player"]].consumed_pages)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -465,8 +466,8 @@ class OwnPartneredMamodo:
     """自己場上裝有搭檔的魔物;選項值為 slot UID,顯示的卡為其搭檔(E-027 選保留哪張)。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": s.uid, "card": s.partner}
-                for s in game.state.players[ctx["player"]].slots if s.partner]
+        player = ctx["player"]
+        return [slot_option(player, s, s.partner) for s in game.state.players[player].slots if s.partner]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -494,7 +495,7 @@ class AttachablePartnerPagesInOwnBook:
                 continue
             card = game.db[ps.card_at(p)]
             if card.type == PARTNER and _partner_slots(game, player, card):
-                out.append({"value": p, "card": card.number, "page": p})
+                out.append(page_option(player, p, card.number))
         return out
 
     def validate(self, game, ctx, value) -> None:
@@ -511,7 +512,7 @@ class SlotsForBookPartner:
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
         card = game.db[ps.card_at(ctx[self.page.name])]
-        return [{"value": s.uid, "card": s.top} for s in _partner_slots(game, ctx["player"], card)]
+        return [slot_option(ctx["player"], s) for s in _partner_slots(game, ctx["player"], card)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -524,8 +525,8 @@ class OwnInjuredMamodo:
     """自己場上負傷的魔物(E-007)。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": s.uid, "card": s.top}
-                for s in game.state.players[ctx["player"]].slots if s.injured]
+        player = ctx["player"]
+        return [slot_option(player, s) for s in game.state.players[player].slots if s.injured]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -539,7 +540,8 @@ class OpponentMamodo:
     """對手場上的魔物(E-024)。"""
 
     def options(self, game, ctx) -> list[dict]:
-        return [{"value": s.uid, "card": s.top} for s in game.state.players[1 - ctx["player"]].slots]
+        opp = 1 - ctx["player"]
+        return [slot_option(opp, s) for s in game.state.players[opp].slots]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -564,7 +566,7 @@ class PartnerDiscardedThisTurn:
                          and s.partner is None), None)
             if slot is None:
                 continue
-            out.append({"value": i, "card": number, "slot_uid": slot.uid})
+            out.append(discard_option(player, i, number, slot_uid=slot.uid))
         return out
 
     def options(self, game, ctx) -> list[dict]:
@@ -582,8 +584,7 @@ class OpponentPartneredMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [{"value": s.uid, "card": s.partner}
-                for s in game.state.players[opp].slots if s.partner]
+        return [slot_option(opp, s, s.partner) for s in game.state.players[opp].slots if s.partner]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -617,7 +618,7 @@ class DeployableMamodoInOwnBook:
                     continue
             elif same_name_in_play(game, player, card):
                 continue
-            out.append({"value": p, "card": number})
+            out.append(page_option(player, p, number))
         return out
 
     def options(self, game, ctx) -> list[dict]:
@@ -642,7 +643,7 @@ class OpponentBookCards:
             if p in opp.consumed_pages or (self.exclude_last and p == 32):
                 continue
             if game.db[opp.card_at(p)].type == self.card_type:
-                out.append({"value": p, "card": opp.card_at(p), "page": p})
+                out.append(page_option(1 - ctx["player"], p, opp.card_at(p)))
         return out
 
     def validate(self, game, ctx, value) -> None:
@@ -658,7 +659,7 @@ class OwnBookCopiesOf:
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
-        return [{"value": p, "card": ps.card_at(p), "page": p}
+        return [page_option(ctx["player"], p, ps.card_at(p))
                 for p in range(1, 33)
                 if p not in ps.consumed_pages and ps.card_at(p) == self.number]
 

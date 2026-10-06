@@ -579,7 +579,8 @@ def test_partner_discarded_this_turn_options_and_validate():
     g.state.players[0].discarded_this_turn.append("P-001")
     spec = tree.PartnerDiscardedThisTurn()
     opts = spec.options(g, {"player": 0})
-    assert opts == [{"value": 0, "card": "P-001", "slot_uid": slot0(g, 0).uid}]
+    assert opts == [{"value": 0, "card": "P-001", "slot_uid": slot0(g, 0).uid,
+                     "zone": "discard", "player": 0, "index": 0}]
     with pytest.raises(IllegalCommand):
         spec.validate(g, {"player": 0}, 99)
     spec.validate(g, {"player": 0}, 0)   # 不拋出
@@ -661,7 +662,8 @@ def test_opponent_partnered_mamodo_options_and_validate():
     target = slot0(g, 1)
     target.partner = "P-001"
     spec = tree.OpponentPartneredMamodo()
-    assert spec.options(g, {"player": 0}) == [{"value": target.uid, "card": "P-001"}]
+    assert spec.options(g, {"player": 0}) == [{"value": target.uid, "card": "P-001",
+                                              "zone": "slot", "player": 1, "slot": target.uid}]
     spec.validate(g, {"player": 0}, target.uid)
     with pytest.raises(IllegalCommand):
         spec.validate(g, {"player": 0}, slot0(g, 0).uid)   # 自己的魔物不是合法目標
@@ -805,7 +807,8 @@ def test_own_injured_mamodo_spec():
     spec = tree.OwnInjuredMamodo()
     assert spec.options(g, {"player": 0}) == []
     a.injured = True
-    assert spec.options(g, {"player": 0}) == [{"value": a.uid, "card": a.top}]
+    assert spec.options(g, {"player": 0}) == [{"value": a.uid, "card": a.top,
+                                              "zone": "slot", "player": 0, "slot": a.uid}]
     b = give(g, 0, "M-004")
     with pytest.raises(IllegalCommand):
         spec.validate(g, {"player": 0}, b.uid)          # 健康的魔物不合法
@@ -815,7 +818,8 @@ def test_opponent_mamodo_spec():
     g = game()
     x = slot0(g, 1)
     spec = tree.OpponentMamodo()
-    assert spec.options(g, {"player": 0}) == [{"value": x.uid, "card": x.top}]
+    assert spec.options(g, {"player": 0}) == [{"value": x.uid, "card": x.top,
+                                              "zone": "slot", "player": 1, "slot": x.uid}]
     with pytest.raises(IllegalCommand):
         spec.validate(g, {"player": 0}, slot0(g, 0).uid)  # 自己的魔物不合法
 
@@ -1283,7 +1287,8 @@ def test_opponent_injured_mamodo_and_discard():
     x = slot0(g, 1)
     assert tree.OpponentInjuredMamodo().options(g, {"player": 0}) == []
     x.injured = True
-    assert tree.OpponentInjuredMamodo().options(g, {"player": 0}) == [{"value": x.uid, "card": x.top}]
+    assert tree.OpponentInjuredMamodo().options(g, {"player": 0}) == [
+        {"value": x.uid, "card": x.top, "zone": "slot", "player": 1, "slot": x.uid}]
     run(g, tree.DiscardChosenOpponentMamodo(), choice=x.uid)
     assert x not in g.state.players[1].slots
     assert run(g, tree.DiscardChosenOpponentMamodo(), choice=x.uid) == []
@@ -1332,7 +1337,8 @@ def test_discarded_cards_to_return_spec_offers_skip_only_with_targets():
     ps.consumed_pages.clear()
     assert spec.options(g, {"player": 0}) == []                      # 沒有空頁
     ps.consumed_pages.add(5)
-    assert spec.options(g, {"player": 0}) == [{"value": 1, "card": "M-024"},
+    assert spec.options(g, {"player": 0}) == [{"value": 1, "card": "M-024",
+                                               "zone": "discard", "player": 0, "index": 1},
                                               {"value": None, "label": "skip"}]
     spec.validate(g, {"player": 0}, None)
     with pytest.raises(IllegalCommand):

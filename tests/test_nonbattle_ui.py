@@ -158,13 +158,13 @@ def test_choice_dialog_shows_generic_title_and_source_card(page):
     page.evaluate("""() => {
       S.pending = {kind: 'pick_own_mamodo', player: S.turn_player, source: 'E-009',
                    options: [{value: 1, card: 'M-001'}, {value: 2, card: 'M-002'}]};
-      renderPendingDialog();
+      render();
     }""")
-    assert page.locator("#dialog-title").inner_text().endswith("選擇自己的魔物")
-    source = page.locator("#dialog-source")
+    assert page.locator("#action-bar .choice-title").inner_text().endswith("選擇自己的魔物")
+    source = page.locator("#action-bar .choice-source")
     assert source.is_visible()
     text = source.inner_text()
     assert page.evaluate("cname('E-009')") in text
     assert page.evaluate("TEXT['E-009'].effect").split()[0] in text
-    page.evaluate("() => { S.pending.source = null; renderPendingDialog(); }")
-    assert not page.locator("#dialog-source").is_visible()
+    page.evaluate("() => { S.pending.source = null; render(); }")
+    assert page.locator("#action-bar .choice-source").count() == 0

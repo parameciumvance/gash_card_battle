@@ -46,9 +46,9 @@ COIN_PENDING = """(player) => {
 def test_reflip_dialog_lists_current_results(page):
     start_local(page)
     page.evaluate(COIN_PENDING, 0)
-    notes = page.locator("#dialog-notes").text_content()
+    notes = page.locator("#action-bar .choice-notes").text_content()
     assert "第 1 枚:正面" in notes and "第 2 枚:反面" in notes
-    buttons = page.locator("#dialog-options button").all_text_contents()
+    buttons = page.locator("#action-bar .choice-options button").all_text_contents()
     assert "重擲第 1 枚(正面)" in buttons and "重擲第 2 枚(反面)" in buttons
 
 
@@ -56,7 +56,7 @@ def test_waiting_player_sees_current_results(page):
     start_local(page)
     page.evaluate("SESSION = {...SESSION, viewer: 0}")                    # 以玩家 1 的視角等待
     page.evaluate(COIN_PENDING, 1)
-    assert not page.locator("#dialog-overlay").is_visible()
+    assert page.locator("#action-bar .choice-prompt").count() == 0
     assert "第 2 枚:反面" in page.locator("#acting-info").text_content()
 
 
