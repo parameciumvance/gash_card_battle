@@ -54,6 +54,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="gash-card-battle", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def revalidate_frontend(request, call_next):
+    """前端資源帶 Cache-Control: no-cache:瀏覽器每次使用前以 ETag 確認(未變回 304),
+    部署後不會混用新舊版本。卡圖內容固定、API 本來就不快取,兩者不套用。"""
+    response = await call_next(request)
+    path = request.url.path
+    frontend = path == "/" or path.startswith(("/static/", "/data/"))
+    if frontend and not path.startswith("/static/assets/") and "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 class CreateRoom(BaseModel):
     mode: str = "online"
     timer_seconds: int | None = None

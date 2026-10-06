@@ -1,6 +1,6 @@
 # battle-api — 設計
 
-目前只整理了快照中「公開 / 私有」的界線;其餘(端點、WebSocket)以 `src/gash/api/app.py` 與測試為準。
+目前只整理了快照中「公開 / 私有」的界線與前端資源快取;其餘(端點、WebSocket)以 `src/gash/api/app.py` 與測試為準。
 
 ## 視角過濾的單點
 
@@ -29,3 +29,11 @@
   - 逾時代打:`awaited_player`。
   - 金手指與開局:`None`。
 - `actor` 只標明誰發起,不影響事件內容與視角過濾。
+
+## 前端資源快取
+
+- `app.py` 的 middleware 對 `/`、`/static/`、`/data/`(卡圖 `/static/assets/` 除外)加上 `Cache-Control: no-cache`:瀏覽器每次使用前以 `ETag` 確認,未變回 304。
+  - 沒有 `Cache-Control` 時瀏覽器會自行推估快取時間,部署後曾出現新 `index.html` 配舊 `app.js` / `style.css` 的情況。
+  - 不用版本號網址:`app.js` 在執行時還會載入 `i18n/*.json`、`data/*.json`、規則頁,全部帶版本號需要建置步驟;`no-cache` 一個 middleware 就涵蓋全部,代價只是幾個 304 往返。
+  - 卡圖內容固定、由玩家另外安裝,維持瀏覽器自行快取。回應已有 `Cache-Control` 時不覆寫。
+  - Cloudflare 依來源的 `Cache-Control` 不在邊緣快取這些檔案,VPS 與單機版行為相同。
