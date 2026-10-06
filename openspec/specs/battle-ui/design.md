@@ -100,7 +100,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **對話框**:沿用資訊對話框(`showInfo("feedback", …)`),純展示,不影響對局;外部連結開新分頁。
 - **GitHub Issue Forms**:`.github/ISSUE_TEMPLATE/` 的問題回報、卡片效果不符、建議三種範本都有 `environment` 欄位;`config.yml` 以 `contact_links` 連到表單。
 - **表單**:不要用檔案上傳題(需要 Google 登入)。換表單或改欄位時,要同步 `FEEDBACK` 與 `config.yml`。
-- 遊戲內直接送出、附對局記錄(方案 B)尚未實作,見 `openspec/changes/todo.md`。
+- 遊戲內直接送出、附對局記錄(方案 B)尚未實作,見根目錄的 `todo.md`。
 
 ## 語言
 
