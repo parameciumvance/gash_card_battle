@@ -62,6 +62,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   font-size: 14px; color: var(--on-page);
 }
 #title { font-weight: bold; color: var(--on-page); }
+#topbar > span:empty { display: none; }   /* 首頁、構築器等沒有對局資訊時,空欄位不佔 gap(手機上會把按鈕擠到右側並換行) */
 #topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
 #acting-info { color: var(--on-page-green); font-weight: bold; }
 
