@@ -1,11 +1,9 @@
-"""資源目錄解析:搜尋順序、環境變數優先、未安裝回報、開發模式等價。"""
-
-from pathlib import Path
+"""卡圖目錄解析(battle-api「卡圖靜態資源外部化」)與程式資源的 repo 佈局。"""
 
 from gash import paths
 
 
-def test_dev_mode_matches_repo_layout():
+def test_program_resources_use_repo_layout():
     root = paths.app_root()
     assert (root / "frontend" / "index.html").is_file()
     assert (root / "data" / "cards.json").is_file()
@@ -13,11 +11,8 @@ def test_dev_mode_matches_repo_layout():
     assert paths.data_dir() == root / "data"
 
 
-def test_dev_mode_assets_fall_back_to_repo(monkeypatch, tmp_path):
-    monkeypatch.setattr(paths, "user_assets_dir", lambda: tmp_path / "nope")
-    info = paths.resolve_assets(env={})
-    assert info.installed
-    assert info.dir == paths.frontend_dir() / "assets"
+def test_assets_default_to_repo_frontend():
+    assert paths.resolve_assets(env={}).dir == paths.frontend_dir() / "assets"
 
 
 def test_env_var_wins_even_if_missing(tmp_path):
@@ -31,44 +26,19 @@ def test_env_var_wins_even_if_missing(tmp_path):
     assert info.installed
 
 
-def test_frozen_prefers_exe_adjacent(monkeypatch, tmp_path):
-    exe_assets = tmp_path / "exe" / "assets"
-    (exe_assets / "cards").mkdir(parents=True)
-    user = tmp_path / "user" / "assets"
-    (user / "cards").mkdir(parents=True)
-    monkeypatch.setattr(paths, "is_frozen", lambda: True)
-    monkeypatch.setattr(paths, "exe_dir", lambda: tmp_path / "exe")
-    monkeypatch.setattr(paths, "user_assets_dir", lambda: user)
+def test_installed_requires_cards_dir(monkeypatch, tmp_path):
+    monkeypatch.setattr(paths, "frontend_dir", lambda: tmp_path)
+    (tmp_path / "assets").mkdir()                       # 空的 assets/ 不算已安裝
     info = paths.resolve_assets(env={})
-    assert info.dir == exe_assets
-
-
-def test_empty_dir_not_treated_as_installed(monkeypatch, tmp_path):
-    # 自動建立的空安裝點不得搶走解析(否則開發模式會解析到空目錄)
-    empty_user = tmp_path / "user" / "assets"
-    empty_user.mkdir(parents=True)
-    monkeypatch.setattr(paths, "user_assets_dir", lambda: empty_user)
-    info = paths.resolve_assets(env={})
-    assert info.dir == paths.frontend_dir() / "assets"
-
-
-def test_frozen_falls_back_to_user_dir(monkeypatch, tmp_path):
-    user = tmp_path / "user" / "assets"
-    (user / "cards").mkdir(parents=True)
-    monkeypatch.setattr(paths, "is_frozen", lambda: True)
-    monkeypatch.setattr(paths, "exe_dir", lambda: tmp_path / "exe")
-    monkeypatch.setattr(paths, "user_assets_dir", lambda: user)
-    info = paths.resolve_assets(env={})
-    assert info.dir == user
-    assert info.installed
-
-
-def test_frozen_nothing_installed_reports_install_dir(monkeypatch, tmp_path):
-    user = tmp_path / "user" / "assets"
-    monkeypatch.setattr(paths, "is_frozen", lambda: True)
-    monkeypatch.setattr(paths, "exe_dir", lambda: tmp_path / "exe")
-    monkeypatch.setattr(paths, "user_assets_dir", lambda: user)
-    info = paths.resolve_assets(env={})
+    assert info.dir == tmp_path / "assets"
     assert not info.installed
-    assert info.install_dir == user
-    assert info.dir == user
+    (tmp_path / "assets" / "cards").mkdir()
+    assert paths.resolve_assets(env={}).installed
+
+
+def test_user_data_dir_is_not_searched(monkeypatch, tmp_path):
+    # 舊單機版的使用者資料夾即使有卡圖也不讀
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    (tmp_path / "gash-card-battle" / "assets" / "cards").mkdir(parents=True)
+    assert paths.resolve_assets(env={}).dir == paths.frontend_dir() / "assets"

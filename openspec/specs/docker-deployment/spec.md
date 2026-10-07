@@ -4,7 +4,7 @@
 
 在 VPS 上以容器長期常駐提供線上對戰服務。
 
-Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的測試 / 建置分流、VPS 端的自動更新與健康檢查。不含單機發行(見 `standalone-release`)與房間 / 對戰行為本身(見 `online-room`、`battle-api`)。
+Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的測試 / 建置分流、VPS 端的自動更新與健康檢查。不含房間 / 對戰行為本身(見 `online-room`、`battle-api`)。
 
 ## Requirements
 
@@ -13,7 +13,7 @@ Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的�
 
 #### Scenario: 映像檔不含開發工具與測試檔案
 - **WHEN** 建置 production 映像檔
-- **THEN** 映像檔內不包含 `tests/`、`tools/`、`.devcontainer/`、`pytest`/`pyinstaller`/`openpyxl` 等僅供開發或單機發行使用的檔案與套件
+- **THEN** 映像檔內不包含 `tests/`、`tools/`、`.devcontainer/`、`pytest`/`openpyxl`/`pillow` 等僅供開發使用的檔案與套件
 
 #### Scenario: 容器啟動即提供服務
 - **WHEN** 以此映像檔啟動容器並對映對外埠

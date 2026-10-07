@@ -15,21 +15,13 @@ def test_meta_dev_mode():
     res = client.get("/api/meta")
     assert res.status_code == 200
     m = res.json()
-    assert m["tunnel_url"] is None
+    assert "tunnel_url" not in m
     a = m["assets"]
     assert a["installed"] is True
     assert a["expected"] == len(card_db())
     # 卡圖不在版控內,本機是否齊全取決於開發者自己下載了多少張
     assert a["count"] <= a["expected"]
-    assert a["install_dir"]
-
-
-def test_meta_reports_tunnel_url():
-    app_module.launch_info["tunnel_url"] = "https://example.trycloudflare.com"
-    try:
-        assert client.get("/api/meta").json()["tunnel_url"] == "https://example.trycloudflare.com"
-    finally:
-        app_module.launch_info["tunnel_url"] = None
+    assert a["install_dir"] == str(app_module.ASSETS.dir)
 
 
 def test_card_art_served_from_assets_mount():

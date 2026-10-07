@@ -228,3 +228,27 @@ def test_disclaimer_on_landing_only(page):
     assert box["y"] >= cards["y"] + cards["height"]                       # 在入口下方,不遮住入口
     page.locator("#entry-npc").click()
     assert not disclaimer.is_visible()
+
+
+def test_invite_links_use_page_origin(browser, server):  # noqa: F811
+    """battle-ui「公開邀請連結」:一律以 location.origin 組連結,伺服器回傳的其他網址不採用。"""
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce", locale="zh-TW")
+    context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
+
+    def meta_with_tunnel(route):
+        res = route.fetch()
+        route.fulfill(response=res, json={**res.json(), "tunnel_url": "https://stale.trycloudflare.com"})
+
+    context.route("**/api/meta", meta_with_tunnel)
+    page = context.new_page()
+    try:
+        page.goto(server)
+        page.wait_for_function("Object.keys(CARDS).length > 0")
+        page.locator("#entry-friend").click()
+        page.locator("#friend-submit").click()
+        page.wait_for_function("document.getElementById('waiting-code').textContent")
+        code = page.locator("#waiting-code").text_content()
+        assert page.input_value("#share-join") == f"{server}/?join={code}"
+        assert page.input_value("#share-spec").startswith(f"{server}/")
+    finally:
+        context.close()

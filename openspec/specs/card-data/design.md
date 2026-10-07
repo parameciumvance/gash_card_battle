@@ -26,5 +26,5 @@
   - 原圖是 RGBA PNG,四角透明做圓角,所以不能用 JPEG。
   - 135 張實測:原圖約 90MB;q80 約 11MB(每張約 83KB),q88 約 15MB,無損每張約 460KB。效果文區塊放大兩倍比對,q80 與原圖看不出差別。
   - 不支援其他格式並存:換格式時所有環境重新下載,不在執行時轉換或退回舊格式。
-- **轉檔位置**:`tools/download_images.py` 下載原圖後在記憶體中轉成 WebP(`to_webp()`),原圖不落地。`pillow` 只是 dev 依賴,執行環境(映像檔、單機版)不需要。
+- **轉檔位置**:`tools/download_images.py` 下載原圖後在記憶體中轉成 WebP(`to_webp()`),原圖不落地。`pillow` 只是 dev 依賴,執行環境(映像檔)不需要。
 - **測試**(`tests/test_download_images.py`):轉檔保留尺寸與透明圓角;續抓只跳過已有 `.webp` 的卡。以假的下載函式代替 Google Drive,不連網。

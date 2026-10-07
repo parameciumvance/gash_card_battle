@@ -9,7 +9,7 @@ let DICT = {};        // i18n 字典(目前語言)
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
 let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
-let META = { tunnel_url: null, assets: null, version: null };  // /api/meta:通道網址、卡圖安裝狀態、版本號
+let META = { assets: null, version: null };  // /api/meta:卡圖安裝狀態、版本號
 let RULES = null;     // 規則頁內容(i18n/rules.<lang>.json)
 
 // 窄螢幕(手機直向)偵測:佈局由 CSS 切換,JS 僅供 log 抽屜等行為分支
@@ -405,9 +405,8 @@ function showWaiting(body) {
   show("waiting");
   document.getElementById("waiting-title").textContent = t("ui.waiting_opponent");
   document.getElementById("waiting-code").textContent = SESSION.code;
-  const base = (META.tunnel_url || location.origin).replace(/\/$/, "");
-  const joinUrl = `${base}/?join=${SESSION.code}`;
-  const specUrl = `${base}${body.spectate_url || R.spectate_url || ""}`;
+  const joinUrl = `${location.origin}/?join=${SESSION.code}`;
+  const specUrl = `${location.origin}${body.spectate_url || R.spectate_url || ""}`;
   document.getElementById("share-join").value = joinUrl;
   document.getElementById("share-spec").value = specUrl;
 }
@@ -2073,7 +2072,7 @@ const RULE_ICONS = ["cost", "attack", "defense", "nobattle", "battle", "cutin", 
 const ICON_FALLBACK = { cost: "1", attack: "A", defense: "D", nobattle: "NO BATTLE", battle: "BATTLE",
                         cutin: "CUT-IN", power: "Power", damage: "1→" };   // 缺圖時的文字標籤
 
-// 卡圖是玩家另外安裝的外部資源:逐張探測,載入失敗時改以文字呈現
+// 卡圖是另外安裝的外部資源:逐張探測,載入失敗時改以文字呈現
 const artProbe = {};
 function probeArt(num) {
   if (!artProbe[num]) {

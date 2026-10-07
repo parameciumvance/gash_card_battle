@@ -35,7 +35,6 @@ if not ASSETS.installed:
         ASSETS.dir.mkdir(parents=True, exist_ok=True)
     except OSError:
         pass
-launch_info: dict = {"tunnel_url": None}  # launcher 啟動通道後填入
 
 store = RoomStore()
 _locks: dict[str, asyncio.Lock] = {}
@@ -325,16 +324,15 @@ async def list_decks():
 
 @app.get("/api/meta")
 async def get_meta():
-    """執行環境資訊:公開通道網址、卡圖安裝狀態與版本號(供前端組邀請連結、顯示安裝提示與版本)。"""
+    """執行環境資訊:卡圖安裝狀態與版本號(供前端顯示安裝提示與版本)。"""
     cards_dir = ASSETS.dir / "cards"
     count = sum(1 for p in cards_dir.glob("*.webp")) if cards_dir.is_dir() else 0  # 只認 WebP,舊的 .jpg 不算
     return {
-        "tunnel_url": launch_info.get("tunnel_url"),
         "assets": {
             "installed": cards_dir.is_dir(),  # 即時偵測:啟動後放入卡圖也能反映
             "count": count,
             "expected": len(card_db()),
-            "install_dir": str(ASSETS.install_dir),
+            "install_dir": str(ASSETS.dir),
         },
         "version": app_version(),
     }

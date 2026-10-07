@@ -83,42 +83,9 @@ uvicorn gash.api.app:app --reload
 
 限制:對局存在伺服器記憶體,**伺服器重啟即失局**;房間閒置 2 小時自動回收;無帳號與配對。
 
-## 單機發行(給非開發者的玩家)
-
-### 玩家怎麼用(三步驟)
-
-1. **解壓** `gash-card-battle-vX-win64.zip` 到任意資料夾。
-2. **(選配)放卡圖**:把另行取得的 `assets` 資料夾(內含 `cards/*.webp`)放到
-   `%LOCALAPPDATA%\gash-card-battle\assets`(首次啟動會自動建好這個資料夾;
-   之後更新版本不必重放,所有版本共用)。沒放也能玩,缺圖卡面以卡背佔位。
-3. **點兩下 `gash.exe`**:伺服器啟動、瀏覽器自動開啟。終端機會顯示
-   `邀請網址:https://xxx.trycloudflare.com` — 建立房間後把「加入連結」
-   貼給朋友(LINE/Discord),對方點連結、選牌組即開打,**什麼都不用裝**。
-
-注意:邀請網址**每次啟動都不同**(像一次性的房號),關掉視窗即失效;
-沒有網路或缺 `cloudflared.exe` 時自動降級為本機/區網模式,遊戲照常。
-
-### 維護者怎麼打包
-
-```bash
-pip install -e ".[dev]"                       # 內含 pyinstaller
-python tools/build_release.py                 # 於 Windows 上執行產出 win64 zip
-# 選項:--cloudflared <路徑>(指定 cloudflared 執行檔;缺省找 PATH)
-#       --skip-cloudflared(不附通道,發行物僅支援本機/區網)
-```
-
-產出 `dist/gash-card-battle-v{版本}-{平台}.zip`(~40MB,**不含卡圖**),
-每版獨立解壓即用。cloudflared 至官方
-[cloudflare/cloudflared releases](https://github.com/cloudflare/cloudflared/releases) 下載。
-卡圖包 = 把 `frontend/assets/` 資料夾單獨壓縮另行發佈(內容含版權素材,請自行斟酌散布範圍)。
-
-卡圖目錄的解析順序(第一個含 `cards/` 的目錄生效):
-`GASH_ASSETS_DIR` 環境變數 → 執行檔旁 `assets/` → 使用者資料夾(上述)→ repo `frontend/assets/`。
-開發環境可 `python -m gash.launcher` 走與發行版相同的啟動流程。
-
 ## VPS 部署(長期常駐、給不特定人玩)
 
-跟上面的單機發行(給朋友臨時開一次)不同,這是把服務架在自己的 VPS 上長期開著。
+把服務架在自己的 VPS 上長期開著。
 流程是 push 一般 commit 只跑測試、打版號 tag 才建置映像檔並推上 GHCR,平時不會打斷
 進行中的對局。**CI 只負責 build + push image,不會、也不需要連進 VPS**——VPS 上跑一個
 [watchtower](https://github.com/nicholas-fedor/watchtower)(原 `containrrr/watchtower` 已於
@@ -219,7 +186,7 @@ git push origin v0.1.0
 
 tag 名稱就是版本號:CI 以 build arg `GASH_VERSION` 帶進映像檔,首頁免責聲明下方會顯示
 「版本 v0.1.0」,意見回報的環境資訊也會帶上 `ver=v0.1.0`。部署後看首頁的版本號,就能確認
-新版是否已經上線。單機版顯示打包時的 `git describe`,開發環境顯示當下的 `git describe`。
+新版是否已經上線。開發環境顯示當下的 `git describe`。
 
 前端檔案帶 `Cache-Control: no-cache`,但 Cloudflare 的 **Browser Cache TTL** 預設會把
 JS / CSS 改寫成快取 4 小時。請在 Cloudflare 後台 Caching → Configuration →
@@ -277,7 +244,7 @@ docker compose up -d --remove-orphans
 
 `docker-compose.yml` 已經預留一個 volume(`card-assets`)掛到 `GASH_ASSETS_DIR`
 (`/app/assets`),服務會從 `/app/assets/cards/{卡號}.webp` 讀圖。映像檔不含卡圖,也不含
-`tools/`,所以要在本機下載後再傳上去——照單機發行的提醒,卡圖含版權素材,請自行斟酌散布範圍。
+`tools/`,所以要在本機下載後再傳上去。卡圖含版權素材,請自行斟酌散布範圍。
 
 1. **(本機)下載卡圖**:
 
@@ -373,8 +340,7 @@ python -m pytest        # 引擎規則、67 張卡逐卡效果、API 整合、�
 
 ```
 src/gash/
-  paths.py              資源目錄解析單點(開發/凍結佈局、卡圖搜尋順序)
-  launcher.py           單機啟動器(uvicorn + cloudflared 通道 + 開瀏覽器)
+  paths.py              資源目錄解析單點(repo 佈局、卡圖目錄)
   engine/               純 Python 遊戲引擎(無 IO,指令進 → 事件出)
     state.py            狀態模型:魔本頁序、MP、魔物槽、modifier、待命、戰鬥子狀態
     engine.py           規則主體:階段流程、輪流行動權、戰鬥五步驟、傷害/保護、勝敗
@@ -411,7 +377,6 @@ tools/
   build_cards_json.py   cards_ja.csv → cards.json 轉換
   build_card_texts.py   產生 cards.ja.json,並把 TTS 卡表的英文名稱寫入 cards.en.json
   download_images.py    卡圖批次下載(Google Drive,支援續抓與失敗清單)
-  build_release.py      發行打包(PyInstaller onedir → 單一 zip,不含卡圖)
 ```
 
 ## 資料管線

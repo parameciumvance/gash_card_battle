@@ -6,6 +6,5 @@
 - 卡片效果結構化
 - 無關魔力勝負 on_declare?
 - 干擾 回溯?
-- 遊戲內回報(意見回報方案 B):對局中直接送出,自動附上快照與事件記錄,由 VPS 轉成 GitHub issue 或 Discord;防濫用(限流、Turnstile),單機版送到 VPS
+- 遊戲內回報(意見回報方案 B):對局中直接送出,自動附上快照與事件記錄,由 VPS 轉成 GitHub issue 或 Discord;防濫用(限流、Turnstile)
 - NPC 決策移出事件迴圈:`_drive_npc` 在主事件迴圈上同步執行 `decide` 的模擬,NPC 思考時所有房間的指令與推送都會卡住,同時有多場 NPC 對戰時延遲會先出現在這裡。改用 process pool(`run_in_executor`)執行;比負載平衡便宜,單一行程就能撐更多。房間狀態在單一行程記憶體(見 Dockerfile),不能直接開多 worker / replica;單機真的不夠時再考慮依房號分片
-- 單機版 zip 命名仍用 pyproject.toml 的版本號(0.1.0,沒有在更新),畫面顯示的是 git tag 版本;是否改用 tag 命名待決定(見 app-version change)

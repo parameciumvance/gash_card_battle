@@ -2,10 +2,8 @@ ref
 **/__pycache__
 build/
 dist/
-gash.spec
 *.egg-info/
 .codex
 .claude/
 frontend/assets/cards/
 .env
-data/version.txt
