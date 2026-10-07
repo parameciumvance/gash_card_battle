@@ -107,11 +107,18 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #book-review-head h3 { color: var(--glow); font-size: 16px; }
 #book-review-close { padding: 5px 14px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
-#book-review-grid { display: flex; flex-wrap: wrap; gap: 10px; max-width: 84vw; }
+/* 魔本網格(查閱、構築器、金手指):固定欄寬,每欄一組對頁、各列對齊;P1 靠右、P32 靠左(實體魔本的右頁與左頁) */
+#book-review-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, calc(var(--review-card-w) * 2 + 15px));
+  gap: 10px; max-width: 84vw; --review-card-w: 96px;   /* 對頁寬 = 兩頁 + 頁縫 3 + 內距 5×2 + 框線 1×2 */
+}
+.review-spread.single:first-child, .spread.single:first-child { justify-self: end; }
+.review-spread.single:last-child, .spread.single:last-child { justify-self: start; }
 .review-spread { display: flex; gap: 3px; padding: 5px; border-radius: 8px;
   background: rgba(110,29,29,.35); border: 1px solid rgba(217,164,65,.3); }
 .review-spread.single { background: rgba(60,40,70,.35); }
-.review-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.review-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; width: var(--review-card-w); }
+.review-cell .card { flex: 1; width: var(--review-card-w); }   /* 隨列高拉伸:同一列的卡片等高;卡背同寬 */
 .review-cell.open { outline: 2px solid var(--glow); outline-offset: 1px; border-radius: 8px; }
 .review-cell .card { cursor: default; }
 .review-cell .card:hover { transform: none; box-shadow: none; }
@@ -381,12 +388,15 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #cheat-book, #cheat-pool { min-width: 0; min-height: 0; overflow-y: auto; padding: 4px;
   overscroll-behavior: contain; }
 #cheat-panel h4 { margin-bottom: 8px; }
-#cheat-book-grid, #cheat-pool-grid { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+#cheat-pool-grid { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+#cheat-book-grid {
+  --slot-w: 100px; display: grid; grid-template-columns: repeat(auto-fill, calc(var(--slot-w) * 2 + 12px));
+  gap: 8px; align-content: start;
+}
 #cheat-filters { position: sticky; top: 0; z-index: 3; padding-bottom: 8px; background: var(--panel); }
 #cheat-filters select { max-width: 100%; }
 #cheat-pool-grid .card { width: 120px; cursor: pointer; }
 #cheat-pool-grid .card:hover, #cheat-pool-grid .card:focus-visible { outline: 2px solid var(--glow); }
-#cheat-book-grid .page-slot { width: 100px; }
 #cheat-book-grid .page-slot .card { width: 96px; }
 #cheat-book-grid .page-slot .card img.art { height: 85px; }
 #cheat-error { color: var(--danger); font-size: 12px; max-height: 70px; overflow-y: auto; }
@@ -805,14 +815,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 
 #builder-book { flex: 1; overflow-y: auto; padding: 10px 14px; color: var(--on-page); }
 #book-hint { font-size: 12px; color: var(--on-page-dim); margin-bottom: 8px; }
-#book-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+#book-grid {
+  --slot-w: 92px; display: grid; grid-template-columns: repeat(auto-fill, calc(var(--slot-w) * 2 + 12px));
+  gap: 10px; align-content: start;   /* 對頁寬 = 兩頁 + 頁縫 2 + 內距 4×2 + 框線 1×2 */
+}
 .spread {
   display: flex; gap: 2px; padding: 4px; border-radius: 8px;
   background: #232d47; border: 1px solid #34405f;
 }
 .spread.single { background: #2a2338; border-color: #4e3a63; }
 .page-slot {
-  width: 92px; min-height: 100px; border-radius: 6px; position: relative;
+  width: var(--slot-w, 92px); min-height: 100px; border-radius: 6px; position: relative;
   border: 2px dashed #4a5a80; display: flex; align-items: center; justify-content: center;
   cursor: pointer; background: #1c2333;
 }
@@ -821,7 +834,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   background: rgba(18,24,42,.75); padding: 0 4px; border-radius: 4px;
 }
 .page-slot.selected { border-color: var(--glow); border-style: solid; box-shadow: 0 0 6px #ffd16688; }
-.page-slot.filled { border-style: solid; }
+.page-slot.filled { border-style: solid; align-items: stretch; }   /* 卡片填滿頁位:同一對頁的兩張等高 */
 .page-slot .card { width: 88px; min-height: 96px; font-size: 9px; margin: 0; }
 .page-slot .card .ceffect { display: none; }
 .page-slot .card .cname-ja { display: none; }
@@ -923,8 +936,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #builder-book { order: -1; flex: 0 0 46%; border-bottom: 1px solid var(--page-line);
     padding: 8px; }
   #builder-pool { width: auto; flex: 1; border-right: none; min-height: 0; }
-  #book-grid { gap: 6px; justify-content: center; }
-  .page-slot { width: 76px; min-height: 88px; }
+  #book-grid { --slot-w: 76px; gap: 6px; justify-content: center; }
+  .page-slot { min-height: 88px; }
   .page-slot .card { width: 72px; min-height: 84px; }
   #pool-grid { justify-content: center; }
   #pool-grid .card { width: 106px; }
