@@ -1,0 +1,20 @@
+{
+  "releases": [
+    {
+      "version": "v0.9.3",
+      "date": "2026-10-06",
+      "items": [
+        {
+          "kind": "change",
+          "text": "图片显示速度优化"
+        }
+      ]
+    },
+    {
+      "version": "v0.9.2",
+      "date": "2026-10-06",
+      "title": "公开上线",
+      "items": []
+    }
+  ]
+}

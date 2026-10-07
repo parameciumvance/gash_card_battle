@@ -32,6 +32,11 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 - VPS 端由 watchtower 每 300 秒輪詢,有新版就拉取並重啟該容器。CI 不持有任何能連進 VPS 的憑證(SSH 金鑰、VPN 授權)。
   - 理由:只要 CI 有能力觸發 VPS 執行指令,Secrets 外洩時這個能力就會一起外洩,加固憑證只能縮小傷害範圍。直接拿掉這個能力,外洩時最多只能推一個惡意映像檔到 registry。代價是部署要等下一次輪詢。
 - `app` 只在打 tag 時才有新版,維護者藉此挑對局少的時間發布(重啟會讓對局消失)。
+- **更新內容與 GitHub Release**:`deploy.yml` 在建置前執行 `tools/release_notes.py check <tag>`,更新內容(`frontend/i18n/releases.zh-TW.json`)的最新一版必須等於 tag,否則不建置,線上維持原版本。映像檔推送後以 `markdown <tag>` 的輸出(繁中)執行 `gh release create`,工作需要 `contents: write`(另有 `packages: write` 推 GHCR)。
+  - 要求「最新一版 = tag」而非「存在該版」:新版本一定寫在最前面,tag 打錯成舊版號時也會擋下。
+  - 檢查放在 deploy 而非 test:一般 push 時還沒有 tag,無從比對。
+  - Release 在推送之後才建立:建立失敗(權限、網路)不影響部署,可用同一個工具的輸出手動補建。
+  - 工具只用標準函式庫,CI 不必安裝專案依賴;映像檔不含 `tools/`,工具只在 CI 用。
 - `cloudflared` 使用 `latest`,有新版就自動更新,容器內關閉它自己的更新機制(`--no-autoupdate`)。
   - 理由:重啟 `cloudflared` 不會重啟 `app`,房間狀態保留,前端的 WebSocket 斷線後 1.5 秒自動重連並由 `welcome` 取回完整狀態,所以不需要挑時間;不更新反而會逐漸落後於 Cloudflare 支援的版本。新版有問題時,把 image 改釘到上一個正常的版本。
 

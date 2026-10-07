@@ -3,6 +3,7 @@
 Run: python -m pytest tests/test_cheat_editor.py -q
 Uses an isolated local server and a fresh browser context per test.
 """
+import json
 import socket
 import subprocess
 import sys
@@ -43,6 +44,28 @@ def server():
         process.wait(timeout=10)
 
 
+# 首頁會跳出最新一版的更新內容(battle-ui「更新內容」),遮罩會擋住操作。每個 context 預設把
+# repo 中最新一版記為已確認(只在尚未記錄時寫入,不覆蓋測試自己設的值);更新內容的測試另以 route 換成更新的版本
+LATEST_RELEASE = json.loads((ROOT / "frontend/i18n/releases.zh-TW.json").read_text(encoding="utf-8"))["releases"][0]["version"]
+SEEN_RELEASE_SCRIPT = (f"if (localStorage.getItem('gash-release-seen') === null) "
+                       f"localStorage.setItem('gash-release-seen', '{LATEST_RELEASE}');")
+
+
+class _Browser:
+    """Chromium 包一層:new_context 自動加上 SEEN_RELEASE_SCRIPT,其餘照原物件。"""
+
+    def __init__(self, instance):
+        self._instance = instance
+
+    def new_context(self, **kwargs):
+        context = self._instance.new_context(**kwargs)
+        context.add_init_script(SEEN_RELEASE_SCRIPT)
+        return context
+
+    def __getattr__(self, name):
+        return getattr(self._instance, name)
+
+
 @pytest.fixture(scope="module")
 def browser():
     with pw.sync_playwright() as runtime:
@@ -50,7 +73,7 @@ def browser():
             instance = runtime.chromium.launch()
         except pw.Error as exc:
             pytest.skip(f"Chromium unavailable: {exc}")
-        yield instance
+        yield _Browser(instance)
         instance.close()
 
 

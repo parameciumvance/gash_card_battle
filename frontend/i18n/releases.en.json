@@ -1,0 +1,17 @@
+{
+  "releases": [
+    {
+      "version": "v0.9.3",
+      "date": "2026-10-06",
+      "items": [
+        {"kind": "change", "text": "Card images load faster"}
+      ]
+    },
+    {
+      "version": "v0.9.2",
+      "date": "2026-10-06",
+      "title": "Public launch",
+      "items": []
+    }
+  ]
+}

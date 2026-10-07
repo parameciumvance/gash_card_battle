@@ -174,14 +174,33 @@ watchtower 下一次輪詢(預設 5 分鐘)。
 
 ### 發布新版本
 
-**(本機)** 在 repo 資料夾下打 tag 並推上 GitHub:
+**(本機)** 先寫這一版的更新內容(給玩家看的 release note),再打 tag:
+
+1. 在 `frontend/i18n/releases.zh-TW.json`、`releases.en.json`、`releases.ja.json` 的
+   `releases` **最前面**加入新版本(版本號、日期、可選的 `title`、條目;條目分類為
+   `new` / `fix` / `change`)。三個檔案的版本與條目要一致,測試會檢查。
+2. `python tools/build_zh_cn.py` 產生簡中,commit 並 push。
+3. 打 tag 並推上 GitHub:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+推 tag 後 GitHub Actions 先以 `tools/release_notes.py check` 確認更新內容的最新一版就是
+這個 tag,再建置映像檔並推上 GHCR,最後以繁中更新內容建立 GitHub Release。可以到 repo 的
+Actions 頁面看執行進度。上線後玩家進入首頁會看到這一版的介紹(按「確認」後不再跳出)。
+
+**忘了寫更新內容**時 CI 會在建置前失敗,線上維持原版本。補上更新內容並 push 後,刪掉
+tag 重推:
 ```bash
-git tag v0.1.0
+git push origin :refs/tags/v0.1.0
+git tag -f v0.1.0
 git push origin v0.1.0
 ```
+GitHub Release 建立失敗(映像檔已推送,不影響部署)時,可以用
+`python tools/release_notes.py markdown v0.1.0` 的輸出在 GitHub 上手動建立。
 
-推 tag 後 GitHub Actions 會自動建置映像檔並推上 GHCR,可以到 repo 的 Actions 頁面看
-執行進度。VPS 上的 watchtower 最慢 5 分鐘內會偵測到新版自動更新;想立刻生效,
+VPS 上的 watchtower 最慢 5 分鐘內會偵測到新版自動更新;想立刻生效,
 **(VPS)** 手動執行 `docker compose pull && docker compose up -d` 也可以。
 
 tag 名稱就是版本號:CI 以 build arg `GASH_VERSION` 帶進映像檔,首頁免責聲明下方會顯示

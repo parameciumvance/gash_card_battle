@@ -1,4 +1,4 @@
-"""三種語言的靜態一致性檢查(battle-ui「i18n 字典」「規則頁」「錯誤訊息依錯誤碼顯示」、
+"""各語言的靜態一致性檢查(battle-ui「i18n 字典」「規則頁」「更新內容」「錯誤訊息依錯誤碼顯示」、
 card-data「日文與英文卡片文字」)。只保證完整與一致,不檢查翻譯品質。"""
 
 import json
@@ -114,6 +114,53 @@ def test_rules_icons_section_explains_both_meanings(lang):
     icons = next(s for s in load(f"rules.{lang}.json")["sections"] if s["id"] == "icons")
     text = json.dumps(icons, ensure_ascii=False)
     assert [w for w in ICON_TERMS[lang] if w not in text] == []
+
+
+# ---------------------------------------------------------------- 更新內容
+
+VERSION_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+RELEASE_KINDS = {"new", "fix", "change"}
+
+
+def release_shape(data):
+    """不需翻譯的部分:版本、日期、標題有無、各條目分類。"""
+    return [(r["version"], r["date"], "title" in r, [i["kind"] for i in r["items"]]) for r in data["releases"]]
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_releases_are_well_formed(lang):
+    data = load(f"releases.{lang}.json")
+    assert set(data) == {"releases"} and data["releases"]
+    versions = []
+    for r in data["releases"]:
+        assert set(r) <= {"version", "date", "title", "items"}, r
+        m = VERSION_RE.match(r["version"])
+        assert m, r["version"]
+        versions.append(tuple(int(x) for x in m.groups()))
+        assert re.match(r"^\d{4}-\d{2}-\d{2}$", r["date"]), r
+        if "title" in r:
+            assert isinstance(r["title"], str) and r["title"].strip(), r
+        for item in r["items"]:
+            assert set(item) == {"kind", "text"} and item["kind"] in RELEASE_KINDS, item
+            assert item["text"].strip(), item
+    assert versions == sorted(set(versions), reverse=True)              # 由新到舊、不重複
+
+
+@pytest.mark.parametrize("lang", ["zh-CN", "en", "ja"])
+def test_releases_match_across_languages(lang):
+    assert release_shape(load(f"releases.{lang}.json")) == release_shape(load("releases.zh-TW.json"))
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_release_kind_labels(lang):
+    d = load(f"{lang}.json")
+    assert [k for k in sorted(RELEASE_KINDS) if not d.get(f"release.kind.{k}")] == []
+
+
+@pytest.mark.parametrize("lang", ["en"])
+def test_releases_are_translated(lang):
+    text = (I18N / f"releases.{lang}.json").read_text(encoding="utf-8")
+    assert not re.search(r"[぀-ヿ一-鿿]", text)
 
 
 # ---------------------------------------------------------------- 卡片文字檔

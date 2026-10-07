@@ -1,6 +1,6 @@
 # battle-ui — 設計
 
-目前只整理了背景紋路、首頁與設定頁、決策互動、魔本網格排版、行動記錄抽屜、事件動畫、對手行動聚焦展示、回合和時機指示、規則頁、意見回報與語言;其餘畫面設計以 `frontend/` 程式與測試為準。
+目前只整理了背景紋路、首頁與設定頁、決策互動、魔本網格排版、更新內容、行動記錄抽屜、事件動畫、對手行動聚焦展示、回合和時機指示、規則頁、意見回報與語言;其餘畫面設計以 `frontend/` 程式與測試為準。
 
 ## 背景紋路
 
@@ -48,6 +48,18 @@
   - 查閱魔本的對頁寬由 `--review-card-w`(96px,`.review-cell` 與其中的卡片、卡背都用此寬)計算:`2 × --review-card-w + 15px`。
 - **P1 與 P32 各佔一欄**:P1 `justify-self: end`、P32 `justify-self: start`,如實體魔本的右頁與左頁;17 個欄位依序排下,P32 落在最後一列的第一欄。
 - **卡片等高**:查閱魔本的列預設拉伸,`.review-cell .card { flex: 1 }` 讓同一列的卡片等高(不固定卡高:各語言、各卡的自然高度約 160–255px,固定高度會截斷或大量留白);構築器與金手指 `.page-slot.filled` 以 `align-items: stretch` 讓卡片填滿頁位,同一對頁的兩張等高。
+
+## 更新內容
+
+- **資料**:`frontend/i18n/releases.<lang>.json` 的 `releases` 陣列,順序即顯示順序,第一個是最新一版。每一版 `version`、`date`、可選的 `title`、`items`(`kind` 為 `new` / `fix` / `change`,標籤 `release.kind.*`,條目以 `release.item` 組成「[分類] 文字」)。純文字,以 DOM 建構。
+  - 與規則頁同一套語言模式:繁中為主要來源,簡中由 `tools/build_zh_cn.py` 轉換,英日另寫;`tests/test_i18n_languages.py` 檢查各語言的版本、日期、標題有無、條目數與分類一致,漏翻在一般 push 的測試就會失敗。
+  - 不由 commit 訊息產生:commit 寫給開發者看,更新內容寫給玩家看;GitHub Release 只能放一種語言,不適合當來源。
+- **載入**:`loadLanguage()` 與規則頁一起載入目前語言,失敗改用繁中,都失敗時 `RELEASES` 為 null(入口隱藏、不跳出)。
+- **跳出**:掛在 `show("landing")`。`gash-release-seen` 不等於最新一版就以資訊面板(`showInfo`,kind `release-latest`)顯示最新一版,關閉鈕改為「確認」,按了才寫入;點遮罩關閉不寫入。`releasePopped` 讓同一次載入只跳一次(在首頁與設定頁之間來回時不重複)。
+  - 只比較是否等於最新一版,不解析版本號大小:記錄不存在、是舊版或格式不明都一律跳出。新玩家也會看到最新一版,作為功能介紹。
+  - 經房號連結、觀戰、重連進入的畫面不經過 `show("landing")`,自然不跳出;`show()` 切到其他畫面時關閉開啟中的更新內容面板,對局中不會留著。
+- **全部歷史**:首頁版本號旁的 `#release-open`(kind `release-history`),列出全部版本,只有「關閉」。版本號這一行 `#landing-version-line` 放在免責聲明 `#landing-disclaimer` 之外(同一個 `#landing-foot` 內),免責聲明本身不含按鈕或入口。
+- **瀏覽器測試**:共用的 `browser` fixture(`tests/test_cheat_editor.py`)為每個 context 預設把 repo 中最新一版記為已確認(只在尚未記錄時寫入),否則首頁的跳出面板會擋住其他測試的操作;更新內容的測試以 route 換成固定資料,並自行設定或清除已確認的版本。
 
 ## 行動記錄抽屜(窄螢幕)
 

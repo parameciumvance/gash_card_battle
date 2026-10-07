@@ -1,9 +1,10 @@
 """由繁體中文產生簡體中文(card-data「簡體中文卡片文字」、battle-ui「語言選擇」)。
 
-三個簡中檔全部由對應的繁中檔轉換,不手動編輯;改了繁中就重跑本工具:
+簡中檔全部由對應的繁中檔轉換,不手動編輯;改了繁中就重跑本工具:
 
 - `frontend/i18n/zh-TW.json`       → `frontend/i18n/zh-CN.json`
 - `frontend/i18n/rules.zh-TW.json` → `frontend/i18n/rules.zh-CN.json`
+- `frontend/i18n/releases.zh-TW.json` → `frontend/i18n/releases.zh-CN.json`
 - `data/cards.zh-TW.json`          → `data/cards.zh-CN.json`
 
 轉換用 OpenCC `tw2sp`(字形 + 大陸用語),再以 `TERMS` 保留遊戲術語、修正不適合的詞語轉換。
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FILES = {
     ROOT / "frontend/i18n/zh-TW.json": ROOT / "frontend/i18n/zh-CN.json",
     ROOT / "frontend/i18n/rules.zh-TW.json": ROOT / "frontend/i18n/rules.zh-CN.json",
+    ROOT / "frontend/i18n/releases.zh-TW.json": ROOT / "frontend/i18n/releases.zh-CN.json",
     ROOT / "data/cards.zh-TW.json": ROOT / "data/cards.zh-CN.json",
 }
 SKIP_KEYS = {"name_ja", "app.title"}

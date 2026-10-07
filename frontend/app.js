@@ -11,6 +11,7 @@ let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { assets: null, version: null };  // /api/meta:卡圖安裝狀態、版本號
 let RULES = null;     // 規則頁內容(i18n/rules.<lang>.json)
+let RELEASES = null;  // 更新內容(i18n/releases.<lang>.json 的 releases,最新的在前);載入失敗為 null
 
 // 窄螢幕(手機直向)偵測:佈局由 CSS 切換,JS 僅供 log 抽屜等行為分支
 const NARROW_MQ = window.matchMedia("(max-width: 700px)");
@@ -302,6 +303,8 @@ function show(sectionId) {
   for (const id of ["landing", "setup", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
+  if (sectionId === "landing") maybeShowRelease();
+  else if (INFO && INFO.kind.startsWith("release")) closeInfo();   // 更新內容只在首頁顯示
 }
 
 // ---------------------------------------------------------------- 牌組選單與 payload
@@ -1825,6 +1828,54 @@ function coinResultsText(results) {
 
 let INFO = null;   // 開啟中的資訊對話框 {kind}
 
+// ---------------------------------------------------------------- 更新內容
+// 進入首頁時,最新一版還沒按過「確認」就跳出該版;確認才記在 gash-release-seen,同一次載入只跳一次
+const RELEASE_SEEN_KEY = "gash-release-seen";
+let releasePopped = false;
+
+function releaseBlock(r) {
+  const sec = document.createElement("div");
+  sec.className = "info-section release";
+  const h = document.createElement("h4");
+  const ver = document.createElement("span");
+  ver.textContent = r.version + (r.title ? ` ${r.title}` : "");
+  const date = document.createElement("span");
+  date.className = "release-date";
+  date.textContent = r.date;
+  h.append(ver, date);
+  sec.appendChild(h);
+  if (r.items.length) {
+    const ul = document.createElement("ul");
+    for (const item of r.items) {
+      const li = document.createElement("li");
+      li.textContent = t("release.item", { kind: t(`release.kind.${item.kind}`), text: item.text });
+      ul.appendChild(li);
+    }
+    sec.appendChild(ul);
+  }
+  return sec;
+}
+
+function maybeShowRelease() {
+  if (!RELEASES || releasePopped) return;
+  const latest = RELEASES[0];
+  let seen = null;
+  try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) { /* 無法存取:視為未確認 */ }
+  if (seen === latest.version) return;
+  releasePopped = true;
+  showInfo("release-latest", t("ui.release.latest", { version: latest.version }), [releaseBlock(latest)]);
+  const confirm = document.getElementById("info-close");
+  confirm.textContent = t("ui.release.confirm");
+  confirm.onclick = () => {
+    try { localStorage.setItem(RELEASE_SEEN_KEY, latest.version); } catch (_) { /* 本次載入不再跳出 */ }
+    closeInfo();
+  };
+}
+
+function showReleaseHistory() {
+  showInfo("release-history", t("ui.release.title"), RELEASES.map(releaseBlock));
+}
+
 function showInfo(kind, title, body) {
   INFO = { kind };
   document.getElementById("info-title").textContent = title;
@@ -2910,6 +2961,10 @@ function renderLanding() {
   document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
   document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
   document.getElementById("landing-version").textContent = META.version ? t("ui.version", { v: META.version }) : "";
+  const releaseOpen = document.getElementById("release-open");
+  releaseOpen.textContent = t("ui.release.open");
+  releaseOpen.classList.toggle("hidden", !RELEASES);
+  releaseOpen.onclick = showReleaseHistory;
 
   // 設定頁
   document.getElementById("setup-back").textContent = t("ui.setup.back");
@@ -3042,6 +3097,9 @@ async function loadLanguage() {
   }
   RULES = await fetchJson(`/static/i18n/rules.${LANG}.json`)
     .catch(() => fetchJson(`/static/i18n/rules.${FALLBACK_LANG}.json`)).catch(() => null);
+  const releases = await fetchJson(`/static/i18n/releases.${LANG}.json`)
+    .catch(() => fetchJson(`/static/i18n/releases.${FALLBACK_LANG}.json`)).catch(() => null);
+  RELEASES = releases && Array.isArray(releases.releases) && releases.releases.length ? releases.releases : null;
   document.documentElement.lang = LANG;   // 日文以 :lang(ja) 換日文字型
 }
 

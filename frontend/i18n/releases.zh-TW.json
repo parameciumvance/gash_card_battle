@@ -1,0 +1,17 @@
+{
+  "releases": [
+    {
+      "version": "v0.9.3",
+      "date": "2026-10-06",
+      "items": [
+        {"kind": "change", "text": "圖片顯示速度優化"}
+      ]
+    },
+    {
+      "version": "v0.9.2",
+      "date": "2026-10-06",
+      "title": "公開上線",
+      "items": []
+    }
+  ]
+}
