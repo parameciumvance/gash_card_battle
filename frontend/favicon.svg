@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-220 -239 840 840">
+  <!-- 網頁圖示:魔本紅底、金色五圓紋(圓心在沙漏形的四個頂點與交點,同 emblem.svg);線寬以 16px 可辨識為準 -->
+  <rect x="-220" y="-239" width="840" height="840" rx="168" fill="#6e1d1d"/>
+  <g fill="none" stroke="#ffd166" stroke-width="56" stroke-linejoin="round">
+    <path d="M0 0H400L0 362H400Z"/>
+    <circle cx="0" cy="0" r="105"/>
+    <circle cx="400" cy="0" r="105"/>
+    <circle cx="200" cy="181" r="105"/>
+    <circle cx="0" cy="362" r="105"/>
+    <circle cx="400" cy="362" r="105"/>
+  </g>
+</svg>

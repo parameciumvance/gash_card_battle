@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>金色のガッシュベル!! THE CARD BATTLE</title>
+  <title>Gash Card Battle Online</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header id="topbar">
-    <span id="title"></span>
+    <!-- 標題字(GASH / CARD BATTLE / ONLINE)與網站名稱 app.title 一致;螢幕閱讀器讀 aria-label -->
+    <span id="title" role="img"><span class="wordmark small"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></span>
     <span id="identity"></span>
     <span id="turn-info"></span>
     <span id="phase-info"></span>
@@ -26,7 +28,7 @@
 
   <!-- 入口頁 -->
   <section id="landing" class="hidden">
-    <h1 id="landing-title"></h1>
+    <h1 id="landing-title"><span class="wordmark large"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></h1>
     <div id="assets-hint" class="hidden"></div>
     <div id="landing-cards">
       <button class="entry" id="entry-npc"><span class="entry-title"></span><span class="entry-desc"></span></button>

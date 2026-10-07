@@ -1,4 +1,4 @@
-/* 金色のガッシュベル!! THE CARD BATTLE — 前端
+/* Gash Card Battle Online — 前端
  * 模式:本機(local, 全視角雙 token)/ 線上(online, 單 token + WS)/ NPC 對戰(npc, 同線上,對手由伺服器驅動)
  * / 觀戰(spectator)。
  * 規則裁決與資訊過濾全在後端;前端渲染視角化快照、送指令、渲染事件 log。 */
@@ -997,7 +997,7 @@ document.getElementById("cheat-panel").addEventListener("cancel", (ev) => {
 });
 
 function renderTopbar() {
-  document.getElementById("title").textContent = t("app.title");
+  document.getElementById("title").setAttribute("aria-label", t("app.title"));
   updateLogTab();
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
@@ -2940,7 +2940,7 @@ function submitFriend() {
 // ---------------------------------------------------------------- 入口頁渲染與啟動
 
 function renderLanding() {
-  document.getElementById("landing-title").textContent = t("app.title");
+  document.getElementById("landing-title").setAttribute("aria-label", t("app.title"));
   const entries = {
     npc: () => openSetup("npc"),
     friend: () => openSetup("friend"),

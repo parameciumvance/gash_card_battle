@@ -173,6 +173,17 @@ UI SHALL 只提供當下合法的操作(依狀態快照過濾);**卡片層級的
 - **WHEN** 線上對局中對手正在決策,自己點開對手要選的魔物
 - **THEN** 放大檢視沒有「選擇」按鈕,場上也沒有可選的發光
 
+### Requirement: 網站名稱與圖示
+網站名稱 SHALL 為「Gash Card Battle Online」,各語言相同、不翻譯;瀏覽器分頁標題 SHALL 為此名稱。首頁與頂欄 SHALL 以標題字呈現:五圓紋徽章(與網頁圖示相同)加上 GASH / CARD BATTLE / ONLINE 三行,ONLINE 置中;頂欄排成一行;輔助技術 SHALL 讀到完整名稱。網頁 SHALL 提供網頁圖示:魔本紅底的圓角方塊上畫金色的魔本五圓紋,在瀏覽器分頁的小尺寸下仍可辨識。
+
+#### Scenario: 各語言名稱相同
+- **WHEN** 玩家以日文或英文開啟首頁
+- **THEN** 分頁標題為「Gash Card Battle Online」;首頁標題字為徽章與 GASH / CARD BATTLE / ONLINE,ONLINE 置中,螢幕閱讀器讀到「Gash Card Battle Online」
+
+#### Scenario: 分頁顯示五圓紋圖示
+- **WHEN** 玩家在瀏覽器開啟網站
+- **THEN** 分頁顯示紅底金色五圓紋的圖示
+
 ### Requirement: 首頁入口
 UI SHALL 提供首頁入口,依序為:NPC 對戰、與朋友對戰、本機測試、牌組構築、規則、意見回報。每個入口 SHALL 只顯示名稱與簡介,整個入口即為按鈕;首頁 MUST NOT 含暱稱、牌組、難度、計時、房號等設定欄位。點 NPC 對戰、與朋友對戰、本機測試 SHALL 進入該模式的設定頁,在設定頁完成設定後才開始;設定頁 SHALL 可返回首頁。點牌組構築 SHALL 直接開啟構築器視圖;點規則 SHALL 直接開啟規則頁(見「規則頁」);點意見回報 SHALL 開啟意見回報對話框(見「意見回報」)。
 

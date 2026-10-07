@@ -4,7 +4,7 @@
 
 ## 系統概觀
 
-《金色のガッシュベル!! THE CARD BATTLE》的對戰網頁。單一 Python 服務(FastAPI)提供 API 與靜態前端;遊戲規則由純 Python 引擎執行,房間狀態存在行程記憶體。可和真人線上對戰、一人操作雙方測試,或和伺服器驅動的 NPC 對戰。以容器在 VPS 長期部署。
+Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非官方)的對戰網頁。單一 Python 服務(FastAPI)提供 API 與靜態前端;遊戲規則由純 Python 引擎執行,房間狀態存在行程記憶體。可和真人線上對戰、一人操作雙方測試,或和伺服器驅動的 NPC 對戰。以容器在 VPS 長期部署。
 
 | 子系統 | Capabilities |
 |---|---|
