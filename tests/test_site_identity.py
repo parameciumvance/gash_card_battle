@@ -10,6 +10,19 @@ from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixtur
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "Gash Card Battle Online"
+# 首頁標題字三行的墨色中心(以 canvas 量字形實際的左右邊界,含字距;不受字形左右留白與字尾字距影響)
+INK_CENTERS = """async () => {
+    await document.fonts.ready;
+    return [...document.querySelectorAll('#landing-title .wm-text > span')].map((el) => {
+        const cs = getComputedStyle(el);
+        const c = document.createElement('canvas').getContext('2d');
+        c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        c.letterSpacing = cs.letterSpacing;
+        const m = c.measureText(el.textContent);
+        const left = el.getBoundingClientRect().left + parseFloat(cs.paddingLeft);
+        return left + (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
+    });
+}"""
 INDEX = (ROOT / "frontend/index.html").read_text(encoding="utf-8")
 
 
@@ -46,11 +59,9 @@ def test_landing_wordmark(browser, server):  # noqa: F811
     assert title.get_attribute("aria-label") == NAME
     assert title.locator(".wm-text > span").all_text_contents() == ["GASH", "CARD BATTLE", "ONLINE"]
     assert title.locator(".wm-badge").get_attribute("src") == "/static/favicon.svg"   # 徽章與網頁圖示相同
-    centers = page.evaluate("""() => ['.wm-text', '.wm-online'].map((s) => {
-        const r = document.querySelector('#landing-title ' + s).getBoundingClientRect();
-        return r.left + r.width / 2; })""")
-    assert abs(centers[0] - centers[1]) <= 2                              # ONLINE 置中
     assert page.evaluate("document.fonts.check('700 20px \"Oswald Title\"')")
+    centers = page.evaluate(INK_CENTERS)
+    assert max(centers) - min(centers) <= 2, centers                      # 三行的墨色沿同一條中線置中
     assert page.title() == NAME
     context.close()
 

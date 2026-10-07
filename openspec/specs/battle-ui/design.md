@@ -6,7 +6,7 @@
 
 - 名稱「Gash Card Battle Online」:`<title>` 寫在 `index.html`,頂欄與首頁標題取自 i18n 的 `app.title`;四種語言相同、不翻譯(專有名稱),`build_zh_cn.py` 不轉換。原本沿用原作卡牌遊戲的日文名稱,容易被誤認為官方商品,改為自己的名稱。
 - 網頁圖示 `frontend/favicon.svg`:魔本紅圓角方塊、金色五圓紋,以 `<link rel="icon">` 引用。線寬以 16px 可辨識為準,比背景紋路 `emblem.svg` 粗很多,兩者顏色、底色也不同,各自一檔。只有 SVG:主流瀏覽器都支援;要支援舊版 Safari 或 iOS 主畫面圖示(`apple-touch-icon`)時再補 PNG。
-- **標題字**:首頁 `.wordmark.large`、頂欄 `.wordmark.small`(排成一行),結構寫在 `index.html`;徽章直接用 `favicon.svg`,與網頁圖示永遠一致。GASH 魔本紅、CARD BATTLE 深藍、ONLINE 琥珀色並在文字欄置中(字尾字距以左內距平衡)。`app.title` 只作 `aria-label`。
+- **標題字**:首頁 `.wordmark.large`、頂欄 `.wordmark.small`(排成一行),結構寫在 `index.html`;徽章直接用 `favicon.svg`,與網頁圖示永遠一致。GASH 魔本紅、CARD BATTLE 深藍、ONLINE 琥珀色,三行沿同一條中線置中。字距會在字尾多出一段空白,大字的字形左右留白也會放大,只置中外框會讓墨色偏右;各行以等於字距的左內距平衡,測試以 canvas 量的墨色邊界檢查三行中心一致。`app.title` 只作 `aria-label`。
   - 字型 Oswald(OFL)以 Google Fonts `text=` 取標題字母的子集,約 2.5KB,自架於 `frontend/fonts/`(附授權檔),不向第三方請求。改標題字的字母時要重新取子集。
 
 ## 背景紋路

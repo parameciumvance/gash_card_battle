@@ -70,15 +70,15 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .wordmark { display: inline-flex; align-items: center; gap: var(--wm-gap); font-family: "Oswald Title", "Oswald", sans-serif;
   color: var(--on-page); line-height: 1; }
 .wm-badge { width: var(--wm-badge); height: var(--wm-badge); flex-shrink: 0; }
-.wm-text { display: flex; flex-direction: column; gap: var(--wm-line-gap); }
-.wm-gash { font-weight: 700; font-size: var(--wm-gash); letter-spacing: .03em; color: var(--book-red); }
-.wm-sub { font-weight: 500; font-size: var(--wm-sub); letter-spacing: .2em; margin-right: -.2em; }
-.wm-online { align-self: center; margin-right: 0; padding-left: .2em; color: var(--on-page-amber); }   /* 字距在字尾多出的空白以左內距平衡,字形才真正置中 */
+/* 三行沿同一條中線置中;字距會在字尾多出一段空白,各行以等量左內距平衡,墨色才真正對齊中線 */
+.wm-text { display: flex; flex-direction: column; align-items: center; gap: var(--wm-line-gap); }
+.wm-gash { font-weight: 700; font-size: var(--wm-gash); letter-spacing: .03em; padding-left: .03em; color: var(--book-red); }
+.wm-sub { font-weight: 500; font-size: var(--wm-sub); letter-spacing: .2em; padding-left: .2em; }
+.wm-online { color: var(--on-page-amber); }
 .wordmark.large { --wm-badge: 104px; --wm-gap: 22px; --wm-gash: 76px; --wm-sub: 23px; --wm-line-gap: 6px; }
 .wordmark.small { --wm-badge: 24px; --wm-gap: 8px; --wm-gash: 20px; --wm-sub: 13px; --wm-line-gap: 7px; }
-.wordmark.small .wm-text { flex-direction: row; align-items: baseline; }   /* 頂欄排成一行 */
-.wordmark.small .wm-sub { letter-spacing: .12em; margin-right: 0; }
-.wordmark.small .wm-online { align-self: baseline; padding-left: 0; }   /* 首頁的置中只用於三行排版;一行時與 CARD BATTLE 同一基線 */
+.wordmark.small .wm-text { flex-direction: row; align-items: baseline; }   /* 頂欄排成一行,同一基線 */
+.wordmark.small .wm-sub { letter-spacing: .12em; padding-left: 0; }
 #topbar > span:empty { display: none; }   /* 首頁、構築器等沒有對局資訊時,空欄位不佔 gap(手機上會把按鈕擠到右側並換行) */
 #topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
 #acting-info { color: var(--on-page-green); font-weight: bold; }
