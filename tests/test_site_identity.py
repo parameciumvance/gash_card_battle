@@ -53,3 +53,15 @@ def test_landing_wordmark(browser, server):  # noqa: F811
     assert page.evaluate("document.fonts.check('700 20px \"Oswald Title\"')")
     assert page.title() == NAME
     context.close()
+
+
+def test_topbar_wordmark_sits_on_one_baseline(browser, server):  # noqa: F811
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-TW")
+    page = context.new_page()
+    page.goto(server)
+    page.wait_for_selector("#landing:not(.hidden)")
+    page.evaluate("document.fonts.ready")
+    bottoms = page.evaluate("""() => [...document.querySelectorAll('#title .wm-sub')]
+        .map((el) => Math.round(el.getBoundingClientRect().bottom))""")
+    assert len(bottoms) == 2 and bottoms[0] == bottoms[1]                 # CARD BATTLE 與 ONLINE 同一基線
+    context.close()

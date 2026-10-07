@@ -78,6 +78,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .wordmark.small { --wm-badge: 24px; --wm-gap: 8px; --wm-gash: 20px; --wm-sub: 13px; --wm-line-gap: 7px; }
 .wordmark.small .wm-text { flex-direction: row; align-items: baseline; }   /* 頂欄排成一行 */
 .wordmark.small .wm-sub { letter-spacing: .12em; margin-right: 0; }
+.wordmark.small .wm-online { align-self: baseline; padding-left: 0; }   /* 首頁的置中只用於三行排版;一行時與 CARD BATTLE 同一基線 */
 #topbar > span:empty { display: none; }   /* 首頁、構築器等沒有對局資訊時,空欄位不佔 gap(手機上會把按鈕擠到右側並換行) */
 #topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
 #acting-info { color: var(--on-page-green); font-weight: bold; }
