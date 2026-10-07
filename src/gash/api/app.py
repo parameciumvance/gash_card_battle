@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import mimetypes
 import random
 import time
 from contextlib import asynccontextmanager
@@ -27,6 +28,10 @@ from ..paths import frontend_dir, resolve_assets
 from ..version import app_version
 from .rooms import NpcSeat, Room, RoomError, RoomStore
 from .views import filter_events, snapshot
+
+# Python 3.12 的 .webp 只在非嚴格對照表,python:3.12-slim 又沒有 /etc/mime.types,
+# StaticFiles 會回 application/octet-stream;先登記,卡圖一律 image/webp
+mimetypes.add_type("image/webp", ".webp")
 
 FRONTEND_DIR = frontend_dir()
 ASSETS = resolve_assets()
@@ -55,13 +60,18 @@ app = FastAPI(title="gash-card-battle", lifespan=lifespan)
 
 
 @app.middleware("http")
-async def revalidate_frontend(request, call_next):
+async def cache_headers(request, call_next):
     """前端資源帶 Cache-Control: no-cache:瀏覽器每次使用前以 ETag 確認(未變回 304),
-    部署後不會混用新舊版本。卡圖內容固定、API 本來就不快取,兩者不套用。"""
+    部署後不會混用新舊版本。卡圖內容固定,成功回應快取 7 天(404 不帶,補圖後才看得到);
+    API 本來就不快取,不套用。"""
     response = await call_next(request)
     path = request.url.path
-    frontend = path == "/" or path.startswith(("/static/", "/data/"))
-    if frontend and not path.startswith("/static/assets/") and "cache-control" not in response.headers:
+    if "cache-control" in response.headers:
+        return response
+    if path.startswith("/static/assets/"):
+        if response.status_code in (200, 304):
+            response.headers["Cache-Control"] = "public, max-age=604800"
+    elif path == "/" or path.startswith(("/static/", "/data/")):
         response.headers["Cache-Control"] = "no-cache"
     return response
 

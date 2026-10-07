@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from gash.api import app as app_module
 from gash.api.app import app
 from gash.engine.cards import card_db
+from tests.test_static_cache import art_dir  # noqa: F401  暫存卡圖目錄
 
 client = TestClient(app)
 
@@ -17,15 +18,14 @@ def test_meta_dev_mode():
     m = res.json()
     assert "tunnel_url" not in m
     a = m["assets"]
-    assert a["installed"] is True
+    assert isinstance(a["installed"], bool)
     assert a["expected"] == len(card_db())
     # 卡圖不在版控內,本機是否齊全取決於開發者自己下載了多少張
     assert a["count"] <= a["expected"]
     assert a["install_dir"] == str(app_module.ASSETS.dir)
 
 
-def test_card_art_served_from_assets_mount():
-    # 開發模式等價:既有卡圖 URL 照常回應
+def test_card_art_served_from_assets_mount(art_dir):  # noqa: F811
     res = client.get("/static/assets/cards/S-001.webp")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("image/")

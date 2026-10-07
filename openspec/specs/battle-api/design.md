@@ -35,9 +35,15 @@
 - `app.py` 的 middleware 對 `/`、`/static/`、`/data/`(卡圖 `/static/assets/` 除外)加上 `Cache-Control: no-cache`:瀏覽器每次使用前以 `ETag` 確認,未變回 304。
   - 沒有 `Cache-Control` 時瀏覽器會自行推估快取時間,部署後曾出現新 `index.html` 配舊 `app.js` / `style.css` 的情況。
   - 不用版本號網址:`app.js` 在執行時還會載入 `i18n/*.json`、`data/*.json`、規則頁,全部帶版本號需要建置步驟;`no-cache` 一個 middleware 就涵蓋全部,代價只是幾個 304 往返。
-  - 卡圖內容固定、另外安裝(不隨部署更新),維持瀏覽器自行快取。回應已有 `Cache-Control` 時不覆寫。
+  - 回應已有 `Cache-Control` 時不覆寫。
   - Cloudflare 依來源的 `Cache-Control` 不在邊緣快取這些檔案。
   - Cloudflare 的 Browser Cache TTL 若不是 Respect Existing Headers,會把送給瀏覽器的 `Cache-Control` 改寫成 `max-age=14400`(見 `docker-deployment/design.md`)。
+- 卡圖(`/static/assets/`)的成功回應(200、304)由同一個 middleware 加上 `Cache-Control: public, max-age=604800`。
+  - 卡圖內容固定、另外安裝,不隨部署更新。沒有 `Cache-Control` 時瀏覽器依 `Last-Modified` 推估,剛下載的卡圖推估時間很短,重新渲染(例如牌組編輯器切換篩選)時會先向伺服器確認,卡面短暫空白。
+  - 7 天而不是 `immutable`:同檔名仍可能換內容(重新下載),過期後以 `ETag` 確認;換內容時清 Cloudflare 快取(見 README「卡圖」)。
+  - 404 不帶:Cloudflare 會依 `max-age` 快取 404,缺圖時帶長期快取的話,之後補上卡圖要等很久才看得到。
+  - `.webp` 屬於 Cloudflare 預設在邊緣快取的副檔名,邊緣也依這個 `max-age` 快取,VPS 的卡圖流量隨之下降。
+- 卡圖的 `Content-Type`:`app.py` 載入時以 `mimetypes.add_type("image/webp", ".webp")` 登記。Python 3.12 的 `.webp` 只在非嚴格的 `common_types`,`python:3.12-slim` 又沒有 `/etc/mime.types`,Starlette 以嚴格模式判斷不出就回 `application/octet-stream`。測試以子行程模擬這個環境(`tests/test_static_cache.py`)。
 
 ## 版本號
 
