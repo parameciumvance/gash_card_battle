@@ -128,6 +128,18 @@ class RoomStore:
         room.touch()
         return room, token1
 
+    def online_count(self) -> int:
+        """對戰中人數:玩家連線依 (房號, 座位) 去重,觀戰連線(共用 token,無從區分)每條一人。"""
+        players = set()
+        spectators = 0
+        for room in self.rooms.values():
+            for _ws, viewer in room.sockets:
+                if viewer == "spectator":
+                    spectators += 1
+                else:
+                    players.add((room.code, viewer))
+        return len(players) + spectators
+
     def cleanup_idle(self) -> None:
         now = time.time()
         for code in [c for c, r in self.rooms.items()

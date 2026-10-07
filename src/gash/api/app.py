@@ -348,6 +348,12 @@ async def get_meta():
     }
 
 
+@app.get("/api/online")
+async def get_online():
+    """對戰中人數(首頁顯示);只回總數,不含任何房間資訊。"""
+    return {"count": store.online_count()}
+
+
 # ---------------------------------------------------------------- 房間端點
 
 @app.post("/api/rooms")

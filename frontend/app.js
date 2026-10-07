@@ -305,6 +305,7 @@ function show(sectionId) {
   }
   if (sectionId === "landing") maybeShowRelease();
   else if (INFO && INFO.kind.startsWith("release")) closeInfo();   // 更新內容只在首頁顯示
+  syncOnline();   // 對戰中人數:進入首頁時抓取,離開時停止
 }
 
 // ---------------------------------------------------------------- 牌組選單與 payload
@@ -2936,6 +2937,39 @@ function submitFriend() {
   const code = document.getElementById("join-code").value.trim();
   if (code) joinRoom(code);
 }
+
+// ---------------------------------------------------------------- 對戰中人數(首頁)
+
+// 只在首頁且頁面可見時更新:進入首頁、回到頁面時立即抓取,之後每 30 秒一次
+const ONLINE_REFRESH_MS = 30000;
+let onlineTimer = null;
+let onlineSeq = 0;      // 請求交錯時只採用最後一次發出的結果
+
+async function refreshOnline() {
+  const seq = ++onlineSeq;
+  let count = null;
+  try {
+    const res = await fetch("/api/online");
+    if (res.ok) count = (await res.json()).count;
+  } catch (_) { /* 失敗:不顯示 */ }
+  if (seq !== onlineSeq) return;
+  const ok = Number.isInteger(count) && count >= 0;
+  const el = document.getElementById("landing-online");
+  el.textContent = !ok ? "" : count > 0 ? t("ui.online.count", { n: count }) : t("ui.online.none");
+  el.classList.toggle("hidden", !ok);   // 失敗時不留著舊值,也不當成 0
+  el.classList.toggle("none", count === 0);
+}
+
+function syncOnline() {
+  clearInterval(onlineTimer);
+  onlineTimer = null;
+  const onLanding = !document.getElementById("landing").classList.contains("hidden");
+  if (!onLanding || document.visibilityState === "hidden") return;
+  refreshOnline();
+  onlineTimer = setInterval(refreshOnline, ONLINE_REFRESH_MS);
+}
+
+document.addEventListener("visibilitychange", syncOnline);
 
 // ---------------------------------------------------------------- 入口頁渲染與啟動
 

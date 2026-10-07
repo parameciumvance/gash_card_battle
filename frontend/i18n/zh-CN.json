@@ -205,6 +205,8 @@
   "ui.landing.disclaimer_fan": "非官方粉丝项目,与原作者及 BANDAI 无关,亦未经授权;免费且不涉商业行为。",
   "ui.landing.disclaimer_rights": "作品与卡片相关权利属于雷句诚、BANDAI 及各权利人;权利人如有疑虑,请通过「{feedback}」联系。",
   "ui.version": "版本 {v}",
+  "ui.online.count": "目前 {n} 人对战中",
+  "ui.online.none": "目前没有人对战",
   "ui.release.open": "更新内容",
   "ui.release.title": "更新内容",
   "ui.release.latest": "新版本 {version}",

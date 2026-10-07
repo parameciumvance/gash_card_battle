@@ -205,6 +205,8 @@
   "ui.landing.disclaimer_fan": "Unofficial fan project, not affiliated with or authorized by the original author or BANDAI. Free to play, with no commercial activity.",
   "ui.landing.disclaimer_rights": "All rights to the original work and the cards belong to Makoto Raiku, BANDAI, and their respective rights holders. Rights holders with any concerns, please contact us via \"{feedback}\".",
   "ui.version": "Version {v}",
+  "ui.online.count": "In battle now: {n}",
+  "ui.online.none": "No one is in a battle right now",
   "ui.release.open": "What's new",
   "ui.release.title": "What's new",
   "ui.release.latest": "New in {version}",
