@@ -785,16 +785,9 @@ function render() {
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
 }
 
-// log 抽屜頁籤(窄螢幕):標題列顯示最新一條,點擊展開/收合
+// log 抽屜頁籤(窄螢幕):點擊展開/收合;收合時由 CSS 只顯示最新 4 條
 function updateLogTab() {
-  const title = document.getElementById("log-title");
-  const panel = document.getElementById("log-panel");
-  if (isNarrow() && !panel.classList.contains("open")) {
-    const last = document.querySelector("#log .ev:last-child");
-    title.textContent = t("ui.log") + (last ? t("ui.sep.bar") + last.textContent : "");
-  } else {
-    title.textContent = t("ui.log");
-  }
+  document.getElementById("log-title").textContent = t("ui.log");
 }
 document.getElementById("log-title").onclick = () => {
   if (!isNarrow()) return;
@@ -2250,6 +2243,9 @@ function showBookReview(p) {
   const targets = PICK ? [...PICK.book.keys()].filter((k) => k.startsWith(`${p}:`)) : [];
   const overlay = document.getElementById("book-review-overlay");
   if (!ps.book && !targets.length) { closeBookReview(); return; }
+  // 開啟時捲到當前翻開的對頁;開啟期間的重繪保留玩家捲動的位置
+  const box = document.getElementById("book-review");
+  const keepScroll = BOOK_VIEW === p ? box.scrollTop : null;
   BOOK_VIEW = p;
   document.getElementById("book-review-title").textContent =
     ps.book && iControl(p) ? t("ui.book_review_title") : pname(p) + t("ui.book");
@@ -2268,6 +2264,7 @@ function showBookReview(p) {
     const num = ps.book ? ps.book[pg - 1] : target && target.card;
     const wrap = document.createElement("div");
     wrap.className = "review-cell";
+    wrap.dataset.page = pg;
     if (isOpen(pg) && !consumed.has(pg)) wrap.classList.add("open");
     if (target) wrap.classList.add("pickable");
     const tag = (cls, key) => `<span class="review-tag ${cls}">${t(key)}</span>`;
@@ -2302,6 +2299,14 @@ function showBookReview(p) {
   for (let i = 2; i <= 31; i += 2) spread([i, i + 1], false);
   spread([32], true);
   overlay.classList.remove("hidden");
+  if (keepScroll !== null) {
+    box.scrollTop = keepScroll;
+  } else {
+    const cur = grid.querySelector(`.review-cell[data-page="${Math.max(ps.pos, 1)}"]`);
+    box.scrollTop = 0;
+    const head = document.getElementById("book-review-head").offsetHeight;   // 標題列固定在上緣
+    if (cur) box.scrollTop = cur.parentElement.getBoundingClientRect().top - box.getBoundingClientRect().top - head - 8;
+  }
 }
 
 function closeBookReview() {

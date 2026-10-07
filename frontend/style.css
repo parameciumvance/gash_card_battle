@@ -102,7 +102,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   padding: 16px; max-width: 92vw; max-height: 88vh; overflow-y: auto;
 }
 #book-review-head { display: flex; align-items: center; justify-content: space-between;
-  gap: 20px; margin-bottom: 12px; }
+  gap: 20px; margin: -16px -16px 12px; padding: 16px 16px 8px;
+  position: sticky; top: -16px; z-index: 1; background: var(--panel); }   /* 捲到當前頁時標題與關閉鈕仍在 */
 #book-review-head h3 { color: var(--glow); font-size: 16px; }
 #book-review-close { padding: 5px 14px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
@@ -888,10 +889,14 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
     width: auto; border-left: none; border-top: 1px solid var(--panel-line);
     padding: 6px 10px; flex: 0 0 auto;
   }
-  #log-panel:not(.open) #log { display: none; }
-  #log-panel.open { flex: 0 0 45vh; }
+  /* 收合:只顯示最後 4 條,每條一行;展開:固定 45vh,記錄在 #log 內捲動(min-height: 0 才不會被內容撐高) */
+  #log { min-height: 0; }
+  #log-panel:not(.open) #log { flex: 0 0 auto; overflow: hidden; }
+  #log-panel:not(.open) #log .ev:not(:nth-last-child(-n+4)) { display: none; }
+  #log-panel:not(.open) #log .ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #log-panel.open { flex: 0 0 45vh; min-height: 0; }
   #log-panel h3 {
-    cursor: pointer; margin: 0; white-space: nowrap;
+    cursor: pointer; margin: 0 0 2px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
   #log-panel h3::before { content: "☰ "; color: var(--gold-soft); }
