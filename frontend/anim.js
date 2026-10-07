@@ -3,6 +3,7 @@
  * 阻塞式(coin_flipped、showdown)短暫延後重繪(500-800ms),帶 1.5s 硬性逾時保底。
  * 聚焦展示:對手行動(與對自己不利的結果)在畫面中央停留,整批播完才重繪;點擊跳過。
  * 動畫開關依演出設定(未設定時依 prefers-reduced-motion);聚焦不屬於動畫,只看聚焦設定。
+ * 音效(sound.js)跟著畫面:聚焦格出現時、阻塞演出時,其餘在重繪時;重繪後輪到自己時提示。
  * 裁決在伺服器,動畫與聚焦不影響指令與計時。 */
 
 "use strict";
@@ -70,7 +71,7 @@ const Anim = (() => {
     let cur = null;
     for (const ev of events) {
       if (blocking(ev)) {
-        if (motion) steps.push({ kind: "anim", ev });
+        if (motion) steps.push({ kind: "anim", ev, events: [ev] });
         cur = null;
         continue;
       }
@@ -78,7 +79,7 @@ const Anim = (() => {
         if (enabled) {
           const text = me !== null && ev.player === me ? t("ui.turn_banner.mine")
             : t("ui.turn_banner.named", { player: pname(ev.player) });
-          steps.push({ kind: "text", caption: null, lines: [text], pass: true, banner: true });
+          steps.push({ kind: "text", caption: null, lines: [text], pass: true, banner: true, events: [] });
         }
         cur = null;
         continue;
@@ -86,16 +87,17 @@ const Anim = (() => {
       if (!spot) continue;
       const card = CARD_EVENTS[ev.type] && others ? CARD_EVENTS[ev.type](ev) : null;
       if (card) {
-        cur = { kind: "card", card, caption: logLine(ev), lines: [], pass: false };
+        cur = { kind: "card", card, caption: logLine(ev), lines: [], pass: false, events: [ev] };
         steps.push(cur);
       } else if (textWorthy(ev, others, me)) {
         const line = logLine(ev);
         if (!line) continue;
         if (!cur) {
-          cur = { kind: "text", caption: null, lines: [], pass: true };
+          cur = { kind: "text", caption: null, lines: [], pass: true, events: [] };
           steps.push(cur);
         }
         cur.lines.push(line);
+        cur.events.push(ev);
         cur.pass = cur.pass && ev.type === "passed";
       }
     }
@@ -135,12 +137,23 @@ const Anim = (() => {
     const marks = motion ? measure(events) : null;
     // 追趕:排隊太多批時跳過這批的聚焦(最後一批仍會播)
     const steps = timeline(events, actor, motion, pending >= 5);
+    // 音效:開局、金手指、重連(actor 為 null)不播
+    const me = selfPlayer();
+    const sound = actor !== null && actor !== undefined;
     for (const step of steps) {
+      if (sound) Sfx.play(Sfx.pick(step.events, me));
       if (step.kind === "anim") await withTimeout(playBlocking(step.ev, prevState), HARD_TIMEOUT);
       else await spotlight(step, motion);
     }
     renderFn();
     if (motion) playOverlays(events, marks);
+    if (!sound) return;
+    const used = new Set(steps.flatMap((step) => step.events));
+    const rest = Sfx.play(Sfx.pick(events.filter((ev) => !used.has(ev)), me));
+    // 輪到你:等待輸入的玩家從別人變成自己(本機與觀戰沒有自己)
+    if (me !== null && prevState && S && awaitedPlayer(prevState) !== me && awaitedPlayer(S) === me) {
+      Sfx.play("your_turn", rest ? 350 : 0);
+    }
   }
 
   // ---------------------------------------------------------------- 聚焦展示

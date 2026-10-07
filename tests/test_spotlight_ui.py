@@ -133,8 +133,9 @@ def test_prefs_are_remembered_and_motion_follows_system(browser, server):  # noq
     assert page.evaluate("spotlightMode()") == "normal"
     assert page.evaluate("motionOff()") is True                           # 未設定:跟隨系統
     page.locator("#prefs-toggle").click()
+    motion = page.locator(".info-section", has_text="動畫")
     page.locator(".prefs-options button", has_text="快").click()
-    page.locator(".prefs-options button", has_text="開").click()
+    motion.locator("button", has_text="開").click()
     assert page.evaluate("motionOff()") is False
     assert page.evaluate("document.documentElement.classList.contains('motion-off')") is False
     page.reload()
@@ -142,7 +143,7 @@ def test_prefs_are_remembered_and_motion_follows_system(browser, server):  # noq
     assert page.evaluate("[spotlightMode(), motionOff()]") == ["fast", False]
     page.locator("#prefs-toggle").click()
     pressed = page.locator(".prefs-options button[aria-pressed='true']").all_text_contents()
-    assert pressed == ["快", "開"]
+    assert pressed == ["快", "開", "開"]                                  # 聚焦、動畫、音效(缺省開)
     page.locator(".prefs-options button", has_text="關").first.click()   # 聚焦:關
     assert page.evaluate("spotlightMode()") == "off"
     context.close()

@@ -130,7 +130,7 @@ function cname(num) {
 
 // ---------------------------------------------------------------- 演出設定(存於瀏覽器)
 
-const PREFS = { spotlight: ["normal", "fast", "off"], motion: ["on", "off", "system"] };
+const PREFS = { spotlight: ["normal", "fast", "off"], motion: ["on", "off", "system"], sound: ["on", "off"] };
 
 function pref(name) {
   let value = null;
@@ -174,7 +174,7 @@ function renderPrefsInfo() {
     sec.append(h, row);
     return sec;
   };
-  showInfo("prefs", t("ui.prefs.title"), [group("spotlight"), group("motion")]);
+  showInfo("prefs", t("ui.prefs.title"), [group("spotlight"), group("motion"), group("sound")]);
 }
 
 // ---------------------------------------------------------------- session / 身分
@@ -695,14 +695,14 @@ function currentTiming() {
   return "nonbattle";
 }
 
-// 目前等待輸入的玩家(與伺服器的 awaited_player 相同規則,由快照推得)
-function awaitedPlayer() {
-  if (S.phase === "game_over") return null;
-  if (S.pending) return S.pending.player;
-  if (S.phase === "start") return S.turn_player;
-  if (S.battle) return S.battle.step === "defense" ? 1 - S.battle.attacker : S.battle.effect_turn;
-  if (S.battle_in) return 1 - S.battle_in.attacker;
-  return S.action_player;
+// 目前等待輸入的玩家(與伺服器的 awaited_player 相同規則,由快照推得;預設為目前快照)
+function awaitedPlayer(st = S) {
+  if (st.phase === "game_over") return null;
+  if (st.pending) return st.pending.player;
+  if (st.phase === "start") return st.turn_player;
+  if (st.battle) return st.battle.step === "defense" ? 1 - st.battle.attacker : st.battle.effect_turn;
+  if (st.battle_in) return 1 - st.battle_in.attacker;
+  return st.action_player;
 }
 
 function canActNow(p) {
