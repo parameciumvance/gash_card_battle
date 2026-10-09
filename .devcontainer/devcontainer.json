@@ -3,15 +3,19 @@
     "dockerfile": "Dockerfile"
   },
 
+  "remoteUser": "dev",
+
   "mounts": [
     "source=gash-card-battle_card-assets,target=/app/assets,type=volume,readonly",
-    "source=gash-card-battle_claude-data,target=/root/.claude,type=volume"
+    "source=gash-card-battle_claude-data,target=/home/dev/.claude,type=volume"
   ],
+  "runArgs": ["--memory=3g", "--memory-swap=3584m"],
+
   "containerEnv": {
     "GASH_ASSETS_DIR": "/app/assets"
   },
 
-  "postCreateCommand": "pip install --root-user-action=ignore -e \".[dev]\"",
+  "postCreateCommand": "sudo chown -R dev:dev /home/dev/.claude && pip install -e \".[dev]\"",
 
   "customizations": {
     "vscode": {
@@ -20,7 +24,12 @@
         "mhutchie.git-graph",
         "anthropic.claude-code",
         "openai.chatgpt"
-      ]
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "python.analysis.indexing": false,
+        "typescript.tsserver.maxTsServerMemory": 512
+      }
     }
   }
 }

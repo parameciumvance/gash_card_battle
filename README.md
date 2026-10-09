@@ -300,6 +300,11 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 dev container 時,Docker 會自動建一個空的同名 volume,畫面不會有卡圖;此時拿掉
 `mounts` 與 `containerEnv` 這兩項,改用 `frontend/assets/`。
 
+dev container 以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo`),讓在容器裡產生的
+檔案與主機使用者同擁有者;套件裝在 `/opt/venv`。若主機使用者的 uid 不是 1000,VS Code 會在
+啟動時把容器內 `dev` 的 uid 調成與主機相同。容器記憶體上限為 3 GB(另加 512 MB swap),
+避免開發環境把同一台主機上的正式站擠到 OOM。
+
 卡圖回應帶 `Cache-Control: public, max-age=604800`,瀏覽器與 Cloudflare 邊緣都會快取 7 天。
 同檔名換內容(例如重新下載)後,到 Cloudflare 後台 Caching → Configuration → Purge Cache
 清除快取;已經快取的瀏覽器最久 7 天後才會換成新圖。換格式時網址跟著變,不需要清。
