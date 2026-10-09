@@ -6,7 +6,7 @@ from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 
 from tests.test_npc_ui import room_posts
 from tests.test_spotlight_ui import open_page
 
-ENTRIES = ["entry-npc", "entry-friend", "entry-local", "entry-builder", "entry-rules", "entry-feedback"]
+ENTRIES = ["entry-npc", "entry-friend", "entry-builder", "entry-local", "entry-rules", "entry-feedback"]
 
 
 def visible_panel(page):
@@ -48,8 +48,11 @@ def test_setup_page_back_returns_to_landing(page):
 
 
 def test_local_setup_starts_local_game(page):
+    assert page.locator("#entry-local .entry-title").text_content() == "自由調查時間"
+    assert page.locator("#entry-local .entry-desc").text_content().startswith("沒有電腦對手")
     page.locator("#entry-local").click()
     assert visible_panel(page) == ["setup-local"]
+    assert page.locator("#setup-title").text_content() == "自由調查時間"
     page.fill("#name-local-1", "小美")
     page.select_option("#deck-local-1", "preset:level2")
     page.locator("#local-start").click()
