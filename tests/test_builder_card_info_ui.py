@@ -70,6 +70,23 @@ def test_event_type_suspends_mamodo_filter(builder):
     assert sorted(pool_numbers(builder)) == cards_where(builder, f"c.related_mamodo === '{name}'")
 
 
+def test_mamodo_filter_none_combines_with_product(builder):
+    _, mamodo, product = selects(builder)
+    tag = builder.evaluate("""Object.values(CARDS).find((c) => c.type === 'spell'
+      && c.related_mamodo === 'コマンド' && (c.sets || []).length).sets[0]""")
+    mamodo.select_option("__none__")
+    product.select_option(tag)
+    expected = cards_where(builder, f"c.type === 'spell' && c.related_mamodo === 'コマンド' && (c.sets || []).includes('{tag}')")
+    assert expected and sorted(pool_numbers(builder)) == expected
+
+
+def test_event_type_ignores_mamodo_none(builder):
+    ftype, mamodo, _ = selects(builder)
+    mamodo.select_option("__none__")
+    ftype.select_option("event")
+    assert sorted(pool_numbers(builder)) == cards_where(builder, "c.type === 'event'")
+
+
 # ---------------------------------------------------------------- 卡號與中級 / 上級
 
 def test_class_labels_and_card_number(builder):
