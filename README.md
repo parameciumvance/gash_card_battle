@@ -294,6 +294,12 @@ docker compose up -d --remove-orphans
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
+**在 VPS 上用 dev container 開發**:`.devcontainer/devcontainer.json` 會把同一個 volume
+(`gash-card-battle_card-assets`,名稱前綴是 compose 專案目錄名)唯讀掛到 `/app/assets`,
+並設定 `GASH_ASSETS_DIR`,開發時直接讀正式站的卡圖。在其他沒有這個 volume 的機器上開
+dev container 時,Docker 會自動建一個空的同名 volume,畫面不會有卡圖;此時拿掉
+`mounts` 與 `containerEnv` 這兩項,改用 `frontend/assets/`。
+
 卡圖回應帶 `Cache-Control: public, max-age=604800`,瀏覽器與 Cloudflare 邊緣都會快取 7 天。
 同檔名換內容(例如重新下載)後,到 Cloudflare 後台 Caching → Configuration → Purge Cache
 清除快取;已經快取的瀏覽器最久 7 天後才會換成新圖。換格式時網址跟著變,不需要清。

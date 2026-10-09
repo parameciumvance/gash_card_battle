@@ -3,6 +3,14 @@
     "dockerfile": "Dockerfile"
   },
 
+  "mounts": [
+    "source=gash-card-battle_card-assets,target=/app/assets,type=volume,readonly",
+    "source=gash-card-battle_claude-data,target=/root/.claude,type=volume"
+  ],
+  "containerEnv": {
+    "GASH_ASSETS_DIR": "/app/assets"
+  },
+
   "postCreateCommand": "pip install --root-user-action=ignore -e \".[dev]\"",
 
   "customizations": {
