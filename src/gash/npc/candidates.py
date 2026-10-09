@@ -59,11 +59,10 @@ def _field_abilities(game: Game, player: int) -> list[dict]:
             out.append({"type": "use_field_ability", "zone": "mamodo", "slot_uid": slot.uid})
         if slot.partner in reg.ACTIVATED:
             out.append({"type": "use_field_ability", "zone": "partner", "slot_uid": slot.uid})
-    # E-010:借用對手搭檔卡的效果
-    if any(m.kind == "borrow_partner" and m.owner == player for m in st.modifiers):
-        for slot in st.players[1 - player].slots:
-            if slot.partner in reg.ACTIVATED:
-                out.append({"type": "use_field_ability", "zone": "partner", "slot_uid": slot.uid})
+    # E-010:使用本回合借用的對手搭檔卡效果(以卡號記錄,該搭檔離場也可用)
+    if any(m.kind == "borrow_partner" and m.owner == player and not m.data.get("used")
+           for m in st.modifiers):
+        out.append({"type": "use_borrowed_effect"})
     return out
 
 

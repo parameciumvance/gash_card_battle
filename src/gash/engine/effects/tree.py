@@ -287,10 +287,6 @@ def opponent_has_mamodo(game, player) -> bool:
     return bool(game.state.players[1 - player].slots)
 
 
-def opponent_has_partner(game, player) -> bool:
-    return any(s.partner for s in game.state.players[1 - player].slots)
-
-
 @dataclass(frozen=True)
 class HasOptions:
     """使用條件:選項規格至少有一個選項才能使用。可當事件卡的 when=(fn(game, player)),
@@ -306,7 +302,7 @@ class HasOptions:
 
 @dataclass(frozen=True)
 class All:
-    """所有使用條件都成立(參數原樣轉給每個條件)。"""
+    """所有條件都成立:當使用條件時參數原樣轉給每個條件;當 When 條件時呼叫各自的 test。"""
     conds: tuple = ()
 
     def __init__(self, *conds):
@@ -314,6 +310,10 @@ class All:
 
     def __call__(self, *args) -> bool:
         return all(c(*args) for c in self.conds)
+
+    def test(self, game, ctx) -> bool:
+        """當 When 條件:每個條件都要有 test。"""
+        return all(c.test(game, ctx) for c in self.conds)
 
 
 # ================================================================ 選項規格 / 觸發時機
@@ -580,16 +580,21 @@ class PartnerDiscardedThisTurn:
 
 @dataclass(frozen=True)
 class OpponentPartneredMamodo:
-    """對手場上裝有搭檔的魔物;以 slot UID 作為選項值,顯示的卡為其搭檔。"""
+    """對手場上裝有搭檔的魔物;以 slot UID 作為選項值,顯示的卡為其搭檔。
+    usable_only:只列可使用的搭檔(有啟動效果),排除「このカードが場にある→」的被動搭檔(E-010)。"""
+    usable_only: bool = False
+
+    def _ok(self, slot) -> bool:
+        return bool(slot.partner) and (not self.usable_only or slot.partner in reg.ACTIVATED)
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [slot_option(opp, s, s.partner) for s in game.state.players[opp].slots if s.partner]
+        return [slot_option(opp, s, s.partner) for s in game.state.players[opp].slots if self._ok(s)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
-        if slot is None or not slot.partner:
+        if slot is None or not self._ok(slot):
             raise IllegalCommand("choose.invalid", "須選擇對手場上的搭檔卡")
 
 
@@ -700,6 +705,35 @@ class RobnosTransformMode:
                 raise IllegalCommand("choose.invalid", "場上沒有羅布諾斯(完全體)")
         else:
             raise IllegalCommand("choose.invalid", "無效的選擇")
+
+
+@dataclass(frozen=True)
+class EffectOptions:
+    """「次の効果の、片方または両方を、好きな順で使う」的效果選項(E-021)。
+
+    entries 為 (value, label, requires):requires 為選項規格時,至少有一個選項該效果才可選;None 表示恆可選。
+    after 為先前選擇的綁定名稱:排除已用的效果,並加「不使用」(value None);沒有其他可用效果時不加。
+    """
+    entries: tuple = ()
+    after: str = ""
+
+    def _available(self, game, ctx) -> list[tuple]:
+        used = ctx.get(self.after) if self.after else None
+        return [(value, label) for value, label, requires in self.entries
+                if value != used and (requires is None or requires.options(game, ctx))]
+
+    def options(self, game, ctx) -> list[dict]:
+        out = [{"value": value, "label": label} for value, label in self._available(game, ctx)]
+        if self.after and out:
+            out.append({"value": None, "label": "skip"})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value is None and self.after:
+            return
+        if value not in [v for v, _ in self._available(game, ctx)]:
+            raise IllegalCommand("choose.invalid", "無效的效果選擇")
 
 
 @dataclass(frozen=True)
@@ -1302,7 +1336,8 @@ class ZeroBothPlayersMp(Effect):
 
 @dataclass(frozen=True)
 class BorrowPartner(Effect):
-    """本回合借用 Choose(OpponentPartneredMamodo()) 選中的對手搭檔卡效果(E-010)。"""
+    """本回合借用 Choose(OpponentPartneredMamodo(usable_only=True)) 選中的對手搭檔卡效果(E-010)。
+    以卡號記錄:對象在此時決定,之後該搭檔離場仍可使用(engine._use_borrowed_effect)。"""
     target: Ref = Ref("choice")
 
     def run(self, rt, ctx, path):
@@ -1312,7 +1347,7 @@ class BorrowPartner(Effect):
             return True
         add_modifier(rt.game, rt.batch, kind="borrow_partner", source=ctx["source"], owner=player,
                      duration=DUR_TURN, target_player=player,
-                     data={"slot_uid": opp_slot.uid, "card": opp_slot.partner})
+                     data={"card": opp_slot.partner, "used": False})
         return True
 
 
@@ -1350,18 +1385,6 @@ class DiscardChosenMamodo(Effect):
         if slot is None:
             return True
         _discard_slot(rt.game, rt.batch, player, slot, reason=ctx["source"])
-        return True
-
-
-@dataclass(frozen=True)
-class HealFirstInjuredMamodo(Effect):
-    """回復自己場上第一隻負傷魔物;沒有負傷魔物則無效果(E-021)。"""
-
-    def run(self, rt, ctx, path):
-        player = ctx["player"]
-        slot = next((s for s in rt.game.state.players[player].slots if s.injured), None)
-        if slot is not None:
-            heal_slot(rt.game, rt.batch, player, slot, ctx["source"])
         return True
 
 
@@ -1924,7 +1947,8 @@ class Never:
 
 @dataclass(frozen=True)
 class OwnAttackBy:
-    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用術的魔物判定)。"""
+    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用術的魔物判定)。
+    當 When 條件:不成立時效果不發生(作用對象不是使用條件)。"""
     mamodo: str
 
     def __call__(self, game, player, slot=None) -> bool:
@@ -1933,6 +1957,9 @@ class OwnAttackBy:
             return False
         attacker = game.state.slot_by_uid(player, b.attack_slot)
         return attacker is not None and game.db[attacker.top].related_mamodo == self.mamodo
+
+    def test(self, game, ctx) -> bool:
+        return self(game, ctx["player"])
 
 
 @dataclass(frozen=True)
@@ -1944,6 +1971,9 @@ class NoBattleDamageModifierFrom:
         from ..state import DUR_BATTLE
         return not any(m.kind in ("damage_delta", "damage_double") and m.source == self.source
                        and m.duration == DUR_BATTLE for m in game.state.modifiers)
+
+    def test(self, game, ctx) -> bool:
+        return self(game, ctx["player"])
 
 
 @dataclass(frozen=True)
@@ -2179,11 +2209,13 @@ def register_spell_nonbattle(number: str, tree: Effect):
 
 def register_slot_hook(number: str, hook: str, tree: Effect, legacy_taken: bool = False):
     """魔物 / 搭檔卡的效果掛鉤(activated / on_play / on_discard / start_phase)。
-    handler 簽名 fn(game, batch, player, slot);ctx["self_slot"] 為該卡所在魔物的 UID。"""
+    handler 簽名 fn(game, batch, player, slot);ctx["self_slot"] 為該卡所在魔物的 UID。
+    E-010 借用的搭檔效果不在自己場上,slot 為 None(self_slot 為 None;搭檔效果都不使用它)。"""
     effect_id = _install(number, hook, tree, legacy_taken)
 
     def handler(game, batch, player, slot):
-        run_effect(game, batch, effect_id, {"player": player, "source": number, "self_slot": slot.uid})
+        run_effect(game, batch, effect_id, {"player": player, "source": number,
+                                            "self_slot": slot.uid if slot is not None else None})
     return handler
 
 

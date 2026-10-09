@@ -191,3 +191,28 @@ def test_snapshot_ability_marks_own_turn_only():
         snap = snapshot(g, viewer)
         assert snap["players"][0]["slots"][0]["ability"]["own_turn"] is True
         assert snap["players"][1]["slots"][0]["ability"]["own_turn"] is False
+
+
+def test_snapshot_effects_expose_borrowed_partner():
+    # E-010 借用:作用中效果帶借到的卡號與是否已使用,前端據此顯示入口
+    from gash.api.views import snapshot
+    from gash.engine.cards import card_db
+    from gash.engine.engine import new_game, submit
+    from gash.engine.state import MamodoSlot
+    db = card_db()
+    b0 = ["M-001", "E-010"] + ["S-001"] * 30
+    b1 = ["M-001"] + ["S-001"] * 31
+    g = new_game(b0, seed=0, db=db, decks=(b0, b1))
+    g.state.turn_player = 0
+    g.state.players[0].mp = 5
+    g.state.players[1].slots.append(MamodoSlot(uid=g.state.next_uid(), stack=["M-004"], partner="P-002"))
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    for viewer in (0, 1, "spectator"):
+        borrow = [e for e in snapshot(g, viewer)["effects"] if e["kind"] == "borrow_partner"]
+        assert borrow and borrow[0]["card"] == "P-002" and borrow[0]["used"] is False
+        assert borrow[0]["owner"] == 0
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "use_borrowed_effect", "player": 0})
+    borrow = [e for e in snapshot(g, 0)["effects"] if e["kind"] == "borrow_partner"]
+    assert borrow[0]["used"] is True

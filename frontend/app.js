@@ -650,6 +650,10 @@ function zoomActions(ctx) {
     const slot = ps.slots.find((s) => s.uid === ctx.uid);
     return slot && slot.partner ? { buttons: partnerButtons(ctx.p, slot) } : { gone: true };
   }
+  if (ctx.kind === "borrowed") {
+    const borrow = borrowedEffect(ctx.p);
+    return borrow ? { buttons: borrowedButtons(ctx.p, borrow) } : { gone: true };
+  }
   if (ctx.kind === "page") {
     const entry = ps.open_pages.find((e) => e.page === ctx.page && e.card);
     return entry ? { buttons: pageButtons(ctx.p, entry) } : { gone: true };
@@ -1351,6 +1355,26 @@ function abilityUsableNow(p, ab) {
   return { ok: true };
 }
 
+// E-010:玩家 p 本回合借用且尚未使用的搭檔效果(作用中效果中的 borrow_partner);沒有則 null
+function borrowedEffect(p) {
+  return (S.effects || []).find((e) => e.kind === "borrow_partner" && e.owner === p && !e.used) || null;
+}
+
+function borrowedButtons(p, borrow) {
+  if (!iControl(p) || !borrow.ability) return [];
+  const restricted = (S.effects || []).some((e) => e.kind === "restriction"
+    && e.flag === "no_partner_effects" && e.target_player === p);
+  let usable = abilityUsableNow(p, borrow.ability);
+  if (!usable.ok && !usable.reason && !S.pending && S.phase === "battle") {
+    usable = { ok: false, reason: t("error.ability.timing") };   // 時機不符(戰鬥中 / 非戰鬥)
+  }
+  if (usable.ok && restricted) usable = { ok: false, reason: t("error.ability.partner_restricted") };
+  return [{
+    label: t("ui.use_borrowed"), primary: true, disabled: !usable.ok, reason: usable.reason,
+    onclick: () => send({ type: "use_borrowed_effect", player: p }),
+  }];
+}
+
 function pageButtons(p, entry) {
   const def = CARDS[entry.card];
   const buttons = [];
@@ -1639,6 +1663,11 @@ function renderActionBar() {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
       addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }));
+      const borrow = borrowedEffect(awaited);        // E-010:借來的搭檔效果(該搭檔離場也在)
+      if (borrow) {
+        addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
+          () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
+      }
     }
   }
   if (details) bar.appendChild(details);
@@ -1741,6 +1770,8 @@ function choiceLabel(opt, results) {
     case "spell_discount_use": return t("choice.spell_discount_use");
     case "s043_fuse": return t("choice.s043_fuse");
     case "s043_split": return t("choice.s043_split");
+    case "heal_injured": return t("choice.heal_injured");
+    case "gain_mp_2": return t("choice.gain_mp_2");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔本項
   return null;
@@ -2025,6 +2056,7 @@ function effectText(e) {
   let key = e.type === "modifier" && e.kind === "restriction"
     ? `effect.restriction.${e.flag}` : `effect.${e.type}.${e.kind}`;
   if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
+  if (e.used && DICT[`${key}.used`] !== undefined) key += ".used";          // E-010 借用的效果已使用
   if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
   if (e.power_delta) changes.push(t("effect.piece.power", { n: signed(e.power_delta) }));
@@ -2437,7 +2469,10 @@ function logLine(ev) {
       if (ev.forced) return t("log.card_played_forced", { ...P, card: cname(ev.card) });
       return t("log.card_played", { ...P, card: cname(ev.card) });
     case "book_card_used": return t("log.book_card_used", { ...P, card: cname(ev.card) });
-    case "ability_used": return t("log.ability_used", { ...P, card: cname(ev.card) });
+    case "ability_used":
+      return ev.via   // E-010 借用的搭檔效果:顯示為使用者經 E-010 使用
+        ? t("log.ability_used_borrowed", { ...P, source: cname(ev.via), card: cname(ev.card) })
+        : t("log.ability_used", { ...P, card: cname(ev.card) });
     case "passed": return t("log.passed", P);
     case "battle_in_check":
       return ev.spell

@@ -394,6 +394,52 @@ def test_p004_gofure_damage_double():
     assert g.state.players[dp].pos == 2 + 2 * 4  # 2*2=4
 
 
+def _effects_step_then_resolve(g, tp, dp, use=()):
+    """不防禦進入效果步驟,依序以 use 中的 (player, slot) 使用搭檔效果(另一方 pass 交回行動權),
+    之後雙方 pass、不保護,回傳防方魔本位置。"""
+    submit(g, {"type": "no_defense", "player": dp})
+    for player, slot in use:
+        if g.state.battle.data["effect_turn"] != player:
+            submit(g, {"type": "pass", "player": 1 - player})
+        submit(g, {"type": "use_field_ability", "player": player, "zone": "partner", "slot_uid": slot.uid})
+    both_pass(g)
+    while g.state.pending is not None and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": dp, "value": None})
+    return g.state.players[dp].pos
+
+
+def test_p003_without_brago_attack_usable_no_effect():
+    # 作用對象(自分の「ブラゴ」による攻撃)不是使用條件:防方的ブラゴ搭檔也能用,傷害不變
+    g = game()
+    dp = 1 - g.state.turn_player
+    brago = give(g, dp, "M-005", partner="P-003")
+    tp, _ = start_attack(g, 3)
+    pos = _effects_step_then_resolve(g, tp, dp, use=[(dp, brago)])
+    assert brago.partner is None and "P-003" in g.state.players[dp].discard
+    assert pos == 2 + 2 * g.db["S-001"].damage           # 傷害不變
+
+
+def test_p004_without_gofure_attack_usable_no_effect():
+    g = game()
+    dp = 1 - g.state.turn_player
+    gofure = give(g, dp, "M-006", partner="P-004")
+    tp, _ = start_attack(g, 3)
+    pos = _effects_step_then_resolve(g, tp, dp, use=[(dp, gofure)])
+    assert gofure.partner is None and "P-004" in g.state.players[dp].discard
+    assert pos == 2 + 2 * g.db["S-001"].damage
+
+
+def test_p006_without_transformed_kolulu_usable_no_effect():
+    # 場上沒有 M-010(コルル 變身後)時也能使用,傷害照常
+    g = game()
+    dp = 1 - g.state.turn_player
+    kolulu = give(g, dp, "M-009", partner="P-006")
+    tp, _ = start_attack(g, 3)
+    pos = _effects_step_then_resolve(g, tp, dp, use=[(dp, kolulu)])
+    assert kolulu.partner is None and "P-006" in g.state.players[dp].discard
+    assert pos == 2 + 2 * g.db["S-001"].damage
+
+
 def test_p005_sugino_spells_free():
     g = game(book0=book(first="M-008", p3="S-014"))
     slot0(g, 0).partner = "P-005"
@@ -594,27 +640,134 @@ def test_e009_power_this_turn():
     assert slot_power(g, 0, slot0(g, 0)) == 4000
 
 
-def test_e010_borrow_opponent_partner():
-    g = game(book0=book(p2="E-010"))
-    tp, dp = 0, 1
-    reycom = give(g, dp, "M-004")
-    reycom.partner = "P-002"
-    g.state.players[tp].mp = 5
-    g.state.players[dp].mp = 4
+def _e010_borrow(g, tp=0):
+    """回合玩家不翻頁、使用第 2 頁的 E-010(費用 3,MP 不足時補到 3),之後對手 pass 把行動權交回。"""
+    g.state.players[tp].mp = max(g.state.players[tp].mp, 3)
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
-    submit(g, {"type": "use_book_card", "player": tp, "page": 2})  # 借 P-002(唯一→自動)
-    submit(g, {"type": "pass", "player": dp})
-    mp_before = g.state.players[tp].mp
-    submit(g, {"type": "use_field_ability", "player": tp, "zone": "partner",
-               "slot_uid": reycom.uid})
-    assert g.state.players[dp].mp == 1          # 4-3
-    assert g.state.players[tp].mp == mp_before + 3
-    assert reycom.partner == "P-002"            # 借用不棄掉
-    # 本回合只能用一次
-    submit(g, {"type": "pass", "player": dp})
-    with pytest.raises(IllegalCommand):
-        submit(g, {"type": "use_field_ability", "player": tp, "zone": "partner",
-                   "slot_uid": reycom.uid})
+    events = submit(g, {"type": "use_book_card", "player": tp, "page": 2})
+    submit(g, {"type": "pass", "player": 1 - tp})
+    return events
+
+
+def _borrow_modifier(g, player=0):
+    return next(m for m in g.state.modifiers if m.kind == "borrow_partner" and m.owner == player)
+
+
+def test_e010_excludes_passive_partners():
+    # 「相手の『このカードが場にある→』効果ではないパートナー」:P-019 不可選,只剩 P-002 → 自動選擇
+    g = game(book0=book(p2="E-010"))
+    give(g, 1, "M-004", partner="P-002")
+    give(g, 1, "M-006", partner="P-019")
+    _e010_borrow(g)
+    assert _borrow_modifier(g).data["card"] == "P-002"
+
+
+def test_e010_rejected_when_only_passive_partners():
+    g = game(book0=book(p2="E-010"))
+    give(g, 1, "M-004", partner="P-013")
+    give(g, 1, "M-006", partner="P-019")
+    g.state.players[0].mp = 5
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "event.condition"
+
+
+def test_e010_borrowed_effect_usable_after_partner_left():
+    # 對象在 E-010 使用時決定:之後該搭檔離場仍可使用;使用者付費、不棄任何卡
+    g = game(book0=book(p2="E-010"))
+    reycom = give(g, 1, "M-004", partner="P-002")
+    g.state.players[0].mp = 8
+    g.state.players[1].mp = 4
+    _e010_borrow(g)
+    reycom.partner = None                       # 對手的 P-002 離場
+    g.state.players[1].discard.append("P-002")
+    mp_before = g.state.players[0].mp
+    events = submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert g.state.players[1].mp == 1 and g.state.players[0].mp == mp_before + 3
+    used = [e for e in events if e["type"] == "ability_used"]
+    assert len(used) == 1 and used[0]["player"] == 0 and used[0]["card"] == "P-002"
+    assert used[0]["via"] == "E-010"
+    assert not [e for e in events if e["type"] == "card_discarded"]
+    assert _borrow_modifier(g).data["used"] is True
+
+
+def test_e010_borrowed_effect_once_and_keeps_partner():
+    g = game(book0=book(p2="E-010"))
+    reycom = give(g, 1, "M-004", partner="P-001")
+    _e010_borrow(g)
+    submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert reycom.partner == "P-001"                         # 借用不棄掉對手的卡
+    submit(g, {"type": "pass", "player": 1})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert e.value.code == "ability.used"
+
+
+def test_e010_borrowed_effect_follows_partner_timing():
+    g = game(book0=book(p2="E-010"))
+    give(g, 1, "M-005", partner="P-003")                     # 戰鬥時機
+    _e010_borrow(g)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert e.value.code == "ability.timing"
+    assert _borrow_modifier(g).data["used"] is False
+
+
+def test_e010_borrowed_effect_blocked_by_partner_restriction():
+    from gash.engine.effects.primitives import add_modifier
+    from gash.engine.state import DUR_TURN, NO_PARTNER_EFFECTS
+    g = game(book0=book(p2="E-010"))
+    give(g, 1, "M-004", partner="P-002")
+    _e010_borrow(g)
+    add_modifier(g, [], kind="restriction", source="E-008", owner=1, duration=DUR_TURN,
+                 target_player=0, flag=NO_PARTNER_EFFECTS)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert e.value.code == "ability.partner_restricted"
+
+
+def test_e010_borrow_expires_at_end_of_turn():
+    g = game(book0=book(p2="E-010"))
+    give(g, 1, "M-004", partner="P-002")
+    _e010_borrow(g)
+    submit(g, {"type": "pass", "player": 0})                 # 對手已 pass → 回合結束
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    submit(g, {"type": "pass", "player": 1})
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert e.value.code == "ability.none"
+
+
+def test_e010_borrow_not_via_opponent_slot():
+    # 借用效果只能以 use_borrowed_effect 使用;指定對手的魔物當成自己的場上效果一律拒絕
+    g = game(book0=book(p2="E-010"))
+    reycom = give(g, 1, "M-004", partner="P-002")
+    _e010_borrow(g)
+    with pytest.raises(IllegalCommand) as e:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": reycom.uid})
+    assert e.value.code == "ability.target"
+
+
+def test_p003_borrowed_same_battle_does_not_stack():
+    # 「重複しない」:自己的 P-003 加上借來的 P-003,同一場傷害只 +2;借用的使用仍成立
+    g = game(book0=book(first="M-005", p2="E-010", p3="S-008"))
+    own = slot0(g, 0)
+    own.partner = "P-003"
+    give(g, 1, "M-005", partner="P-003")
+    g.state.players[0].mp = 10
+    _e010_borrow(g)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 3, "slot_uid": own.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": own.uid})
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert _borrow_modifier(g).data["used"] is True
+    both_pass(g)
+    while g.state.pending is not None and g.state.pending.kind == "protect":
+        submit(g, {"type": "choose", "player": 1, "value": None})
+    assert g.state.players[1].pos == 2 + 2 * (2 + 2)
 
 
 def test_e011_reflip_by_paying():
@@ -756,30 +909,88 @@ def test_e019_discard_own_mamodo_chosen():
     assert "M-002" in g.state.players[0].discard
 
 
-def test_e021_heals_first_injured_and_gains_2mp():
+def _e021_setup(injured=2):
+    """自己場上 3 隻魔物(slot0 健康 + M-004 ×2),前 injured 隻 M-004 負傷;MP 0。"""
     g = game(book0=book(p2="E-021"))
-    a = slot0(g, 0)
-    b = give(g, 0, "M-004", injured=True)   # M-002 有開始階段 MP+1,會干擾 MP 斷言
+    b = give(g, 0, "M-004", injured=injured >= 1)   # M-002 有開始階段 MP+1,會干擾 MP 斷言
+    c = give(g, 0, "M-004", injured=injured >= 2)
     g.state.players[0].mp = 0
+    return g, b, c
+
+
+def _choose(g, player, value):
+    return submit(g, {"type": "choose", "player": player, "value": value})
+
+
+def test_e021_mp_only():
+    # 「片方または両方を」:只使用 MP +2,負傷魔物維持負傷
+    g, b, c = _e021_setup()
     _use_event(g)
-    assert b.injured is False and a.injured is False
+    p = g.state.pending
+    assert p.kind == "pick_effect" and p.player == 0
+    assert {o["value"] for o in p.options} == {"heal", "mp"}
+    _choose(g, 0, "mp")
     assert g.state.players[0].mp == 2
+    p = g.state.pending
+    assert p.kind == "pick_effect" and {o["value"] for o in p.options} == {"heal", None}
+    _choose(g, 0, None)
+    assert g.state.pending is None
+    assert b.injured and c.injured and g.state.players[0].mp == 2
+
+
+def test_e021_heal_chosen_then_mp():
+    # 「1体を選び」:由玩家選擇回復哪一隻;之後再使用 MP +2
+    g, b, c = _e021_setup()
+    _use_event(g)
+    _choose(g, 0, "heal")
+    assert g.state.pending.kind == "pick_own_injured_mamodo"
+    _choose(g, 0, c.uid)
+    assert b.injured and not c.injured and g.state.players[0].mp == 0
+    assert {o["value"] for o in g.state.pending.options} == {"mp", None}
+    _choose(g, 0, "mp")
+    assert g.state.pending is None and g.state.players[0].mp == 2
+
+
+def test_e021_mp_then_heal():
+    # 「好きな順で」:先 MP +2 再回復
+    g, b, c = _e021_setup(injured=1)
+    events = _use_event(g)
+    events += _choose(g, 0, "mp")
+    events += _choose(g, 0, "heal")             # 只有一隻負傷:自動選擇
+    assert g.state.pending is None and not b.injured and g.state.players[0].mp == 2
+    kinds = [e["type"] for e in events if e["type"] in ("mp_changed", "mamodo_healed")]
+    assert kinds == ["mp_changed", "mamodo_healed"]
 
 
 def test_e021_no_injured_only_mp():
-    g = game(book0=book(p2="E-021"))
-    give(g, 0, "M-004")
-    g.state.players[0].mp = 0
+    g, b, c = _e021_setup(injured=0)
     events = _use_event(g)
+    assert g.state.pending is None
     assert g.state.players[0].mp == 2
     assert not [e for e in events if e["type"] == "mamodo_healed"]
+
+
+def test_e021_invalid_choice_keeps_pending():
+    g, b, c = _e021_setup()
+    _use_event(g)
+    with pytest.raises(IllegalCommand) as e:
+        _choose(g, 0, "draw")
+    assert e.value.code == "choose.invalid"
+    assert g.state.pending.kind == "pick_effect"
+    with pytest.raises(IllegalCommand) as e:
+        _choose(g, 0, None)                     # 第一個效果不能「不使用」
+    assert e.value.code == "choose.invalid"
+    with pytest.raises(IllegalCommand):
+        _choose(g, 1, "mp")                     # 只有使用者能選
+    assert g.state.pending.kind == "pick_effect" and g.state.players[0].mp == 0
 
 
 def test_e021_needs_two_mamodo():
     g = game(book0=book(p2="E-021"))
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
-    with pytest.raises(IllegalCommand):
+    with pytest.raises(IllegalCommand) as e:
         submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert e.value.code == "event.condition"
 
 
 def test_e023_partnered_mamodo_plus_2000_until_end_next_turn():
@@ -1040,3 +1251,62 @@ def test_same_choice_shares_kind(number, kind, opp_book):
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     assert (g.state.pending.kind, g.state.pending.source) == (kind, number)
+
+
+def test_e021_timeout_defaults_complete():
+    # 逾時代打:每個決策送安全預設,E-021 都能走完(第二段為「不使用」)
+    from gash.engine.awaiting import default_command
+    g, b, c = _e021_setup()
+    _use_event(g)
+    steps = 0
+    while g.state.pending is not None:
+        submit(g, {**default_command(g), "player": g.state.pending.player})
+        steps += 1
+        assert steps < 5
+    assert g.state.pending is None
+
+
+BORROWABLE = [n for n in sorted(card_db()) if n.startswith("P-")]
+
+
+@pytest.mark.parametrize("number", BORROWABLE)
+def test_e010_each_partner_borrowed_acts_for_borrower(number):
+    # 每張可借用的搭檔:在其時機借用並使用不出錯;新增的持續 / 待命效果都屬於使用者(「自分」為使用者)
+    from gash.engine.effects import registry as reg
+    spec = reg.ACTIVATED.get(number)
+    if spec is None:                                          # P-013 / P-019:被動搭檔,不能借用
+        pytest.skip("passive partner")
+    g = game(book0=book(p2="E-010"))
+    holder = give(g, 1, "M-004", partner=number)
+    g.state.players[0].mp = 10
+    _e010_borrow(g)
+    assert _borrow_modifier(g).data["card"] == number
+    if spec.timing == "battle":
+        submit(g, {"type": "declare_attack", "player": 0, "page": 3})
+        submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+        submit(g, {"type": "no_defense", "player": 1})
+    before_mods, before_sb = len(g.state.modifiers), len(g.state.standby)
+    try:
+        events = submit(g, {"type": "use_borrowed_effect", "player": 0})
+    except IllegalCommand as e:
+        # 只有「沒有可無效的對手術」這類對象不存在的使用條件可以拒絕(防方未用術、自己是攻方)
+        assert number in ("P-009", "P-016", "P-017") and e.code == "ability.condition"
+        return
+    assert any(ev["type"] == "ability_used" and ev["player"] == 0 for ev in events)
+    assert holder.partner in (number, None)                  # 借用不棄卡(P-008 會棄掉對手的搭檔)
+    assert all(m.owner == 0 for m in g.state.modifiers[before_mods:])
+    assert all(sb.owner == 0 for sb in g.state.standby[before_sb:])
+
+
+def test_e010_borrowed_p017_negates_opponent_defense():
+    # 無效類搭檔在有對象時也能借用:自己攻擊、對手以術防禦,借來的 P-017 使該防禦無效
+    g = game(book0=book(p2="E-010"), book1=book(p2="S-001"))
+    give(g, 1, "M-004", partner="P-017")
+    g.state.players[0].mp = 10
+    g.state.players[1].mp = 5
+    _e010_borrow(g)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 3})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    events = submit(g, {"type": "use_borrowed_effect", "player": 0})
+    assert [e["source"] for e in events if e["type"] == "defense_negated"] == ["P-017"]

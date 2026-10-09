@@ -831,7 +831,19 @@ def test_borrow_partner_records_opponent_partner():
     run(g, tree.BorrowPartner(), choice=x.uid)
     m = g.state.modifiers[-1]
     assert (m.kind, m.owner, m.target_player, m.data) == (
-        "borrow_partner", 0, 0, {"slot_uid": x.uid, "card": "P-002"})
+        "borrow_partner", 0, 0, {"card": "P-002", "used": False})        # 以卡號記錄,不綁魔物
+
+
+def test_opponent_partnered_mamodo_usable_only_excludes_passive():
+    g = game()
+    x = slot0(g, 1)
+    x.partner = "P-019"                                                   # 「このカードが場にある→」
+    y = give(g, 1, "M-004", partner="P-002")
+    assert [o["value"] for o in tree.OpponentPartneredMamodo().options(g, {"player": 0})] == [x.uid, y.uid]
+    spec = tree.OpponentPartneredMamodo(usable_only=True)
+    assert [o["value"] for o in spec.options(g, {"player": 0})] == [y.uid]
+    with pytest.raises(IllegalCommand):
+        spec.validate(g, {"player": 0}, x.uid)
 
 
 def test_discard_chosen_mamodo_and_gone_target_noop():
@@ -842,14 +854,23 @@ def test_discard_chosen_mamodo_and_gone_target_noop():
     assert run(g, tree.DiscardChosenMamodo(), slot=b.uid) == []
 
 
-def test_heal_first_injured_mamodo():
+def test_effect_options_excludes_used_and_offers_skip():
     g = game()
-    assert run(g, tree.HealFirstInjuredMamodo()) == []
     a = slot0(g, 0)
-    b = give(g, 0, "M-004", injured=True)
-    c = give(g, 0, "M-002", injured=True)
-    run(g, tree.HealFirstInjuredMamodo())
-    assert (a.injured, b.injured, c.injured) == (False, False, True)
+    entries = (("heal", "heal_injured", tree.OwnInjuredMamodo()), ("mp", "gain_mp_2", None))
+    first = tree.EffectOptions(entries)
+    assert [o["value"] for o in first.options(g, {"player": 0})] == ["mp"]      # 沒有負傷魔物:回復不可選
+    a.injured = True
+    assert [o["value"] for o in first.options(g, {"player": 0})] == ["heal", "mp"]
+    second = tree.EffectOptions(entries, after="first")
+    assert [o["value"] for o in second.options(g, {"player": 0, "first": "heal"})] == ["mp", None]
+    second.validate(g, {"player": 0, "first": "heal"}, None)                    # 第二段可不使用
+    with pytest.raises(IllegalCommand):
+        first.validate(g, {"player": 0}, None)                                  # 第一段不能不使用
+    with pytest.raises(IllegalCommand):
+        second.validate(g, {"player": 0, "first": "heal"}, "heal")              # 已用過的效果
+    a.injured = False
+    assert second.options(g, {"player": 0, "first": "mp"}) == []                # 沒有其他可用效果:不問
 
 
 def test_lock_chosen_opponent_mamodo_keeps_legacy_event_shape():
@@ -1387,6 +1408,17 @@ def test_own_attack_by_judges_by_attacking_mamodo():
     assert cond(g, 0) is True and cond(g, 1) is False             # 對手不是攻方
     g.state.battle.attack_slot = slot0(g, 0).uid                  # 改由ガッシュ攻擊
     assert cond(g, 0) is False
+
+
+def test_attack_conditions_usable_as_when_conditions():
+    # P-003 / P-004 把作用對象放進 When:All 與各條件以 test(game, ctx) 判斷
+    g = game()
+    brago = give(g, 0, "M-005")
+    cond = tree.All(tree.OwnAttackBy("ブラゴ"), tree.NoBattleDamageModifierFrom("P-003"))
+    assert cond.test(g, {"player": 0}) is False                   # 不在戰鬥中
+    _battle(g, 0, brago.uid)
+    assert cond.test(g, {"player": 0}) is True
+    assert cond.test(g, {"player": 1}) is False                   # 對手不是攻方
 
 
 def test_no_battle_damage_modifier_from_only_counts_same_source_this_battle():

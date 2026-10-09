@@ -321,6 +321,8 @@ def _do_action(game: Game, batch: list[dict], player: int, command: dict) -> Non
         _play_card(game, batch, player, command)
     elif ctype == "use_field_ability":
         _use_field_ability(game, batch, player, command, in_battle=False)
+    elif ctype == "use_borrowed_effect":
+        _use_borrowed_effect(game, batch, player, in_battle=False)
     elif ctype == "use_book_card":
         _use_book_card(game, batch, player, command)
     elif ctype == "declare_attack":
@@ -388,18 +390,6 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     st = game.state
     zone = command.get("zone")
     slot = st.slot_by_uid(player, command.get("slot_uid", -1))
-    borrow = None
-    if slot is None and zone == "partner":
-        # E-010:借用對手搭檔卡的效果(一回合一次、效果解決後不棄掉)
-        opp_slot = st.slot_by_uid(1 - player, command.get("slot_uid", -1))
-        if opp_slot is not None and opp_slot.partner:
-            for m in st.modifiers:
-                if (m.kind == "borrow_partner" and m.owner == player
-                        and m.active(st.turn_no)
-                        and m.data.get("slot_uid") == opp_slot.uid
-                        and not m.data.get("used")):
-                    borrow, slot = m, opp_slot
-                    break
     if zone not in ("mamodo", "partner") or slot is None:
         raise IllegalCommand("ability.target", "找不到指定的場上卡片")
     number = slot.top if zone == "mamodo" else slot.partner
@@ -434,9 +424,7 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     if spec.per_game:
         st.players[player].used_per_game.add(number)
     pay_mp(game, batch, player, spec.mp_cost, f"ability:{number}")
-    if borrow is not None:
-        borrow.data["used"] = True
-    if spec.mode == "discard" and borrow is None:
+    if spec.mode == "discard":
         if zone == "partner":
             slot.partner = None
             to_discard(st.players[player], number)
@@ -451,6 +439,41 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     _check_victory(game, batch)
     if snapshot is not None:
         _queue_jammer(game, batch, 1 - player, number, snapshot)
+
+
+def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: bool) -> None:
+    """E-010:使用本回合借用的對手搭檔卡效果(以卡號記錄,該搭檔離場仍可用)。
+    使用者付費、不棄任何卡、不計入自己的 used_abilities;時機與搭檔效果失效限制依該搭檔效果。"""
+    st = game.state
+    borrows = [m for m in st.modifiers
+               if m.kind == "borrow_partner" and m.owner == player and m.active(st.turn_no)]
+    if not borrows:
+        raise IllegalCommand("ability.none", "本回合沒有借用的搭檔效果")
+    borrow = next((m for m in borrows if not m.data.get("used")), None)
+    if borrow is None:
+        raise IllegalCommand("ability.used", "借用的效果本回合已使用過")
+    number = borrow.data["card"]
+    spec = reg.ACTIVATED.get(number)
+    if spec is None:
+        raise IllegalCommand("ability.none", f"{number} 沒有可啟動的效果")
+    if restricted(game, player, NO_PARTNER_EFFECTS):
+        raise IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效")
+    if spec.timing == "battle" and not in_battle:
+        raise IllegalCommand("ability.timing", "此效果只能在戰鬥中使用")
+    if spec.timing == "nonbattle" and in_battle:
+        raise IllegalCommand("ability.timing", "此效果不能在戰鬥中使用")
+    if spec.own_turn and player != st.turn_player:
+        raise IllegalCommand("ability.timing", "此效果只能在自己的回合使用")
+    if st.players[player].mp < spec.mp_cost:
+        raise IllegalCommand("ability.mp", "MP 不足")
+    if spec.condition and not spec.condition(game, player, None):
+        raise IllegalCommand("ability.condition", "不符合此效果的使用條件")
+    pay_mp(game, batch, player, spec.mp_cost, f"ability:{number}")
+    borrow.data["used"] = True
+    game.emit(batch, "ability_used", player=player, card=number, slot=None, zone="borrowed",
+              via=borrow.source)
+    spec.handler(game, batch, player, None)
+    _check_victory(game, batch)
 
 
 def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) -> None:
@@ -821,8 +844,11 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
             else:
                 battle.data["effect_turn"] = 1 - player
             return
-        if ctype == "use_field_ability":
-            _use_field_ability(game, batch, player, command, in_battle=True)
+        if ctype in ("use_field_ability", "use_borrowed_effect"):
+            if ctype == "use_field_ability":
+                _use_field_ability(game, batch, player, command, in_battle=True)
+            else:
+                _use_borrowed_effect(game, batch, player, in_battle=True)
             battle.effect_passes = 0
             if st.battle is not None:
                 if st.pending is None:

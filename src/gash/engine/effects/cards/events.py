@@ -6,17 +6,17 @@ from ...state import (
 from .. import registry as reg
 from ..tree import (
     AddPower, Always, AttachPartnerFromBookPage, AttachPartnerFromDiscard,
-    AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner, Choose, Coin,
+    AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin,
     CoinWithPaidReflip, DeployMamodoFromBook, DeployableMamodoInOwnBook, DiscardChosenMamodo,
-    DiscardFromOpponentBookPayCost, DiscardOtherPartners, GainMp, GainMpPerHeads, HasOptions,
-    HeadsAtLeast, HeadsCount, HealFirstInjuredMamodo, HealSlot, LockChosenOpponentMamodo,
-    NextStartPhase, OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnHasPartner,
-    OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
-    PeekOpponentOpenPages, PlayablePartnerInDiscard, ReduceOpponentMpUnlessReducedLastTurn, Ref,
-    RestrictBothPlayers, RestrictOpponent, RevealOpponentBook, ScheduleNoProtectBookNextBattle,
-    Sequence, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
-    ZeroBothPlayersMp, has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn,
-    has_two_or_more_mamodo, opponent_has_mamodo, opponent_has_partner, opponent_then_self,
+    DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
+    HasOptions, HeadsAtLeast, HeadsCount, HealSlot, LockChosenOpponentMamodo, NextStartPhase,
+    OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnHasPartner, OwnInjuredMamodo,
+    OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
+    PlayablePartnerInDiscard, ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers,
+    RestrictOpponent, RevealOpponentBook, ScheduleNoProtectBookNextBattle, Sequence,
+    SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
+    opponent_has_mamodo, opponent_then_self,
 )
 
 
@@ -62,8 +62,9 @@ reg.event("E-009", when=has_own_mamodo, effect=Choose(
     then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
 ))
 
-reg.event("E-010", when=opponent_has_partner, effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+# 「このカードが場にある→」効果ではないパートナー:排除被動搭檔(P-013 / P-019)
+reg.event("E-010", when=HasOptions(OpponentPartneredMamodo(usable_only=True)), effect=Choose(
+    OpponentPartneredMamodo(usable_only=True), bind="choice", prompt="pick_opponent_partner",
     then=BorrowPartner(),
 ))
 
@@ -123,9 +124,39 @@ reg.event("E-020", effect=Sequence(steps=(
     ),
 )))
 
+# 「片方または両方を、好きな順で」:先選第一個效果,完成後再問是否使用另一個(可不使用)
 reg.event("E-021", when=has_two_or_more_mamodo, effect=Sequence(steps=(
-    HealFirstInjuredMamodo(),
-    GainMp(amount=2),
+    Choose(
+        EffectOptions((("heal", "heal_injured", OwnInjuredMamodo()), ("mp", "gain_mp_2", None))),
+        bind="first", prompt="pick_effect",
+        then=When(
+            Bound("first", "heal"),
+            then=Choose(
+                OwnInjuredMamodo(), bind="slot", prompt="pick_own_injured_mamodo",
+                then=HealSlot(target=Ref("slot")),
+            ),
+            otherwise=When(
+                Bound("first", "mp"),
+                then=GainMp(amount=2),
+            ),
+        ),
+    ),
+    Choose(
+        EffectOptions((("heal", "heal_injured", OwnInjuredMamodo()), ("mp", "gain_mp_2", None)),
+                      after="first"),
+        bind="second", prompt="pick_effect",
+        then=When(
+            Bound("second", "heal"),
+            then=Choose(
+                OwnInjuredMamodo(), bind="slot", prompt="pick_own_injured_mamodo",
+                then=HealSlot(target=Ref("slot")),
+            ),
+            otherwise=When(
+                Bound("second", "mp"),
+                then=GainMp(amount=2),
+            ),
+        ),
+    ),
 )))
 
 reg.event("E-022", when=has_partner_discarded_this_turn, effect=Coin(

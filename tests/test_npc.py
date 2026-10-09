@@ -269,3 +269,22 @@ def test_attacks_when_it_can_win():
 def test_same_seed_same_game():
     runs = [play_out(("normal", "normal"), ("level1", "level2"), 4).events for _ in range(2)]
     assert runs[0] == runs[1]
+
+
+def test_npc_considers_borrowed_partner_effect():
+    # E-010 借用後,NPC 的候選含 use_borrowed_effect 且引擎接受;用過之後不再列出
+    from gash.engine.state import MamodoSlot
+    g = mk(first=0)
+    st = g.state
+    st.players[0].book[1] = "E-010"
+    st.players[0].mp = 6
+    st.players[1].mp = 5
+    st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-004"], partner="P-002"))
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    assert {"type": "use_borrowed_effect"} in candidates(g, 0)
+    assert top_choice(g, 0)["type"] == "use_borrowed_effect"        # P-002:MP 轉移對自己有利
+    submit(g, {"type": "use_borrowed_effect", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    assert {"type": "use_borrowed_effect"} not in candidates(g, 0)

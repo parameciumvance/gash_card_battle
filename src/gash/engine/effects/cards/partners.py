@@ -6,11 +6,11 @@ from ..tree import (
     All, CanNegateOpponentSpell, Choose, DiscardChosenPartner, DiscardTopMamodoCard,
     DoubleAttackDamage, HasOptions, IncreaseAttackDamage, MakeNextAttackUndefendable,
     NegateNextDamageThisBattle, NegateOpponentSpell, NoBattleDamageModifierFrom, OpponentMamodo,
-    OpponentPartneredMamodo, OwnAttackBy, OwnFieldHas, OwnPageTurnBackEffectAvailable,
+    OpponentPartneredMamodo, OwnAttackBy, OwnPageTurnBackEffectAvailable,
     OwnPageTurnEffectAvailable, ProtectorsDiscardedThisTurn, ReduceOpponentMpPerPageTurnedBack,
     RestrictOpponent, ScheduleNextSpellBonus, ScheduleSpellFromAnyPage, SetPowerZeroThisTurn,
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
-    TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn,
+    TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
@@ -19,16 +19,19 @@ from ..tree import (
 reg.activated("P-001", mode="discard", timing="nonbattle",
               effect=MakeNextAttackUndefendable(mamodo="ガッシュ・ベル"))
 reg.activated("P-002", mode="discard", timing="nonbattle", effect=StealOpponentMp(amount=3))
-reg.activated("P-003", mode="discard", timing="battle",
-              condition=All(OwnAttackBy("ブラゴ"), NoBattleDamageModifierFrom("P-003")),
-              effect=IncreaseAttackDamage(amount=2))
-reg.activated("P-004", mode="discard", timing="battle",
-              condition=All(OwnAttackBy("ゴフレ"), NoBattleDamageModifierFrom("P-004")),
-              effect=DoubleAttackDamage())
+# 作用對象(自分の「ブラゴ」/「ゴフレ」による攻撃、重複しない)不是使用條件:不成立時能用但沒有效果
+reg.activated("P-003", mode="discard", timing="battle", effect=When(
+    All(OwnAttackBy("ブラゴ"), NoBattleDamageModifierFrom("P-003")),
+    then=IncreaseAttackDamage(amount=2),
+))
+reg.activated("P-004", mode="discard", timing="battle", effect=When(
+    All(OwnAttackBy("ゴフレ"), NoBattleDamageModifierFrom("P-004")),
+    then=DoubleAttackDamage(),
+))
 reg.activated("P-005", mode="discard", timing="nonbattle", effect=SpellsCostZeroThisTurn(mamodo="スギナ"))
 
-reg.activated("P-006", mode="discard", timing="battle", condition=OwnFieldHas("M-010"),
-              effect=NegateNextDamageThisBattle(
+# 沒有 M-010 時能用但沒有效果(NegateNextDamageThisBattle 找不到對象就不排程)
+reg.activated("P-006", mode="discard", timing="battle", effect=NegateNextDamageThisBattle(
     number="M-010",
     then=DiscardTopMamodoCard(number="M-010"),
 ))

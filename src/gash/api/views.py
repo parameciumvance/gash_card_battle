@@ -156,15 +156,19 @@ def _effects_view(game: Game) -> list[dict]:
                     "expires": sb.data.get("expires", "turn"), "created_turn": sb.created_turn,
                     "target_slot": sb.data.get("slot_uid"), **_public_data(sb.data)})
     for m in st.modifiers:
-        out.append({"type": "modifier", "kind": m.kind, "source": m.source, "owner": m.owner,
-                    "duration": m.duration, "created_turn": m.created_turn,
-                    "target_player": m.target_player, "target_slot": m.target_slot,
-                    "amount": m.amount, "flag": m.flag, **_public_data(m.data)})
+        entry = {"type": "modifier", "kind": m.kind, "source": m.source, "owner": m.owner,
+                 "duration": m.duration, "created_turn": m.created_turn,
+                 "target_player": m.target_player, "target_slot": m.target_slot,
+                 "amount": m.amount, "flag": m.flag, **_public_data(m.data)}
+        if m.kind == "borrow_partner":   # E-010:借到的效果規格(時機等),前端據此判斷可否使用
+            entry["ability"] = _ability_view(m.data.get("card"))
+        out.append(entry)
     return out
 
 
 # 效果 data 中可公開、供顯示的欄位(白名單;其餘如續體一律不送)
-_PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_delta": int, "optional": bool}
+_PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_delta": int, "optional": bool,
+                       "used": bool}   # used:E-010 借用的效果本回合是否已使用
 
 
 def _public_data(data: dict) -> dict:
