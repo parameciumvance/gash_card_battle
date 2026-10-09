@@ -1962,6 +1962,67 @@ def test_m018_gain_mp_if_opponent_open_pages_lack_defense(opp_page3, gain):
     assert g.state.players[0].mp == 5 - 1 + gain
 
 
+def _use_m018(g):
+    return submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+                      "slot_uid": g.state.players[0].slots[0].uid})
+
+
+def test_m018_peeks_opponent_open_pages():
+    # 效果文「相手の魔本の今のページを見る」:檢視事件只對使用者揭露對手翻開的頁
+    g, _ = mk(book("M-018"), book("M-001", "E-003", "E-003"))   # 翻開的頁沒有防禦術 → MP +2
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    opp = g.state.players[1]
+    events = _use_m018(g)
+    peek = [e for e in events if e["type"] == "pages_peeked"]
+    assert len(peek) == 1
+    assert peek[0]["viewer"] == 0 and peek[0]["player"] == 1
+    assert [c["page"] for c in peek[0]["cards"]] == opp.open_pages()
+    assert [c["card"] for c in peek[0]["cards"]] == [opp.card_at(p) for p in opp.open_pages()]
+    # 檢視在判斷(MP 增加)之前
+    kinds = [e["type"] for e in events]
+    gain = next(i for i, e in enumerate(events) if e["type"] == "mp_changed" and e.get("delta", 0) > 0)
+    assert kinds.index("pages_peeked") < gain
+
+
+def test_m018_rejected_on_opponent_turn():
+    # 效果文「自分のバトルフェイズに」:對手回合的戰鬥階段不能使用
+    g, _ = mk(book("M-018"), book("M-001", "E-003", "S-029"))
+    _end_turn(g)                                    # 進入對手(玩家 1)回合的戰鬥階段
+    assert g.state.turn_player == 1 and g.state.phase == "battle" and g.state.battle is None
+    g.state.players[0].mp = 5
+    _give_action_to(g, 0)
+    events_before = len(g.events)
+    with pytest.raises(IllegalCommand) as e:
+        _use_m018(g)
+    assert e.value.code == "ability.timing"
+    assert g.state.players[0].mp == 5
+    assert not any(ev["type"] == "pages_peeked" for ev in g.events[events_before:])
+    assert "mamodo:M-018" not in g.state.players[0].used_abilities
+    # 回到自己的回合仍可使用(對手已 pass,自己 pass 即結束對手回合)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    assert g.state.turn_player == 0
+    _use_m018(g)
+    assert "mamodo:M-018" in g.state.players[0].used_abilities
+
+
+def test_m018_rejected_in_battle():
+    # 卡面沒有戰鬥圖示:自己回合的戰鬥中也不能使用
+    g, _ = mk(book("M-018", "S-008"), book("M-001"))
+    g.state.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    _give_action_to(g, 0)
+    mp = g.state.players[0].mp
+    with pytest.raises(IllegalCommand) as e:
+        _use_m018(g)
+    assert e.value.code == "ability.timing"
+    assert g.state.players[0].mp == mp
+
+
 def test_m030_skip_end_flip_on_last_page_once_per_game():
     g, _ = mk(book("M-030"), book("M-001"))
     ps = g.state.players[0]

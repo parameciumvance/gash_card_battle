@@ -550,6 +550,10 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .info-row .info-amount { color: var(--accent-blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .info-row .info-when { color: var(--ink-dim); white-space: nowrap; }
 .info-empty { font-size: 13px; color: var(--ink-dim); }
+/* 檢視對手翻開的頁(E-014 / M-018):頁碼在上、卡片在下,依頁碼並排 */
+.info-section.peek { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.peek-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.peek-page-no { font-size: 13px; color: var(--ink-dim); }
 .info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
 /* 意見回報 */
 .feedback-desc { font-size: 13px; color: var(--ink-dim); margin: 2px 0 12px; }

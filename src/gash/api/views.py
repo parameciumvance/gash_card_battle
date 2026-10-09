@@ -29,7 +29,7 @@ def _ability_view(number: str | None) -> dict | None:
     if spec is None:
         return None
     return {"mode": spec.mode, "mp_cost": spec.mp_cost,
-            "timing": spec.timing, "per_game": spec.per_game}
+            "timing": spec.timing, "own_turn": spec.own_turn, "per_game": spec.per_game}
 
 
 def _slot_view(game: Game, player: int, slot) -> dict:

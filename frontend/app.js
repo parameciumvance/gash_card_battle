@@ -244,7 +244,12 @@ function applyPayload(body) {
   // 同批事件經 HTTP 回應與 WS 推送各到一次,以 seq 游標去重,只演第一次
   const fresh = (body.events || []).filter((ev) => ev.seq >= animSeq);
   for (const ev of fresh) animSeq = Math.max(animSeq, ev.seq + 1);
-  Anim.apply(fresh, prevS, render, body.actor);
+  const played = Anim.apply(fresh, prevS, render, body.actor);
+  // 檢視對手頁面(E-014 / M-018):只對即時批次(有行動者)在演出結束後跳出;
+  // 伺服器已依視角過濾,帶 cards 的就是自己檢視的
+  const live = body.actor !== null && body.actor !== undefined;
+  const peeks = live ? fresh.filter((ev) => ev.type === "pages_peeked" && ev.cards) : [];
+  if (peeks.length) played.then(() => showPeek(peeks));
 }
 
 function toast(msg) {
@@ -1321,6 +1326,7 @@ function abilityUsableNow(p, ab) {
     if (ab.timing === "battle") return { ok: false };
     if (S.battle_in ? p !== 1 - S.battle_in.attacker : S.action_player !== p) return { ok: false };
   }
+  if (ab.own_turn && S.turn_player !== p) return { ok: false, reason: t("ui.ability.own_turn_only") };
   if (ab.mp_cost > S.players[p].mp) return { ok: false, reason: `MP < ${ab.mp_cost}` };
   return { ok: true };
 }
@@ -1885,6 +1891,26 @@ function showInfo(kind, title, body) {
   close.onclick = closeInfo;
   document.getElementById("info-body").replaceChildren(...body);
   document.getElementById("info-overlay").classList.remove("hidden");
+}
+
+// 檢視對手翻開的頁:依頁碼列出卡片(可點開放大檢視),按「確定」關閉;不是決策,對局照常
+function showPeek(peeks) {
+  const body = peeks.map((ev) => {
+    const sec = document.createElement("div");
+    sec.className = "info-section peek";
+    for (const { page, card } of [...ev.cards].sort((a, b) => a.page - b.page)) {
+      const item = document.createElement("div");
+      item.className = "peek-item";
+      const no = document.createElement("div");
+      no.className = "peek-page-no";
+      no.textContent = t("ui.page_n", { n: page });
+      item.append(no, cardEl(card, { small: true }));
+      sec.appendChild(item);
+    }
+    return sec;
+  });
+  showInfo("peek", t("ui.peek.title"), body);
+  document.getElementById("info-close").textContent = t("ui.ok");
 }
 
 function closeInfo() {

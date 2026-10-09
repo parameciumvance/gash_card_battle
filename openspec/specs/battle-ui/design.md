@@ -95,6 +95,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - 同一批事件從指令回應與 WebSocket 推送各到一次,以 `seq` 去重,先到的播放;兩條路徑都帶同一個 `actor`(見 `battle-api/design.md`)。
 - 盤面在整批的聚焦與阻塞式演出播完後才重繪,呈現「先因後果」。
 
+## 檢視對手頁面對話框(E-014 / M-018)
+
+- `applyPayload` 在 `Anim.apply` 回傳的 promise 完成後(聚焦、阻塞演出、重繪都結束),從這批新事件挑出含 `cards` 的 `pages_peeked`,以 `showPeek` 經資訊對話框(`showInfo("peek", …)`)顯示,按鈕文字為「確定」。
+- 只對即時批次(`actor` 不為 null):開局、金手指同步、重連的 welcome 都沒有行動者;`fetchMissedEvents` 補回的事件只進記錄,不經動畫管線,因此重新整理後不會重跳。
+- 是否跳出只看事件是否帶 `cards`:伺服器已依視角過濾(本機全視角原樣回傳),前端不比對 viewer。被檢視方與觀戰者收到的事件沒有 `cards`,只留記錄。
+- 檢視不是決策,對局不等待對話框;卡片可點開放大檢視(`#zoom-overlay` 疊在 `#info-overlay` 之上)。
+
 ## 對手行動聚焦展示
 
 - **分類表集中在 `anim.js`**:

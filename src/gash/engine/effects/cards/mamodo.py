@@ -9,13 +9,14 @@ from ..tree import (
     Never, Nothing, OpponentBookCards, OpponentInjuredMamodo, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
-    PreventDamageToSelf, Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook,
+    PeekOpponentOpenPages, PreventDamageToSelf, Ref, RestrictOpponent, ReturnDiscardToBook,
+    RevealOpponentBook,
     ScheduleNextSpellBonus, ScheduleSkipEndFlip, SelfHasNoPartner, SelfHasPartner, SelfInBattleAs,
     SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies, SwapBookPages,
     TurnPagesForward, When,
 )
 
-# activated 的 mode / mp_cost / timing / per_game / condition 由引擎檢查,effect 只描述效果本身。
+# activated 的 mode / mp_cost / timing / own_turn / per_game / condition 由引擎檢查,effect 只描述效果本身。
 
 reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("attack"),
               effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
@@ -73,10 +74,10 @@ reg.activated("M-016", mode="declare", timing="nonbattle", per_game=True,
 reg.activated("M-017", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
               effect=AddPower(amount=2000, duration=DUR_BATTLE, target=Ref("self_slot")))
 
-reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", effect=When(
-    OpponentOpenPagesLackDefenseSpell(),
-    then=GainMp(amount=2),
-))
+reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Sequence(steps=(
+    PeekOpponentOpenPages(),
+    When(OpponentOpenPagesLackDefenseSpell(), then=GainMp(amount=2)),
+)))
 
 # M-019 的「令對手重擲」在擲幣確認鏈(primitives.flip_coins)中詢問,不由玩家主動宣告
 reg.activated("M-019", mode="declare", timing="any", condition=Never(), effect=Nothing())

@@ -418,6 +418,8 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
         raise IllegalCommand("ability.timing", "此效果只能在戰鬥中使用")
     if spec.timing == "nonbattle" and in_battle:
         raise IllegalCommand("ability.timing", "此效果不能在戰鬥中使用")
+    if spec.own_turn and player != st.turn_player:
+        raise IllegalCommand("ability.timing", "此效果只能在自己的回合使用")
     # 以卡號為 key:棄掉後重新放出相同編號的卡,該回合仍不可使用其效果
     key = f"{zone}:{number}"
     if key in st.players[player].used_abilities:

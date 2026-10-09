@@ -1328,7 +1328,7 @@ class ScheduleNoProtectBookNextBattle(Effect):
 
 @dataclass(frozen=True)
 class PeekOpponentOpenPages(Effect):
-    """檢視對手目前翻開的頁面(只對使用者揭露)(E-014)。"""
+    """檢視對手目前翻開的頁面(只對使用者揭露)(E-014 / M-018)。"""
 
     def run(self, rt, ctx, path):
         player = ctx["player"]

@@ -28,6 +28,7 @@ class Activated:
     handler: Callable                     # fn(game, batch, player, slot)
     mp_cost: int = 0
     timing: str = "any"                   # any / battle / nonbattle
+    own_turn: bool = False                # 只能在自己的回合使用(M-018)
     per_game: bool = False
     condition: Callable | None = None     # fn(game, player, slot) -> bool
 

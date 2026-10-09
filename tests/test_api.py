@@ -176,3 +176,18 @@ def test_ws_bad_token_closed():
         except Exception:
             connected = False
         assert not connected
+
+
+def test_snapshot_ability_marks_own_turn_only():
+    # M-018 只能在自己的回合使用:快照的 ability 帶 own_turn,前端據此停用按鈕
+    from gash.api.views import snapshot
+    from gash.engine.cards import card_db
+    from gash.engine.engine import new_game
+    db = card_db()
+    b0 = ["M-018"] + ["S-029"] * 31
+    b1 = ["M-001"] + ["S-029"] * 31
+    g = new_game(b0, seed=0, db=db, decks=(b0, b1))
+    for viewer in (0, 1, "spectator"):
+        snap = snapshot(g, viewer)
+        assert snap["players"][0]["slots"][0]["ability"]["own_turn"] is True
+        assert snap["players"][1]["slots"][0]["ability"]["own_turn"] is False
