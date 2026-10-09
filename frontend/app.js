@@ -541,6 +541,12 @@ function cardEl(num, opts = {}) {
   if (def.damage) bits.push(t("ui.damage", { n: def.damage }));
   if (def.ad) bits.push(def.ad);
   meta.textContent = bits.join(t("ui.sep.meta"));
+  if (def.class === "intermediate" || def.class === "superior") {   // 中級 / 上級:限制可放的頁數
+    const cls = document.createElement("span");
+    cls.className = `cclass cclass-${def.class}`;
+    cls.textContent = t(`card.class.${def.class}`);
+    meta.appendChild(cls);
+  }
   el.appendChild(meta);
 
   const eff = document.createElement("div");
@@ -560,6 +566,20 @@ function cardEl(num, opts = {}) {
       bd.textContent = b.text;
       el.appendChild(bd);
     }
+  }
+
+  if (opts.detail) {   // 牌組編輯器:詳情按鈕開純展示放大檢視,不觸發放卡 / 選取 / 拖拉
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "card-detail";
+    btn.textContent = "i";
+    btn.title = t("builder.detail");
+    btn.setAttribute("aria-label", t("builder.detail"));
+    btn.draggable = false;
+    btn.onclick = (ev) => { ev.stopPropagation(); zoom(num); };
+    btn.onkeydown = (ev) => ev.stopPropagation();   // Enter / Space 只觸發按鈕,不傳到卡片或頁位
+    btn.onmousedown = (ev) => ev.stopPropagation();
+    el.appendChild(btn);
   }
 
   el.onclick = () => zoom(num, opts.zoomCtx);
@@ -2690,13 +2710,18 @@ function renderCardPoolFilters(holder, filters, onChange) {
   }
   typeSel.setAttribute("aria-label", t("builder.filter.type"));
   typeSel.value = filters.ftype;
-  typeSel.onchange = () => { filters.ftype = typeSel.value; onChange(); };
+  typeSel.onchange = () => {
+    filters.ftype = typeSel.value;
+    mamodoSel.disabled = filters.ftype === "event";   // 事件沒有對應魔物:暫停對應魔物篩選(保留選擇)
+    onChange();
+  };
   holder.appendChild(typeSel);
 
   const mamodoSel = document.createElement("select");
   const names = [...new Set(Object.values(CARDS)
     .map((c) => c.related_mamodo).filter((m) => m && m !== COMMAND_MAMODO))].sort();
-  mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`;
+  mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`
+    + `<option value="${MAMODO_NONE}">${t("builder.filter.mamodo")}:${t("builder.filter.none")}</option>`;
   for (const name of names) {
     const numAny = Object.values(CARDS).find(
       (c) => c.type === "mamodo" && c.related_mamodo === name);
@@ -2705,6 +2730,7 @@ function renderCardPoolFilters(holder, filters, onChange) {
   }
   mamodoSel.setAttribute("aria-label", t("builder.filter.mamodo"));
   mamodoSel.value = filters.fmamodo;
+  mamodoSel.disabled = filters.ftype === "event";
   mamodoSel.onchange = () => { filters.fmamodo = mamodoSel.value; onChange(); };
   holder.appendChild(mamodoSel);
 
@@ -2722,18 +2748,26 @@ function renderCardPoolFilters(holder, filters, onChange) {
 }
 
 function renderPool() {
-  renderCardPool(document.getElementById("pool-grid"), B, placeCard);
+  renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true });
 }
 
-function renderCardPool(grid, filters, onPick) {
+// 對應魔物篩選:「無」只留指令術;類型為事件時暫停(事件沒有對應魔物)
+const MAMODO_NONE = "__none__";
+function matchesMamodoFilter(def, filters) {
+  if (!filters.fmamodo || filters.ftype === "event") return true;
+  if (filters.fmamodo === MAMODO_NONE) return isCommandSpell(def);
+  return def.related_mamodo === filters.fmamodo;
+}
+
+function renderCardPool(grid, filters, onPick, opts = {}) {
   grid.innerHTML = "";
   const numbers = Object.keys(CARDS).sort();
   for (const num of numbers) {
     const def = CARDS[num];
     if (filters.ftype && def.type !== filters.ftype) continue;
-    if (filters.fmamodo && def.related_mamodo !== filters.fmamodo) continue;
+    if (!matchesMamodoFilter(def, filters)) continue;
     if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) continue;
-    const el = cardEl(num, { small: true });
+    const el = cardEl(num, { small: true, detail: opts.detail });
     el.onclick = () => onPick(num);
     el.setAttribute("role", "button");
     el.tabIndex = 0;
@@ -2747,7 +2781,7 @@ function renderCardPool(grid, filters, onPick) {
 
 function pageSlotEl(i) {
   return bookPageSlotEl(i, B.deck.pages, B.selected, {
-    scope: "builder", enabled: () => true, select: togglePage, swap: swapPages,
+    scope: "builder", enabled: () => true, select: togglePage, swap: swapPages, detail: true,
   });
 }
 
@@ -2763,12 +2797,14 @@ function bookPageSlotEl(i, pages, selected, actions) {
   const pick = () => { if (actions.enabled()) actions.select(i); };
   const pno = document.createElement("span");
   pno.className = "pno";
-  pno.textContent = i === 0 ? t("builder.page_first")
-    : i === 31 ? t("builder.page_last") : `P${i + 1}`;
-  slot.appendChild(pno);
   const num = pages[i];
+  const full = i === 0 ? t("builder.page_first") : i === 31 ? t("builder.page_last") : `P${i + 1}`;
+  // 放了卡時首頁 / 末頁只顯示頁碼,讓出右上角給卡號;完整說明留在提示與空頁
+  pno.textContent = num ? `P${i + 1}` : full;
+  pno.title = full;
+  slot.appendChild(pno);
   if (num) {
-    const card = cardEl(num, { small: true });
+    const card = cardEl(num, { small: true, detail: actions.detail });
     card.onclick = (ev) => { ev.stopPropagation(); pick(); };
     card.querySelector("img").draggable = false;
     slot.appendChild(card);

@@ -256,7 +256,25 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   font-size: 9.5px; color: #333; overflow: hidden; flex: 1;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
-.card .cnum { position: absolute; right: 6px; top: 5px; font-size: 9px; color: #8d8371; }
+.card .cnum {   /* 卡號標籤:有底色,蓋在卡圖右上也可讀(與頁位的頁碼同一種樣式) */
+  position: absolute; right: 4px; top: 4px; z-index: 2; font-size: 10px; line-height: 1.4;
+  color: #e6ecff; background: rgba(18,24,42,.8); padding: 0 4px; border-radius: 4px;
+}
+/* 中級 / 上級:併入資訊列,限制可放的頁數 */
+.card .cclass {
+  display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 4px;
+  font-size: .9em; font-weight: bold; line-height: 1.4; color: #fff;
+}
+.card .cclass-intermediate { background: #2f7d55; }
+.card .cclass-superior { background: #a33a2a; }
+/* 牌組編輯器的詳情按鈕:卡圖右側、卡號下方(不壓到卡名與資訊列),點擊範圍以偽元素擴大 */
+.card .card-detail {
+  position: absolute; right: 4px; top: 24px; z-index: 2; width: 20px; height: 20px; padding: 0;
+  border-radius: 50%; border: 1px solid #c9d3ee; background: rgba(18,24,42,.85); color: #e6ecff;
+  font: italic bold 12px/18px Georgia, serif; text-align: center; cursor: pointer;
+}
+.card .card-detail::before { content: ""; position: absolute; inset: -5px; }
+.card .card-detail:hover, .card .card-detail:focus-visible { background: #2c3a5e; outline: 2px solid var(--glow); }
 .card img.art {
   width: 100%; height: 80px; object-fit: cover; object-position: top; border-radius: 4px;
 }
@@ -463,7 +481,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 #zoom-card .card .cnum {
   position: static; display: block; font-size: 14px; line-height: 1.5;
-  color: #403426; font-weight: normal; margin-top: 6px;
+  color: #403426; font-weight: normal; margin-top: 6px; background: none; padding: 0;
 }
 #zoom-card { max-height: 75dvh; overflow-y: auto; }
 #zoom-card .card:hover { transform: none; box-shadow: none; }
