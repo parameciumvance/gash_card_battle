@@ -3,7 +3,9 @@
 ## Purpose
 
 FastAPI 薄殼:房間內對局的指令轉發、視角化狀態快照與事件、WebSocket 推送。引擎為唯一規則權威;所有回應經觀看者視角過濾。
+
 ## Requirements
+
 ### Requirement: 建立對局
 對局 SHALL 經由房間流程建立(見 `online-room`):線上房於雙方到齊時、本機房於建房時,載入預組魔書、初始化引擎(可選指定 RNG seed)、執行準備階段。牌組欄位 SHALL 解析為下列之一:`{preset: id}` 依 id 自掃描集合載入對應預組(id MUST 限縮在掃描到的集合,絕不轉為任意檔案路徑;未知 id 回 4xx);`{pages:[...]}` 自訂牌組以構築規則驗證(違規回 422);缺省(無牌組欄位或 `{preset:"level1"}`)為預設預組 level1。直接建立無主對局的舊端點 MUST 移除。
 
@@ -251,3 +253,21 @@ WebSocket 的更新推送與指令提交的回應 SHALL 帶 `actor`,標明發起
 - **WHEN** 瀏覽器請求不存在的 `/static/assets/cards/ZZ-999.webp`
 - **THEN** 回應 404,不帶 `Cache-Control: public, max-age=604800`
 
+### Requirement: 戰術頁的可使用魔物
+持有者本人視角的快照中,翻開的戰術頁 SHALL 附上可使用此戰術的自己場上魔物清單 `users`:每項含魔物的 `slot_uid`、依該魔物使用時的費用 `cost`、是否被封鎖 `locked`。清單以引擎的戰術相容判定為準(家族相符、戰術相容性擴充;指令戰術為所有魔物)。待命允許從魔書任意頁使用的戰術(P-015)SHALL 以 `any_page_spells` 列出(不含翻開的頁與已離開魔書的頁),每項含頁碼 `page`、卡號 `card`、費用 `cost` 與同樣的 `users`。對手與觀戰視角 MUST NOT 含這些欄位。
+
+#### Scenario: 兩隻魔物都能使用
+- **WHEN** 自己場上有賈修與 M-029 ゼオン,翻開一張名為「ザケル」的賈修戰術
+- **THEN** 該頁的 `users` 含兩隻魔物,各附其費用
+
+#### Scenario: 名稱只部分相符時不列入
+- **WHEN** 自己場上有賈修與 M-029 ゼオン,翻開「バオウ・ザケルガ」
+- **THEN** 該頁的 `users` 只有賈修
+
+#### Scenario: 任意頁戰術的頁
+- **WHEN** 自己 P-015 的待命生效中,魔書第 20 頁(未翻開、未離開魔書)是「ビライツ」
+- **THEN** 快照的 `any_page_spells` 含第 20 頁,附卡號、費用與 `users`;待命用掉或回合結束後不再列出
+
+#### Scenario: 對手看不到
+- **WHEN** 對手或觀戰者取得快照
+- **THEN** 翻開頁不含 `users`,也沒有 `any_page_spells`

@@ -44,8 +44,11 @@ def _actions(game: Game, player: int) -> list[dict]:
     out = []
     for page in ps.open_pages():
         card = game.db[ps.card_at(page)]
-        if card.type in (MAMODO, PARTNER):
+        if card.type == MAMODO:
             out.append({"type": "play_card", "page": page})
+        elif card.type == PARTNER:   # 對應的魔物各一個(兩隻對應魔物時由 NPC 選擇裝備對象)
+            out += [{"type": "play_card", "page": page, "slot_uid": s.uid} for s in ps.slots
+                    if game.db[s.top].related_mamodo == card.related_mamodo and s.partner is None]
         elif card.type == EVENT or (card.type == SPELL and card.effect_icon == "nonbattle"):
             out.append({"type": "use_book_card", "page": page})
     return out + _field_abilities(game, player)

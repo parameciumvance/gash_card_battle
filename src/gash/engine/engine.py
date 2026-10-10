@@ -135,6 +135,8 @@ def spell_cost(game: Game, player: int, page: int, card: CardDef, slot: MamodoSl
         return _spell_cost_by(game, player, page, card, game.db[slot.top].related_mamodo, discount)
     users = [s for s in game.state.players[player].slots
              if card.is_command_spell or _spell_usable_by(game, player, s, card)]
+    free = [s for s in users if not slot_restricted(game, player, MAMODO_LOCKED, s.uid)]
+    users = free or users   # 被 E-024 封鎖的魔物不能使用;全被封鎖時只作顯示
     if not users:
         return _spell_cost_by(game, player, page, card, None, discount)
     return min(_spell_cost_by(game, player, page, card, game.db[s.top].related_mamodo, discount)
@@ -369,8 +371,13 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
         if number in reg.ON_PLAY:
             reg.ON_PLAY[number](game, batch, player, slot)
     elif card.type == PARTNER:
-        target = next(
-            (s for s in ps.slots if game.db[s.top].related_mamodo == card.related_mamodo), None)
+        # 裝備對象:對應的魔物中尚未裝搭檔者;可指定(兩隻對應魔物時由玩家選),未指定取第一隻
+        matching = [s for s in ps.slots if game.db[s.top].related_mamodo == card.related_mamodo]
+        slot_uid = command.get("slot_uid")
+        if slot_uid is not None:
+            target = next((s for s in matching if s.uid == slot_uid), None)
+        else:
+            target = next((s for s in matching if s.partner is None), matching[0] if matching else None)
         if target is None:
             raise IllegalCommand("play.no_mamodo", "對應魔物不在自己場上")
         if target.partner is not None:
@@ -509,15 +516,13 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在自己的回合使用")
         if card.ad == "D" and player == st.turn_player:
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在對手的回合使用")
-        if not card.is_command_spell and not any(
-                _spell_usable_by(game, player, s, card) for s in st.players[player].slots):
-            raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
+        user = _nonbattle_spell_user(game, player, card, command.get("slot_uid"))
         if number in st.players[player].used_nonbattle_spells:
             raise IllegalCommand("spell.used", "此非戰鬥戰術本回合已使用過")
         handler = reg.SPELL_NONBATTLE.get(number)
         if handler is None:
             raise IllegalCommand("spell.not_implemented", f"{number} 尚未實作")
-        cost = spell_cost(game, player, page, card)
+        cost = spell_cost(game, player, page, card, slot=user)
         if st.players[player].mp < cost:
             raise IllegalCommand("spell.mp", "MP 不足")
         st.players[player].used_nonbattle_spells.add(number)
@@ -571,6 +576,26 @@ def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -
         return True
     compat = reg.SPELL_COMPAT.get(slot.top)
     return bool(compat and compat(game, player, slot, card))
+
+
+def _nonbattle_spell_user(game: Game, player: int, card: CardDef, slot_uid) -> MamodoSlot | None:
+    """非戰鬥戰術的使用魔物:指定時須能使用且未被 E-024 封鎖;未指定時回傳 None(以未被封鎖者的最低費用計)。
+    E-024「その魔物の…術を使えない」不分戰鬥與非戰鬥。"""
+    st = game.state
+    usable = [s for s in st.players[player].slots
+              if card.is_command_spell or _spell_usable_by(game, player, s, card)]
+    if slot_uid is not None:
+        slot = st.slot_by_uid(player, slot_uid)
+        if slot is None or slot not in usable:
+            raise IllegalCommand("spell.no_mamodo", "指定的魔物不能使用此戰術")
+        if slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
+            raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用戰術卡")
+        return slot
+    if not usable:
+        raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
+    if all(slot_restricted(game, player, MAMODO_LOCKED, s.uid) for s in usable):
+        raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用戰術卡")
+    return None
 
 
 def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, attack: bool,

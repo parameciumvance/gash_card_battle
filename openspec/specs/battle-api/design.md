@@ -18,6 +18,11 @@
   - 只送整理過的欄位;效果的 `data` 只挑白名單 `_PUBLIC_EFFECT_DATA` 內、型別相符的欄位(`mamodo`、`card`、`power_delta`、`cost_delta`、`optional`),續體等內部資料一律不送。
   - 新增效果種類時,若要在清單顯示額外資訊,把欄位加進白名單並確認它是公開資訊。
 
+## 持有者私有的戰術使用資訊
+
+- 翻開的戰術頁的 `users`(可使用此戰術的自己魔物:`slot_uid`、依該魔物計算的 `cost`、E-024 `locked`)與 `any_page_spells`(P-015 待命允許從魔書任意頁使用的戰術頁)只在 `can_see_player` 的持有者視角提供:前者洩漏自己場上的相容情況與待命,後者洩漏魔書未翻開的內容。
+- 相容判定以引擎 `_spell_usable_by` 為準,前端不再自行判斷。
+
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
 
 ## 推送的行動者(`actor`)

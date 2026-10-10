@@ -8,7 +8,10 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 
 from __future__ import annotations
 
-from ..engine.engine import exhausted_spell_pages, side_breakdown, slot_power, spell_cost
+from ..engine.engine import (
+    MAMODO_LOCKED, _spell_any_page_standby, _spell_usable_by, exhausted_spell_pages, side_breakdown,
+    slot_power, slot_restricted, spell_cost,
+)
 from ..engine.state import BOOK_SIZE, Game
 
 # 帶 viewer 欄位、內容僅該玩家可見的事件型別
@@ -64,6 +67,27 @@ def _in_use_pages(game: Game, p: int) -> set[int]:
     return pages
 
 
+def _spell_users(game: Game, p: int, page: int, card) -> list[dict]:
+    """可使用此戰術的自己場上魔物(持有者私有):依引擎的相容判定,附依該魔物計算的費用與是否被 E-024 封鎖。"""
+    return [{"slot_uid": s.uid, "cost": spell_cost(game, p, page, card, slot=s),
+             "locked": slot_restricted(game, p, MAMODO_LOCKED, s.uid)}
+            for s in game.state.players[p].slots
+            if card.is_command_spell or _spell_usable_by(game, p, s, card)]
+
+
+def _any_page_spells(game: Game, p: int) -> list[dict]:
+    """待命允許從魔書任意頁使用的戰術(P-015):翻開的頁與已離開魔書的頁除外。"""
+    ps = game.state.players[p]
+    out = []
+    for page in range(1, BOOK_SIZE + 1):
+        if page in ps.open_pages() or not _spell_any_page_standby(game, p, page):
+            continue
+        card = game.db[ps.card_at(page)]
+        out.append({"page": page, "card": card.number, "cost": spell_cost(game, p, page, card),
+                    "users": _spell_users(game, p, page, card)})
+    return out
+
+
 def _player_view(game: Game, p: int, viewer) -> dict:
     ps = game.state.players[p]
     in_use = _in_use_pages(game, p)
@@ -75,6 +99,8 @@ def _player_view(game: Game, p: int, viewer) -> dict:
             entry = {"page": page, "card": number}
             if card.type == "spell":
                 entry["cost"] = spell_cost(game, p, page, card)
+                if can_see_player(viewer, p):
+                    entry["users"] = _spell_users(game, p, page, card)
             if page in in_use:
                 entry["in_use"] = True  # 持有者視角亦附標,供前端高亮
         else:
@@ -94,6 +120,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
     # 己方完整魔書只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):
         view["book"] = list(ps.book)
+        view["any_page_spells"] = _any_page_spells(game, p)
         view["used_nonbattle_spells"] = sorted(ps.used_nonbattle_spells)
     return view
 

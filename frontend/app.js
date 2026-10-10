@@ -236,7 +236,7 @@ async function send(command) {
 
 function applyPayload(body) {
   const prevS = S;
-  if (body.state) S = body.state;
+  if (body.state) { S = body.state; LOCAL_PICK = null; }   // 新快照:前端的場上選擇作廢
   if (body.room) { R = body.room; clockDrift = Date.now() / 1000 - R.server_time; }
   if (body.events) appendLog(body.events);
   if (R && R.started && SESSION && S) show("layout");  // 對手加入 → 離開等待畫面
@@ -660,6 +660,10 @@ function zoomActions(ctx) {
     const slot = ps.slots.find((s) => s.uid === ctx.uid);
     return slot && slot.partner ? { buttons: partnerButtons(ctx.p, slot) } : { gone: true };
   }
+  if (ctx.kind === "any_page") {
+    const entry = (ps.any_page_spells || []).find((e) => e.page === ctx.page);
+    return entry ? { buttons: anyPageButtons(ctx.p, entry) } : { gone: true };
+  }
   if (ctx.kind === "borrowed") {
     const borrow = borrowedEffect(ctx.p);
     return borrow ? { buttons: borrowedButtons(ctx.p, borrow) } : { gone: true };
@@ -685,7 +689,7 @@ function renderZoom() {
   if (ZOOM.ctx) {
     const r = zoomActions(ZOOM.ctx);
     if (r.gone) { closeZoom(); return; }  // 卡片已離場(狀態更新)→ 自動關閉
-    buttons = [...pickButtons(ZOOM.ctx), ...r.buttons];
+    buttons = PICK && PICK.local ? pickButtons(ZOOM.ctx) : [...pickButtons(ZOOM.ctx), ...r.buttons];
     if (ZOOM.ctx.kind === "page") {
       const entry = S.players[ZOOM.ctx.p].open_pages.find((e) => e.page === ZOOM.ctx.page);
       if (entry) opts.cost = entry.cost;
@@ -756,19 +760,26 @@ function canActNow(p) {
   return S.phase === "battle" && S.action_player === p;
 }
 
-function mamodoInPlay(p, related) {
-  return S.players[p].slots.find((s) => CARDS[s.top].related_mamodo === related);
-}
-
 const COMMAND_MAMODO = "コマンド";
 function isCommandSpell(def) { return def.type === "spell" && def.related_mamodo === COMMAND_MAMODO; }
 
 // 與引擎 _spell_usable_by 的家族及 M-023/M-029 相容性保持一致。
-function hasSpellMamodo(p, def) {
-  return S.players[p].slots.some((slot) =>
-    CARDS[slot.top].related_mamodo === def.related_mamodo ||
-    (slot.top === "M-023" && def.attr_name === "木") ||
-    (slot.top === "M-029" && def.related_mamodo === "ガッシュ・ベル" && (def.name_ja || "").includes("ザケル")));
+// 可使用此戰術的魔物:以快照的 users 為準(引擎的相容判定),前端不自行判斷相容規則。
+// selectable = 未被 E-024 封鎖且 MP 足以支付該魔物使用時的費用
+function spellUsers(p, entry) {
+  const mp = S.players[p].mp;
+  return (entry.users || []).map((u) => {
+    const reason = u.locked ? t("ui.spell.locked") : u.cost > mp ? t("ui.spell.mp", { mp, cost: u.cost }) : null;
+    return { ...u, selectable: !reason, reason };
+  });
+}
+
+// 至少一隻可選才可用;沒有可使用的魔物、或都不可選時回傳第一個原因
+function spellUsersCheck(p, entry) {
+  const users = spellUsers(p, entry);
+  if (!users.length) return { ok: false, reason: t("ui.spell.no_mamodo") };
+  if (!users.some((u) => u.selectable)) return { ok: false, reason: users[0].reason };
+  return { ok: true };
 }
 
 function nonbattleSpellUsable(p, entry) {
@@ -778,10 +789,7 @@ function nonbattleSpellUsable(p, entry) {
     return { ok: false, reason: t(def.ad === "A" ? "ui.spell.own_turn" : "ui.spell.other_turn") };
   }
   if ((ps.used_nonbattle_spells || []).includes(entry.card)) return { ok: false, reason: t("ui.used") };
-  if (!isCommandSpell(def) && !hasSpellMamodo(p, def)) return { ok: false, reason: t("ui.spell.no_mamodo") };
-  const cost = entry.cost ?? def.cost ?? 0;
-  if (ps.mp < cost) return { ok: false, reason: t("ui.spell.mp", { mp: ps.mp, cost }) };
-  return { ok: true };
+  return spellUsersCheck(p, entry);
 }
 
 function spellUsable(p, entry, forAttack) {
@@ -790,20 +798,39 @@ function spellUsable(p, entry, forAttack) {
   if (def.type !== "spell" || def.effect_icon === "nonbattle") return { ok: false };
   const icon = forAttack ? ["A", "AD"] : ["D", "AD"];
   if (!icon.includes(def.ad)) return { ok: false };
-  if (ps.used_spell_pages.includes(entry.page)) return { ok: false, reason: t("ui.used") };
-  if (ps.mp < entry.cost) return { ok: false, reason: `MP ${ps.mp} < ${entry.cost}` };
-  const isCommand = isCommandSpell(def);
-  if (!isCommand && !hasSpellMamodo(p, def)) return { ok: false, reason: t("ui.spell.no_mamodo") };
-  if (isCommand && ps.slots.length === 0) return { ok: false };
-  return { ok: true, isCommand };
+  if ((ps.used_spell_pages || []).includes(entry.page)) return { ok: false, reason: t("ui.used") };
+  return { ...spellUsersCheck(p, entry), isCommand: isCommandSpell(def) };
 }
 
-function pickSlotThen(p, isCommand, cb) {
-  const slots = S.players[p].slots;
-  if (!isCommand || slots.length === 1) { cb(isCommand ? slots[0].uid : undefined); return; }
-  showDialog(t("ui.pick_command_user"), slots.map((s) => ({
-    cardNum: s.top, onpick: () => cb(s.uid),
-  })));
+// 選擇戰術的使用魔物:可選的只有一隻 → 直接;攻防兩隻以上 → 選擇視窗;
+// 非戰鬥戰術兩隻以上且費用不全相同 → 選擇視窗,否則第一隻可選者。一律送出 slot_uid
+function pickSpellUser(p, entry, nonbattle, cb) {
+  const users = spellUsers(p, entry);
+  const ok = users.filter((u) => u.selectable);
+  if (!ok.length) return;
+  const sameCost = ok.every((u) => u.cost === ok[0].cost);
+  if (ok.length === 1 || (nonbattle && sameCost)) { cb(ok[0].slot_uid); return; }
+  const title = isCommandSpell(CARDS[entry.card]) ? t("ui.pick_command_user") : t("ui.pick_spell_user");
+  startLocalPick({
+    player: p, title, source: entry.card, onpick: cb,
+    options: new Map(users.map((u) => [u.slot_uid,
+      { selectable: u.selectable, note: t("ui.cost", { n: u.cost }), reason: u.reason }])),
+  });
+}
+
+// 搭檔卡的裝備對象:對應(頂層魔物的對應魔物相同)且尚未裝搭檔的自己魔物
+function partnerTargets(p, def) {
+  const matching = S.players[p].slots.filter((s) => CARDS[s.top].related_mamodo === def.related_mamodo);
+  return { matching, free: matching.filter((s) => !s.partner) };
+}
+
+function pickPartnerTarget(p, def, cb) {
+  const { free } = partnerTargets(p, def);
+  if (free.length <= 1) { if (free.length) cb(free[0].uid); return; }
+  startLocalPick({
+    player: p, title: t("choice.title.pick_mamodo_for_partner"), source: def.number, onpick: cb,
+    options: new Map(free.map((s) => [s.uid, { selectable: true }])),
+  });
 }
 
 // ---------------------------------------------------------------- 渲染
@@ -1261,9 +1288,12 @@ document.addEventListener("keydown", (ev) => {
 });
 
 // 翻閱中的頁:唯讀卡面(點擊只開純展示放大檢視);已離開魔書的頁為卡背
-function browsedPageEl(ps, pg) {
+// 例外:待命允許從魔書任意頁使用的戰術頁(P-015)發光,放大檢視提供「攻擊」
+function browsedPageEl(p, ps, pg) {
   if ((ps.consumed_pages || []).includes(pg)) return cardBackEl(pg, true);
-  const el = cardEl(ps.book[pg - 1]);
+  const usable = (ps.any_page_spells || []).some((e) => e.page === pg);
+  const el = cardEl(ps.book[pg - 1], { zoomCtx: usable ? { kind: "any_page", p, page: pg } : undefined });
+  if (usable) el.classList.add("pickable");
   el.dataset.card = ps.book[pg - 1];
   return el;
 }
@@ -1306,7 +1336,7 @@ function renderBookBlock(p, ps) {
       col.appendChild(el);
     } else {
       if (browse !== null) {
-        el = browsedPageEl(ps, pg);
+        el = browsedPageEl(p, ps, pg);
       } else if (byPage[pg]) {
         const entry = byPage[pg];
         el = entry.card ? openPageEl(p, entry) : cardBackEl(entry.page);
@@ -1446,6 +1476,20 @@ function abilityUsableNow(p, ab) {
   return { ok: true };
 }
 
+// P-015:從魔書任意頁宣告攻擊(條件與翻開頁的攻擊按鈕相同,使用魔物的選擇也相同)
+function anyPageButtons(p, entry) {
+  if (!iControl(p) || p !== S.turn_player || S.battle || S.battle_in || !canActNow(p)) return [];
+  const u = spellUsable(p, entry, true);
+  return [{
+    label: t("ui.attack"), primary: true, disabled: !u.ok, reason: u.reason,
+    onclick: () => {
+      closeBookReview();   // 網格在選擇視窗之上:先關閉,使用魔物的選擇才看得到
+      pickSpellUser(p, entry, false,
+        (uid) => send({ type: "declare_attack", player: p, page: entry.page, slot_uid: uid }));
+    },
+  }];
+}
+
 // E-010:玩家 p 本回合借用且尚未使用的搭檔效果(作用中效果中的 borrow_partner);沒有則 null
 function borrowedEffect(p) {
   return (S.effects || []).find((e) => e.kind === "borrow_partner" && e.owner === p && !e.used) || null;
@@ -1472,13 +1516,15 @@ function pageButtons(p, entry) {
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
-      // 搭檔卡:對應魔物須在場上且未裝搭檔(魔物卡可能疊放,前端不判斷場上是否已滿,以伺服器為準)
-      const target = def.type === "partner" ? mamodoInPlay(p, def.related_mamodo) : null;
-      const blocked = def.type !== "partner" ? null
-        : !target ? t("ui.play.no_mamodo") : target.partner ? t("ui.play.partner_exists") : null;
+      // 搭檔卡:對應且未裝搭檔的魔物為裝備對象,兩隻以上時由玩家選(魔物卡可能疊放,前端不判斷場上是否已滿)
+      const targets = def.type === "partner" ? partnerTargets(p, def) : null;
+      const blocked = !targets ? null
+        : !targets.matching.length ? t("ui.play.no_mamodo") : !targets.free.length ? t("ui.play.partner_exists") : null;
       buttons.push({
         label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
-        onclick: () => send({ type: "play_card", player: p, page: entry.page }),
+        onclick: () => (def.type === "partner"
+          ? pickPartnerTarget(p, def, (uid) => send({ type: "play_card", player: p, page: entry.page, slot_uid: uid }))
+          : send({ type: "play_card", player: p, page: entry.page })),
       });
     } else if (def.type === "event") {
       const ps = S.players[p];
@@ -1495,7 +1541,8 @@ function pageButtons(p, entry) {
       const u = nonbattleSpellUsable(p, entry);
       buttons.push({
         label: t("ui.use_event"), primary: true, disabled: !u.ok, reason: u.reason,
-        onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
+        onclick: () => pickSpellUser(p, entry, true,
+          (uid) => send({ type: "use_book_card", player: p, page: entry.page, slot_uid: uid })),
       });
     }
     if (def.type === "spell" && def.effect_icon !== "nonbattle" && p === S.turn_player && !S.battle_in) {
@@ -1503,11 +1550,8 @@ function pageButtons(p, entry) {
       if (["A", "AD"].includes(def.ad)) {
         buttons.push({
           label: t("ui.attack"), primary: true, disabled: !u.ok, reason: u.reason,
-          onclick: () => pickSlotThen(p, u.isCommand, (uid) => {
-            const cmd = { type: "declare_attack", player: p, page: entry.page };
-            if (uid !== undefined) cmd.slot_uid = uid;
-            send(cmd);
-          }),
+          onclick: () => pickSpellUser(p, entry, false,
+            (uid) => send({ type: "declare_attack", player: p, page: entry.page, slot_uid: uid })),
         });
       }
     }
@@ -1521,11 +1565,8 @@ function pageButtons(p, entry) {
       buttons.push({
         label: t("ui.defend"), primary: true,
         disabled: S.battle.attack_undefendable || !u.ok, reason: blocked,
-        onclick: () => pickSlotThen(p, u.isCommand, (uid) => {
-          const cmd = { type: "declare_defense", player: p, page: entry.page };
-          if (uid !== undefined) cmd.slot_uid = uid;
-          send(cmd);
-        }),
+        onclick: () => pickSpellUser(p, entry, false,
+          (uid) => send({ type: "declare_defense", player: p, page: entry.page, slot_uid: uid })),
       });
     }
   }
@@ -1701,7 +1742,7 @@ function renderActionBar() {
   bar.appendChild(summary);
   let details = null;
   if (mine && PICK) {                                  // 決策:行動欄顯示決策區塊,目標在原位置選
-    bar.appendChild(choicePromptEl());
+    bar.appendChild(PICK.local ? localPromptEl() : choicePromptEl());
     return;
   }
   if (mine) {                                          // 詳細提示只對可操作的一方
@@ -1759,6 +1800,11 @@ function renderActionBar() {
         addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
           () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
       }
+      // P-015:待命允許從魔書任意頁使用的戰術,在可宣告攻擊時從魔書網格使用
+      const anyPage = S.players[awaited].any_page_spells || [];
+      if (anyPage.length && awaited === S.turn_player && !S.battle && !S.battle_in) {
+        addBtn(t("ui.any_page_spell", { card: cname(anyPage[0].card) }), () => showBookReview(awaited));
+      }
     }
   }
   if (details) bar.appendChild(details);
@@ -1815,7 +1861,30 @@ function showDialog(title, options, sourceNum = null, notes = []) {
 //   discard: "玩家:索引" → value                     buttons / cards:提示區的按鈕與退回列出的卡
 let PICK = null;
 
+// 前端的場上選擇(使用戰術的魔物、搭檔的裝備對象):候選在場上發光,點開放大檢視按「選擇」。
+// {player, title, source, options: Map(slot uid → {selectable, note, reason}), onpick};收到新快照時清除
+let LOCAL_PICK = null;
+
+function startLocalPick(pick) {
+  closeZoom();
+  LOCAL_PICK = pick;
+  render();
+}
+
+function cancelLocalPick() {
+  LOCAL_PICK = null;
+  render();
+}
+
 function pickState() {
+  if (S && !S.pending && LOCAL_PICK) {
+    const pick = { player: LOCAL_PICK.player, slot: new Map(), book: new Map(), discard: new Map(),
+                   buttons: [], cards: [], books: new Set(), discards: new Set(), local: true };
+    for (const [uid, opt] of LOCAL_PICK.options) {
+      if (opt.selectable) pick.slot.set(`${LOCAL_PICK.player}:${uid}:mamodo`, uid);
+    }
+    return pick;
+  }
   if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) return null;
   const pd = S.pending;
   const results = (pd.info && pd.info.results) || [];
@@ -1870,6 +1939,13 @@ function choiceLabel(opt, results) {
 
 function choosePick(value) {
   if (BOOK_VIEW !== null) closeBookReview();   // 從魔書網格選完就關閉,回到場面
+  if (PICK && PICK.local) {                    // 前端的場上選擇:交給發起者,不送 choose
+    const onpick = LOCAL_PICK.onpick;
+    LOCAL_PICK = null;
+    render();
+    onpick(value);
+    return;
+  }
   send({ type: "choose", player: PICK.player, value });
 }
 
@@ -1890,9 +1966,47 @@ function markPickable(el, ctx) {
 
 // 放大檢視的「選擇」按鈕
 function pickButtons(ctx) {
+  if (PICK && PICK.local) {                    // 前端的場上選擇:附費用;不可選者停用並顯示原因
+    const opt = ctx && ctx.kind === "slot" && ctx.p === PICK.player ? LOCAL_PICK.options.get(ctx.uid) : null;
+    if (!opt) return [];
+    const label = opt.note ? `${t("ui.pick")}(${opt.note})` : t("ui.pick");
+    return [{ label, primary: true, disabled: !opt.selectable, reason: opt.reason, onclick: () => choosePick(ctx.uid) }];
+  }
   const value = pickValue(ctx);
   if (value === undefined) return [];
   return [{ label: t("ui.pick"), primary: true, onclick: () => choosePick(value) }];
+}
+
+// 前端場上選擇的提示:標題、來源卡、「在場上選擇」提示與「取消」
+function localPromptEl() {
+  const box = document.createElement("div");
+  box.className = "choice-prompt";
+  const title = document.createElement("div");
+  title.className = "choice-title";
+  title.textContent = LOCAL_PICK.title;
+  box.appendChild(title);
+  const z = LOCAL_PICK.source ? TEXT[LOCAL_PICK.source] : null;
+  if (z) {
+    const source = document.createElement("div");
+    source.className = "choice-source";
+    const name = document.createElement("div");
+    name.className = "src-name";
+    name.textContent = t("ui.choice_source", { card: cname(LOCAL_PICK.source) });
+    source.appendChild(name);
+    box.appendChild(source);
+  }
+  const hint = document.createElement("div");
+  hint.className = "choice-hint";
+  hint.textContent = t("ui.pick_hint.slot");
+  box.appendChild(hint);
+  const opts = document.createElement("div");
+  opts.className = "choice-options";
+  const cancel = document.createElement("button");
+  cancel.textContent = t("ui.cancel");
+  cancel.onclick = cancelLocalPick;
+  opts.appendChild(cancel);
+  box.appendChild(opts);
+  return box;
 }
 
 // 行動欄的決策區塊:標題、來源卡、公開脈絡、提示、按鈕;對應不到位置的卡直接列出
@@ -2479,15 +2593,17 @@ function showBookReview(p) {
   const usedSpell = new Set(ps.used_spell_pages || []);
   const isOpen = (pg) => pg === ps.pos || pg === ps.pos + 1;
 
+  const anyPage = new Map((ps.any_page_spells || []).map((e) => [e.page, e]));
   const cell = (pg) => {
     const ctx = { kind: "pick", zone: "book", p, page: pg };
     const target = PICK && PICK.book.get(`${p}:${pg}`);
+    const usable = anyPage.get(pg);   // P-015:可從魔書使用的戰術頁
     const num = ps.book ? ps.book[pg - 1] : target && target.card;
     const wrap = document.createElement("div");
     wrap.className = "review-cell";
     wrap.dataset.page = pg;
     if (isOpen(pg) && !consumed.has(pg)) wrap.classList.add("open");
-    if (target) wrap.classList.add("pickable");
+    if (target || usable) wrap.classList.add("pickable");
     const tag = (cls, key) => `<span class="review-tag ${cls}">${t(key)}</span>`;
     let marks = "";
     if (isOpen(pg) && !consumed.has(pg)) marks += tag("cur", "ui.book_page_current");
@@ -2495,9 +2611,10 @@ function showBookReview(p) {
     else if (usedSpell.has(pg)) marks += tag("used", "ui.book_spell_used");
     let card;
     if (num && !consumed.has(pg)) {
-      card = cardEl(num, { small: true, zoomCtx: target ? ctx : undefined });
+      const zoomCtx = target ? ctx : usable ? { kind: "any_page", p, page: pg } : undefined;
+      card = cardEl(num, { small: true, zoomCtx });
       card.dataset.card = num;
-      if (target) card.classList.add("pickable");
+      if (target || usable) card.classList.add("pickable");
     } else {
       card = cardBackEl(pg, consumed.has(pg));
       if (target) card.onclick = () => choosePick(target.value);   // 空頁:沒有卡面可放大,點了即選

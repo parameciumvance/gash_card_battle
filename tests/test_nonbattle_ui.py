@@ -9,7 +9,9 @@ def setup_spell(page, number="S-026", mamodo="M-001"):
       const p = S.turn_player;
       S.phase = 'battle'; S.action_player = p; S.battle = null; S.battle_in = null; S.pending = null;
       S.players[p].slots[0].top = mamodo;
-      S.players[p].open_pages = [{page:2,card:number,cost:CARDS[number].cost || 0}];
+      const cost = CARDS[number].cost || 0;   // 可使用的魔物由快照的 users 提供(前端不自行判斷相容)
+      S.players[p].open_pages = [{page:2,card:number,cost,
+        users:[{slot_uid:S.players[p].slots[0].uid,cost,locked:false}]}];
       S.players[p].mp = 20;
       render();
       zoom(number,{kind:'page',p,page:2});
@@ -30,7 +32,9 @@ def test_nonbattle_use_payload(page, number, mamodo):
     page.route("**/commands", lambda route: route.fulfill(json={"state": state}))
     with page.expect_request(lambda r: r.url.endswith('/commands')) as sent:
         buttons.first.click()
-    assert sent.value.post_data_json["command"] == {"type":"use_book_card", "player":state["turn_player"], "page":2}
+    tp = state["turn_player"]
+    assert sent.value.post_data_json["command"] == {"type": "use_book_card", "player": tp, "page": 2,
+                                                    "slot_uid": state["players"][tp]["slots"][0]["uid"]}
     assert not page.locator("#zoom-overlay").is_visible()
 
 
@@ -67,11 +71,11 @@ def test_reasons_and_latest_snapshot(page):
         page.evaluate("{const p=S.turn_player; " + code + "; renderZoom();}")
     update("S.players[p].mp=0")
     assert "MP 不足" in page.locator(".zoom-reason").inner_text()
-    update("S.players[p].mp=20; S.players[p].slots=[]")
+    update("S.players[p].mp=20; S.players[p].open_pages[0].users=[]")
     assert "魔物" in page.locator(".zoom-reason").inner_text()
     update("S.players[p].used_nonbattle_spells=['S-041']")
     assert page.locator(".zoom-reason").inner_text() == page.evaluate("t('ui.used')")
-    update("S.players[p].used_nonbattle_spells=[]; S.players[p].slots=[{top:'M-023'}]")
+    update("S.players[p].used_nonbattle_spells=[]; S.players[p].open_pages[0].users=[{slot_uid:1,cost:1,locked:false}]")
     assert page.locator("#zoom-actions button").is_enabled()
     page.evaluate("S.turn_player=1-S.turn_player; renderZoom()")
     assert "自己的回合" in page.locator(".zoom-reason").inner_text()
@@ -107,16 +111,17 @@ def test_battle_command_spells_and_events(page):
     page.evaluate("""() => {
       const p=S.turn_player;
       const c=Object.values(CARDS).find(c=>isCommandSpell(c)&&c.effect_icon!=='nonbattle'&&c.ad==='D');
-      S.players[p].open_pages=[{page:2,card:c.number,cost:0}];
       S.players[p].slots.push({...S.players[p].slots[0],uid:999});
+      S.players[p].open_pages=[{page:2,card:c.number,cost:0,
+        users:S.players[p].slots.map((s)=>({slot_uid:s.uid,cost:0,locked:false}))}];
       S.battle={step:'defense',attacker:1-p};
       zoom(c.number,{kind:'page',p,page:2});
     }""")
     assert page.locator('#zoom-actions button').is_enabled()
     page.locator('#zoom-actions button').click()
-    assert page.locator('#dialog-options .card').count() == 2
+    assert page.locator('[data-zone-kind="mamodo"].pickable').count() == 2   # 指令戰術的使用者:在場上選
+    page.locator('#action-bar .choice-prompt button', has_text='取消').click()
     page.evaluate("""() => {
-      document.querySelector('#dialog-overlay').classList.add('hidden');
       const p=S.turn_player;
       S.battle={step:'defense',attacker:1-p};
       zoom(S.players[p].open_pages[0].card,{kind:'page',p,page:2});
