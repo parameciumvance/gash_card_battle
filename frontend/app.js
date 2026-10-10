@@ -244,6 +244,16 @@ function applyPayload(body) {
   // 同批事件經 HTTP 回應與 WS 推送各到一次,以 seq 游標去重,只演第一次
   const fresh = (body.events || []).filter((ev) => ev.seq >= animSeq);
   for (const ev of fresh) animSeq = Math.max(animSeq, ev.seq + 1);
+  // 翻閱中的魔書被翻動:先以前一個快照把魔書區畫回目前頁,翻頁動畫才從正確的位置開始
+  const flipped = fresh.filter((ev) => (ev.type === "pages_flipped" || ev.type === "pages_turned")
+    && ev.count && BOOK_BROWSE[ev.player]);
+  if (flipped.length && prevS) {
+    for (const ev of flipped) delete BOOK_BROWSE[ev.player];
+    const next = S;
+    S = prevS;
+    render();
+    S = next;
+  }
   const played = Anim.apply(fresh, prevS, render, body.actor);
   // 檢視對手頁面(E-014 / M-018):只對即時批次(有行動者)在演出結束後跳出;
   // 伺服器已依視角過濾,帶 cards 的就是自己檢視的
@@ -1202,11 +1212,80 @@ function emptyFrame(label, small) {
   return el;
 }
 
-// 魔書區:對頁固定兩個頁位(pos, pos+1)。卡片仍在=卡面(對手視角=卡背+頁碼);
+// ---------------------------------------------------------------- 場上魔書翻閱
+// 玩家 → {start, pos}:start 為正在檢視的對頁起點(0 = 只有第 1 頁、32 = 只有第 32 頁),
+// pos 為開始翻閱時的目前頁;沒有項目 = 在目前頁。只存在前端,重新整理後回到目前頁
+const BOOK_BROWSE = {};
+
+// 只有快照含持有者完整魔書的一方可翻閱(自己的魔書;本機模式雙方)
+function bookBrowsable(p) { return !!(S && S.players[p] && S.players[p].book); }
+
+// 正在檢視的對頁起點;在目前頁時 null。自己的魔書被翻動(目前頁改變)時自動回到目前頁
+function browseStart(p) {
+  const b = BOOK_BROWSE[p];
+  if (b && b.pos !== S.players[p].pos) delete BOOK_BROWSE[p];
+  return BOOK_BROWSE[p] ? BOOK_BROWSE[p].start : null;
+}
+
+// delta:+1 / -1 切換一個對頁;0 回到目前頁
+function browseBook(p, delta) {
+  if (!bookBrowsable(p)) return;
+  const ps = S.players[p];
+  if (delta === 0) {
+    delete BOOK_BROWSE[p];
+  } else {
+    const cur = browseStart(p) ?? Math.min(ps.pos, 32);
+    const start = Math.max(0, Math.min(32, cur + 2 * delta));
+    if (start === ps.pos) delete BOOK_BROWSE[p];
+    else BOOK_BROWSE[p] = { start, pos: ps.pos };
+  }
+  render();
+}
+
+// 鍵盤:← → 切換對頁、Home / Esc 回到目前頁。線上 / NPC 對戰控制自己的魔書,本機模式控制行動中的一方;
+// 打字中或任何視窗開著時不處理(Esc 照舊由視窗處理)
+const BOOK_KEYS = { ArrowLeft: -1, ArrowRight: 1, Home: 0, Escape: 0 };
+const BLOCKING_OVERLAYS = ["zoom-overlay", "dialog-overlay", "info-overlay", "book-review-overlay",
+  "rules-overlay", "io-overlay"];
+document.addEventListener("keydown", (ev) => {
+  if (!(ev.key in BOOK_KEYS) || ev.defaultPrevented || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+  const el = document.activeElement;
+  if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+  if (!S || document.getElementById("layout").classList.contains("hidden")) return;
+  if (BLOCKING_OVERLAYS.some((id) => !document.getElementById(id).classList.contains("hidden"))) return;
+  if (document.getElementById("cheat-panel").open) return;
+  const target = selfPlayer() ?? (isLocal() ? awaitedPlayer() : null);
+  if (target === null || !bookBrowsable(target)) return;
+  ev.preventDefault();
+  browseBook(target, BOOK_KEYS[ev.key]);
+});
+
+// 翻閱中的頁:唯讀卡面(點擊只開純展示放大檢視);已離開魔書的頁為卡背
+function browsedPageEl(ps, pg) {
+  if ((ps.consumed_pages || []).includes(pg)) return cardBackEl(pg, true);
+  const el = cardEl(ps.book[pg - 1]);
+  el.dataset.card = ps.book[pg - 1];
+  return el;
+}
+
+function bookNavButton(cls, label, text, disabled, onclick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `book-nav ${cls}`;
+  btn.textContent = text;
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+  btn.disabled = disabled;
+  btn.onclick = (ev) => { ev.stopPropagation(); onclick(); };
+  return btn;
+}
+
+// 魔書區:對頁兩個頁位(目前頁 pos, pos+1,或翻閱中的對頁)。卡片仍在=卡面(對手視角=卡背+頁碼);
 // 卡片已離開頁面(上場/使用)=卡背圖;超出書末=空位,尺寸不變
 function renderBookBlock(p, ps) {
   const block = document.createElement("div");
   block.className = "book-block";
+  block.dataset.bookBlock = p;
   const cover = document.createElement("div");
   cover.className = "book-cover";
   cover.dataset.book = p;
@@ -1215,7 +1294,9 @@ function renderBookBlock(p, ps) {
   const pages = document.createElement("div");
   pages.className = "book-pages";
   const byPage = Object.fromEntries(ps.open_pages.map((e) => [e.page, e]));
-  for (const pg of [ps.pos, ps.pos + 1]) {
+  const browse = bookBrowsable(p) ? browseStart(p) : null;
+  const first = browse ?? ps.pos;
+  for (const pg of [first, first + 1]) {
     const col = document.createElement("div");
     col.className = "page-col";
     let el;
@@ -1224,7 +1305,9 @@ function renderBookBlock(p, ps) {
       el.className = "page-void";
       col.appendChild(el);
     } else {
-      if (byPage[pg]) {
+      if (browse !== null) {
+        el = browsedPageEl(ps, pg);
+      } else if (byPage[pg]) {
         const entry = byPage[pg];
         el = entry.card ? openPageEl(p, entry) : cardBackEl(entry.page);
         if (entry.card) el.dataset.card = entry.card;
@@ -1242,6 +1325,14 @@ function renderBookBlock(p, ps) {
   }
   cover.appendChild(spine);
   cover.appendChild(pages);
+  if (bookBrowsable(p)) {   // 左右鍵在書皮兩緣;「回到目前頁」在上緣,不在目前頁時變亮
+    const at = browse ?? Math.min(ps.pos, 32);
+    cover.classList.toggle("browsing", browse !== null);
+    cover.appendChild(bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1)));
+    cover.appendChild(bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1)));
+    cover.appendChild(bookNavButton("book-current", t("ui.book.current"), t("ui.book.current"),
+      browse === null, () => browseBook(p, 0)));
+  }
   block.appendChild(cover);
   block.appendChild(mpTrayEl(p, ps.mp));
   return block;

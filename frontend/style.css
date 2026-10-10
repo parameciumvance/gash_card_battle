@@ -215,6 +215,21 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   pointer-events: none;
 }
 .book-pages { display: flex; gap: 8px; }
+/* 場上魔書翻閱:左右鍵半疊在書皮兩緣,「回到目前頁」在上緣;點擊範圍以偽元素擴大 */
+.book-nav {
+  position: absolute; z-index: 3; border: 1px solid var(--gold); border-radius: 10px; cursor: pointer;
+  background: rgba(18,24,42,.88); color: var(--gold-soft); line-height: 1; padding: 0;
+}
+.book-nav::before { content: ""; position: absolute; inset: -6px; }
+.book-nav:disabled { opacity: .3; cursor: default; }
+.book-prev, .book-next { top: 50%; transform: translateY(-50%); width: 22px; height: 44px; font-size: 20px; }
+.book-prev { left: -12px; }
+.book-next { right: -12px; }
+.book-current {
+  top: -11px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 2px 8px; white-space: nowrap;
+}
+.book-current:not(:disabled) { background: var(--gold); color: #2a1b06; font-weight: bold;
+  box-shadow: 0 0 8px rgba(255,209,102,.6); }
 .page-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .page-no { font-size: 10px; color: var(--gold-soft); }
 .page-void { width: var(--card-w); height: var(--card-h); border-radius: 8px;
