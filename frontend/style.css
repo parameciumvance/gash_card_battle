@@ -215,6 +215,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   pointer-events: none;
 }
 .book-pages { display: flex; gap: 8px; }
+#action-bar .flip-hint { font-size: 13px; color: var(--glow); }   /* 開始階段:翻閱的對頁不對應翻頁張數時的提示 */
 /* 場上魔書翻閱:左右鍵半疊在書皮兩緣,「回到目前頁」在上緣;點擊範圍以偽元素擴大 */
 .book-nav {
   position: absolute; z-index: 3; border: 1px solid var(--gold); border-radius: 10px; cursor: pointer;

@@ -27,6 +27,7 @@
   "ui.healthy": "Healthy",
   "ui.flip_n": "Turn {n} (MP +{mp})",
   "ui.flip_0": "Turn none",
+  "ui.flip_browse_hint": "Use ← → to choose the pages to turn to (up to {max})",
   "ui.pass": "Pass",
   "ui.play": "Play",
   "ui.use_event": "Use",

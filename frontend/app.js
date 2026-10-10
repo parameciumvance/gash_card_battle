@@ -1793,11 +1793,20 @@ function renderActionBar() {
 
   if (mine && !S.pending) {
     if (timing === "start") {
+      // 依魔書翻閱到的對頁決定翻幾張:目前頁 = 不翻頁,往後第 n 個對頁 = 翻 n 張;不對應時只給提示
       const tp = S.turn_player;
-      const maxFlip = Math.min(3, Math.floor((32 - S.players[tp].pos) / 2));
-      for (let n = 0; n <= maxFlip; n++) {
-        addBtn(n === 0 ? t("ui.flip_0") : t("ui.flip_n", { n, mp: 2 * n }),
-          () => send({ type: "flip_pages", player: tp, count: n }), n === maxFlip);
+      const pos = S.players[tp].pos;
+      const maxFlip = Math.min(3, Math.floor((32 - pos) / 2));
+      const n = ((bookBrowsable(tp) ? browseStart(tp) : null) ?? pos) - pos;
+      const count = n / 2;
+      if (count >= 0 && count <= maxFlip) {
+        addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp: 2 * count }),
+          () => send({ type: "flip_pages", player: tp, count }), true);
+      } else {
+        const hint = document.createElement("span");
+        hint.className = "flip-hint";
+        hint.textContent = t("ui.flip_browse_hint", { max: maxFlip });
+        bar.appendChild(hint);
       }
     } else if (timing === "battle_in") {
       addBtn(t("ui.allow_battle"),

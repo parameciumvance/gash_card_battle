@@ -27,6 +27,7 @@
   "ui.healthy": "健康",
   "ui.flip_n": "翻 {n} 张(MP +{mp})",
   "ui.flip_0": "不翻页",
+  "ui.flip_browse_hint": "用左右键选择要翻到的页(最多翻 {max} 张)",
   "ui.pass": "Pass",
   "ui.play": "放出",
   "ui.use_event": "使用",

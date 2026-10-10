@@ -27,6 +27,7 @@
   "ui.healthy": "健康",
   "ui.flip_n": "翻 {n} 張(MP +{mp})",
   "ui.flip_0": "不翻頁",
+  "ui.flip_browse_hint": "用左右鍵選擇要翻到的頁(最多翻 {max} 張)",
   "ui.pass": "Pass",
   "ui.play": "放出",
   "ui.use_event": "使用",

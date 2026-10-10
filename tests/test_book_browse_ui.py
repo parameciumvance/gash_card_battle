@@ -123,3 +123,43 @@ def test_book_pick_target_selectable_while_browsing(page):
     card.click()
     page.locator("#zoom-actions button", has_text="選擇").click()
     assert page.evaluate("window.__sent") == [{"type": "choose", "player": tp, "value": target}]
+
+
+# ---------------------------------------------------------------- 開始階段依翻閱選擇翻頁張數
+
+def flip_buttons(page):
+    return [t for t in page.locator("#action-bar button").all_text_contents() if t.startswith(("翻", "不翻頁"))]
+
+
+def test_start_phase_flip_follows_browse(page):
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    assert flip_buttons(page) == ["不翻頁"]
+    for n, mp in ((1, 2), (2, 4), (3, 6)):
+        nav(page, tp, "next").click()
+        assert flip_buttons(page) == [f"翻 {n} 張(MP +{mp})"]
+    nav(page, tp, "prev").click()
+    page.locator("#action-bar button", has_text="翻 2 張").click()
+    page.wait_for_function(f"S.players[{tp}].pos === {pos + 4} && S.phase === 'battle'")
+    assert [pg for pg, _ in shown(page, tp)] == [pos + 4, pos + 5]          # 回到新的目前頁
+    assert nav(page, tp, "current").is_disabled()
+
+
+def test_start_phase_out_of_range_shows_hint(page):
+    tp = start_local(page)
+    nav(page, tp, "prev").click()                                            # 往前
+    assert flip_buttons(page) == []
+    assert "最多翻 3 張" in page.locator("#action-bar").inner_text()
+    nav(page, tp, "current").click()
+    for _ in range(4):                                                       # 往後 4 個對頁
+        nav(page, tp, "next").click()
+    assert flip_buttons(page) == []
+    assert "用左右鍵選擇要翻到的頁" in page.locator("#action-bar").inner_text()
+
+
+def test_start_phase_limited_by_remaining_pages(page):
+    tp = start_local(page)
+    page.evaluate(f"S = {{...S, players: S.players.map((ps, i) => i === {tp} ? {{...ps, pos: 30}} : ps)}}; render()")
+    nav(page, tp, "next").click()
+    assert flip_buttons(page) == ["翻 1 張(MP +2)"]
+    assert nav(page, tp, "next").is_disabled()                               # 翻閱與張數同樣以第 32 頁為界

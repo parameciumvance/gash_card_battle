@@ -27,6 +27,7 @@
   "ui.healthy": "健康",
   "ui.flip_n": "{n} 枚めくる(MP +{mp})",
   "ui.flip_0": "めくらない",
+  "ui.flip_browse_hint": "左右キーでめくるページを選ぶ(最大 {max} 枚)",
   "ui.pass": "パス",
   "ui.play": "場に出す",
   "ui.use_event": "使う",
