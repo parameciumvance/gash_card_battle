@@ -61,6 +61,9 @@ SPELL_RIDERS: dict[str, SpellRider] = {}
 # 非戰鬥戰術卡 handler(自分/相手のターン、不經戰鬥流程直接使用): fn(game, batch, player)
 SPELL_NONBATTLE: dict[str, Callable] = {}
 
+# 非戰鬥戰術使用前置條件: fn(game, player) -> bool(於支付費用前檢查;不成立拒絕 spell.condition)
+SPELL_NONBATTLE_CONDITION: dict[str, Callable] = {}
+
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
 
@@ -217,8 +220,11 @@ def spell_rider(number: str, **kwargs):
     return SPELL_RIDERS[number]
 
 
-def spell_nonbattle(number: str, *, effect=None):
-    """非戰鬥戰術註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹。"""
+def spell_nonbattle(number: str, *, effect=None, when: Callable | None = None):
+    """非戰鬥戰術註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹。
+    `when` 為使用前置條件(例如選得到對象),與事件卡的 `when` 相同介面。"""
+    if when is not None:
+        SPELL_NONBATTLE_CONDITION[number] = when
     if effect is not None:
         from . import tree
         SPELL_NONBATTLE[number] = tree.register_spell_nonbattle(number, effect)

@@ -4,13 +4,13 @@ from ...state import DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
-    AdjustDefenseDamage, Always, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
+    AdjustDefenseDamage, All, Always, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
     DamageOpponentBookAndAllMamodo, DisableBookProtection, DiscardChosenPartner,
-    DiscardOwnMamodoByNumber, GainMpPerDamage, GrantFullImmune, HeadsAtLeast,
+    DiscardOwnMamodoByNumber, GainMpPerDamage, GrantFullImmune, HasOptions, HeadsAtLeast,
     MakeAttackUndefendable, MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
-    OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas, PlaceMamodoFromBookUpTo,
-    PlayMamodoFromBook, ReduceOpponentMp, RestrictOpponent, RobnosTransformMode,
-    ScheduleInjureInsteadNextWin, Sequence, SideIs, StackFromBookOnto, When,
+    OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas, PlayMamodoFromBook, ReduceOpponentMp,
+    RestrictOpponent, RobnosTransformMode, ScheduleInjureInsteadNextWin, Sequence, SideIs,
+    StackFromBookOnto, When,
 )
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
@@ -123,7 +123,8 @@ reg.spell_nonbattle("S-041", effect=Coin(
 
 reg.spell_rider("S-042", damage_bonus=DamageBonusIfAttackTotalAtLeast(threshold=8000, bonus=2))
 
-reg.spell_nonbattle("S-043", effect=Choose(
+# 至少一種模式可完整執行才能使用(選得到對象);分裂比照效果文由玩家選剛好 2 張
+reg.spell_nonbattle("S-043", when=HasOptions(RobnosTransformMode()), effect=Choose(
     RobnosTransformMode(), bind="mode", prompt="pick_transform_mode",
     then=Sequence(steps=(
         When(
@@ -140,7 +141,14 @@ reg.spell_nonbattle("S-043", effect=Choose(
             Bound("mode", "split"),
             then=Sequence(steps=(
                 DiscardOwnMamodoByNumber(number="M-025", count=1),
-                PlaceMamodoFromBookUpTo(number="M-024", count=2),
+                Choose(
+                    OwnBookCopiesOf("M-024"), bind="page", prompt="pick_mamodo_in_own_book",
+                    then=PlayMamodoFromBook(),
+                ),
+                Choose(
+                    OwnBookCopiesOf("M-024"), bind="page", prompt="pick_mamodo_in_own_book",
+                    then=PlayMamodoFromBook(),
+                ),
             )),
         ),
     )),
@@ -162,12 +170,11 @@ reg.spell_rider("S-046", on_declare=When(
     ),
 ))
 
-reg.spell_nonbattle("S-048", effect=When(
-    OwnFieldHas("M-028"),
-    then=Choose(
-        OwnBookCopiesOf("M-027"), bind="page", prompt="pick_mamodo_in_own_book",
-        then=StackFromBookOnto(base="M-028"),
-    ),
+# 場上有 M-028 且魔書有 M-027 才能使用(選得到對象)
+reg.spell_nonbattle("S-048", when=All(OwnFieldHas("M-028"), HasOptions(OwnBookCopiesOf("M-027"))),
+                    effect=Choose(
+    OwnBookCopiesOf("M-027"), bind="page", prompt="pick_mamodo_in_own_book",
+    then=StackFromBookOnto(base="M-028"),
 ))
 
 reg.spell_rider("S-056", on_defense_damaged=GainMpPerDamage(per_point=2))

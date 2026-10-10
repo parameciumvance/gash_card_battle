@@ -676,35 +676,31 @@ class OwnBookCopiesOf:
 
 @dataclass(frozen=True)
 class RobnosTransformMode:
-    """羅布諾斯雙向轉換的模式(S-043):場上二體 ≥2 可「融合」、有完全體可「分裂」。"""
+    """羅布諾斯雙向轉換的模式(S-043),只列可完整執行的模式:
+    融合:場上二體 ≥2 且魔書有完全體;分裂:場上有完全體、魔書至少 2 張二體,且棄掉完全體後場上放得下 2 隻。"""
     double: str = "M-024"
     complete: str = "M-025"
 
-    def _counts(self, game, ctx):
+    def _modes(self, game, ctx) -> list[str]:
+        from ..state import MAX_FIELD_MAMODO
         slots = game.state.players[ctx["player"]].slots
-        return (sum(1 for s in slots if s.top == self.double),
-                sum(1 for s in slots if s.top == self.complete))
+        doubles = sum(1 for s in slots if s.top == self.double)
+        completes = sum(1 for s in slots if s.top == self.complete)
+        in_book = lambda number: len(OwnBookCopiesOf(number).options(game, ctx))  # noqa: E731
+        modes = []
+        if doubles >= 2 and in_book(self.complete) >= 1:
+            modes.append("fuse")
+        if completes and in_book(self.double) >= 2 and len(slots) - 1 + 2 <= MAX_FIELD_MAMODO:
+            modes.append("split")
+        return modes
 
     def options(self, game, ctx) -> list[dict]:
-        doubles, completes = self._counts(game, ctx)
-        out = []
-        if doubles >= 2:
-            out.append({"value": "fuse", "label": "s043_fuse"})
-        if completes:
-            out.append({"value": "split", "label": "s043_split"})
-        return out
+        return [{"value": m, "label": f"s043_{m}"} for m in self._modes(game, ctx)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
-        doubles, completes = self._counts(game, ctx)
-        if value == "fuse":
-            if doubles < 2:
-                raise IllegalCommand("choose.invalid", "場上羅布諾斯(二體)不足 2 隻")
-        elif value == "split":
-            if not completes:
-                raise IllegalCommand("choose.invalid", "場上沒有羅布諾斯(完全體)")
-        else:
-            raise IllegalCommand("choose.invalid", "無效的選擇")
+        if value not in self._modes(game, ctx):
+            raise IllegalCommand("choose.invalid", "此模式目前無法執行")
 
 
 @dataclass(frozen=True)
@@ -1465,8 +1461,7 @@ class DeployMamodoFromBook(Effect):
         ps.consumed_pages.add(page)
         if number in reg.STACK_ON:
             slot = next(s for s in ps.slots if s.top in reg.STACK_ON[number])
-            slot.stack.append(number)
-            slot.injured = False
+            slot.stack.append(number)   # 疊放繼承前身的負傷狀態
             game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                       zone="mamodo", stacked=True)
         else:
@@ -1502,8 +1497,7 @@ class StackFromBookOnto(Effect):
         if slot is None:
             return True
         number = take_from_book(game, rt.batch, player, ctx[self.page.name])
-        slot.stack.append(number)
-        slot.injured = False
+        slot.stack.append(number)   # 疊放繼承前身的負傷狀態
         game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                   zone="mamodo", stacked=True, from_book=True)
         return True
@@ -1521,23 +1515,6 @@ class DiscardOwnMamodoByNumber(Effect):
         targets = [s for s in rt.game.state.players[player].slots if s.top == self.number]
         for s in targets[:self.count]:
             _discard_slot(rt.game, rt.batch, player, s, reason=ctx["source"])
-        return True
-
-
-@dataclass(frozen=True)
-class PlaceMamodoFromBookUpTo(Effect):
-    """自魔書依頁序放出至多 count 張卡號為 number 的魔物;無頁可放或放不出(上限)即停(S-043 分裂)。"""
-    number: str = ""
-    count: int = 1
-
-    def run(self, rt, ctx, path):
-        spec = OwnBookCopiesOf(self.number)
-        for _ in range(self.count):
-            pages = spec.options(rt.game, ctx)
-            if not pages:
-                break
-            if play_mamodo_from_book(rt.game, rt.batch, ctx["player"], pages[0]["value"]) is None:
-                break
         return True
 
 

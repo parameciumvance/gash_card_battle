@@ -933,18 +933,29 @@ def test_own_book_copies_of_validate_rejects_other_pages():
 
 
 def test_robnos_transform_mode_options_and_validate():
+    # 只列可完整執行的模式:魔書中要有放出的卡,分裂還要場上放得下 2 隻
     g = game()
     spec = tree.RobnosTransformMode()
-    assert spec.options(g, {"player": 0}) == []
+    ctx = {"player": 0}
+    for s in list(g.state.players[0].slots):
+        g.state.players[0].slots.remove(s)
+    assert spec.options(g, ctx) == []
     give(g, 0, "M-024")
     give(g, 0, "M-024")
-    assert [o["value"] for o in spec.options(g, {"player": 0})] == ["fuse"]
-    with pytest.raises(IllegalCommand, match="完全體"):
-        spec.validate(g, {"player": 0}, "split")
-    with pytest.raises(IllegalCommand, match="無效"):
-        spec.validate(g, {"player": 0}, "other")
+    assert spec.options(g, ctx) == []                                     # 魔書沒有 M-025
+    set_book(g, 0, p5="M-025", p6="M-024", p7="M-024")
+    assert [o["value"] for o in spec.options(g, ctx)] == ["fuse"]
+    with pytest.raises(IllegalCommand, match="無法執行"):
+        spec.validate(g, ctx, "split")
+    with pytest.raises(IllegalCommand, match="無法執行"):
+        spec.validate(g, ctx, "other")
+    for s in list(g.state.players[0].slots):
+        g.state.players[0].slots.remove(s)
     give(g, 0, "M-025")
-    assert [o["value"] for o in spec.options(g, {"player": 0})] == ["fuse", "split"]
+    assert [o["value"] for o in spec.options(g, ctx)] == ["split"]
+    give(g, 0, "M-001")
+    give(g, 0, "M-002")
+    assert spec.options(g, ctx) == []                                     # 分裂後放不下 2 隻
 
 
 def test_discard_own_mamodo_by_number_takes_first_n():
@@ -953,14 +964,6 @@ def test_discard_own_mamodo_by_number_takes_first_n():
     run(g, tree.DiscardOwnMamodoByNumber(number="M-024", count=2))
     assert c in g.state.players[0].slots and a not in g.state.players[0].slots
     assert b not in g.state.players[0].slots
-
-
-def test_place_mamodo_from_book_up_to_stops_when_book_runs_out():
-    g = game()
-    set_book(g, 0, p5="M-024")
-    run(g, tree.PlaceMamodoFromBookUpTo(number="M-024", count=2))
-    assert [s.top for s in g.state.players[0].slots].count("M-024") == 1
-    assert 5 in g.state.players[0].consumed_pages
 
 
 def test_stack_from_book_onto_missing_base_is_noop():

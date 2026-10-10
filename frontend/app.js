@@ -789,6 +789,7 @@ function nonbattleSpellUsable(p, entry) {
     return { ok: false, reason: t(def.ad === "A" ? "ui.spell.own_turn" : "ui.spell.other_turn") };
   }
   if ((ps.used_nonbattle_spells || []).includes(entry.card)) return { ok: false, reason: t("ui.used") };
+  if (entry.condition_ok === false) return { ok: false, reason: t("ui.condition") };   // 例如選不到對象
   return spellUsersCheck(p, entry);
 }
 
@@ -1286,12 +1287,23 @@ document.addEventListener("keydown", (ev) => {
 });
 
 // 翻閱中的頁:唯讀卡面(點擊只開純展示放大檢視);已離開魔書的頁為卡背
-// 例外:待命允許從魔書任意頁使用的戰術頁(P-015)發光,放大檢視提供「攻擊」
+// 例外:進行中的「從魔書挑頁」決策的目標頁(與魔書網格相同:發光、點開按「選擇」;空頁點卡背即選),
+// 以及待命允許從魔書任意頁使用的戰術頁(P-015,放大檢視提供「攻擊」)
 function browsedPageEl(p, ps, pg) {
-  if ((ps.consumed_pages || []).includes(pg)) return cardBackEl(pg, true);
+  const target = PICK && PICK.book.get(`${p}:${pg}`);
+  if ((ps.consumed_pages || []).includes(pg)) {
+    const back = cardBackEl(pg, true);
+    if (target) {
+      back.classList.add("pickable");
+      back.onclick = () => choosePick(target.value);
+    }
+    return back;
+  }
   const usable = (ps.any_page_spells || []).some((e) => e.page === pg);
-  const el = cardEl(ps.book[pg - 1], { zoomCtx: usable ? { kind: "any_page", p, page: pg } : undefined });
-  if (usable) el.classList.add("pickable");
+  const zoomCtx = target ? { kind: "pick", zone: "book", p, page: pg }
+    : usable ? { kind: "any_page", p, page: pg } : undefined;
+  const el = cardEl(ps.book[pg - 1], { zoomCtx });
+  if (target || usable) el.classList.add("pickable");
   el.dataset.card = ps.book[pg - 1];
   return el;
 }
@@ -1527,6 +1539,7 @@ function pageButtons(p, entry) {
     } else if (def.type === "event") {
       const ps = S.players[p];
       const blocked = ps.used_event_this_turn ? t("ui.used")
+        : entry.condition_ok === false ? t("ui.condition")
         : (def.cost || 0) > ps.mp ? `MP < ${def.cost}`
         : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
         : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;

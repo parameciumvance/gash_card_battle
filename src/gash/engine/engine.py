@@ -354,8 +354,7 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
                 (s for s in ps.slots if s.top in reg.STACK_ON[number]), None)
             if base_slot is None:
                 raise IllegalCommand("play.no_base", "場上沒有可疊放的變身前魔物")
-            base_slot.stack.append(number)
-            base_slot.injured = False  # 疊放登場回復健康(效果繼承)
+            base_slot.stack.append(number)   # 疊放繼承前身的搭檔、效果與負傷狀態
             ps.consumed_pages.add(command["page"])
             game.emit(batch, "card_played", player=player, card=number, slot=base_slot.uid, zone="mamodo", stacked=True)
             if number in reg.ON_PLAY:
@@ -523,6 +522,9 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         handler = reg.SPELL_NONBATTLE.get(number)
         if handler is None:
             raise IllegalCommand("spell.not_implemented", f"{number} 尚未實作")
+        condition = reg.SPELL_NONBATTLE_CONDITION.get(number)
+        if condition and not condition(game, player):
+            raise IllegalCommand("spell.condition", "不符合此戰術的使用條件(沒有可選的對象)")
         cost = spell_cost(game, player, page, card, slot=user)
         if st.players[player].mp < cost:
             raise IllegalCommand("spell.mp", "MP 不足")

@@ -730,6 +730,8 @@ def test_s043_split_complete_into_two_doubles():
     to_battle(g, 0)
     assert g.state.pending is None
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})   # 無二體可融合 → 唯一選項「分裂」
+    assert g.state.pending.kind == "pick_mamodo_in_own_book"          # 「2枚選び」:玩家選第一張
+    submit(g, {"type": "choose", "player": 0, "value": 4})            # 第二張只剩第 3 頁 → 自動
     tops = [s.top for s in g.state.players[0].slots]
     assert tops.count("M-024") == 2 and "M-025" not in tops
     assert {3, 4} <= g.state.players[0].consumed_pages

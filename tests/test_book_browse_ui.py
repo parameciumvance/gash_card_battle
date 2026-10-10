@@ -103,3 +103,23 @@ def test_keyboard_browses_awaited_players_book(page):
     page.evaluate("zoom('S-001')")                                               # 視窗開著:不翻閱
     page.keyboard.press("ArrowRight")
     assert [pg for pg, _ in shown(page, tp)] == [pos, pos + 1]
+
+
+def test_book_pick_target_selectable_while_browsing(page):
+    # 從魔書挑頁的決策(例如 S-048 選 M-027):翻閱到目標頁時,該頁發光,點開可按「選擇」
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    target = pos + 6
+    page.evaluate(f"""() => {{
+      S = {{...S, pending: {{kind: 'pick_mamodo_in_own_book', player: {tp}, source: 'S-048',
+        options: [{{value: {target}, zone: 'book', player: {tp}, page: {target}, card: S.players[{tp}].book[{target - 1}]}}]}}}};
+      render();
+    }}""")
+    page.evaluate("() => { window.__sent = []; send = (c) => { window.__sent.push(c); return Promise.resolve(); }; }")
+    while not page.locator(f'.book-block[data-book-block="{tp}"] .book-pages [data-page="{target}"]').count():
+        nav(page, tp, "next").click()
+    card = page.locator(f'.book-block[data-book-block="{tp}"] .book-pages [data-page="{target}"]')
+    assert "pickable" in card.get_attribute("class")
+    card.click()
+    page.locator("#zoom-actions button", has_text="選擇").click()
+    assert page.evaluate("window.__sent") == [{"type": "choose", "player": tp, "value": target}]

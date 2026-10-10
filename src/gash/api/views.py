@@ -75,6 +75,14 @@ def _spell_users(game: Game, p: int, page: int, card) -> list[dict]:
             if card.is_command_spell or _spell_usable_by(game, p, s, card)]
 
 
+def _condition_ok(game: Game, p: int, card) -> bool:
+    """事件卡 / 非戰鬥戰術登記的使用條件(例如選得到對象)目前是否成立;與引擎檢查共用同一個函式。"""
+    from ..engine.effects import registry as reg
+    table = reg.EVENT_CONDITION if card.type == "event" else reg.SPELL_NONBATTLE_CONDITION
+    condition = table.get(card.number)
+    return bool(condition(game, p)) if condition else True
+
+
 def _any_page_spells(game: Game, p: int) -> list[dict]:
     """待命允許從魔書任意頁使用的戰術(P-015):翻開的頁與已離開魔書的頁除外。"""
     ps = game.state.players[p]
@@ -101,6 +109,8 @@ def _player_view(game: Game, p: int, viewer) -> dict:
                 entry["cost"] = spell_cost(game, p, page, card)
                 if can_see_player(viewer, p):
                     entry["users"] = _spell_users(game, p, page, card)
+            if can_see_player(viewer, p) and (card.type == "event" or card.effect_icon == "nonbattle"):
+                entry["condition_ok"] = _condition_ok(game, p, card)
             if page in in_use:
                 entry["in_use"] = True  # 持有者視角亦附標,供前端高亮
         else:

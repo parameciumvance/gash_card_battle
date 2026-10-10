@@ -285,3 +285,23 @@ def test_partner_goes_to_free_mamodo_directly(page):
     page.locator("#zoom-actions button", has_text="放出").click()
     assert not dialog_open(page)
     assert sent(page) == [{"type": "play_card", "player": tp, "page": pos, "slot_uid": 900}]
+
+
+# ---------------------------------------------------------------- 不符合使用條件的卡停用
+
+def test_condition_not_met_disables_use(page):
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "E-021", pos + 1: "S-048"})                     # E-021 需要場上 2 隻魔物
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.players[{tp}].open_pages.some((e) => e.card === 'E-021')")
+    open_page_zoom(page, tp, pos)
+    assert page.locator("#zoom-actions button", has_text="使用").is_disabled()
+    assert "不符合使用條件" in page.locator("#zoom-actions").inner_text()
+    # S-048:讓快照的使用者可用(賈修不是バルトロ,這裡只驗證 condition_ok 的停用)
+    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
+      open_pages: ps.open_pages.map((e) => e.page === {pos + 1}
+        ? {{...e, users: [{{slot_uid: ps.slots[0].uid, cost: 1, locked: false}}]}} : e)}})}}; render()""")
+    open_page_zoom(page, tp, pos + 1)
+    assert page.locator("#zoom-actions button", has_text="使用").is_disabled()
+    assert "不符合使用條件" in page.locator("#zoom-actions").inner_text()

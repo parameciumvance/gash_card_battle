@@ -22,6 +22,7 @@
 
 - 翻開的戰術頁的 `users`(可使用此戰術的自己魔物:`slot_uid`、依該魔物計算的 `cost`、E-024 `locked`)與 `any_page_spells`(P-015 待命允許從魔書任意頁使用的戰術頁)只在 `can_see_player` 的持有者視角提供:前者洩漏自己場上的相容情況與待命,後者洩漏魔書未翻開的內容。
 - 相容判定以引擎 `_spell_usable_by` 為準,前端不再自行判斷。
+- 翻開的事件卡與非戰鬥戰術的 `condition_ok`(使用條件是否成立)也只給持有者:條件可能依魔書未翻開的內容判斷(例如 S-048 看魔書有沒有 M-027)。
 
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
 
