@@ -1,0 +1,584 @@
+{
+ "any_page": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 20,
+   "attack_slot": 1,
+   "attack_spell": "S-042",
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_spell_power": [
+     {
+      "amount": 1000,
+      "kind": "spell_bonus",
+      "source": "TEST"
+     }
+    ],
+    "injure_instead": true,
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-042",
+    "type": "battle_in_check"
+   },
+   {
+    "card": "P-015",
+    "kind": "spell_any_page",
+    "type": "standby_resolved"
+   },
+   {
+    "delta": -2,
+    "mp": 18,
+    "player": 0,
+    "reason": "spell:S-042",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-042",
+    "type": "battle_started"
+   },
+   {
+    "card": "TEST",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-057",
+    "kind": "injure_instead",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 18,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "spell_bonus",
+    "M-008"
+   ],
+   [
+    "attack_undefendable",
+    "P-001"
+   ]
+  ]
+ },
+ "mamodo_attack": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": null,
+   "attack_slot": 3,
+   "attack_spell": null,
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_fixed_damage": 2,
+    "attack_fixed_power": 5000,
+    "attack_fixed_source": "M-027",
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "attacker": 0,
+    "mamodo": "M-027",
+    "slot": 3,
+    "spell": null,
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -1,
+    "mp": 19,
+    "player": 0,
+    "reason": "mamodo_attack:M-027",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "mamodo": "M-027",
+    "slot": 3,
+    "spell": null,
+    "type": "battle_started"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 19,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "spell_bonus",
+    "TEST"
+   ],
+   [
+    "spell_bonus",
+    "M-008"
+   ],
+   [
+    "attack_undefendable",
+    "P-001"
+   ],
+   [
+    "injure_instead",
+    "S-057"
+   ]
+  ]
+ },
+ "spell_gash": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 3,
+   "attack_slot": 1,
+   "attack_spell": "S-001",
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_spell_power": [
+     {
+      "amount": 1000,
+      "kind": "spell_bonus",
+      "source": "TEST"
+     }
+    ],
+    "injure_instead": true,
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-001",
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -1,
+    "mp": 19,
+    "player": 0,
+    "reason": "spell:S-001",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-001",
+    "type": "battle_started"
+   },
+   {
+    "card": "TEST",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "P-001",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-057",
+    "kind": "injure_instead",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 19,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "spell_bonus",
+    "M-008"
+   ]
+  ]
+ },
+ "spell_plain": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 3,
+   "attack_slot": 1,
+   "attack_spell": "S-001",
+   "attack_undefendable": false,
+   "attacker": 0,
+   "data": {},
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-001",
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -1,
+    "mp": 19,
+    "player": 0,
+    "reason": "spell:S-001",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-001",
+    "type": "battle_started"
+   }
+  ],
+  "mp": 19,
+  "standby_left": []
+ },
+ "spell_sugina_optional_chosen": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 3,
+   "attack_slot": 1,
+   "attack_spell": "S-014",
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_spell_power": [
+     {
+      "amount": 1000,
+      "kind": "spell_bonus",
+      "source": "TEST"
+     },
+     {
+      "amount": -1000,
+      "kind": "spell_bonus",
+      "source": "M-008"
+     }
+    ],
+    "injure_instead": true,
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "kind": "spell_discount",
+    "options": [
+     {
+      "label": "spell_discount_use",
+      "value": true
+     },
+     {
+      "label": "skip",
+      "value": null
+     }
+    ],
+    "player": 0,
+    "type": "choice_required"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-014",
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -1,
+    "mp": 19,
+    "player": 0,
+    "reason": "spell:S-014",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-014",
+    "type": "battle_started"
+   },
+   {
+    "card": "TEST",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "M-008",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-057",
+    "kind": "injure_instead",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 19,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "attack_undefendable",
+    "P-001"
+   ]
+  ]
+ },
+ "spell_sugina_optional_not_chosen": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 3,
+   "attack_slot": 1,
+   "attack_spell": "S-014",
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_spell_power": [
+     {
+      "amount": 1000,
+      "kind": "spell_bonus",
+      "source": "TEST"
+     }
+    ],
+    "injure_instead": true,
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "kind": "spell_discount",
+    "options": [
+     {
+      "label": "spell_discount_use",
+      "value": true
+     },
+     {
+      "label": "skip",
+      "value": null
+     }
+    ],
+    "player": 0,
+    "type": "choice_required"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-014",
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -2,
+    "mp": 18,
+    "player": 0,
+    "reason": "spell:S-014",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-014",
+    "type": "battle_started"
+   },
+   {
+    "card": "TEST",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-057",
+    "kind": "injure_instead",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 18,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "spell_bonus",
+    "M-008"
+   ],
+   [
+    "attack_undefendable",
+    "P-001"
+   ]
+  ]
+ },
+ "spell_zeon": {
+  "battle": {
+   "attack_negated": false,
+   "attack_page": 3,
+   "attack_slot": 1,
+   "attack_spell": "S-058",
+   "attack_undefendable": true,
+   "attacker": 0,
+   "data": {
+    "attack_spell_power": [
+     {
+      "amount": 1000,
+      "kind": "spell_bonus",
+      "source": "TEST"
+     }
+    ],
+    "injure_instead": true,
+    "no_protect_book": true
+   },
+   "defense_declared": false,
+   "defense_negated": false,
+   "defense_page": null,
+   "defense_slot": null,
+   "defense_spell": null,
+   "effect_passes": 0,
+   "step": "defense"
+  },
+  "events": [
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-058",
+    "type": "battle_in_check"
+   },
+   {
+    "delta": -3,
+    "mp": 17,
+    "player": 0,
+    "reason": "spell:S-058",
+    "type": "mp_changed"
+   },
+   {
+    "attacker": 0,
+    "slot": 1,
+    "spell": "S-058",
+    "type": "battle_started"
+   },
+   {
+    "card": "TEST",
+    "kind": "spell_bonus",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-026",
+    "kind": "attack_undefendable",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "E-013",
+    "kind": "no_protect_book",
+    "type": "standby_resolved"
+   },
+   {
+    "card": "S-057",
+    "kind": "injure_instead",
+    "type": "standby_resolved"
+   }
+  ],
+  "mp": 17,
+  "standby_left": [
+   [
+    "spell_bonus",
+    "P-007"
+   ],
+   [
+    "spell_bonus",
+    "M-008"
+   ],
+   [
+    "attack_undefendable",
+    "P-001"
+   ]
+  ]
+ }
+}

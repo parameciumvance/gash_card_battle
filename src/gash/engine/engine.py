@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 import random
 
 from .cards import EVENT, MAMODO, PARTNER, SPELL, CardDef, card_db
@@ -756,14 +757,22 @@ def _arm_next_battle_standbys(game: Game) -> None:
             s.data["expires"] = "battle"
 
 
-def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
+@dataclass
+class AttackStart:
+    """攻擊來源準備好的戰鬥初始內容(戰術攻擊 / 無戰術攻擊),交給共用的戰鬥開始流程。"""
+    battle: dict                      # BattleState 的初始參數(attack_page / attack_spell / attack_slot)
+    data: dict                        # battle.data 的初始內容
+    started: dict                     # battle_started 事件的欄位
+    is_spell: bool                    # 以戰術攻擊(「術」相關的待命只適用於戰術)
+    mamodo_name: str | None           # 使用魔物的家族(限定魔物的待命以此判定)
+    discount: bool = False            # 選擇使用 M-008 的可選減費
+
+
+def _prepare_spell_attack(game: Game, batch: list[dict], bi: dict) -> AttackStart:
+    """戰術攻擊:再驗證(插入行動可能已改變盤面)、P-015 類任意頁待命、記錄頁、依使用魔物付費。"""
     st = game.state
-    if bi.get("mamodo_attack"):
-        _start_mamodo_battle(game, batch, bi)
-        return
     attacker, page, number, slot_uid = bi["attacker"], bi["page"], bi["spell"], bi["slot"]
     card = game.db[number]
-    # 攻擊宣告:此時再驗證一次(插入行動可能已改變盤面)
     discount = bi.get("discount", False)
     _, using_slot = _validate_spell_declaration(game, attacker, page, slot_uid, attack=True,
                                                 discount=discount)
@@ -775,64 +784,80 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
     _record_spell_use(st.players[attacker], page)
     pay_mp(game, batch, attacker, cost, f"spell:{number}")
-    battle = BattleState(attacker=attacker, step=STEP_DEFENSE,
-                         attack_page=page, attack_spell=number, attack_slot=slot_uid)
-    st.battle = battle
-    _arm_next_battle_standbys(game)
-    game.emit(batch, "battle_started", attacker=attacker, spell=number, slot=slot_uid)
-
     slot = st.slot_by_uid(attacker, slot_uid)
-    mamodo_name = game.db[slot.top].related_mamodo if slot else None
-    # 待命:戰術卡加成(M-008 減費減魔力,選擇使用時才套用 / P-007 加魔力)
-    for sb in _consume_standby(game, "spell_bonus",
-                               lambda s: s.owner == attacker and (
-                                   s.data.get("mamodo") in (None, mamodo_name))
-                               and (discount or not s.data.get("optional"))):
-        add_spell_power(battle, "attack", sb.source, sb.data.get("power_delta", 0))
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:攻擊不可被防禦(P-001 / S-019 / S-026)
-    for sb in _consume_standby(game, "attack_undefendable",
-                               lambda s: s.owner == attacker and (
-                                   s.data.get("mamodo") in (None, mamodo_name))):
-        battle.attack_undefendable = True
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:本場戰鬥不能保護魔書(E-013)
-    for sb in _consume_standby(game, "no_protect_book", lambda s: s.owner == attacker):
-        battle.data["no_protect_book"] = True
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:下一張攻擊戰術獲勝改為負傷對手魔物(S-057)
-    for sb in _consume_standby(game, "injure_instead", lambda s: s.owner == attacker):
-        battle.data["injure_instead"] = True
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 宣告時效果(擲硬幣等於宣告時確定)
-    rider = reg.SPELL_RIDERS.get(number)
-    if rider and rider.on_declare:
-        rider.on_declare(game, batch, attacker, "attack")
+    return AttackStart(
+        battle={"attack_page": page, "attack_spell": number, "attack_slot": slot_uid},
+        data={}, started={"spell": number, "slot": slot_uid}, is_spell=True,
+        mamodo_name=game.db[slot.top].related_mamodo if slot else None, discount=discount)
 
 
-def _start_mamodo_battle(game: Game, batch: list[dict], bi: dict) -> None:
-    """無戰術攻擊(M-027):合計魔力與傷害為卡片指定固定值,其餘戰鬥流程相同。"""
-    st = game.state
+def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackStart:
+    """無戰術攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
     pay_mp(game, batch, attacker, spec["mp_cost"], f"mamodo_attack:{slot.top}")
-    battle = BattleState(attacker=attacker, step=STEP_DEFENSE,
-                         attack_page=None, attack_spell=None, attack_slot=slot_uid)
-    battle.data["attack_fixed_power"] = spec["power"]
-    battle.data["attack_fixed_source"] = slot.top
-    battle.data["attack_fixed_damage"] = spec["damage"]
+    return AttackStart(
+        battle={"attack_page": None, "attack_spell": None, "attack_slot": slot_uid},
+        data={"attack_fixed_power": spec["power"], "attack_fixed_source": slot.top,
+              "attack_fixed_damage": spec["damage"]},
+        started={"spell": None, "mamodo": slot.top, "slot": slot_uid}, is_spell=False, mamodo_name=None)
+
+
+def _apply_spell_bonus(battle, sb):
+    add_spell_power(battle, "attack", sb.source, sb.data.get("power_delta", 0))
+
+
+def _apply_undefendable(battle, sb):
+    battle.attack_undefendable = True
+
+
+def _apply_no_protect_book(battle, sb):
+    battle.data["no_protect_book"] = True
+
+
+def _apply_injure_instead(battle, sb):
+    battle.data["injure_instead"] = True
+
+
+# 戰鬥開始時消耗的「下一場戰鬥」待命:(種類, 適用條件(待命, 攻擊), 套用)。依此順序消耗。
+# 「術」相關的待命(效果文寫「術」)只適用於戰術攻擊;限定魔物的待命要該家族的戰術。
+# 新增作用於下一場戰鬥的待命時在此加一列(見 game-engine/design.md「戰鬥開始與待命表」)。
+BATTLE_START_STANDBYS = (
+    # M-008 減費減魔力(選擇使用時才套用)/ P-007 加魔力
+    ("spell_bonus",
+     lambda sb, a: a.is_spell and sb.data.get("mamodo") in (None, a.mamodo_name)
+     and (a.discount or not sb.data.get("optional")),
+     _apply_spell_bonus),
+    # 攻擊不可被防禦:S-019 / S-026 不限定;P-001 限「ガッシュ・ベル」の術で攻撃
+    ("attack_undefendable",
+     lambda sb, a: sb.data.get("mamodo") is None or (a.is_spell and sb.data.get("mamodo") == a.mamodo_name),
+     _apply_undefendable),
+    # E-013:本場戰鬥不能保護魔書
+    ("no_protect_book", lambda sb, a: True, _apply_no_protect_book),
+    # S-057:下一張攻擊戰術獲勝改為負傷對手魔物
+    ("injure_instead", lambda sb, a: a.is_spell, _apply_injure_instead),
+)
+
+
+def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
+    """戰鬥開始:準備攻擊來源(戰術 / 無戰術攻擊),之後共用建立戰鬥、啟用待命、發出事件與消耗待命。"""
+    st = game.state
+    attacker = bi["attacker"]
+    prepare = _prepare_mamodo_attack if bi.get("mamodo_attack") else _prepare_spell_attack
+    a = prepare(game, batch, bi)
+    battle = BattleState(attacker=attacker, step=STEP_DEFENSE, **a.battle)
+    battle.data.update(a.data)
     st.battle = battle
     _arm_next_battle_standbys(game)
-    game.emit(batch, "battle_started", attacker=attacker, spell=None,
-              mamodo=slot.top, slot=slot_uid)
-    # 待命:攻擊不可被防禦(S-019 / S-026;P-001 限「ガッシュ・ベル」の術で攻撃,無戰術攻擊不適用)
-    for sb in _consume_standby(game, "attack_undefendable",
-                               lambda s: s.owner == attacker and s.data.get("mamodo") is None):
-        battle.attack_undefendable = True
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    for sb in _consume_standby(game, "no_protect_book", lambda s: s.owner == attacker):
-        battle.data["no_protect_book"] = True
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    game.emit(batch, "battle_started", attacker=attacker, **a.started)
+    for kind, applies, apply in BATTLE_START_STANDBYS:
+        for sb in _consume_standby(game, kind, lambda s, applies=applies: s.owner == attacker and applies(s, a)):
+            apply(battle, sb)
+            game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    # 宣告時效果(擲硬幣等於宣告時確定)
+    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if a.is_spell else None
+    if rider and rider.on_declare:
+        rider.on_declare(game, batch, attacker, "attack")
 
 
 def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -> None:
