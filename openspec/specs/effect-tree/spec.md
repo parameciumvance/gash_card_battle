@@ -158,22 +158,22 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 未依效果文修正的卡,既有測試與遷移前補上的特徵測試皆全數通過;依效果文修正的卡,修正前先寫的測試在舊寫法上失敗、修正後通過
 
 ### Requirement: 效果樹掛鉤入口
-系統 SHALL 提供下列效果樹註冊入口,並沿用既有引擎入口與檢查:`reg.event(number, effect=…, when=…)`(事件卡)、`reg.spell_rider(number, on_damage=<樹>)`(`rider.on_damage`)、`reg.spell_rider(number, on_declare=<樹>)`(`rider.on_declare`,`ctx` 含 `side`)、`reg.spell_rider(number, on_win=<樹>)`(`rider.on_win`,攻方獲勝時)、`reg.spell_rider(number, on_defense_damaged=<樹>)`(`rider.on_defense_damaged`,`ctx["player"]` 為防禦方、`ctx` 含 `amount`)、`reg.spell_nonbattle(number, effect=<樹>)`(非戰鬥術)。重複註冊以 `(卡號, 掛鉤)` 判定。經 `spell_nonbattle` 註冊的卡 MUST 仍受非戰鬥術的費用、時機與使用次數檢查。`SpellRider` 中要回傳數值的欄位(如 `damage_bonus(game, battle) -> int`)不是效果,MUST NOT 以效果樹註冊;其值 SHALL 以不可變、可呼叫的規格物件提供,不寫 lambda 於註冊檔。魔物 / 搭檔卡 SHALL 另有下列效果樹入口:`reg.activated(number, mode=…, mp_cost=…, timing=…, per_game=…, condition=…, effect=<樹>)`(費用、時機、次數限制與使用條件照舊由引擎檢查)、`reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=<樹>)`、`reg.trigger(number, event_type, effect=<樹>)`;這些入口的 `ctx` MUST 含該卡所在魔物的 UID `self_slot`,觸發器另含觸發事件 `event`。只回傳值的查詢(`static_power(value=…)`、`damage_immunity(check=…)`、`spell_compat(check=…)`、`spell_use_limit(value=…)`、`activated(condition=…)`)SHALL 以不可變、可呼叫的規格物件登記,不經效果樹;純資料(`stack_on`、`max_copies`、`mamodo_attack`、`jammer`)以對應的登記函式登記;同卡重複登記 MUST 被拒絕。
+系統 SHALL 提供下列效果樹註冊入口,並沿用既有引擎入口與檢查:`reg.event(number, effect=…, when=…)`(事件卡)、`reg.spell_rider(number, on_damage=<樹>)`(`rider.on_damage`)、`reg.spell_rider(number, on_declare=<樹>)`(`rider.on_declare`,`ctx` 含 `side`)、`reg.spell_rider(number, on_win=<樹>)`(`rider.on_win`,攻方獲勝時)、`reg.spell_rider(number, on_defense_damaged=<樹>)`(`rider.on_defense_damaged`,`ctx["player"]` 為防禦方、`ctx` 含 `amount`)、`reg.spell_nonbattle(number, effect=<樹>)`(非戰鬥戰術)。重複註冊以 `(卡號, 掛鉤)` 判定。經 `spell_nonbattle` 註冊的卡 MUST 仍受非戰鬥戰術的費用、時機與使用次數檢查。`SpellRider` 中要回傳數值的欄位(如 `damage_bonus(game, battle) -> int`)不是效果,MUST NOT 以效果樹註冊;其值 SHALL 以不可變、可呼叫的規格物件提供,不寫 lambda 於註冊檔。魔物 / 搭檔卡 SHALL 另有下列效果樹入口:`reg.activated(number, mode=…, mp_cost=…, timing=…, per_game=…, condition=…, effect=<樹>)`(費用、時機、次數限制與使用條件照舊由引擎檢查)、`reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=<樹>)`、`reg.trigger(number, event_type, effect=<樹>)`;這些入口的 `ctx` MUST 含該卡所在魔物的 UID `self_slot`,觸發器另含觸發事件 `event`。只回傳值的查詢(`static_power(value=…)`、`damage_immunity(check=…)`、`spell_compat(check=…)`、`spell_use_limit(value=…)`、`activated(condition=…)`)SHALL 以不可變、可呼叫的規格物件登記,不經效果樹;純資料(`stack_on`、`max_copies`、`mamodo_attack`、`jammer`)以對應的登記函式登記;同卡重複登記 MUST 被拒絕。
 
 #### Scenario: 宣告時效果僅防禦方生效
 - **WHEN** 以 `When(SideIs("defense"), Coin(…))` 註冊的 `on_declare` 效果,以 `side="attack"` 執行
-- **THEN** 不擲幣、無任何效果;以 `side="defense"` 執行時才擲幣(S-021 / S-025 為防禦專用術卡,引擎只會以防禦側呼叫)
+- **THEN** 不擲幣、無任何效果;以 `side="defense"` 執行時才擲幣(S-021 / S-025 為防禦專用戰術卡,引擎只會以防禦側呼叫)
 
 #### Scenario: 傷害後效果的擁有者
 - **WHEN** S-004 以 `rider.on_damage` 註冊並造成傷害
-- **THEN** 效果的 `ctx["player"]` 為造成傷害的一方,禁術對象為其對手
+- **THEN** 效果的 `ctx["player"]` 為造成傷害的一方,禁戰術對象為其對手
 
-#### Scenario: 非戰鬥術經引擎入口使用
+#### Scenario: 非戰鬥戰術經引擎入口使用
 - **WHEN** 玩家透過 `use_book_card` 使用以 `reg.spell_nonbattle("S-026", …)` 註冊的 S-026
 - **THEN** 費用、時機與使用次數檢查與遷移前一致,不會得到 `spell.not_implemented`
 
 #### Scenario: 防禦方被造成傷害時取得傷害量
-- **WHEN** 防禦方以 S-056 防禦,魔力勝負落敗且魔本受到 N 點傷害
+- **WHEN** 防禦方以 S-056 防禦,魔力勝負落敗且魔書受到 N 點傷害
 - **THEN** `on_defense_damaged` 效果的 `ctx["player"]` 為防禦方、`ctx["amount"]` 為 N,防禦方 MP 增加 2×N
 
 #### Scenario: 啟動型效果以效果樹註冊
@@ -188,10 +188,10 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **WHEN** 嘗試以效果樹註冊 `damage_bonus` 等非效果欄位
 - **THEN** 註冊時拋出錯誤,且不留下 `TREE_HOOKS` / `EFFECTS` 記錄
 
-### Requirement: 註冊為原子操作且術卡附加效果每卡只註冊一次
+### Requirement: 註冊為原子操作且戰術卡附加效果每卡只註冊一次
 `reg.spell_rider` SHALL 對每張卡只接受一次呼叫;同一張卡再次呼叫(不論掛鉤或旗標,也不論新舊寫法)MUST 被拒絕。任何註冊在檢查失敗時 MUST NOT 留下部分寫入:`TREE_HOOKS`、`EFFECTS`、`SPELL_RIDERS` 等註冊表 MUST 保持呼叫前的內容。
 
-#### Scenario: 再次註冊同一張術卡被拒絕且不影響既有效果
+#### Scenario: 再次註冊同一張戰術卡被拒絕且不影響既有效果
 - **WHEN** 已以 `reg.spell_rider("X", on_damage=<樹>, counter=True)` 註冊,再呼叫 `reg.spell_rider("X", on_declare=<樹>)` 或 `reg.spell_rider("X", counter=True)`
 - **THEN** 拒絕並拋出錯誤,`X` 的 `on_damage` 效果與 `counter` 旗標仍在,註冊表內容不變
 
@@ -200,19 +200,19 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 拒絕並拋出錯誤,`on_damage` 也沒有被寫入或標記為已註冊;修正後可正常註冊
 
 ### Requirement: 註冊檔逐卡集中登記
-以效果樹註冊的卡片,登記 SHALL 依卡片類別分檔:`effects/cards/` 的 `events.py`(E)、`mamodo.py`(M)、`partners.py`(P)、`spells.py`(S),每個檔案只含該類別的卡並依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。
+以效果樹註冊的卡片,登記 SHALL 依卡片類別分檔:`effects/cards/` 的 `events.py`(E)、`mamodo.py`(M)、`partners.py`(P)、`spells.py`(S),每個檔案只含該類別的卡並依卡號排序,每張卡的登記集中在一處;同一張卡有多種掛鉤或資料登記(如登場效果加疊放規則、戰術相容加啟動效果)時,每種一個 `reg.xxx(...)` 呼叫且彼此相鄰。效果邏輯(含使用前置條件與查詢)MUST 位於 `tree.py` 的節點、條件與規格物件及 primitives,不在註冊檔內以 lambda 或具名函式定義。
 
 #### Scenario: 註冊行不含邏輯
 - **WHEN** 檢視 E-001 的註冊
 - **THEN** 為單一 `reg.event("E-001", when=has_own_mamodo, effect=…)` 呼叫,`when` 引用 `tree.py` 中的具名條件函式,註冊檔內無 lambda 或 handler 函式定義
 
 #### Scenario: 同一張卡的多個登記相鄰
-- **WHEN** 檢視 M-027(疊放規則 + 無術攻擊規格)的登記
+- **WHEN** 檢視 M-027(疊放規則 + 無戰術攻擊規格)的登記
 - **THEN** 為相鄰的 `reg.stack_on("M-027", …)` 與 `reg.mamodo_attack("M-027", …)` 兩個呼叫,前後都是卡號不同的卡
 
 #### Scenario: 依卡片類別分檔
 - **WHEN** 檢視 `effects/cards/mamodo.py`
-- **THEN** 只有 `M-` 開頭卡號的登記,且依卡號排序;事件卡、搭檔卡、術卡各在自己的檔案
+- **THEN** 只有 `M-` 開頭卡號的登記,且依卡號排序;事件卡、搭檔卡、戰術卡各在自己的檔案
 
 ### Requirement: 以對手視角執行子樹
 `AsOpponent` 節點 SHALL 以對手的視角解決其子樹:子樹內 `ctx["player"]` 為對手,因此子樹中 `Choose` 的決策者與「自己」相關的選項規格、葉節點都指對手。子樹完成後,外層節點的 `ctx["player"]` MUST 仍為效果擁有者,不論子樹是同步完成或停下後恢復(上溯經過 `AsOpponent` 時換回)。`When` 節點 SHALL 支援 `otherwise` 分支,條件只在進入時判斷一次。

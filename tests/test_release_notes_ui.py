@@ -14,7 +14,7 @@ POPUP = "#info-overlay:not(.hidden)"
 RELEASES = {
     "zh-TW": {"releases": [
         {"version": "v0.10.0", "date": "2026-10-08",
-         "items": [{"kind": "new", "text": "對局加入音效"}, {"kind": "fix", "text": "魔本網格對齊"}]},
+         "items": [{"kind": "new", "text": "對局加入音效"}, {"kind": "fix", "text": "魔書網格對齊"}]},
         {"version": "v0.9.3", "date": "2026-10-06", "items": [{"kind": "change", "text": "圖片顯示速度優化"}]},
         {"version": "v0.9.2", "date": "2026-10-06", "title": "公開上線", "items": []},
     ]},
@@ -52,7 +52,7 @@ def test_latest_release_pops_up_on_landing(browser, server):  # noqa: F811
     context, page, errors = open_page(browser, server)
     page.wait_for_selector(POPUP)
     assert "v0.10.0" in page.locator("#info-title").text_content()
-    assert lines(page) == ["[新功能] 對局加入音效", "[修正] 魔本網格對齊"]
+    assert lines(page) == ["[新功能] 對局加入音效", "[修正] 魔書網格對齊"]
     assert "v0.9.3" not in page.locator("#info-body").text_content()     # 只顯示最新一版
     assert page.locator("#info-close").text_content() == "確認"
     context.close()

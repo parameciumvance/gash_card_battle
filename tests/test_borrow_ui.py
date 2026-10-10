@@ -17,7 +17,7 @@ def send(page, command):
 
 
 def set_book(page, player, page_no, card, mp=None):
-    """以金手指把某玩家魔本的一頁換成指定卡(可同時設定 MP)。"""
+    """以金手指把某玩家魔書的一頁換成指定卡(可同時設定 MP)。"""
     page.evaluate("""async ([player, pageNo, card, mp]) => {
       const base = `/api/rooms/${SESSION.code}`;
       const headers = {'X-Player-Token': Object.values(SESSION.tokens)[0], 'Content-Type': 'application/json'};

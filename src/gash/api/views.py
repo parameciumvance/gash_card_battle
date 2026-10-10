@@ -43,17 +43,17 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "power": slot_power(game, player, slot),
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
-        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無術攻擊規格(M-027)
+        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無戰術攻擊規格(M-027)
     }
 
 
 def _in_use_pages(game: Game, p: int) -> set[int]:
-    """玩家 p 已宣告攻防術的「使用中頁」:宣告即公開,對所有視角揭露。"""
+    """玩家 p 已宣告攻防戰術的「使用中頁」:宣告即公開,對所有視角揭露。"""
     st = game.state
     pages: set[int] = set()
     if st.battle_in is not None and st.battle_in.get("attacker") == p:
         page = st.battle_in.get("page")
-        if page is not None:  # 無術攻擊(M-027)無頁
+        if page is not None:  # 無戰術攻擊(M-027)無頁
             pages.add(page)
     if st.battle is not None:
         b = st.battle
@@ -88,10 +88,10 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "consumed_pages": sorted(ps.consumed_pages),
         "slots": [_slot_view(game, p, s) for s in ps.slots],
         "discard": list(ps.discard),
-        "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的術卡頁
+        "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
         "used_event_this_turn": ps.used_event_this_turn,
     }
-    # 己方完整魔本只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
+    # 己方完整魔書只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):
         view["book"] = list(ps.book)
         view["used_nonbattle_spells"] = sorted(ps.used_nonbattle_spells)

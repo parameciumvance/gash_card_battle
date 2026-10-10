@@ -611,7 +611,7 @@ def test_attach_partner_from_discard_stale_choice_is_noop():
     assert batch == []
 
 
-# ================================================================ 術卡第二批節點(S-016/S-017/S-031/S-033/S-039)
+# ================================================================ 戰術卡第二批節點(S-016/S-017/S-031/S-033/S-039)
 
 def test_add_defense_self_bonus_keeps_legacy_event_source():
     g = game()
@@ -884,10 +884,10 @@ def test_lock_chosen_opponent_mamodo_keeps_legacy_event_shape():
     assert (m.flag, m.target_player, m.target_slot) == (MAMODO_LOCKED, 1, x.uid)
 
 
-# ================================================================ 從魔本選頁(E-012 / E-016 / E-017 / S-043 / S-048)
+# ================================================================ 從魔書選頁(E-012 / E-016 / E-017 / S-043 / S-048)
 
 def set_book(g, player, **pages):
-    """把 player 魔本的指定頁換成指定卡:set_book(g, 0, p5="M-024")。"""
+    """把 player 魔書的指定頁換成指定卡:set_book(g, 0, p5="M-024")。"""
     ps = g.state.players[player]
     b = list(ps.book)
     for k, v in pages.items():
@@ -1132,7 +1132,7 @@ def test_discard_other_partners_keeps_chosen():
 
 def test_attachable_partner_pages_and_slots_specs():
     from .test_cards import book
-    g = game(book0=book())                                  # 預設牌組本身就有搭檔卡,改用空白魔本
+    g = game(book0=book())                                  # 預設牌組本身就有搭檔卡,改用空白魔書
     set_book(g, 0, p9="P-001", p10="P-002")               # P-002 為レイコム家族,場上沒有 → 不可裝
     assert [o["value"] for o in tree.AttachablePartnerPagesInOwnBook().options(g, {"player": 0})] == [9]
     m16 = give(g, 0, "M-016")
@@ -1438,7 +1438,7 @@ def test_negate_opponent_spell_by_side():
     b = _battle(g, 0, slot0(g, 0).uid)
     attack, defense, any_ = (tree.CanNegateOpponentSpell(w) for w in ("attack", "defense", "any"))
     assert attack(g, 1) and any_(g, 1)
-    assert not attack(g, 0) and not defense(g, 0) and not any_(g, 0)   # 防方沒有用術防禦
+    assert not attack(g, 0) and not defense(g, 0) and not any_(g, 0)   # 防方沒有用戰術防禦
     b.defense_spell = "S-003"
     assert defense(g, 0) and not defense(g, 1)
     events = run(g, tree.NegateOpponentSpell("any"), player=0)          # 攻方:無效防禦
@@ -1447,7 +1447,7 @@ def test_negate_opponent_spell_by_side():
     run(g, tree.NegateOpponentSpell("any"), player=1)                   # 防方:無效攻擊
     assert b.attack_negated
     assert not any_(g, 0) and not any_(g, 1)                             # 已被無效就不能再用
-    b.attack_negated, b.attack_spell = False, None                      # 無術攻擊
+    b.attack_negated, b.attack_spell = False, None                      # 無戰術攻擊
     assert not attack(g, 1)
 
 
@@ -1487,7 +1487,7 @@ def test_turn_opponent_pages_counts_opponent_mamodo_cards_only():
     pos = opp.pos
     run(g, node, event={"type": "mamodo_discarded", "player": 0, "cards": ["M-001"]})     # 自己的
     run(g, node, event={"type": "card_discarded", "player": 1, "card": "P-006"})          # 搭檔卡
-    run(g, node, event={"type": "card_discarded", "player": 1, "card": "S-001"})          # 術卡
+    run(g, node, event={"type": "card_discarded", "player": 1, "card": "S-001"})          # 戰術卡
     assert opp.pos == pos
     run(g, node, event={"type": "mamodo_discarded", "player": 1, "cards": ["M-009", "M-010"]})
     assert opp.pos == pos + 2 * 2

@@ -7,7 +7,7 @@ from tools.release_notes import ROOT, check, load, markdown
 
 RELEASES = [
     {"version": "v0.10.0", "date": "2026-10-08",
-     "items": [{"kind": "new", "text": "對局加入音效"}, {"kind": "fix", "text": "魔本網格對齊"}]},
+     "items": [{"kind": "new", "text": "對局加入音效"}, {"kind": "fix", "text": "魔書網格對齊"}]},
     {"version": "v0.9.3", "date": "2026-10-06", "items": [{"kind": "change", "text": "圖片顯示速度優化"}]},
     {"version": "v0.9.2", "date": "2026-10-06", "title": "公開上線", "items": []},
 ]
@@ -32,7 +32,7 @@ def test_check_fails_when_empty():
 
 
 def test_markdown_lists_items_with_labels():
-    assert markdown("v0.10.0", RELEASES, LABELS) == "- [新功能] 對局加入音效\n- [修正] 魔本網格對齊\n"
+    assert markdown("v0.10.0", RELEASES, LABELS) == "- [新功能] 對局加入音效\n- [修正] 魔書網格對齊\n"
 
 
 def test_markdown_title_only_release():

@@ -65,7 +65,7 @@ const DeckStore = {
   },
 };
 
-/* 七條構築規則(rule3.md「魔本檔案夾」)+ 空頁檢查。pages: [32×卡號|null] */
+/* 七條構築規則(rule3.md「魔書檔案夾」)+ 空頁檢查。pages: [32×卡號|null] */
 function validateDeckPages(pages) {
   const errors = [];
   if (!Array.isArray(pages) || pages.length !== BOOK_SIZE) {

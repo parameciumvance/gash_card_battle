@@ -69,7 +69,7 @@ def test_hint_details_toggle_is_remembered(page):
     page.locator("#action-bar .hint-toggle").click()
     details = page.locator("#action-bar .hint-details").text_content()
     assert "宣告攻擊" in details and "攻(A)" in details
-    assert "防(D)" not in details                                        # 回合玩家不能用帶「防(D)」的事件卡與非戰鬥術
+    assert "防(D)" not in details                                        # 回合玩家不能用帶「防(D)」的事件卡與非戰鬥戰術
     page.reload()
     page.wait_for_function("S && S.phase === 'battle'")
     assert page.locator("#action-bar .hint-details").count() == 1        # 重新整理後仍展開
@@ -84,7 +84,7 @@ GLOW_SETUP = """async (me) => {
     const headers = {'X-Player-Token': token, 'Content-Type': 'application/json'};
     const base = `/api/rooms/${SESSION.code}`;
     const d = await api(`${base}/debug-state`, {headers});
-    d.players[me].book[1] = 'S-002';                                  // 第 2 頁:費用 2 的攻擊術
+    d.players[me].book[1] = 'S-002';                                  // 第 2 頁:費用 2 的攻擊戰術
     d.players[me].mp = 1;                                             // 第 3 頁 S-001 費用 1 付得起
     await api(`${base}/debug-state`, {method: 'POST', headers, body: JSON.stringify(d)});
     applyPayload(await api(`${base}/state`, {headers}));

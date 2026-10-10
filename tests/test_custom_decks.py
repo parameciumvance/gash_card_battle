@@ -63,7 +63,7 @@ def test_default_preset_unchanged():
 ILLEGAL_CASES = [
     (LEVEL1[:31], "deck.size"),                                   # 31 頁
     (["S-001"] + LEVEL1[1:], "deck.first_page"),                  # 首頁非魔物
-    (LEVEL1[:31] + ["M-012"], "deck.last_page"),                  # 末頁非術
+    (LEVEL1[:31] + ["M-012"], "deck.last_page"),                  # 末頁非戰術
     (LEVEL1[:2] + ["S-005"] + LEVEL1[3:], "deck.superior_page"),  # 上級卡在第 3 頁
     (LEVEL1[:20] + ["S-001", "S-001"] + LEVEL1[22:], "deck.max_copies"),  # S-001 共 5 張
     (["M-001"] + ["M-004", "M-005", "M-006", "M-008", "M-009",

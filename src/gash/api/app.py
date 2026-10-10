@@ -326,7 +326,7 @@ def _resolve(code: str, token: str | None) -> tuple[Room, int | str]:
 
 @app.get("/api/decks")
 async def list_decks():
-    """列出伺服器 data/decks/ 下所有預組魔本(丟檔即現)。"""
+    """列出伺服器 data/decks/ 下所有預組魔書(丟檔即現)。"""
     return {"decks": preset_list()}
 
 

@@ -14,7 +14,7 @@ from ..tree import (
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
-# 「某魔物の術 / 某魔物による」類效果以「使用術的魔物」判定,指令術由該魔物使用時也適用。
+# 「某魔物の術 / 某魔物による」類效果以「使用戰術的魔物」判定,指令戰術由該魔物使用時也適用。
 
 reg.activated("P-001", mode="discard", timing="nonbattle",
               effect=MakeNextAttackUndefendable(mamodo="ガッシュ・ベル"))

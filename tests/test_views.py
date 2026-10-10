@@ -37,12 +37,12 @@ def test_public_info_visible_to_all():
         s = snapshot(g, viewer)
         assert s["players"][0]["mp"] == 2
         assert s["players"][0]["slots"][0]["top"] == "M-001"  # 場上魔物公開
-        assert s["players"][1]["pos"] == 2                     # 魔本進度公開
+        assert s["players"][1]["pos"] == 2                     # 魔書進度公開
 
 
 def test_pending_options_only_for_decider():
     g = mk()
-    # M-011 檢視對手魔本並選擇 → options 含對手魔本內容,只能給決策者
+    # M-011 檢視對手魔書並選擇 → options 含對手魔書內容,只能給決策者
     fein = MamodoSlot(uid=g.state.next_uid(), stack=["M-011"])
     g.state.players[0].slots.append(fein)
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})

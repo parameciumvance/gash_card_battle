@@ -1,6 +1,6 @@
-"""引擎核心規則測試(game-engine spec)。使用 level1 預組魔本與香草術卡,不依賴卡片效果 handler。
+"""引擎核心規則測試(game-engine spec)。使用 level1 預組魔書與香草戰術卡,不依賴卡片效果 handler。
 
-魔本頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 P7=S-027
+魔書頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 P7=S-027
 P8=P-009 P9=S-022 ... P32=S-005
 """
 
@@ -193,7 +193,7 @@ def test_battle_in_voided_by_defender_action():
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     # 防方插入一個行動(pass 以外):用第 3 頁不行(是防方自己的頁),放不出卡 → 改用事件?
-    # 防方翻開頁 2,3:S-025(D術)不能當行動、無搭檔可放 → 用「回應允許」以外唯一合法:實際行動。
+    # 防方翻開頁 2,3:S-025(D戰術)不能當行動、無搭檔可放 → 用「回應允許」以外唯一合法:實際行動。
     # 這裡以防方放出魔物驗證:先給防方場上騰不出行動 → 直接驗證非法回應被拒。
     with pytest.raises(IllegalCommand):
         submit(g, {"type": "declare_attack", "player": dp, "page": 3})
@@ -255,7 +255,7 @@ def test_spell_cannot_be_reused_same_turn():
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "choose", "player": dp, "value": None})
-    # 同頁術卡再攻擊 → 拒絕;隔壁頁 S-001(第5頁未開)也不行
+    # 同頁戰術卡再攻擊 → 拒絕;隔壁頁 S-001(第5頁未開)也不行
     with pytest.raises(IllegalCommand) as exc:
         submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     assert exc.value.code == "spell.used"
@@ -273,7 +273,7 @@ def test_protect_book_with_mamodo():
     events = submit(g, {"type": "choose", "player": dp, "value": slot.uid})
     assert "protected" in ev_types(events)
     assert slot.injured is True
-    assert g.state.players[dp].pos == 2  # 魔本沒翻
+    assert g.state.players[dp].pos == 2  # 魔書沒翻
 
 
 def test_injured_mamodo_discarded_on_second_damage():
@@ -329,7 +329,7 @@ def test_mamodo_gone_no_mamodo_left_loses():
     dp = 1 - tp
     ps = g.state.players[dp]
     ps.slots.clear()
-    ps.pos = 16  # 之後的魔本已無魔物卡(最後的魔物 M-012 在第 14 頁)
+    ps.pos = 16  # 之後的魔書已無魔物卡(最後的魔物 M-012 在第 14 頁)
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
@@ -354,7 +354,7 @@ def test_book_out_by_damage_loses():
 # ---------------------------------------------------------------- 可重現性與冒煙
 
 def script_until_over(g, max_steps=2000):
-    """簡單驅動器:翻頁→有可攻術就攻→不防→不保護,直到分出勝負。"""
+    """簡單驅動器:翻頁→有可攻戰術就攻→不防→不保護,直到分出勝負。"""
     from gash.engine.state import START as PH_START
     steps = 0
     while g.state.phase != GAME_OVER and steps < max_steps:

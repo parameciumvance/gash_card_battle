@@ -36,8 +36,8 @@ def add_restriction(game, batch, *, source, owner, target_player, flag, duration
 
 
 def add_spell_power(battle, side, source, amount, kind="spell_bonus"):
-    """本場戰鬥中 side("attack" / "defense")所用術的魔力加減,連同來源卡記下(供魔力勝負明細)。
-    kind:"spell_bonus"(待命或效果的加值)/ "defense_self"(術自身的防禦加值)。"""
+    """本場戰鬥中 side("attack" / "defense")所用戰術的魔力加減,連同來源卡記下(供魔力勝負明細)。
+    kind:"spell_bonus"(待命或效果的加值)/ "defense_self"(戰術自身的防禦加值)。"""
     battle.data.setdefault(f"{side}_spell_power", []).append(
         {"kind": kind, "source": source, "amount": amount})
 
@@ -112,7 +112,7 @@ def heal_slot(game, batch, player, slot, source):
 # ---------------------------------------------------------------- 書內 / 墓地搜卡
 
 def book_page_options(game, player, pred=None, exclude_last=False):
-    """魔本中(尚未離開的)符合條件的頁位選項:[{'page': n, 'card': 卡號}]。"""
+    """魔書中(尚未離開的)符合條件的頁位選項:[{'page': n, 'card': 卡號}]。"""
     ps = game.state.players[player]
     opts = []
     for page in range(1, BOOK_SIZE + 1):
@@ -127,14 +127,14 @@ def book_page_options(game, player, pred=None, exclude_last=False):
 
 
 def take_from_book(game, batch, player, page) -> str:
-    """卡片離開魔本(該頁標記空缺),回傳卡號;上場/棄置由呼叫端接續。"""
+    """卡片離開魔書(該頁標記空缺),回傳卡號;上場/棄置由呼叫端接續。"""
     ps = game.state.players[player]
     ps.consumed_pages.add(page)
     return ps.card_at(page)
 
 
 def return_to_book(game, batch, player, number, page):
-    """自墓地等處把卡放回魔本的空缺頁(M-025)。"""
+    """自墓地等處把卡放回魔書的空缺頁(M-025)。"""
     ps = game.state.players[player]
     assert page in ps.consumed_pages, "只能放回空缺頁"
     ps.book[page - 1] = number
@@ -143,7 +143,7 @@ def return_to_book(game, batch, player, number, page):
 
 
 def play_mamodo_from_book(game, batch, player, page):
-    """效果指示:自魔本任意頁放出魔物(受場上上限/同名上限約束,不合法時無效果)。"""
+    """效果指示:自魔書任意頁放出魔物(受場上上限/同名上限約束,不合法時無效果)。"""
     from ..engine import MAX_FIELD_MAMODO, same_name_copies
     from ..state import MamodoSlot
     ps = game.state.players[player]
@@ -164,7 +164,7 @@ def play_mamodo_from_book(game, batch, player, page):
 
 
 def attach_partner_from_book(game, batch, player, page, slot):
-    """效果指示:自魔本任意頁取搭檔卡裝備到指定魔物(已有搭檔時無效果)。"""
+    """效果指示:自魔書任意頁取搭檔卡裝備到指定魔物(已有搭檔時無效果)。"""
     if slot.partner is not None:
         return False
     number = take_from_book(game, batch, player, page)
@@ -177,7 +177,7 @@ def attach_partner_from_book(game, batch, player, page, slot):
 
 
 def discard_from_book(game, batch, owner, page, source):
-    """把魔本中某頁的卡棄掉(E-016/E-017 對對手書)。"""
+    """把魔書中某頁的卡棄掉(E-016/E-017 對對手書)。"""
     from ..engine import to_discard
     ps = game.state.players[owner]
     number = take_from_book(game, batch, owner, page)
@@ -202,7 +202,7 @@ def discard_partner(game, batch, player, slot, source):
 # ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果(P-010/P-018 條款)
 
 def own_book_turn_effect(game, batch, player, leaves, source) -> bool:
-    """「翻自己魔本」的效果(leaves < 0 為回翻)。記錄本回合用過該方向的效果;本回合已受
+    """「翻自己魔書」的效果(leaves < 0 為回翻)。記錄本回合用過該方向的效果;本回合已受
     P-010 / P-018 的「合計1回」限制時不發生(限制卡本身已算 1 次),回傳是否有翻頁。"""
     ps = game.state.players[player]
     back = leaves < 0
@@ -220,13 +220,13 @@ def own_book_turn_effect(game, batch, player, leaves, source) -> bool:
 
 
 def own_page_turn_effect(game, batch, player, leaves, source):
-    """P-010:翻自己的魔本,之後本回合的「翻自己魔本」效果合計只能 1 次。"""
+    """P-010:翻自己的魔書,之後本回合的「翻自己魔書」效果合計只能 1 次。"""
     own_book_turn_effect(game, batch, player, leaves, source)
     game.state.players[player].page_effect_limited = True
 
 
 def own_page_turnback_effect(game, batch, player, leaves, source):
-    """P-018:回翻自己的魔本,之後本回合的「回翻自己魔本」效果合計只能 1 次。"""
+    """P-018:回翻自己的魔書,之後本回合的「回翻自己魔書」效果合計只能 1 次。"""
     own_book_turn_effect(game, batch, player, -leaves, source)
     game.state.players[player].page_back_effect_limited = True
 
@@ -243,7 +243,7 @@ def slot_option(player, slot, card=None, **extra):
 
 
 def page_option(player, page, card=None, **extra):
-    """魔本的頁;card 為 None 時(空頁)不帶卡號。"""
+    """魔書的頁;card 為 None 時(空頁)不帶卡號。"""
     opt = {**extra, "value": page, "page": page, "zone": "book", "player": player}
     if card is not None:
         opt["card"] = card

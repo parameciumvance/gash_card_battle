@@ -76,7 +76,7 @@ def test_showdown_log_entry_opens_breakdown(page):
     assert "合計 6000" in sections[0] and "合計 0" in sections[1]
     rows = info_rows(page)
     assert any("魔物的魔力" in r and r.endswith("4000") for r in rows)
-    assert any("術的魔力" in r and r.endswith("2000") for r in rows)
+    assert any("戰術的魔力" in r and r.endswith("2000") for r in rows)
     assert "攻擊方獲勝" in page.locator("#info-body .info-result").text_content()
     page.locator("#info-body .card-ref").first.click()                    # 來源卡名可點
     assert page.locator("#zoom-overlay").is_visible()
@@ -109,7 +109,7 @@ def test_effects_list_shows_standby_and_updates(page):
     page.locator("#effects-toggle").click()
     rows = info_rows(page)
     gash = page.evaluate("mamodoName('ガッシュ・ベル')")
-    assert len(rows) == 1 and f"下一場戰鬥:以 {gash} 的術攻擊時,對手不能防禦" in rows[0]   # P-001 限定賈修
+    assert len(rows) == 1 and f"下一場戰鬥:以 {gash} 的戰術攻擊時,對手不能防禦" in rows[0]   # P-001 限定賈修
     assert rows[0].endswith("本回合下一場戰鬥")
     # 開啟中:回合結束後待命到期,清單同步清空
     cmd(page, {"type": "pass", "player": "op"})

@@ -34,8 +34,8 @@ class CardDef:
     effect_ja: str
     effect_icon: str | None     # "battle" / "nonbattle" / "jammer" / None
     power_base: int | None      # 魔物本體魔力
-    power_bonus: int | None     # 術的魔力加值
-    power_special: bool         # 術魔力為 Special(不參與合計)
+    power_bonus: int | None     # 戰術的魔力加值
+    power_special: bool         # 戰術魔力為 Special(不參與合計)
     damage: int | None
     image_url: str | None
 

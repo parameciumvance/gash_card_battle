@@ -90,10 +90,10 @@ def test_own_unfavorable_result_is_spotlighted(spot):
     send(spot, me, {"type": "no_defense"})
     send(spot, opp, {"type": "pass"})
     send(spot, me, {"type": "pass"})                                     # 自己的 pass 觸發魔力勝負
-    send(spot, me, {"type": "choose", "value": None})                    # 不保護 → 自己的魔本受傷
+    send(spot, me, {"type": "choose", "value": None})                    # 不保護 → 自己的魔書受傷
     spot.wait_for_function("""() => {
         const el = document.querySelector('#spotlight:not(.hidden)');
-        return el && el.textContent.includes('魔本受到');
+        return el && el.textContent.includes('魔書受到');
     }""", timeout=30000)
 
 

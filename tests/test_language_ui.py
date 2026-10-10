@@ -1,5 +1,5 @@
 """語言選擇的瀏覽器測試(battle-ui「語言選擇」「錯誤訊息依錯誤碼顯示」「i18n 字典」、
-battle-api「預組魔本探索」、deck-builder「即時合法性提示」)。需要 playwright 與 Chromium。
+battle-api「預組魔書探索」、deck-builder「即時合法性提示」)。需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_language_ui.py -q
 """

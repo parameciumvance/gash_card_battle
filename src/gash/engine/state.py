@@ -1,9 +1,9 @@
 """遊戲狀態資料模型。
 
-魔本頁面模型:pos = 目前翻開對頁的第一頁(1-based)。
+魔書頁面模型:pos = 目前翻開對頁的第一頁(1-based)。
 - 準備階段後 pos=2(翻開第 2、3 頁);翻 1 張(1 對頁)= pos+2。
-- pos=32 時只剩最後一頁;pos>32 = 魔本耗盡(敗北條件)。
-- 已離開魔本的卡(魔物/搭檔放到場上)記錄於 consumed_pages;術/事件卡使用後仍留在魔本中。
+- pos=32 時只剩最後一頁;pos>32 = 魔書耗盡(敗北條件)。
+- 已離開魔書的卡(魔物/搭檔放到場上)記錄於 consumed_pages;戰術/事件卡使用後仍留在魔書中。
 """
 
 from __future__ import annotations
@@ -30,13 +30,13 @@ STEP_DEFENSE = "defense"       # 等待防禦宣告
 STEP_EFFECTS = "effects"       # 戰鬥中效果輪流
 
 # --- 禁止旗標 ---
-NO_SPELLS = "no_spells"                    # 不能使用術卡
+NO_SPELLS = "no_spells"                    # 不能使用戰術卡
 NO_PARTNER_EFFECTS = "no_partner_effects"  # 搭檔卡效果失效
-NO_PROTECT_BOOK = "no_protect_book"        # 不能保護魔本傷害(戰鬥時效)
+NO_PROTECT_BOOK = "no_protect_book"        # 不能保護魔書傷害(戰鬥時效)
 NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
-NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用術卡攻擊(P-014)
+NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
-MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其術與效果(E-024,target_slot)
+MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其戰術與效果(E-024,target_slot)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
@@ -94,22 +94,22 @@ class PlayerState:
     mp: int = 0
     slots: list[MamodoSlot] = field(default_factory=list)
     discard: list[str] = field(default_factory=list)
-    consumed_pages: set[int] = field(default_factory=set)   # 已離開魔本的頁(1-based)
-    spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各術卡頁已使用次數
+    consumed_pages: set[int] = field(default_factory=set)   # 已離開魔書的頁(1-based)
+    spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各戰術卡頁已使用次數
     used_event_this_turn: bool = False
     used_abilities: set[str] = field(default_factory=set)   # 本回合已用啟動效果 key
-    used_nonbattle_spells: set[str] = field(default_factory=set)  # 本回合已用非戰鬥術卡號
+    used_nonbattle_spells: set[str] = field(default_factory=set)  # 本回合已用非戰鬥戰術卡號
     used_per_game: set[str] = field(default_factory=set)    # 一場遊戲限一次
     discarded_this_turn: list[str] = field(default_factory=list)  # 本回合入墓的卡(E-022)
-    page_effect_used: bool = False        # 本回合已用「翻自己魔本」的效果(P-010 / E-005)
-    page_back_effect_used: bool = False   # 本回合已用「回翻自己魔本」的效果(P-018 / E-005)
-    page_effect_limited: bool = False     # 本回合受 P-010「合計1回」限制:之後的翻自己魔本效果不發生
+    page_effect_used: bool = False        # 本回合已用「翻自己魔書」的效果(P-010 / E-005)
+    page_back_effect_used: bool = False   # 本回合已用「回翻自己魔書」的效果(P-018 / E-005)
+    page_effect_limited: bool = False     # 本回合受 P-010「合計1回」限制:之後的翻自己魔書效果不發生
     page_back_effect_limited: bool = False  # 本回合受 P-018「合計1回」限制
     # 用過「減少對手 MP」效果的回合(E-018 直前回合限制);只保留本回合與前一回合
     opp_mp_reduced_turns: set[int] = field(default_factory=set)
 
     def open_pages(self) -> list[int]:
-        """目前翻開、且卡片仍在魔本中的頁碼。"""
+        """目前翻開、且卡片仍在魔書中的頁碼。"""
         pages = [p for p in (self.pos, self.pos + 1) if 1 <= p <= BOOK_SIZE]
         return [p for p in pages if p not in self.consumed_pages]
 
@@ -127,9 +127,9 @@ class PlayerState:
 class BattleState:
     attacker: int
     step: str                            # STEP_DEFENSE / STEP_EFFECTS
-    attack_page: int | None              # 無術攻擊(M-027)時為 None
-    attack_spell: str | None             # 無術攻擊時為 None
-    attack_slot: int                     # 使用術(或直接攻擊)的魔物槽 uid
+    attack_page: int | None              # 無戰術攻擊(M-027)時為 None
+    attack_spell: str | None             # 無戰術攻擊時為 None
+    attack_slot: int                     # 使用戰術(或直接攻擊)的魔物槽 uid
     attack_negated: bool = False
     attack_undefendable: bool = False
     defense_page: int | None = None

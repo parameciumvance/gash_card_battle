@@ -131,7 +131,7 @@ def test_partner_target_marked_on_partner(page):
     assert sent(page) == [{"type": "choose", "player": 1 - p, "value": uid}]
 
 
-# ---------------------------------------------------------------- 魔本網格
+# ---------------------------------------------------------------- 魔書網格
 
 def test_book_grid_marks_pages_and_distinguishes_copies(page):
     p = start(page)
@@ -143,7 +143,7 @@ def test_book_grid_marks_pages_and_distinguishes_copies(page):
                        "options": [{"value": pg, "page": pg, "card": "P-011", "zone": "book", "player": p}
                                    for pg in (4, 10)]})
     assert not page.locator("#book-review-overlay").is_visible()      # 不自動開啟
-    page.locator(f"{PROMPT} button", has_text="開啟魔本").click()
+    page.locator(f"{PROMPT} button", has_text="開啟魔書").click()
     grid = page.locator("#book-review-overlay")
     assert grid.is_visible()
     picks = grid.locator(".review-cell.pickable")
@@ -159,11 +159,11 @@ def test_book_grid_can_close_and_reopen(page):
     p = start(page)
     set_pending(page, {"kind": "pick_own_empty_page", "player": p, "source": None,
                        "options": [{"value": pg, "page": pg, "zone": "book", "player": p} for pg in (5, 6)]})
-    page.locator(f"{PROMPT} button", has_text="開啟魔本").click()
+    page.locator(f"{PROMPT} button", has_text="開啟魔書").click()
     page.locator("#book-review-close").click()
     assert not page.locator("#book-review-overlay").is_visible()
     assert page.locator(PROMPT).is_visible()                           # 決策仍在
-    page.locator(f"{PROMPT} button", has_text="開啟魔本").click()
+    page.locator(f"{PROMPT} button", has_text="開啟魔書").click()
     assert page.locator("#book-review-overlay .review-cell.pickable").count() == 2
 
 
@@ -177,7 +177,7 @@ def test_opponent_book_shows_only_option_faces(page):
     set_pending(page, {"kind": "pick_opponent_book_card", "player": p, "source": "E-016",
                        "options": [{"value": 7, "page": 7, "card": "S-001", "zone": "book", "player": q}]})
     opp_name = page.evaluate("(q) => pname(q)", q)
-    page.locator(f"{PROMPT} button", has_text=f"開啟{opp_name}的魔本").click()
+    page.locator(f"{PROMPT} button", has_text=f"開啟{opp_name}的魔書").click()
     grid = page.locator("#book-review-overlay")
     assert grid.locator(".review-cell").count() == 32
     pick = grid.locator(".review-cell.pickable")

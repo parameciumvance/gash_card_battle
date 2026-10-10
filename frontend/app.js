@@ -658,7 +658,7 @@ function zoomActions(ctx) {
     const entry = ps.open_pages.find((e) => e.page === ctx.page && e.card);
     return entry ? { buttons: pageButtons(ctx.p, entry) } : { gone: true };
   }
-  if (ctx.kind === "pick") return pickValue(ctx) !== undefined ? { buttons: [] } : { gone: true };   // 魔本網格、棄牌區中的目標
+  if (ctx.kind === "pick") return pickValue(ctx) !== undefined ? { buttons: [] } : { gone: true };   // 魔書網格、棄牌區中的目標
   return { buttons: [] };
 }
 
@@ -814,7 +814,7 @@ function render() {
   renderTimingTrack();
   renderBattleStage();
   renderActionBar();
-  if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔本網格依新狀態重繪(決策結束時不再可選)
+  if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔書網格依新狀態重繪(決策結束時不再可選)
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
 }
 
@@ -1092,8 +1092,8 @@ function renderTopbar() {
   }
 }
 
-/* 鏡像牌桌:上方(對手)由上而下=魔本→搭檔→魔物;下方(我方)=魔物→搭檔→魔本。
- * 搭檔槽固定在該魔物的魔本側(對手在上、我方在下),由 mamodo-column 內的排列方向實現。 */
+/* 鏡像牌桌:上方(對手)由上而下=魔書→搭檔→魔物;下方(我方)=魔物→搭檔→魔書。
+ * 搭檔槽固定在該魔物的魔書側(對手在上、我方在下),由 mamodo-column 內的排列方向實現。 */
 function renderPlayerZone(zone, p, isTop) {
   zone.innerHTML = "";
   zone.dataset.player = p;
@@ -1127,7 +1127,7 @@ function renderPlayerZone(zone, p, isTop) {
   head.appendChild(rest);
   zone.appendChild(head);
 
-  // 場區(魔物列+搭檔列)置中;魔本區靠外角:對手右上、我方左下(對角相對)
+  // 場區(魔物列+搭檔列)置中;魔書區靠外角:對手右上、我方左下(對角相對)
   const body = document.createElement("div");
   body.className = "zone-body";
   const sideL = document.createElement("div");
@@ -1202,7 +1202,7 @@ function emptyFrame(label, small) {
   return el;
 }
 
-// 魔本區:對頁固定兩個頁位(pos, pos+1)。卡片仍在=卡面(對手視角=卡背+頁碼);
+// 魔書區:對頁固定兩個頁位(pos, pos+1)。卡片仍在=卡面(對手視角=卡背+頁碼);
 // 卡片已離開頁面(上場/使用)=卡背圖;超出書末=空位,尺寸不變
 function renderBookBlock(p, ps) {
   const block = document.createElement("div");
@@ -1291,7 +1291,7 @@ function slotButtons(p, slot) {
       onclick: () => send({ type: "use_field_ability", player: p, zone: "mamodo", slot_uid: slot.uid }),
     });
   }
-  // 無術攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
+  // 無戰術攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
   if (slot.mamodo_attack && iControl(p) && p === S.turn_player && canActNow(p)) {
     const spec = slot.mamodo_attack;
     const blocked = S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null;
@@ -1445,11 +1445,11 @@ function pageButtons(p, entry) {
 function openPageEl(p, entry) {
   const ctx = { kind: "page", p, page: entry.page };
   const el = markPickable(markUsable(cardEl(entry.card, { cost: entry.cost, zoomCtx: ctx }), ctx), ctx);
-  if (entry.in_use) el.classList.add("in-use");  // 宣告中的攻防術:發光標示
+  if (entry.in_use) el.classList.add("in-use");  // 宣告中的攻防戰術:發光標示
   return el;
 }
 
-// 以攻擊魔物槽 uid 取其卡名(無術攻擊顯示用)
+// 以攻擊魔物槽 uid 取其卡名(無戰術攻擊顯示用)
 function attackerName(player, slotUid) {
   const slot = S.players[player].slots.find((s) => s.uid === slotUid);
   return slot ? cname(slot.top) : "";
@@ -1517,7 +1517,7 @@ function renderBattleStage() {
     return;
   }
   const b = S.battle;
-  // 無術攻擊:攻方以魔物名代替術名呈現
+  // 無戰術攻擊:攻方以魔物名代替戰術名呈現
   const attackLabel = b.attack_spell
     ? t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })
     : t("ui.battle_attack_mamodo", { player: pname(b.attacker),
@@ -1773,12 +1773,12 @@ function choiceLabel(opt, results) {
     case "heal_injured": return t("choice.heal_injured");
     case "gain_mp_2": return t("choice.gain_mp_2");
   }
-  if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔本項
+  if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
   return null;
 }
 
 function choosePick(value) {
-  if (BOOK_VIEW !== null) closeBookReview();   // 從魔本網格選完就關閉,回到場面
+  if (BOOK_VIEW !== null) closeBookReview();   // 從魔書網格選完就關閉,回到場面
   send({ type: "choose", player: PICK.player, value });
 }
 
@@ -2364,9 +2364,9 @@ function showDiscard(p) {
       : [{ label: t("ui.close"), onpick: () => {} }]);
 }
 
-// 查閱魔本:對頁網格呈現 32 頁,標示當前翻開 / 已離場 / 已用術頁。
-// 決策目標在魔本中時,可選頁發光,點了在放大檢視選擇;對手的魔本只有選項中的頁有卡面,其他頁為卡背
-let BOOK_VIEW = null;   // 開啟中的魔本網格屬於哪位玩家
+// 查閱魔書:對頁網格呈現 32 頁,標示當前翻開 / 已離場 / 已用戰術頁。
+// 決策目標在魔書中時,可選頁發光,點了在放大檢視選擇;對手的魔書只有選項中的頁有卡面,其他頁為卡背
+let BOOK_VIEW = null;   // 開啟中的魔書網格屬於哪位玩家
 
 function showBookReview(p) {
   const ps = S.players[p];
@@ -2786,7 +2786,7 @@ function renderPool() {
   renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true });
 }
 
-// 對應魔物篩選:「無」只留指令術;類型為事件時暫停(事件沒有對應魔物)
+// 對應魔物篩選:「無」只留指令戰術;類型為事件時暫停(事件沒有對應魔物)
 const MAMODO_NONE = "__none__";
 function matchesMamodoFilter(def, filters) {
   if (!filters.fmamodo || filters.ftype === "event") return true;

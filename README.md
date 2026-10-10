@@ -28,8 +28,8 @@ uvicorn gash.api.app:app --reload
     把加入連結傳給朋友,對方開啟後會直接進入加入畫面(房號已填好),選好牌組按加入即開局。
   - 加入房間:輸入朋友給的房號,選自己的牌組後加入。
 - **本機測試模式**:兩人共用同一畫面輪流操作(全視角),雙方可各選牌組;附金手指面板,
-  可直接編輯雙方的魔本頁面卡號與 MP,方便湊測試場面(見下)。
-- **牌組構築**:編排自己的 32 頁魔本(見下)。
+  可直接編輯雙方的魔書頁面卡號與 MP,方便湊測試場面(見下)。
+- **牌組構築**:編排自己的 32 頁魔書(見下)。
 - **規則**:遊戲規則與卡面圖示說明(依本遊戲實際採用的規則撰寫)。對局中也能從頂欄的「規則」打開;
   點畫面中央的時機指示、或行動欄提示旁的「?」,會直接跳到對應的段落。
 
@@ -40,12 +40,12 @@ uvicorn gash.api.app:app --reload
 
 ## 牌組構築
 
-魔本構築是**排版**:頁位=出牌時機、對頁=同時翻開的手牌、最後一頁的術費用為 0。
-構築器以 16 個對頁呈現魔本,左側卡池(可依類型/對應魔物/收錄產品篩選,如 Level 1、The Best Booster 1):
+魔書構築是**排版**:頁位=出牌時機、對頁=同時翻開的手牌、最後一頁的戰術費用為 0。
+構築器以 16 個對頁呈現魔書,左側卡池(可依類型/對應魔物/收錄產品篩選,如 Level 1、The Best Booster 1):
 
 - 點卡池的卡 → 放入選中頁位(或下一空頁);點頁位選中,再點另一頁位=移動/互換(也可拖拉);
   點選中的有卡頁位=移除。
-- 七條構築規則即時提示(32 頁全滿、首頁魔物、末頁術、中級 12+、上級 22+、同號 ≤4、魔物 ≤8);
+- 七條構築規則即時提示(32 頁全滿、首頁魔物、末頁戰術、中級 12+、上級 22+、同號 ≤4、魔物 ≤8);
   違規的牌組可以儲存(標記不合法)但不能帶進對戰。伺服器在開局時仍會做最終驗證。
 - 牌組存在瀏覽器(localStorage);「匯出牌組碼」產生一行 `gash1:...` 文字,
   可備份或貼給朋友,對方「匯入牌組碼」即得同一副。清瀏覽器資料前記得匯出。
@@ -62,7 +62,7 @@ uvicorn gash.api.app:app --reload
 {
   "id": "level3",                    // 唯一識別(建議同檔名)
   "name": "第三彈預組",              // 選單顯示名(最省:只寫這行)
-  "pages": ["M-xxx", "S-xxx", ...]   // 32 頁卡號,須通過構築規則(首頁魔物、末頁術…)
+  "pages": ["M-xxx", "S-xxx", ...]   // 32 頁卡號,須通過構築規則(首頁魔物、末頁戰術…)
 }
 ```
 
@@ -352,11 +352,11 @@ dev container 以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo
 (排版規則見 `effects/cards/__init__.py`)。效果停下來等待(玩家選擇、擲幣確認、待命)時,只存續體這份純資料,
 不存閉包。註冊入口:
 
-- 事件卡 / 術卡:`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage= / on_declare= /
+- 事件卡 / 戰術卡:`reg.event(number, effect=…)`、`reg.spell_rider(number, on_damage= / on_declare= /
   on_win= / on_defense_damaged=…)`、`reg.spell_nonbattle(number, effect=…)`。
 - 魔物 / 搭檔卡:`reg.activated(number, mode=…, mp_cost=…, timing=…, condition=…, effect=…)`、
   `reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=…)`、`reg.trigger(number, 事件型別, effect=…)`。
-- 只回傳值的查詢(常駐魔力加成、使用條件、傷害免疫、術相容、`damage_bonus`)不是效果,
+- 只回傳值的查詢(常駐魔力加成、使用條件、傷害免疫、戰術相容、`damage_bonus`)不是效果,
   用 `tree.py` 裡不可變、可呼叫的規格物件登記(如 `reg.static_power(number, value=…)`)。
 
 - 所有卡片都已遷移到效果樹,逐卡登記只在 `effects/cards/`。`registry.py` 仍接受舊的
@@ -378,9 +378,9 @@ python -m pytest        # 引擎規則、67 張卡逐卡效果、API 整合、�
 src/gash/
   paths.py              資源目錄解析單點(repo 佈局、卡圖目錄)
   engine/               純 Python 遊戲引擎(無 IO,指令進 → 事件出)
-    state.py            狀態模型:魔本頁序、MP、魔物槽、modifier、待命、戰鬥子狀態
+    state.py            狀態模型:魔書頁序、MP、魔物槽、modifier、待命、戰鬥子狀態
     engine.py           規則主體:階段流程、輪流行動權、戰鬥五步驟、傷害/保護、勝敗
-    cards.py / deck.py  卡片定義載入、魔本構築合法性驗證
+    cards.py / deck.py  卡片定義載入、魔書構築合法性驗證
     awaiting.py         等待者推導與安全預設指令(逾時代打、NPC 共用)
     effects/            效果系統
       registry.py       引擎 ↔ 卡片效果的掛鉤介面
@@ -407,7 +407,7 @@ data/
   cards.zh-TW.json      卡片中文文本(卡名/效果),獨立於數值、可自由校對
   cards.ja.json         卡片日文文本(由 tools/build_card_texts.py 自 cards_ja.csv 產生,勿手改)
   cards.en.json         卡片英文文本(名稱取自 TTS 卡表,效果依日文效果文翻譯)
-  decks/level1.json     預組魔本(32 頁)
+  decks/level1.json     預組魔書(32 頁)
 tools/
   scrape_ja_effects.py  atwiki 日文權威資料抓取 → data/cards_ja.csv
   build_cards_json.py   cards_ja.csv → cards.json 轉換

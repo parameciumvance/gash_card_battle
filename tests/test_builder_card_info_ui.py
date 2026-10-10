@@ -39,7 +39,7 @@ def cards_where(page, expr):
 
 
 def put(page, pages):
-    """直接在魔本放卡:{頁碼: 卡號}。"""
+    """直接在魔書放卡:{頁碼: 卡號}。"""
     page.evaluate("""(pages) => {
       for (const [p, c] of Object.entries(pages)) B.deck.pages[p - 1] = c;
       builderMutated();

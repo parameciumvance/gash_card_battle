@@ -1,7 +1,7 @@
 """隱藏資訊替換:NPC 取得盤面副本的唯一入口。
 
-NPC 看得到的:自己的一切、對手已離開魔本的頁、宣告中的術頁、事件記錄中公開或只給 NPC 看的頁
-(`book_card_used`、`book_revealed` / `pages_peeked` 的 viewer 為 NPC)。其餘對手魔本頁以抽樣替換,
+NPC 看得到的:自己的一切、對手已離開魔書的頁、宣告中的戰術頁、事件記錄中公開或只給 NPC 看的頁
+(`book_card_used`、`book_revealed` / `pages_peeked` 的 viewer 為 NPC)。其餘對手魔書頁以抽樣替換,
 對局 RNG 換成 NPC 的隨機來源產生的新 RNG(不預知擲幣),事件記錄不帶進副本。
 """
 
@@ -12,14 +12,14 @@ import random
 
 from ..engine.state import BOOK_SIZE, Game, GameState
 
-# 抽樣先驗:與對手場上魔物同家族的卡(其術、搭檔)較可能在對手魔本中
+# 抽樣先驗:與對手場上魔物同家族的卡(其戰術、搭檔)較可能在對手魔書中
 FAMILY_WEIGHT = 6.0
-SEEN_WEIGHT = 3.0      # 對手用過的卡(同卡可重複放入魔本)
+SEEN_WEIGHT = 3.0      # 對手用過的卡(同卡可重複放入魔書)
 BASE_WEIGHT = 1.0
 
 
 def in_use_pages(game: Game, player: int) -> set[int]:
-    """player 已宣告的攻防術頁:宣告即公開(同 views 的使用中頁)。"""
+    """player 已宣告的攻防戰術頁:宣告即公開(同 views 的使用中頁)。"""
     st = game.state
     pages: set[int] = set()
     if st.battle_in is not None and st.battle_in.get("attacker") == player:
@@ -36,7 +36,7 @@ def in_use_pages(game: Game, player: int) -> set[int]:
 
 
 def known_opponent_pages(game: Game, npc: int) -> dict[int, str]:
-    """NPC 知道內容的對手魔本頁(頁碼 → 卡號),不含已離開魔本的頁。"""
+    """NPC 知道內容的對手魔書頁(頁碼 → 卡號),不含已離開魔書的頁。"""
     opp = 1 - npc
     known: dict[int, str] = {}
     for ev in game.events:

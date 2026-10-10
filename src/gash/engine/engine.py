@@ -121,15 +121,15 @@ def slot_restricted(game: Game, player: int, flag: str, slot_uid: int) -> bool:
 
 
 def _full_immune(game: Game, player: int) -> bool:
-    """S-037/038/041:自己魔本與所有魔物本回合不受傷害與負傷。"""
+    """S-037/038/041:自己魔書與所有魔物本回合不受傷害與負傷。"""
     return any(m.kind == "full_immune" and m.target_player == player
                and m.active(game.state.turn_no) for m in game.state.modifiers)
 
 
 def spell_cost(game: Game, player: int, page: int, card: CardDef, slot: MamodoSlot | None = None,
                *, discount: bool = True) -> int:
-    """術卡費用。「某魔物的術」類的費用效果(P-005 / M-008)以「使用術的魔物」判定,指令術由該魔物
-    使用時也適用。slot 為使用的魔物;未指定時(畫面顯示、非戰鬥術)取自己場上可使用此術的魔物中最低的費用。
+    """戰術卡費用。「某魔物的戰術」類的費用效果(P-005 / M-008)以「使用戰術的魔物」判定,指令戰術由該魔物
+    使用時也適用。slot 為使用的魔物;未指定時(畫面顯示、非戰鬥戰術)取自己場上可使用此戰術的魔物中最低的費用。
     discount=False 時不計可選的減費(M-008「1低いコストで使うことができる」選擇不使用時)。"""
     if slot is not None:
         return _spell_cost_by(game, player, page, card, game.db[slot.top].related_mamodo, discount)
@@ -146,7 +146,7 @@ def _base_spell_cost_by(game: Game, player: int, page: int, card: CardDef, mamod
     ps = game.state.players[player]
     cost = card.cost or 0
     if page == BOOK_SIZE and ps.pos == BOOK_SIZE:
-        cost = 0  # ADV:最後一頁的術本來費用為 0
+        cost = 0  # ADV:最後一頁的戰術本來費用為 0
     for m in game.state.modifiers:
         if (m.kind == "spell_cost_zero" and m.target_player == player
                 and m.active(game.state.turn_no)
@@ -293,7 +293,7 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
         raise IllegalCommand("flip.count", "開始階段最多翻 3 張")
     ps = st.players[player]
     if ps.pos + 2 * count > BOOK_SIZE:
-        raise IllegalCommand("flip.too_far", "不能翻超過魔本最後一頁")
+        raise IllegalCommand("flip.too_far", "不能翻超過魔書最後一頁")
     if count:
         ps.pos += 2 * count
         gained = 2 * count
@@ -334,7 +334,7 @@ def _do_action(game: Game, batch: list[dict], player: int, command: dict) -> Non
 def _require_open_page(game: Game, player: int, page) -> str:
     ps = game.state.players[player]
     if not isinstance(page, int) or page not in ps.open_pages():
-        raise IllegalCommand("page.not_open", "該頁未翻開或卡片已不在魔本中")
+        raise IllegalCommand("page.not_open", "該頁未翻開或卡片已不在魔書中")
     return ps.card_at(page)
 
 
@@ -346,7 +346,7 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
     if card.type == MAMODO:
         if number in reg.STACK_ON:
             if number in reg.SPELL_ONLY_STACK:
-                raise IllegalCommand("play.spell_only", "此卡只能經由指定術卡疊放")
+                raise IllegalCommand("play.spell_only", "此卡只能經由指定戰術卡疊放")
             base_slot = next(
                 (s for s in ps.slots if s.top in reg.STACK_ON[number]), None)
             if base_slot is None:
@@ -504,16 +504,16 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         _check_victory(game, batch)
     elif card.type == SPELL:
         if card.effect_icon != "nonbattle":
-            raise IllegalCommand("spell.not_nonbattle", "此術卡沒有非戰鬥圖示")
+            raise IllegalCommand("spell.not_nonbattle", "此戰術卡沒有非戰鬥圖示")
         if card.ad == "A" and player != st.turn_player:
-            raise IllegalCommand("spell.timing", "此非戰鬥術只能在自己的回合使用")
+            raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在自己的回合使用")
         if card.ad == "D" and player == st.turn_player:
-            raise IllegalCommand("spell.timing", "此非戰鬥術只能在對手的回合使用")
+            raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在對手的回合使用")
         if not card.is_command_spell and not any(
                 _spell_usable_by(game, player, s, card) for s in st.players[player].slots):
-            raise IllegalCommand("spell.no_mamodo", "對應此術的魔物不在自己場上")
+            raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
         if number in st.players[player].used_nonbattle_spells:
-            raise IllegalCommand("spell.used", "此非戰鬥術本回合已使用過")
+            raise IllegalCommand("spell.used", "此非戰鬥戰術本回合已使用過")
         handler = reg.SPELL_NONBATTLE.get(number)
         if handler is None:
             raise IllegalCommand("spell.not_implemented", f"{number} 尚未實作")
@@ -526,13 +526,13 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         handler(game, batch, player)
         _check_victory(game, batch)
     else:
-        raise IllegalCommand("book.not_usable", "此卡不能留在魔本中使用")
+        raise IllegalCommand("book.not_usable", "此卡不能留在魔書中使用")
 
 
 # ---------------------------------------------------------------- 戰鬥開始確認
 
 def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
-    """P-015 類待命:允許自魔本任意頁使用指定名稱的術卡(每回合一次)。"""
+    """P-015 類待命:允許自魔書任意頁使用指定名稱的戰術卡(每回合一次)。"""
     ps = game.state.players[player]
     if not isinstance(page, int) or not 1 <= page <= BOOK_SIZE or page in ps.consumed_pages:
         return None
@@ -544,7 +544,7 @@ def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
 
 
 def spell_use_limit(game: Game, player: int, card: CardDef) -> int:
-    """術卡每張每回合可用次數:預設 1;場上有登記 SPELL_USE_LIMIT 的卡時取其最大值(M-024 二身一体)。"""
+    """戰術卡每張每回合可用次數:預設 1;場上有登記 SPELL_USE_LIMIT 的卡時取其最大值(M-024 二身一体)。"""
     limit = 1
     for number, fn in reg.SPELL_USE_LIMIT.items():
         if any(s.top == number for s in game.state.players[player].slots):
@@ -555,7 +555,7 @@ def spell_use_limit(game: Game, player: int, card: CardDef) -> int:
 
 
 def exhausted_spell_pages(game: Game, player: int) -> set[int]:
-    """本回合已達可用次數、不能再用的術卡頁(依目前場面判斷)。"""
+    """本回合已達可用次數、不能再用的戰術卡頁(依目前場面判斷)。"""
     ps = game.state.players[player]
     return {page for page, uses in ps.spell_page_uses.items()
             if uses >= spell_use_limit(game, player, game.db[ps.card_at(page)])}
@@ -566,7 +566,7 @@ def _record_spell_use(ps, page: int) -> None:
 
 
 def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -> bool:
-    """此術卡是否可由場上這隻魔物使用(家族相符或術相容性擴充,如 M-023/M-029)。"""
+    """此戰術卡是否可由場上這隻魔物使用(家族相符或戰術相容性擴充,如 M-023/M-029)。"""
     if game.db[slot.top].related_mamodo == card.related_mamodo:
         return True
     compat = reg.SPELL_COMPAT.get(slot.top)
@@ -578,29 +578,29 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
     st = game.state
     ps = st.players[player]
     if isinstance(page, int) and page not in ps.open_pages() and _spell_any_page_standby(game, player, page):
-        number = ps.card_at(page)  # 待命允許的任意頁術卡
+        number = ps.card_at(page)  # 待命允許的任意頁戰術卡
     else:
         number = _require_open_page(game, player, page)
     card = game.db[number]
     if card.type != SPELL:
-        raise IllegalCommand("spell.not_spell", "指定的卡不是術卡")
+        raise IllegalCommand("spell.not_spell", "指定的卡不是戰術卡")
     if attack and not card.can_attack():
-        raise IllegalCommand("spell.no_attack_icon", "此術沒有攻擊圖示")
+        raise IllegalCommand("spell.no_attack_icon", "此戰術沒有攻擊圖示")
     if not attack and not card.can_defend():
-        raise IllegalCommand("spell.no_defense_icon", "此術沒有防禦圖示")
+        raise IllegalCommand("spell.no_defense_icon", "此戰術沒有防禦圖示")
     if st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card):
-        raise IllegalCommand("spell.used", "此術卡本回合已使用過")
+        raise IllegalCommand("spell.used", "此戰術卡本回合已使用過")
     if restricted(game, player, NO_SPELLS):
-        raise IllegalCommand("spell.restricted", "目前不能使用術卡")
+        raise IllegalCommand("spell.restricted", "目前不能使用戰術卡")
     if attack and restricted(game, player, NO_ATTACK_SPELL):
-        raise IllegalCommand("spell.attack_restricted", "本回合不能使用術卡攻擊")
+        raise IllegalCommand("spell.attack_restricted", "本回合不能使用戰術卡攻擊")
     if card.is_command_spell:
         slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
         if slot is None:
             if len(st.players[player].slots) == 1:
                 slot = st.players[player].slots[0]
             else:
-                raise IllegalCommand("spell.need_slot", "指令術須指定使用的魔物")
+                raise IllegalCommand("spell.need_slot", "指令戰術須指定使用的魔物")
     else:
         explicit = st.slot_by_uid(player, slot_uid) if slot_uid is not None else None
         if explicit is not None and _spell_usable_by(game, player, explicit, card):
@@ -609,9 +609,9 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
             slot = next((s for s in st.players[player].slots
                         if _spell_usable_by(game, player, s, card)), None)
         if slot is None:
-            raise IllegalCommand("spell.no_mamodo", "對應此術的魔物不在自己場上")
+            raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
     if slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
-        raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用術卡")
+        raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用戰術卡")
     cost = spell_cost(game, player, page, card, slot=slot, discount=discount)
     if st.players[player].mp < cost:
         raise IllegalCommand("spell.mp", "MP 不足")
@@ -619,7 +619,7 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
 
 
 def _ask_spell_discount(game: Game, batch: list[dict], side: str, decl: dict) -> bool:
-    """宣告術時,M-008 的減費可用且付得起原價 → 詢問是否使用(回傳 True,待決策後續行);
+    """宣告戰術時,M-008 的減費可用且付得起原價 → 詢問是否使用(回傳 True,待決策後續行);
     只付得起減費後的費用時直接使用。決定記在 decl["discount"]。"""
     player = decl["player"]
     page, card = decl["page"], game.db[decl["spell"]]
@@ -651,14 +651,14 @@ reg.CHOICE_RESOLVERS["spell_discount"] = _spell_discount_resolver
 
 
 def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSlot, dict]:
-    """無術攻擊(M-027):驗證魔物已註冊直接攻擊效果且可支付費用。"""
+    """無戰術攻擊(M-027):驗證魔物已註冊直接攻擊效果且可支付費用。"""
     st = game.state
     slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
     if slot is None:
         raise IllegalCommand("attack.no_slot", "找不到指定的場上魔物")
     spec = reg.MAMODO_ATTACK.get(slot.top)
     if spec is None:
-        raise IllegalCommand("attack.no_mamodo_attack", "此魔物不能不用術卡直接攻擊")
+        raise IllegalCommand("attack.no_mamodo_attack", "此魔物不能不用戰術卡直接攻擊")
     if restricted(game, player, NO_MAMODO_EFFECTS):
         raise IllegalCommand("attack.mamodo_restricted", "魔物卡效果本回合失效")
     if slot_restricted(game, player, MAMODO_LOCKED, slot.uid):
@@ -756,7 +756,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
 
     slot = st.slot_by_uid(attacker, slot_uid)
     mamodo_name = game.db[slot.top].related_mamodo if slot else None
-    # 待命:術卡加成(M-008 減費減魔力,選擇使用時才套用 / P-007 加魔力)
+    # 待命:戰術卡加成(M-008 減費減魔力,選擇使用時才套用 / P-007 加魔力)
     for sb in _consume_standby(game, "spell_bonus",
                                lambda s: s.owner == attacker and (
                                    s.data.get("mamodo") in (None, mamodo_name))
@@ -769,11 +769,11 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
                                    s.data.get("mamodo") in (None, mamodo_name))):
         battle.attack_undefendable = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:本場戰鬥不能保護魔本(E-013)
+    # 待命:本場戰鬥不能保護魔書(E-013)
     for sb in _consume_standby(game, "no_protect_book", lambda s: s.owner == attacker):
         battle.data["no_protect_book"] = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 待命:下一張攻擊術獲勝改為負傷對手魔物(S-057)
+    # 待命:下一張攻擊戰術獲勝改為負傷對手魔物(S-057)
     for sb in _consume_standby(game, "injure_instead", lambda s: s.owner == attacker):
         battle.data["injure_instead"] = True
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
@@ -784,7 +784,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
 
 
 def _start_mamodo_battle(game: Game, batch: list[dict], bi: dict) -> None:
-    """無術攻擊(M-027):合計魔力與傷害為卡片指定固定值,其餘戰鬥流程相同。"""
+    """無戰術攻擊(M-027):合計魔力與傷害為卡片指定固定值,其餘戰鬥流程相同。"""
     st = game.state
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
@@ -798,7 +798,7 @@ def _start_mamodo_battle(game: Game, batch: list[dict], bi: dict) -> None:
     _arm_next_battle_standbys(game)
     game.emit(batch, "battle_started", attacker=attacker, spell=None,
               mamodo=slot.top, slot=slot_uid)
-    # 待命:攻擊不可被防禦(S-019 / S-026;P-001 限「ガッシュ・ベル」の術で攻撃,無術攻擊不適用)
+    # 待命:攻擊不可被防禦(S-019 / S-026;P-001 限「ガッシュ・ベル」の術で攻撃,無戰術攻擊不適用)
     for sb in _consume_standby(game, "attack_undefendable",
                                lambda s: s.owner == attacker and s.data.get("mamodo") is None):
         battle.attack_undefendable = True
@@ -909,7 +909,7 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     不防禦時明細為空、合計 0;被無效化時以「無效化」調整項把合計歸 0。"""
     if side == "attack":
         negated, negated_by = battle.attack_negated, battle.data.get("attack_negated_by")
-        if battle.attack_spell is None:  # 無術攻擊:固定合計魔力
+        if battle.attack_spell is None:  # 無戰術攻擊:固定合計魔力
             total = battle.data.get("attack_fixed_power", 0)
             items = [_item("fixed", battle.data.get("attack_fixed_source"), total)]
             return _negate(total, items, negated, negated_by)
@@ -922,11 +922,11 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     card = game.db[spell]
     slot = game.state.slot_by_uid(player, slot_uid)
     mamodo, items = power_breakdown(game, player, slot) if slot else (0, [])
-    # 術的魔力(特殊為 0),加上術自身的加值與待命 / 效果的加成(S-016 / S-017 / S-040 / M-008 / P-007)
+    # 戰術的魔力(特殊為 0),加上戰術自身的加值與待命 / 效果的加成(S-016 / S-017 / S-040 / M-008 / P-007)
     spell_items = [_item("spell", spell, 0 if card.power_special else (card.power_bonus or 0))]
     spell_items += [dict(i) for i in battle.data.get(f"{side}_spell_power", [])]
     spell_pw = sum(i["amount"] for i in spell_items)
-    if spell_pw < 0:  # 術的魔力加減不低於 0(M-008「0より小さくはならない」)
+    if spell_pw < 0:  # 戰術的魔力加減不低於 0(M-008「0より小さくはならない」)
         spell_items.append(_item("spell_floor", None, -spell_pw))
     return _negate(mamodo + max(0, spell_pw), items + spell_items, negated, negated_by)
 
@@ -938,7 +938,7 @@ def _negate(total: int, items: list[dict], negated: bool, source: str | None) ->
 
 
 def _attack_damage_amount(game: Game, battle: BattleState) -> int:
-    if battle.attack_spell is None:  # 無術攻擊:固定傷害
+    if battle.attack_spell is None:  # 無戰術攻擊:固定傷害
         base = battle.data.get("attack_fixed_damage", 0)
     else:
         base = game.db[battle.attack_spell].damage or 0
@@ -984,7 +984,7 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
             return
         if rider and rider.on_win_owns_damage:
             return
-        # 獲勝時負傷代替魔本傷害(S-058 / S-057 待命旗標)
+        # 獲勝時負傷代替魔書傷害(S-058 / S-057 待命旗標)
         if (rider and rider.injure_instead) or battle.data.get("injure_instead"):
             _injure_instead_of_damage(game, batch)
             return
@@ -1013,7 +1013,7 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
 
 
 def _injure_instead_of_damage(game: Game, batch: list[dict]) -> None:
-    """獲勝時使對手 1 隻魔物負傷代替魔本傷害;攻方選擇目標,無目標則無效果。"""
+    """獲勝時使對手 1 隻魔物負傷代替魔書傷害;攻方選擇目標,無目標則無效果。"""
     st = game.state
     battle = st.battle
     targets = st.players[battle.defender].slots
@@ -1034,7 +1034,7 @@ def _injure_instead_of_damage(game: Game, batch: list[dict]) -> None:
 
 
 def _damage_order_option(index: int, item: dict) -> dict:
-    """受傷順序的選項:魔物項標示所在的魔物槽;魔本項維持按鈕。"""
+    """受傷順序的選項:魔物項標示所在的魔物槽;魔書項維持按鈕。"""
     opt = {"index": index, "item": item}
     if item["kind"] == "slot":
         opt.update(zone="slot", player=item["player"], slot=item["slot_uid"])
@@ -1167,7 +1167,7 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
 # ---------------------------------------------------------------- 傷害系統
 
 def _eligible_protectors(game: Game, item: dict) -> list[MamodoSlot]:
-    """可保護此項傷害的魔物。魔本傷害:任何自己魔物;魔物傷害:其他魔物。"""
+    """可保護此項傷害的魔物。魔書傷害:任何自己魔物;魔物傷害:其他魔物。"""
     st = game.state
     player = item["player"]
     if item["kind"] == "book":
@@ -1231,7 +1231,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
 def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> None:
     st = game.state
     player = item["player"]
-    if _full_immune(game, player):  # S-037/038/041:自己魔本與所有魔物不受傷害/負傷
+    if _full_immune(game, player):  # S-037/038/041:自己魔書與所有魔物不受傷害/負傷
         game.emit(batch, "damage_prevented", player=player,
                   slot=item.get("slot_uid"), reason="immune")
         return
@@ -1247,7 +1247,7 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
     slot = st.slot_by_uid(player, item["slot_uid"])
     if slot is None:
         return
-    # 查詢型免疫(M-031:不受合計魔力 6000 以下術卡的傷害與負傷)
+    # 查詢型免疫(M-031:不受合計魔力 6000 以下戰術卡的傷害與負傷)
     immunity = reg.DAMAGE_IMMUNITY.get(slot.top)
     if immunity and immunity(game, player, slot, ctx):
         game.emit(batch, "damage_prevented", player=player, slot=slot.uid, reason="immunity")
@@ -1270,7 +1270,7 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
         return
     ctx["dealt"] = True
     battle = st.battle
-    # S-031 バオウ:因此術負傷的魔物直接入墓
+    # S-031 バオウ:因此戰術負傷的魔物直接入墓
     injure_to_discard = (battle is not None and battle.data.get("injure_to_discard")
                          and ctx.get("cause") in ("battle_attack",))
     if slot.injured or injure_to_discard:
@@ -1326,7 +1326,7 @@ def _finish_battle_damage(game: Game, batch: list[dict], ctx: dict) -> None:
         rider = reg.SPELL_RIDERS.get(ctx["source"]) if ctx.get("source") else None
         if rider and rider.on_damage:
             rider.on_damage(game, batch, ctx["source_player"])
-        # 防禦方以帶 on_defense_damaged 的術防禦卻仍被造成傷害(S-056)
+        # 防禦方以帶 on_defense_damaged 的戰術防禦卻仍被造成傷害(S-056)
         if battle is not None and battle.defense_spell and not battle.defense_negated:
             d_rider = reg.SPELL_RIDERS.get(battle.defense_spell)
             if d_rider and d_rider.on_defense_damaged:
@@ -1450,7 +1450,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
                 return  # 等待玩家選擇頁面,或已判負
     if st.phase == GAME_OVER:
         return
-    # M-030 ヨポポ待命:本回合結束不翻魔本頁直接結束
+    # M-030 ヨポポ待命:本回合結束不翻魔書頁直接結束
     skip = _consume_standby(game, "skip_end_flip", lambda s: s.owner == st.turn_player)
     if skip:
         game.emit(batch, "standby_resolved", card=skip[0].source, kind="skip_end_flip")
@@ -1502,7 +1502,7 @@ def _expires_now(m: Modifier, turn_no: int) -> bool:
 
 
 def _mamodo_gone_processing(game: Game, batch: list[dict], player: int, next_stage: int) -> bool:
-    """ADV:結束階段場上無魔物 → 從魔本強制放出。回傳 True 表示已完成(未中斷)。"""
+    """ADV:結束階段場上無魔物 → 從魔書強制放出。回傳 True 表示已完成(未中斷)。"""
     st = game.state
     ps = st.players[player]
     while True:

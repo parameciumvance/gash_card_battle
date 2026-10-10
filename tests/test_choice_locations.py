@@ -56,7 +56,7 @@ def test_damage_order_and_protect_mark_slots():
                 if item["kind"] == "slot":
                     assert (o["zone"], o["player"], o["slot"]) == ("slot", item["player"], item["slot_uid"])
                 else:
-                    assert "zone" not in o                       # 魔本項維持按鈕
+                    assert "zone" not in o                       # 魔書項維持按鈕
             submit(g, {"type": "choose", "player": 1, "value": 0})
         else:
             uids = {s.uid for s in opp.slots}

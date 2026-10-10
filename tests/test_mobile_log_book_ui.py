@@ -1,4 +1,4 @@
-"""窄螢幕行動記錄抽屜與查閱魔本位置的瀏覽器測試(battle-ui「行動記錄」「查閱己方魔本」)。
+"""窄螢幕行動記錄抽屜與查閱魔書位置的瀏覽器測試(battle-ui「行動記錄」「查閱己方魔書」)。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_mobile_log_book_ui.py -q
@@ -25,7 +25,7 @@ def phone(browser, server):  # noqa: F811
 
 
 def play_turns(page, n):
-    """每回合:回合玩家翻 1 頁、雙方 pass 結束回合;累積記錄並讓魔本往後翻。"""
+    """每回合:回合玩家翻 1 頁、雙方 pass 結束回合;累積記錄並讓魔書往後翻。"""
     for _ in range(n):
         page.evaluate("""async () => {
             await send({type: 'flip_pages', player: S.turn_player, count: 1});

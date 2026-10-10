@@ -1,7 +1,7 @@
 """NPC 決策測試(npc-opponent spec)。
 
-魔本頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 P10=S-026
-P12=S-003 P13=E-004 ... P32=S-005(最後一頁的術費用 0)
+魔書頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001 P4=P-001 P5=S-001 P6=M-014 P10=S-026
+P12=S-003 P13=E-004 ... P32=S-005(最後一頁的戰術費用 0)
 """
 
 import copy
@@ -85,8 +85,8 @@ def selfplay():
 # ---------------------------------------------------------------- 只依自己看得到的資訊決策
 
 def _hide_variant(g: Game, viewer: int, rng: random.Random) -> Game:
-    """換掉 viewer 看不到的一切:對手魔本未公開頁、對局 RNG、只給對手的事件內容。
-    逐頁替換後確認 viewer 的快照不變,會改變快照的頁(例如本回合用過的術頁)則換回。"""
+    """換掉 viewer 看不到的一切:對手魔書未公開頁、對局 RNG、只給對手的事件內容。
+    逐頁替換後確認 viewer 的快照不變,會改變快照的頁(例如本回合用過的戰術頁)則換回。"""
     v = Game(state=copy.deepcopy(g.state), rng=random.Random(rng.getrandbits(64)), db=g.db,
              events=copy.deepcopy(g.events), jammer=copy.deepcopy(g.jammer))
     opp = 1 - viewer
@@ -132,7 +132,7 @@ def test_hidden_information_never_changes_decisions():
 
 
 def test_opponent_open_pages_do_not_change_decision():
-    """NPC 的回合、可以攻擊時:對手翻開頁是防禦術或不是,NPC 的決定相同。"""
+    """NPC 的回合、可以攻擊時:對手翻開頁是防禦戰術或不是,NPC 的決定相同。"""
     variants = []
     for opp_pages in (("S-003", "S-003"), ("E-004", "M-012")):
         g = mk(first=0)
@@ -145,7 +145,7 @@ def test_opponent_open_pages_do_not_change_decision():
 
 
 def test_coin_result_does_not_change_decision():
-    """NPC 可使用 E-005(擲 2 次:正正退回魔本、反反前翻魔本)時:接下來的擲幣是正正或反反,決定相同。"""
+    """NPC 可使用 E-005(擲 2 次:正正退回魔書、反反前翻魔書)時:接下來的擲幣是正正或反反,決定相同。"""
     def next_flips(seed):
         rng = random.Random(seed)
         return rng.random() < 0.5, rng.random() < 0.5
@@ -234,7 +234,7 @@ def _attack_on(npc_player_pos, *, no_protect_book=False):
 
 
 def test_protects_against_lethal_book_damage():
-    g = _attack_on(32)                                                  # 再受 1 點魔本傷害即耗盡
+    g = _attack_on(32)                                                  # 再受 1 點魔書傷害即耗盡
     submit(g, {"type": "no_defense", "player": 1})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
@@ -257,7 +257,7 @@ def test_attacks_when_it_can_win():
     g = mk(first=0)
     submit(g, {"type": "flip_pages", "player": 0, "count": 1})         # 翻開 P5=S-001(傷害 1)
     opp = g.state.players[1]
-    opp.pos, opp.mp = 32, 0                                             # 再受 1 點魔本傷害即耗盡
+    opp.pos, opp.mp = 32, 0                                             # 再受 1 點魔書傷害即耗盡
     opp.slots[0].injured = True
     assert g.state.action_player == 0
     choice = top_choice(g, 0)

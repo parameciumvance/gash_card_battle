@@ -1,4 +1,4 @@
-/* 魔本主題:淡藍底色、深藍面板、紅金書皮、金色 MP token、發光中線 */
+/* 魔書主題:淡藍底色、深藍面板、紅金書皮、金色 MP token、發光中線 */
 :root {
   /* 底色(頁面、頂欄、盤面):淡藍;直接寫在底色上的字用 --on-page 系列,深色面板內維持 --ink */
   --page: #d6ebfa;
@@ -42,7 +42,7 @@
   --injured-w: calc(var(--cell-w) * .716);
   /* 盤面卡圖框的長寬比 = (卡寬 - 內距 12 - 框線 4) / --art-h;負傷卡沿用同比例,cover 裁到的範圍才相同 */
   --art-ratio: 88 / 75;
-  /* 背景的魔本五圓紋(淡,線條透明度寫在 SVG 內) */
+  /* 背景的魔書五圓紋(淡,線條透明度寫在 SVG 內) */
   --emblem: url("/static/emblem.svg");
   --emblem-size: min(560px, 82vw) auto;
 }
@@ -110,7 +110,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .pz-head .review-btn:hover { color: var(--on-page); }
 .name-input { text-transform: none !important; }
 
-/* 查閱魔本 overlay */
+/* 查閱魔書 overlay */
 #book-review-overlay {
   position: fixed; inset: 0; background: rgba(8,10,18,.78);
   display: flex; align-items: center; justify-content: center; z-index: 55;
@@ -125,7 +125,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #book-review-head h3 { color: var(--glow); font-size: 16px; }
 #book-review-close { padding: 5px 14px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
-/* 魔本網格(查閱、構築器、金手指):固定欄寬,每欄一組對頁、各列對齊;P1 靠右、P32 靠左(實體魔本的右頁與左頁) */
+/* 魔書網格(查閱、構築器、金手指):固定欄寬,每欄一組對頁、各列對齊;P1 靠右、P32 靠左(實體魔書的右頁與左頁) */
 #book-review-grid {
   display: grid; grid-template-columns: repeat(auto-fill, calc(var(--review-card-w) * 2 + 15px));
   gap: 10px; max-width: 84vw; --review-card-w: 96px;   /* 對頁寬 = 兩頁 + 頁縫 3 + 內距 5×2 + 框線 1×2 */
@@ -148,12 +148,12 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .review-tag.left { background: #5b6270; color: #d9dde5; }
 .review-tag.used { background: #8a2f2f; color: #ffd9d9; }
 
-/* 場區置中貼中線對峙、魔本區靠外角(對手右上、我方左下對角相對) */
+/* 場區置中貼中線對峙、魔書區靠外角(對手右上、我方左下對角相對) */
 .zone-body { display: flex; gap: 12px; flex: 1; }
 .player-zone.top .zone-body { align-items: flex-end; }      /* 場區貼中線 */
 .player-zone.bottom .zone-body { align-items: flex-start; }
 .zone-side { flex: 1 1 0; min-width: 0; display: flex; }
-/* 魔本側不可被壓縮到與場區重疊 */
+/* 魔書側不可被壓縮到與場區重疊 */
 .zone-side.book-side { align-self: stretch; min-width: max-content; }
 .player-zone.top .zone-side.book-side { justify-content: flex-end; align-items: flex-start; }
 .player-zone.bottom .zone-side.book-side { justify-content: flex-start; align-items: flex-end; }
@@ -197,7 +197,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   font-size: 10px; padding: 1px 6px; border-radius: 8px;
 }
 
-/* 魔本區:紅金書皮 + 書脊中縫,MP 托盤疊於魔本前方(朝中線側),尺寸全固定 */
+/* 魔書區:紅金書皮 + 書脊中縫,MP 托盤疊於魔書前方(朝中線側),尺寸全固定 */
 .book-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
   align-items: flex-end; }                                     /* 對手:書上、托盤下(前方) */
 .player-zone.bottom .book-block { flex-direction: column-reverse; align-items: flex-start; }
@@ -354,7 +354,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   color: var(--ink-dim); }
 /* 可用卡發光:當下有可執行行動的卡 */
 #board .card.usable { box-shadow: 0 0 0 2px var(--accent-green), 0 0 12px rgba(126, 224, 163, .6); }
-/* 決策目標:可選的卡(場上、魔本網格、棄牌區),和可用卡的綠光區分 */
+/* 決策目標:可選的卡(場上、魔書網格、棄牌區),和可用卡的綠光區分 */
 .card.pickable { box-shadow: 0 0 0 3px var(--glow), 0 0 16px rgba(255, 209, 102, .85); cursor: pointer; }
 .review-cell.pickable .review-pno { color: var(--glow); font-weight: bold; }
 /* 行動欄的決策區塊 */
@@ -454,7 +454,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   position: fixed; inset: 0; background: rgba(8, 10, 18, .72);
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
-#zoom-overlay { flex-direction: column; gap: 12px; z-index: 56; }   /* 在魔本網格之上:網格中的卡可放大選擇 */
+#zoom-overlay { flex-direction: column; gap: 12px; z-index: 56; }   /* 在魔書網格之上:網格中的卡可放大選擇 */
 /* 檢視內行動區:卡片實例的統一操作入口 */
 #zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
 .zoom-action { display: flex; align-items: center; gap: 8px; }
@@ -916,8 +916,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #io-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* ================= 手機直向(≤700px):堆疊佈局,尺寸切手機組 =================
-   堆疊序(上→下):對手魔本(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
-                   我方魔物 → 我方搭檔 → 我方魔本(對頁+MP) */
+   堆疊序(上→下):對手魔書(對頁+MP)→ 對手搭檔 → 對手魔物 → 中線 →
+                   我方魔物 → 我方搭檔 → 我方魔書(對頁+MP) */
 @media (max-width: 700px) {
   :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --art-ratio: 72 / 64; }
 
@@ -932,7 +932,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   .pz-head .pname { font-size: 13px; }
   .pz-head-rest { gap: 8px; flex-wrap: wrap; }
 
-  /* 縱向堆疊:zone-body 轉直欄,魔本列以 order 移到外端(對手最上/我方最下) */
+  /* 縱向堆疊:zone-body 轉直欄,魔書列以 order 移到外端(對手最上/我方最下) */
   .zone-body { flex-direction: column; align-items: center; gap: 6px; }
   .zone-side { flex: 0 0 auto; min-width: 0; }
   .zone-side.book-side { min-width: 0; align-self: center; }
@@ -940,7 +940,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   .player-zone.bottom .field-block { order: -1; }
   .player-zone.bottom .zone-side.book-side { justify-content: center; }
 
-  /* 魔本與 MP 托盤同列,壓低整列高度 */
+  /* 魔書與 MP 托盤同列,壓低整列高度 */
   .book-block, .player-zone.bottom .book-block { flex-direction: row; align-items: flex-end; gap: 6px; }
   .mp-tray { width: 130px; height: 70px; padding: 6px; }
   .mp-tokens { width: 116px; height: 30px; }
@@ -979,7 +979,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #zoom-actions { width: min(300px, 86vw); }
   #zoom-card .card img.art { height: min(250px, 40vh); }
 
-  /* 構築器:上下分割(魔本上、卡池下),點選互動為準 */
+  /* 構築器:上下分割(魔書上、卡池下),點選互動為準 */
   #builder-head { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
   #builder-name { width: 120px; }
   #builder-main { flex-direction: column; }
@@ -994,7 +994,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
 }
 
-/* 使用中卡片(宣告中的攻防術)與可點卡名 */
+/* 使用中卡片(宣告中的攻防戰術)與可點卡名 */
 #board .card.in-use {
   outline: 2px solid var(--glow);
   box-shadow: 0 0 14px rgba(255, 209, 102, .65);

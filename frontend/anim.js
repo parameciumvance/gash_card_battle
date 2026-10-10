@@ -274,7 +274,7 @@ const Anim = (() => {
     }
   }
 
-  // 翻頁:書頁翻轉片覆蓋於該方魔本右半,rotateY 過渡;翻 N 頁錯開演 N 次(上限 4);
+  // 翻頁:書頁翻轉片覆蓋於該方魔書右半,rotateY 過渡;翻 N 頁錯開演 N 次(上限 4);
   // 傷害翻頁帶紅閃
   function pageFlip(p, damage, count = 1) {
     const n = Math.min(count, 4);
@@ -303,7 +303,7 @@ const Anim = (() => {
     }
   }
 
-  // 出卡:FLIP — 來源=魔本頁位(重繪前量測),目標=場上欄位(重繪後)
+  // 出卡:FLIP — 來源=魔書頁位(重繪前量測),目標=場上欄位(重繪後)
   function flyCard(ev, marks) {
     const zone = zoneOf(ev.player);
     const target = zone && zone.querySelector(
@@ -332,7 +332,7 @@ const Anim = (() => {
     }, 480);
   }
 
-  // MP 增減:token 在魔本與托盤之間飛行(增=書→盤、減=盤→書並淡出)
+  // MP 增減:token 在魔書與托盤之間飛行(增=書→盤、減=盤→書並淡出)
   function mpTokens(ev, marks) {
     const p = ev.player;
     const zone = zoneOf(p);

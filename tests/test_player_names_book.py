@@ -1,4 +1,4 @@
-"""玩家暱稱與己方全魔本快照(online-room / battle-api 差分)。"""
+"""玩家暱稱與己方全魔書快照(online-room / battle-api 差分)。"""
 
 import json
 
@@ -49,7 +49,7 @@ def test_name_in_state_snapshot_after_reload():
     assert s["room"]["names"] == ["甲", "乙"]
 
 
-# ---------------------------------------------------------------- 己方全魔本視角化
+# ---------------------------------------------------------------- 己方全魔書視角化
 
 def test_own_book_visible_opponent_hidden():
     r = client.post("/api/rooms", json={"mode": "online"}).json()

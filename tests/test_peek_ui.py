@@ -12,7 +12,7 @@ def start_local(page):
 
 
 def set_books(page, own, opp, mp=10):
-    """以金手指改回合玩家(own)與對手(opp)的魔本頁:{頁碼: 卡號}。"""
+    """以金手指改回合玩家(own)與對手(opp)的魔書頁:{頁碼: 卡號}。"""
     page.evaluate("""async ([own, opp, mp]) => {
       const base = `/api/rooms/${SESSION.code}`;
       const headers = {'X-Player-Token': Object.values(SESSION.tokens)[0], 'Content-Type': 'application/json'};

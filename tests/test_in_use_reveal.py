@@ -1,4 +1,4 @@
-"""使用中頁揭露:宣告攻防術對所有視角可見,歸屬正確,戰鬥結束恢復保密。"""
+"""使用中頁揭露:宣告攻防戰術對所有視角可見,歸屬正確,戰鬥結束恢復保密。"""
 
 from gash.api.views import snapshot
 from gash.engine.deck import load_deck
@@ -45,7 +45,7 @@ def test_defense_page_attributed_to_defender_only():
     g = mk()
     tp, dp = declare(g)
     submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
-    submit(g, {"type": "declare_defense", "player": dp, "page": 2})  # S-025 為 D 術
+    submit(g, {"type": "declare_defense", "player": dp, "page": 2})  # S-025 為 D 戰術
     view = snapshot(g, "spectator")
     atk = entry_of(view, tp, 3)
     dfn = entry_of(view, dp, 2)

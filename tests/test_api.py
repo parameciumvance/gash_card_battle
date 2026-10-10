@@ -119,7 +119,7 @@ def test_opponent_hand_hidden_over_http():
                      headers={"X-Player-Token": spec_token}).json()["state"]
     for p in ssp["players"]:
         assert all(set(e) == {"page"} for e in p["open_pages"])
-    # 己方完整魔本對本人可見;對手完整魔本 MUST NOT 在本人視角
+    # 己方完整魔書對本人可見;對手完整魔書 MUST NOT 在本人視角
     assert "book" in s0["players"][0] and len(s0["players"][0]["book"]) == 32
     assert "book" not in s0["players"][1]
     # 觀戰視角:雙方 book 皆不含

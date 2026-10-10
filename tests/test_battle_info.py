@@ -1,6 +1,6 @@
 """對戰資訊的可見性:魔力勝負明細(game-engine)、決策與戰鬥的公開脈絡(battle-api)。
 
-魔本頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001(ガッシュ 2000) P32=S-005
+魔書頁面備忘(level1):P1=M-001 P2=S-025 P3=S-001(ガッシュ 2000) P32=S-005
 """
 
 import random
@@ -53,7 +53,7 @@ def test_breakdown_lists_mamodo_and_spell_and_empty_no_defense():
 
 
 def test_breakdown_names_standby_spell_bonus_source():
-    """P-007 的待命提供術加成:攻方明細有一項來源為 P-007 的術加成。"""
+    """P-007 的待命提供戰術加成:攻方明細有一項來源為 P-007 的戰術加成。"""
     g = game(book0=book(first="M-011", p3="S-019"), turn=0)              # フェイン 3000 + S-019 3000
     slot0(g, 0).partner = "P-007"
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
@@ -97,7 +97,7 @@ def test_breakdown_power_zero():
     att = ev["attacker_breakdown"]
     zero = item(att, "power_zero")
     assert zero["source"] == "P-011" and zero["amount"] == -4000
-    assert ev["attacker_total"] == 2000 and total(att) == 2000           # 只剩術魔力
+    assert ev["attacker_total"] == 2000 and total(att) == 2000           # 只剩戰術魔力
 
 
 # ================================================================ 擲幣詢問的公開脈絡

@@ -1,4 +1,4 @@
-"""魔本網格排版的瀏覽器測試(battle-ui「查閱己方魔本」、deck-builder「對頁編輯」、金手指共用網格)。
+"""魔書網格排版的瀏覽器測試(battle-ui「查閱己方魔書」、deck-builder「對頁編輯」、金手指共用網格)。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_book_grid_layout_ui.py -q

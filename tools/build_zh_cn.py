@@ -8,7 +8,7 @@
 - `data/cards.zh-TW.json`          → `data/cards.zh-CN.json`
 
 轉換用 OpenCC `tw2sp`(字形 + 大陸用語),再以 `TERMS` 保留遊戲術語、修正不適合的詞語轉換。
-角色名、卡名、術名只轉字形,沿用繁中譯名。只轉換字串值;`name_ja`(日文原名)與 `app.title`(網站名稱,專有名稱,各語言相同)不轉換。
+角色名、卡名、戰術名只轉字形,沿用繁中譯名。只轉換字串值;`name_ja`(日文原名)與 `app.title`(網站名稱,專有名稱,各語言相同)不轉換。
 
 用法: python tools/build_zh_cn.py(需要 dev 依賴 opencc-python-reimplemented)
 """

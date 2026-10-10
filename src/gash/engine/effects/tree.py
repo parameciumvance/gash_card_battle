@@ -216,7 +216,7 @@ class OwnMpAtMost:
 
 @dataclass(frozen=True)
 class OpponentOpenPagesLackDefenseSpell:
-    """對手目前翻開的頁中,沒有可用來防禦的術卡(M-018)。"""
+    """對手目前翻開的頁中,沒有可用來防禦的戰術卡(M-018)。"""
 
     def test(self, game, ctx) -> bool:
         opp = game.state.players[1 - ctx["player"]]
@@ -365,7 +365,7 @@ class PlayablePartnerInDiscard:
 
 @dataclass(frozen=True)
 class OwnOpenPages:
-    """自己魔本目前翻開、且卡片仍在魔本中的頁(M-016)。選項值為頁碼。"""
+    """自己魔書目前翻開、且卡片仍在魔書中的頁(M-016)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
@@ -379,7 +379,7 @@ class OwnOpenPages:
 
 @dataclass(frozen=True)
 class OwnEarlierPages:
-    """自己魔本中比目前翻開頁更前面、且卡片仍在魔本中的頁(M-016)。選項值為頁碼。"""
+    """自己魔書中比目前翻開頁更前面、且卡片仍在魔書中的頁(M-016)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
         ps = game.state.players[ctx["player"]]
@@ -394,7 +394,7 @@ class OwnEarlierPages:
 
 @dataclass(frozen=True)
 class OwnBookPartnerNamed:
-    """自己魔本中(尚未離開的)名稱為 name 的搭檔卡頁(M-020 大海恵 / M-021 窪塚泳太)。"""
+    """自己魔書中(尚未離開的)名稱為 name 的搭檔卡頁(M-020 大海恵 / M-021 窪塚泳太)。"""
     name: str
 
     def options(self, game, ctx) -> list[dict]:
@@ -408,7 +408,7 @@ class OwnBookPartnerNamed:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中對應的搭檔卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔書中對應的搭檔卡")
 
 
 @dataclass(frozen=True)
@@ -428,7 +428,7 @@ class OpponentInjuredMamodo:
 
 @dataclass(frozen=True)
 class DiscardedCardsToReturn:
-    """可選擇放回魔本空頁的自己棄牌堆卡(卡號屬於 numbers);魔本沒有空頁時沒有選項。
+    """可選擇放回魔書空頁的自己棄牌堆卡(卡號屬於 numbers);魔書沒有空頁時沒有選項。
     選項值為棄牌索引,另附一個「不使用」(value=None, label="skip")——效果文為「…できる」(M-025)。"""
     numbers: tuple = ()
 
@@ -450,7 +450,7 @@ class DiscardedCardsToReturn:
 
 @dataclass(frozen=True)
 class OwnEmptyBookPages:
-    """自己魔本的空頁(卡片已離開的頁),依頁序(M-025 放回)。選項值為頁碼。"""
+    """自己魔書的空頁(卡片已離開的頁),依頁序(M-025 放回)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
         return [page_option(ctx["player"], p) for p in sorted(game.state.players[ctx["player"]].consumed_pages)]
@@ -458,7 +458,7 @@ class OwnEmptyBookPages:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in game.state.players[ctx["player"]].consumed_pages:
-            raise IllegalCommand("choose.invalid", "須選擇魔本的空頁")
+            raise IllegalCommand("choose.invalid", "須選擇魔書的空頁")
 
 
 @dataclass(frozen=True)
@@ -484,7 +484,7 @@ def _partner_slots(game, player, card) -> list:
 
 @dataclass(frozen=True)
 class AttachablePartnerPagesInOwnBook:
-    """自己魔本中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
+    """自己魔書中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
@@ -501,12 +501,12 @@ class AttachablePartnerPagesInOwnBook:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的搭檔卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔書中可放出的搭檔卡")
 
 
 @dataclass(frozen=True)
 class SlotsForBookPartner:
-    """可裝備自己魔本 page 綁定那頁搭檔卡的魔物(E-027)。選項值為 slot UID。"""
+    """可裝備自己魔書 page 綁定那頁搭檔卡的魔物(E-027)。選項值為 slot UID。"""
     page: Ref = Ref("page")
 
     def options(self, game, ctx) -> list[dict]:
@@ -600,7 +600,7 @@ class OpponentPartneredMamodo:
 
 @dataclass(frozen=True)
 class DeployableMamodoInOwnBook:
-    """自己魔本中可放出的魔物頁(E-012):場上未滿;變身後的魔物需場上有其變身前魔物,
+    """自己魔書中可放出的魔物頁(E-012):場上未滿;變身後的魔物需場上有其變身前魔物,
     其餘不得與場上魔物同名。選項值為頁碼。"""
 
     @staticmethod
@@ -632,12 +632,12 @@ class DeployableMamodoInOwnBook:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中可放出的魔物卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔書中可放出的魔物卡")
 
 
 @dataclass(frozen=True)
 class OpponentBookCards:
-    """對手魔本中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 術 / E-017 事件)。"""
+    """對手魔書中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 戰術 / E-017 事件)。"""
     card_type: str
     exclude_last: bool = False
 
@@ -659,7 +659,7 @@ class OpponentBookCards:
 
 @dataclass(frozen=True)
 class OwnBookCopiesOf:
-    """自己魔本中(尚未離開的)卡號為 number 的頁(S-043 / S-048)。"""
+    """自己魔書中(尚未離開的)卡號為 number 的頁(S-043 / S-048)。"""
     number: str
 
     def options(self, game, ctx) -> list[dict]:
@@ -671,7 +671,7 @@ class OwnBookCopiesOf:
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
-            raise IllegalCommand("choose.invalid", "須選擇魔本中的指定卡")
+            raise IllegalCommand("choose.invalid", "須選擇魔書中的指定卡")
 
 
 @dataclass(frozen=True)
@@ -977,7 +977,7 @@ class AddPower(Effect):
 
 @dataclass(frozen=True)
 class RestrictOpponent(Effect):
-    """對對手設置限制旗標(禁術卡等)。"""
+    """對對手設置限制旗標(禁戰術卡等)。"""
     flag: str = ""
     duration: str = ""
 
@@ -1005,7 +1005,7 @@ class NegateAttack(Effect):
 @dataclass(frozen=True)
 class MakeNextAttackUndefendable(Effect):
     """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在由該家族的魔物攻擊時生效
-    (以使用術的魔物判定,指令術由該魔物使用時也適用)(P-001)。"""
+    (以使用戰術的魔物判定,指令戰術由該魔物使用時也適用)(P-001)。"""
     mamodo: str | None = None
 
     def run(self, rt, ctx, path):
@@ -1031,7 +1031,7 @@ class MakeAttackUndefendable(Effect):
 
 @dataclass(frozen=True)
 class ScheduleInjureInsteadNextWin(Effect):
-    """[待命] 本回合下一場戰鬥獲勝時,改為負傷對手 1 隻魔物代替魔本傷害(S-057)。"""
+    """[待命] 本回合下一場戰鬥獲勝時,改為負傷對手 1 隻魔物代替魔書傷害(S-057)。"""
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="injure_instead",
@@ -1041,7 +1041,7 @@ class ScheduleInjureInsteadNextWin(Effect):
 
 @dataclass(frozen=True)
 class GrantFullImmune(Effect):
-    """令自己的魔本與魔物至對手下個結束階段前不受傷害(S-037 / S-041)。"""
+    """令自己的魔書與魔物至對手下個結束階段前不受傷害(S-037 / S-041)。"""
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
@@ -1066,7 +1066,7 @@ class AdjustDefenseDamage(Effect):
 
 @dataclass(frozen=True)
 class DisableBookProtection(Effect):
-    """本場戰鬥中,防禦方不能保護魔本(S-035)。"""
+    """本場戰鬥中,防禦方不能保護魔書(S-035)。"""
 
     def run(self, rt, ctx, path):
         battle = rt.game.state.battle
@@ -1108,8 +1108,8 @@ class HealSlot(Effect):
 
 @dataclass(frozen=True)
 class TurnPagesForward(Effect):
-    """target("self" / "opponent")的魔本翻頁(效果造成,不獲得 MP);翻完即敗(E-005 / E-014)。
-    翻自己的魔本時算「自分の魔本をめくる」效果,受 P-010 的「合計1回」限制。"""
+    """target("self" / "opponent")的魔書翻頁(效果造成,不獲得 MP);翻完即敗(E-005 / E-014)。
+    翻自己的魔書時算「自分の魔本をめくる」效果,受 P-010 的「合計1回」限制。"""
     leaves: int = 1
     target: str = "self"
 
@@ -1126,7 +1126,7 @@ class TurnPagesForward(Effect):
 
 @dataclass(frozen=True)
 class TurnPagesBack(Effect):
-    """自己魔本回翻頁(E-005 正正);算「自分の魔本をもどす」效果,受 P-018 的「合計1回」限制。"""
+    """自己魔書回翻頁(E-005 正正);算「自分の魔本をもどす」效果,受 P-018 的「合計1回」限制。"""
     leaves: int = 1
 
     def run(self, rt, ctx, path):
@@ -1221,7 +1221,7 @@ class AddPowerToAllOpponentMamodo(Effect):
 
 @dataclass(frozen=True)
 class MarkInjuredMamodoDiscarded(Effect):
-    """本場戰鬥中,因此術負傷的魔物直接入墓而非負傷(S-031)。"""
+    """本場戰鬥中,因此戰術負傷的魔物直接入墓而非負傷(S-031)。"""
 
     def run(self, rt, ctx, path):
         battle = rt.game.state.battle
@@ -1232,7 +1232,7 @@ class MarkInjuredMamodoDiscarded(Effect):
 
 @dataclass(frozen=True)
 class AddDefenseSelfBonus(Effect):
-    """以此術防禦時魔力加值(S-016)。事件 source 沿用遷移前的 "defense_bonus"。"""
+    """以此戰術防禦時魔力加值(S-016)。事件 source 沿用遷移前的 "defense_bonus"。"""
     amount: int = 0
 
     def run(self, rt, ctx, path):
@@ -1246,7 +1246,7 @@ class AddDefenseSelfBonus(Effect):
 
 @dataclass(frozen=True)
 class AddAttackSelfBonus(Effect):
-    """以此術攻擊時魔力加值(S-017)。事件 source 沿用遷移前的 "attack_bonus"。"""
+    """以此戰術攻擊時魔力加值(S-017)。事件 source 沿用遷移前的 "attack_bonus"。"""
     amount: int = 0
 
     def run(self, rt, ctx, path):
@@ -1281,9 +1281,9 @@ class GainMpPerDamage(Effect):
 
 @dataclass(frozen=True)
 class DamageOpponentBookAndAllMamodo(Effect):
-    """獲勝時接管傷害流程:對防方魔本造成本術傷害,並對其場上每隻魔物各造成 1 點傷害(S-036)。
+    """獲勝時接管傷害流程:對防方魔書造成本戰術傷害,並對其場上每隻魔物各造成 1 點傷害(S-036)。
 
-    須搭配 SpellRider 的 on_win_owns_damage=True,引擎才不會再走預設的魔本傷害。
+    須搭配 SpellRider 的 on_win_owns_damage=True,引擎才不會再走預設的魔書傷害。
     傷害流程可能進入引擎自己的 pending(保護 / 順序),那是引擎的停點,不是效果樹的停點。
     """
 
@@ -1307,7 +1307,7 @@ class DamageOpponentBookAndAllMamodo(Effect):
 
 @dataclass(frozen=True)
 class RestrictBothPlayers(Effect):
-    """雙方各設置一個限制旗標,依玩家 0、1 的順序(E-002 禁術 / E-008 搭檔效果失效)。"""
+    """雙方各設置一個限制旗標,依玩家 0、1 的順序(E-002 禁戰術 / E-008 搭檔效果失效)。"""
     flag: str = ""
     duration: str = ""
 
@@ -1353,7 +1353,7 @@ class BorrowPartner(Effect):
 
 @dataclass(frozen=True)
 class ScheduleNoProtectBookNextBattle(Effect):
-    """[待命] 本回合下一場戰鬥,對手不能保護魔本(E-013)。"""
+    """[待命] 本回合下一場戰鬥,對手不能保護魔書(E-013)。"""
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="no_protect_book",
@@ -1403,7 +1403,7 @@ class BoostPartneredMamodo(Effect):
 
 @dataclass(frozen=True)
 class LockChosenOpponentMamodo(Effect):
-    """本回合封鎖 target 綁定的對手魔物:不能使用其魔物效果與術(E-024)。
+    """本回合封鎖 target 綁定的對手魔物:不能使用其魔物效果與戰術(E-024)。
 
     沿用遷移前的作法:先以 add_restriction 建立(此時 modifier_added 事件的 target_slot 為 None),
     再把 modifier 的 target_slot 設為選中的魔物。
@@ -1424,7 +1424,7 @@ class LockChosenOpponentMamodo(Effect):
 
 @dataclass(frozen=True)
 class RevealOpponentBook(Effect):
-    """對使用者揭露對手魔本中尚未離開的所有頁(E-016 / E-017)。"""
+    """對使用者揭露對手魔書中尚未離開的所有頁(E-016 / E-017)。"""
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
@@ -1437,7 +1437,7 @@ class RevealOpponentBook(Effect):
 
 @dataclass(frozen=True)
 class DiscardFromOpponentBookPayCost(Effect):
-    """棄掉對手魔本中 page 綁定的那頁卡,使用者 MP 減少該卡費用(不足額歸 0)(E-016 / E-017)。"""
+    """棄掉對手魔書中 page 綁定的那頁卡,使用者 MP 減少該卡費用(不足額歸 0)(E-016 / E-017)。"""
     page: Ref = Ref("page")
 
     def run(self, rt, ctx, path):
@@ -1452,7 +1452,7 @@ class DiscardFromOpponentBookPayCost(Effect):
 
 @dataclass(frozen=True)
 class DeployMamodoFromBook(Effect):
-    """把自己魔本 page 綁定的魔物放到場上;變身後的魔物疊放到其變身前魔物上(E-012)。"""
+    """把自己魔書 page 綁定的魔物放到場上;變身後的魔物疊放到其變身前魔物上(E-012)。"""
     page: Ref = Ref("page")
 
     def run(self, rt, ctx, path):
@@ -1491,7 +1491,7 @@ class PlayMamodoFromBook(Effect):
 
 @dataclass(frozen=True)
 class StackFromBookOnto(Effect):
-    """把自己魔本 page 綁定的卡疊放到場上頂層為 base 的魔物上,並回復健康(S-048)。"""
+    """把自己魔書 page 綁定的卡疊放到場上頂層為 base 的魔物上,並回復健康(S-048)。"""
     base: str = ""
     page: Ref = Ref("page")
 
@@ -1526,7 +1526,7 @@ class DiscardOwnMamodoByNumber(Effect):
 
 @dataclass(frozen=True)
 class PlaceMamodoFromBookUpTo(Effect):
-    """自魔本依頁序放出至多 count 張卡號為 number 的魔物;無頁可放或放不出(上限)即停(S-043 分裂)。"""
+    """自魔書依頁序放出至多 count 張卡號為 number 的魔物;無頁可放或放不出(上限)即停(S-043 分裂)。"""
     number: str = ""
     count: int = 1
 
@@ -1578,7 +1578,7 @@ class DiscardOtherPartners(Effect):
 
 @dataclass(frozen=True)
 class AttachPartnerFromBookPage(Effect):
-    """把自己魔本 page 綁定那頁的搭檔卡裝到 slot 綁定的魔物上(觸發登場效果)(E-027)。"""
+    """把自己魔書 page 綁定那頁的搭檔卡裝到 slot 綁定的魔物上(觸發登場效果)(E-027)。"""
     page: Ref = Ref("page")
     slot: Ref = Ref("slot")
 
@@ -1593,7 +1593,7 @@ class AttachPartnerFromBookPage(Effect):
 
 @dataclass(frozen=True)
 class IncreaseSelfDamage(Effect):
-    """這隻魔物的魔物效果與術造成的傷害 +amount(M-005)。"""
+    """這隻魔物的魔物效果與戰術造成的傷害 +amount(M-005)。"""
     amount: int = 0
     duration: str = ""
 
@@ -1617,8 +1617,8 @@ class PreventDamageToSelf(Effect):
 
 @dataclass(frozen=True)
 class ScheduleNextSpellBonus(Effect):
-    """[待命] 本回合下一場戰鬥中,mamodo 使用的術費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
-    optional:由使用者在宣告術時選擇是否套用(M-008「1低いコストで使うことができる。そうしたなら…」)。"""
+    """[待命] 本回合下一場戰鬥中,mamodo 使用的戰術費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
+    optional:由使用者在宣告戰術時選擇是否套用(M-008「1低いコストで使うことができる。そうしたなら…」)。"""
     mamodo: str = ""
     power_delta: int = 0
     cost_delta: int = 0
@@ -1634,7 +1634,7 @@ class ScheduleNextSpellBonus(Effect):
 
 @dataclass(frozen=True)
 class ScheduleSkipEndFlip(Effect):
-    """[待命] 本回合結束階段不翻魔本(M-030)。"""
+    """[待命] 本回合結束階段不翻魔書(M-030)。"""
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="skip_end_flip", source=ctx["source"], owner=ctx["player"])
@@ -1643,7 +1643,7 @@ class ScheduleSkipEndFlip(Effect):
 
 @dataclass(frozen=True)
 class DiscardFromOpponentBook(Effect):
-    """棄掉對手魔本中 page 綁定的那頁卡(M-011)。"""
+    """棄掉對手魔書中 page 綁定的那頁卡(M-011)。"""
     page: Ref = Ref("page")
 
     def run(self, rt, ctx, path):
@@ -1653,7 +1653,7 @@ class DiscardFromOpponentBook(Effect):
 
 @dataclass(frozen=True)
 class SwapBookPages(Effect):
-    """交換自己魔本 a、b 兩頁的卡(M-016)。"""
+    """交換自己魔書 a、b 兩頁的卡(M-016)。"""
     a: Ref = Ref("open")
     b: Ref = Ref("earlier")
 
@@ -1682,7 +1682,7 @@ class DiscardChosenOpponentMamodo(Effect):
 
 @dataclass(frozen=True)
 class ReturnDiscardToBook(Effect):
-    """把自己棄牌堆 card 綁定索引的那張卡放回魔本 page 綁定的空頁(M-025)。"""
+    """把自己棄牌堆 card 綁定索引的那張卡放回魔書 page 綁定的空頁(M-025)。"""
     card: Ref = Ref("card")
     page: Ref = Ref("page")
 
@@ -1736,7 +1736,7 @@ class DoubleAttackDamage(Effect):
 
 @dataclass(frozen=True)
 class SpellsCostZeroThisTurn(Effect):
-    """本回合 mamodo 使用的術費用為 0(以使用術的魔物判定,指令術也適用)(P-005)。"""
+    """本回合 mamodo 使用的戰術費用為 0(以使用戰術的魔物判定,指令戰術也適用)(P-005)。"""
     mamodo: str = ""
 
     def run(self, rt, ctx, path):
@@ -1766,7 +1766,7 @@ class DiscardTopMamodoCard(Effect):
 
 @dataclass(frozen=True)
 class NegateOpponentSpell(Effect):
-    """使本場戰鬥中對手的術無效(which 見 CanNegateOpponentSpell)(P-009 / P-016 / P-017)。"""
+    """使本場戰鬥中對手的戰術無效(which 見 CanNegateOpponentSpell)(P-009 / P-016 / P-017)。"""
     which: str = "any"
 
     def run(self, rt, ctx, path):
@@ -1785,7 +1785,7 @@ class NegateOpponentSpell(Effect):
 
 @dataclass(frozen=True)
 class TurnOwnPagesOncePerTurn(Effect):
-    """翻自己的魔本 leaves 張,並記錄本回合已用過「翻自己魔本」的效果(P-010);翻完即敗。"""
+    """翻自己的魔書 leaves 張,並記錄本回合已用過「翻自己魔書」的效果(P-010);翻完即敗。"""
     leaves: int = 1
 
     def run(self, rt, ctx, path):
@@ -1796,7 +1796,7 @@ class TurnOwnPagesOncePerTurn(Effect):
 
 @dataclass(frozen=True)
 class TurnOwnPagesBackOncePerTurn(Effect):
-    """回翻自己的魔本 leaves 張,並記錄本回合已用過「回翻自己魔本」的效果(P-018)。"""
+    """回翻自己的魔書 leaves 張,並記錄本回合已用過「回翻自己魔書」的效果(P-018)。"""
     leaves: int = 1
 
     def run(self, rt, ctx, path):
@@ -1833,7 +1833,7 @@ class ProtectorsDiscardedThisTurn(Effect):
 
 @dataclass(frozen=True)
 class ScheduleSpellFromAnyPage(Effect):
-    """[待命] 本回合一次,可使用自己魔本任意頁上名為 spell 的術卡(P-015)。"""
+    """[待命] 本回合一次,可使用自己魔書任意頁上名為 spell 的戰術卡(P-015)。"""
     spell: str = ""
 
     def run(self, rt, ctx, path):
@@ -1844,9 +1844,9 @@ class ScheduleSpellFromAnyPage(Effect):
 
 @dataclass(frozen=True)
 class TurnOpponentPagesPerMamodoCardDiscarded(Effect):
-    """觸發器:對手每有 1 張魔物卡入墓,翻對手魔本 1 張(P-013)。
+    """觸發器:對手每有 1 張魔物卡入墓,翻對手魔書 1 張(P-013)。
     事件 mamodo_discarded(整隻魔物入墓)依其中的魔物卡張數計;card_discarded(疊放頂層單獨入墓、
-    自魔本棄卡等)只在該卡為魔物卡時計 1 張。"""
+    自魔書棄卡等)只在該卡為魔物卡時計 1 張。"""
 
     def run(self, rt, ctx, path):
         from ..cards import MAMODO
@@ -1865,7 +1865,7 @@ class TurnOpponentPagesPerMamodoCardDiscarded(Effect):
 
 @dataclass(frozen=True)
 class ReduceOpponentMpPerPageTurnedBack(Effect):
-    """觸發器:對手每回翻自己的魔本 1 張,對手 MP 減少 per_page(P-019)。"""
+    """觸發器:對手每回翻自己的魔書 1 張,對手 MP 減少 per_page(P-019)。"""
     per_page: int = 0
 
     def run(self, rt, ctx, path):
@@ -1931,7 +1931,7 @@ class OwnMamodoAtLeast:
 
 @dataclass(frozen=True)
 class OwnBookAtLastPage:
-    """自己的魔本翻到最後一頁(M-030)。"""
+    """自己的魔書翻到最後一頁(M-030)。"""
 
     def __call__(self, game, player, slot) -> bool:
         return game.state.players[player].pos >= 32
@@ -1947,7 +1947,7 @@ class Never:
 
 @dataclass(frozen=True)
 class OwnAttackBy:
-    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用術的魔物判定)。
+    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用戰術的魔物判定)。
     當 When 條件:不成立時效果不發生(作用對象不是使用條件)。"""
     mamodo: str
 
@@ -1978,8 +1978,8 @@ class NoBattleDamageModifierFrom:
 
 @dataclass(frozen=True)
 class CanNegateOpponentSpell:
-    """目前的戰鬥中,對手有可被無效的術(P-009 any / P-016 attack / P-017 defense)。
-    attack:自己是防方、對手以術攻擊(無術攻擊不算)且尚未被無效;defense:自己是攻方、對手以術防禦且尚未被無效。"""
+    """目前的戰鬥中,對手有可被無效的戰術(P-009 any / P-016 attack / P-017 defense)。
+    attack:自己是防方、對手以戰術攻擊(無戰術攻擊不算)且尚未被無效;defense:自己是攻方、對手以戰術防禦且尚未被無效。"""
     which: str = "any"
 
     def __call__(self, game, player, slot=None) -> bool:
@@ -2002,8 +2002,8 @@ def _negatable_opponent_spell(game, player, which):
 
 @dataclass(frozen=True)
 class OwnPageTurnEffectAvailable:
-    """本回合尚未使用「翻自己魔本」的效果、也未受「合計1回」限制(P-010;E-005 反反也算;
-    依效果文,翻完魔本而敗北也可以使用)。"""
+    """本回合尚未使用「翻自己魔書」的效果、也未受「合計1回」限制(P-010;E-005 反反也算;
+    依效果文,翻完魔書而敗北也可以使用)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
         ps = game.state.players[player]
@@ -2012,8 +2012,8 @@ class OwnPageTurnEffectAvailable:
 
 @dataclass(frozen=True)
 class OwnPageTurnBackEffectAvailable:
-    """本回合尚未使用「回翻自己魔本」的效果、也未受「合計1回」限制(P-018;E-005 正正也算)。
-    依效果文,魔本在第一頁時也能使用(回翻 0 張,但 P-018 本身仍算 1 次)。"""
+    """本回合尚未使用「回翻自己魔書」的效果、也未受「合計1回」限制(P-018;E-005 正正也算)。
+    依效果文,魔書在第一頁時也能使用(回翻 0 張,但 P-018 本身仍算 1 次)。"""
 
     def __call__(self, game, player, slot=None) -> bool:
         ps = game.state.players[player]
@@ -2052,7 +2052,7 @@ class PowerBonus:
 
 @dataclass(frozen=True)
 class CanUseSpellsWithAttr:
-    """術相容:這隻魔物可使用其他魔物屬性為 attr 的術(M-023「木」)。fn(game, player, slot, spell) -> bool。"""
+    """戰術相容:這隻魔物可使用其他魔物屬性為 attr 的戰術(M-023「木」)。fn(game, player, slot, spell) -> bool。"""
     attr: str
 
     def __call__(self, game, player, slot, spell_card) -> bool:
@@ -2061,8 +2061,8 @@ class CanUseSpellsWithAttr:
 
 @dataclass(frozen=True)
 class CanUseSpellNamed:
-    """術相容:這隻魔物可使用 mamodo 家族中名稱「完全等於」name 的術(M-029 可用賈修的「ザケル」;
-    「バオウ・ザケルガ」等名稱只是包含 ザケル 的術不算)。fn(game, player, slot, spell) -> bool。"""
+    """戰術相容:這隻魔物可使用 mamodo 家族中名稱「完全等於」name 的戰術(M-029 可用賈修的「ザケル」;
+    「バオウ・ザケルガ」等名稱只是包含 ザケル 的戰術不算)。fn(game, player, slot, spell) -> bool。"""
     mamodo: str
     name: str
 
@@ -2072,7 +2072,7 @@ class CanUseSpellNamed:
 
 @dataclass(frozen=True)
 class SpellUsesPerTurnWhileCopies:
-    """自己場上有 copies 隻以上 number 時,名為 spell 的術卡每張每回合可用 uses 次(M-024 二身一体)。
+    """自己場上有 copies 隻以上 number 時,名為 spell 的戰術卡每張每回合可用 uses 次(M-024 二身一体)。
     fn(game, player, spell_card) -> int | None(None = 不影響)。"""
     spell: str
     uses: int
@@ -2088,7 +2088,7 @@ class SpellUsesPerTurnWhileCopies:
 
 @dataclass(frozen=True)
 class ImmuneToSpellDamageAtMost:
-    """傷害免疫:不受合計魔力 total 以下的術造成的傷害(無術攻擊不算術)(M-031)。
+    """傷害免疫:不受合計魔力 total 以下的戰術造成的傷害(無戰術攻擊不算術)(M-031)。
     fn(game, player, slot, ctx) -> bool。"""
     total: int
 
@@ -2101,7 +2101,7 @@ class ImmuneToSpellDamageAtMost:
 
 @dataclass(frozen=True)
 class DamageBonusIfAttackTotalAtLeast:
-    """攻方合計魔力達 threshold 以上時,此術傷害 +bonus(S-042)。簽名 fn(game, battle) -> int。"""
+    """攻方合計魔力達 threshold 以上時,此戰術傷害 +bonus(S-042)。簽名 fn(game, battle) -> int。"""
     threshold: int = 0
     bonus: int = 0
 

@@ -1,6 +1,6 @@
 """Level 2 卡池機制與逐卡效果測試(card-effects / game-engine 差分)。
 
-以自訂魔本(直接指定各頁卡號)驅動,聚焦第二彈新機制:無術攻擊、被動觸發器、
+以自訂魔書(直接指定各頁卡號)驅動,聚焦第二彈新機制:無戰術攻擊、被動觸發器、
 書內/墓地搜卡、變身合體鏈、傷害上限/負傷代替、行為禁止旗標、翻頁每回合一次。
 """
 
@@ -30,8 +30,8 @@ HEADS, TAILS = 0.1, 0.9
 
 
 def book(*pages):
-    """建立 32 頁魔本:給定前綴頁,其餘以香草填充卡補滿(P1 須為魔物)。"""
-    filler = "S-029"  # 香草賈修術(AD),不影響測試
+    """建立 32 頁魔書:給定前綴頁,其餘以香草填充卡補滿(P1 須為魔物)。"""
+    filler = "S-029"  # 香草賈修戰術(AD),不影響測試
     b = list(pages)
     while len(b) < 32:
         b.append(filler)
@@ -55,7 +55,7 @@ def slot_uid(g, player, top):
     return next(s.uid for s in g.state.players[player].slots if s.top == top)
 
 
-# ---------------------------------------------------------------- 無術攻擊(M-027 / S-048)
+# ---------------------------------------------------------------- 無戰術攻擊(M-027 / S-048)
 
 def test_mamodo_attack_full_battle():
     # P1=M-028 巴爾多羅, P2=S-048 傑貝爾, P3=M-027 裝甲
@@ -69,13 +69,13 @@ def test_mamodo_attack_full_battle():
         pytest.skip("seed 未給玩家0先攻")
     g.state.players[0].mp = 10
     to_battle(g, 0)
-    # 先用 S-048(非戰鬥術)疊裝甲
+    # 先用 S-048(非戰鬥戰術)疊裝甲
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     submit(g, {"type": "pass", "player": 1})
     # 裝甲已疊上
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027" and len(slot.stack) == 2
-    # 現在無術攻擊
+    # 現在無戰術攻擊
     submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo",
                "slot_uid": slot.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
@@ -190,7 +190,7 @@ def test_m021_attach_partner_from_book():
     assert 4 in g.state.players[0].consumed_pages  # P4(index的P-011在page4)
 
 
-# ---------------------------------------------------------------- 術相容擴充(M-023 可用木屬性術)
+# ---------------------------------------------------------------- 戰術相容擴充(M-023 可用木屬性戰術)
 
 def test_m023_wood_attr_spell_compat():
     # M-023 波基李歐搭配 S-014(スギナ家族、木屬性)攻擊:家族不同但屬性相容
@@ -203,7 +203,7 @@ def test_m023_wood_attr_spell_compat():
     assert g.state.battle.attack_spell == "S-014"
 
 
-# ---------------------------------------------------------------- 書內任意頁用術(P-015 → S-042)
+# ---------------------------------------------------------------- 書內任意頁用戰術(P-015 → S-042)
 
 def test_p015_allows_spell_from_closed_page():
     # P1=M-024 羅布諾斯(分身体), P5=S-042 比萊茲(不在翻開頁 1/2 內)
@@ -220,7 +220,7 @@ def test_p015_allows_spell_from_closed_page():
     assert g.state.battle.attack_spell == "S-042"
 
 
-# ---------------------------------------------------------------- 非戰鬥術(S-026/S-041/S-043/S-048/S-057)
+# ---------------------------------------------------------------- 非戰鬥戰術(S-026/S-041/S-043/S-048/S-057)
 
 def test_s041_self_immune():
     # P1=M-023 波基李歐(ポッケリオ家族),P2=S-041(擲幣正→自身免疫)
@@ -245,7 +245,7 @@ def test_s043_fuse_two_doubles_into_complete():
     submit(g, {"type": "pass", "player": 1})
     assert sum(1 for s in g.state.players[0].slots if s.top == "M-024") == 2
     submit(g, {"type": "use_book_card", "player": 0, "page": 7})  # S-043 合體
-    assert g.state.pending.kind == "pick_card_in_own_discard"   # M-025 登場:可選擇把墓地羅布諾斯放回魔本空頁
+    assert g.state.pending.kind == "pick_card_in_own_discard"   # M-025 登場:可選擇把墓地羅布諾斯放回魔書空頁
     submit(g, {"type": "choose", "player": 0, "value": None})   # 不使用
     submit(g, {"type": "pass", "player": 1})
     assert any(s.top == "M-025" for s in g.state.players[0].slots)
@@ -253,7 +253,7 @@ def test_s043_fuse_two_doubles_into_complete():
 
 
 def test_s057_sets_injure_instead_standby():
-    # P1=M-001, P2=S-057(コマンド指令術,擲幣正→[待命] 下次攻擊獲勝改為負傷代替傷害)
+    # P1=M-001, P2=S-057(コマンド指令戰術,擲幣正→[待命] 下次攻擊獲勝改為負傷代替傷害)
     b0 = book("M-001", "S-057")
     g, tp = mk(b0, book("M-001"))
     g.rng = Rng(HEADS)
@@ -278,7 +278,7 @@ def test_nonbattle_spell_cannot_declare_attack(number, page):
 
 
 def test_use_book_card_rejects_battle_spell():
-    # S-001 是一般戰鬥術(effect_icon 非 nonbattle),不能經 use_book_card 使用
+    # S-001 是一般戰鬥戰術(effect_icon 非 nonbattle),不能經 use_book_card 使用
     b0 = book("M-001", "S-001")
     g, tp = mk(b0, book("M-001"))
     to_battle(g, 0)
@@ -360,7 +360,7 @@ def _resolve_damage_choices(g, receiver, protect_index=None):
 
 
 def test_s036_damages_book_and_all_mamodo():
-    # 玩家0 用 M-005(布拉葛) + S-036;對手 1 隻魔物(不保護),魔本+魔物皆應受傷害
+    # 玩家0 用 M-005(布拉葛) + S-036;對手 1 隻魔物(不保護),魔書+魔物皆應受傷害
     from gash.engine.state import MamodoSlot
     b0 = book("M-005", "S-036")
     g, tp = mk(b0, book("M-001"))
@@ -543,7 +543,7 @@ def test_s042_no_bonus_below_8000_power():
 
 
 def _attack_until_damage(g, page=2):
-    """玩家 0 以第 page 頁的術攻擊,對手不防禦,雙方 pass 到傷害階段。"""
+    """玩家 0 以第 page 頁的戰術攻擊,對手不防禦,雙方 pass 到傷害階段。"""
     submit(g, {"type": "declare_attack", "player": 0, "page": page})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
@@ -564,7 +564,7 @@ def test_s030_counter_damages_attacker_book():
     submit(g, {"type": "declare_defense", "player": 1, "page": 2})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})
-    # 反擊:防方獲勝時對攻方魔本造成傷害(攻方可保護)
+    # 反擊:防方獲勝時對攻方魔書造成傷害(攻方可保護)
     assert g.state.pending is not None and g.state.pending.kind == "protect"
     assert g.state.pending.player == 0
     submit(g, {"type": "choose", "player": 0, "value": None})
@@ -579,7 +579,7 @@ def test_s031_protecting_mamodo_goes_to_discard():
     protector = g.state.players[1].slots[0]
     _attack_until_damage(g)
     assert g.state.pending.kind == "protect"
-    submit(g, {"type": "choose", "player": 1, "value": protector.uid})  # 以魔物保護魔本
+    submit(g, {"type": "choose", "player": 1, "value": protector.uid})  # 以魔物保護魔書
     assert protector not in g.state.players[1].slots          # 直接入墓,不是負傷
     assert "M-001" in g.state.players[1].discard
 
@@ -639,7 +639,7 @@ def test_s039_no_partner_no_effect():
 
 
 def _s056_battle(defender_bonus=0):
-    """玩家 0 以 S-029 攻擊;玩家 1 以 S-056(指令術,MP 0)防禦,雙方 pass 到魔力勝負。"""
+    """玩家 0 以 S-029 攻擊;玩家 1 以 S-056(指令戰術,MP 0)防禦,雙方 pass 到魔力勝負。"""
     from gash.engine.effects.primitives import add_power
     from gash.engine.state import DUR_TURN
     g, tp = mk(book("M-001", "S-029"), book("M-001", "S-056"))
@@ -663,7 +663,7 @@ def test_s056_defender_damaged_gains_mp_per_page():
     g = _s056_battle()                          # 4000+3000 > 4000+0 → 攻方勝
     pos1 = g.state.players[1].pos
     assert g.state.pending is not None and g.state.pending.kind == "protect"
-    submit(g, {"type": "choose", "player": 1, "value": None})   # 不保護,魔本受傷
+    submit(g, {"type": "choose", "player": 1, "value": None})   # 不保護,魔書受傷
     pages = (g.state.players[1].pos - pos1) // 2
     assert pages > 0
     assert g.state.players[1].mp == 2 * pages
@@ -676,7 +676,7 @@ def test_s056_defense_wins_no_damage_no_mp():
 
 
 def test_e012_stacks_transformed_mamodo_onto_base():
-    # 場上 M-006(ゴフレ),魔本有 M-007(變身後,疊放於 M-006)→ E-012 唯一目標自動疊放
+    # 場上 M-006(ゴフレ),魔書有 M-007(變身後,疊放於 M-006)→ E-012 唯一目標自動疊放
     b0 = book("M-006", "E-012", "S-029", "S-029", "S-029", "S-029", "S-029", "S-029", "M-007")
     g, tp = mk(b0, book("M-001"))
     g.state.players[0].mp = 10
@@ -844,7 +844,7 @@ def test_s046_tails_still_defendable():
     submit(g, {"type": "declare_defense", "player": 1, "page": 2})  # 不被拒
 
 
-# ---------------------------------------------------------------- 術相容擴充(M-029 出賈修ザケル)
+# ---------------------------------------------------------------- 戰術相容擴充(M-029 出賈修ザケル)
 
 def test_m029_zaker_compat():
     # M-029 傑洛可用賈修的 S-029 ザケル
@@ -915,7 +915,7 @@ def test_m025_no_robnos_in_discard_just_gains_mp():
 
 
 def _attack_with_page(g, page, slot_uid):
-    """玩家 0 以第 page 頁的術、由 slot_uid 的魔物攻擊,推進到戰鬥結束(防方不防禦、不保護)。"""
+    """玩家 0 以第 page 頁的戰術、由 slot_uid 的魔物攻擊,推進到戰鬥結束(防方不防禦、不保護)。"""
     submit(g, {"type": "declare_attack", "player": 0, "page": page, "slot_uid": slot_uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     _run_attack_to_damage(g, 0, 1)
@@ -1100,7 +1100,7 @@ def test_timeout_default_prefers_skip_option():
 # ---------------------------------------------------------------- 搭檔卡:依使用者決定與效果文
 
 def _pokkerio_uses_sugina_spell(setup):
-    """場上有 M-008 スギナ 與 M-023 ポッケリオ(可用木屬性術);第 2 頁為スギナ的 S-014(木)。"""
+    """場上有 M-008 スギナ 與 M-023 ポッケリオ(可用木屬性戰術);第 2 頁為スギナ的 S-014(木)。"""
     from gash.engine.state import MamodoSlot
     g, _ = mk(book("M-008", "S-014"), book("M-001"))
     st = g.state
@@ -1114,7 +1114,7 @@ def _pokkerio_uses_sugina_spell(setup):
 
 
 def test_p005_cost_zero_only_when_sugina_uses_the_spell():
-    # 使用者決定:「スギナ」の術 以使用術的魔物判定 → ポッケリオ 用 スギナ 的術不免費
+    # 使用者決定:「スギナ」の術 以使用戰術的魔物判定 → ポッケリオ 用 スギナ 的戰術不免費
     from gash.engine.engine import spell_cost
     def use_p005(g, sugina):
         sugina.partner = "P-005"
@@ -1179,7 +1179,7 @@ def test_p006_negation_lasts_only_this_battle():
     while st.battle is not None and st.pending is None:
         submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
     assert st.battle is None and koruru.injured is False
-    # 第 2 場:以 コルル 保護魔本 → 受傷(P-006 的效果已隨上一場戰鬥結束)
+    # 第 2 場:以 コルル 保護魔書 → 受傷(P-006 的效果已隨上一場戰鬥結束)
     submit(g, {"type": "declare_attack", "player": 0, "page": 3})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     _run_attack_to_damage(g, 0, 1)
@@ -1207,7 +1207,7 @@ def test_p008_discarded_partner_counts_as_discarded_this_turn():
 
 
 def _armored_attack_until_defender_acts():
-    """玩家 0 以裝甲巴爾多羅無術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
+    """玩家 0 以裝甲巴爾多羅無戰術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
     g, _ = mk(book("M-028", "S-048", "M-027"), book("M-004"))
     st = g.state
     st.players[0].mp = 10
@@ -1224,7 +1224,7 @@ def _armored_attack_until_defender_acts():
 
 
 def test_p009_cannot_negate_spellless_attack():
-    # 效果文:このバトルの、相手が使った「術」1つを無効にする → 無術攻擊不是術
+    # 效果文:このバトルの、相手が使った「戰術」1つを無効にする → 無戰術攻擊不是戰術
     g = _armored_attack_until_defender_acts()
     with pytest.raises(IllegalCommand) as e:
         submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner",
@@ -1263,7 +1263,7 @@ def test_p013_counts_mamodo_card_discarded_from_book():
     from gash.engine.state import MamodoSlot
     g, _ = _p013_game()
     st = g.state
-    st.players[1].book[9] = "M-002"                         # 對手魔本第 10 頁放一張魔物卡
+    st.players[1].book[9] = "M-002"                         # 對手魔書第 10 頁放一張魔物卡
     fein = MamodoSlot(uid=st.next_uid(), stack=["M-011"])
     st.players[0].slots.append(fein)
     pos1 = st.players[1].pos
@@ -1308,7 +1308,7 @@ def test_p019_counts_pages_actually_turned_back(pos, after, mp_lost):
 
 
 def test_p010_usable_on_last_page_and_turning_past_end_loses():
-    # 效果文沒有限制:在最後一頁使用 → 自己的魔本翻完 → 敗北
+    # 效果文沒有限制:在最後一頁使用 → 自己的魔書翻完 → 敗北
     g, _ = mk(book("M-001"), book("M-001"))
     st = g.state
     st.players[0].slots[0].partner = "P-010"
@@ -1453,7 +1453,7 @@ def test_p017_attacker_negates_opponent_spell_defense():
 
 @pytest.mark.parametrize("defend,user", [(False, 0), (True, 1)])
 def test_p017_needs_opponent_spell_defense(defend, user):
-    # 對手沒有以術防禦(不防禦)、或自己是防方時都不能使用
+    # 對手沒有以戰術防禦(不防禦)、或自己是防方時都不能使用
     partners = {"p0_partner": "P-017"} if user == 0 else {"p1_partner": "P-017"}
     g = _spell_battle(defend=defend, **partners)
     st = g.state
@@ -1478,7 +1478,7 @@ def test_p018_turn_back_one_leaf():
 
 
 def _p018_first_page_game(coins=()):
-    """玩家 0:M-001 裝 P-018,第 3 頁為 E-005;對手 M-001 裝 P-019。魔本在第一頁。"""
+    """玩家 0:M-001 裝 P-018,第 3 頁為 E-005;對手 M-001 裝 P-019。魔書在第一頁。"""
     g, _ = mk(book("M-001", "S-029", "E-005"), book("M-001"))
     st = g.state
     st.players[0].mp = st.players[1].mp = 10
@@ -1590,7 +1590,7 @@ def test_m008_only_applies_to_the_next_battle():
 
 
 def test_p007_applies_when_defending_in_the_next_battle():
-    # 「自分が使うフェインの術」:對手回合中使用,下一場戰鬥以フェイン的術防禦時也適用
+    # 「自分が使うフェインの術」:對手回合中使用,下一場戰鬥以フェイン的戰術防禦時也適用
     from .test_cards import showdown_of
     g, _ = mk(book("M-001", "S-001"), book("M-011", "S-019"))
     st = g.state
@@ -1609,7 +1609,7 @@ def test_p007_applies_when_defending_in_the_next_battle():
 
 
 def test_s026_next_battle_undefendable_applies_to_mamodo_attack():
-    # S-026 効果文:このターン中の次のバトルで、相手は防御できない。→ 無術攻擊的戰鬥也是「次のバトル」
+    # S-026 効果文:このターン中の次のバトルで、相手は防御できない。→ 無戰術攻擊的戰鬥也是「次のバトル」
     g, _ = mk(book("M-028", "S-048", "S-026", "S-029", "M-027"), book("M-001"))
     st = g.state
     st.players[0].mp = st.players[1].mp = 10
@@ -1679,7 +1679,7 @@ def _showdown(g, defend_page=None):
 
 
 @pytest.mark.parametrize("value,paid,total", [
-    (True, 1, 3500 + 2000 - 1000),          # 使用:少付 1、術的魔力 -1000
+    (True, 1, 3500 + 2000 - 1000),          # 使用:少付 1、戰術的魔力 -1000
     (None, 2, 3500 + 2000),                 # 不使用:付原價、魔力不變
 ])
 def test_m008_discount_is_chosen_when_declaring(value, paid, total):
@@ -1710,7 +1710,7 @@ def test_m008_discount_applied_without_asking_when_mp_only_covers_it():
 
 
 def test_m008_not_offered_when_base_cost_is_zero():
-    # P-005 使スギナ的術「本来のコスト」為 0 → 無法「本来より1低い」,不詢問、魔力不減
+    # P-005 使スギナ的戰術「本来のコスト」為 0 → 無法「本来より1低い」,不詢問、魔力不減
     g = _m008_declared_attack(mp=5, partner="P-005")
     st = g.state
     assert st.pending is None
@@ -1738,7 +1738,7 @@ def test_m008_discount_chosen_when_defending():
 
 
 def test_spell_power_cut_not_below_zero():
-    # M-008:その術の魔力は-1000される(0より小さくはならない)→ 只減術的魔力,不影響魔物本身
+    # M-008:その術の魔力は-1000される(0より小さくはならない)→ 只減戰術的魔力,不影響魔物本身
     from gash.engine.engine import _side_total
     from gash.engine.state import BattleState
     g, _ = mk(book("M-001"), book("M-008"))
@@ -1801,7 +1801,7 @@ def test_e005_other_direction_not_blocked_after_p010():
 
 
 @pytest.mark.parametrize("partner,pos,coins,after_e005", [
-    ("P-010", 2, (TAILS, TAILS), 6),        # E-005 已翻過自己的魔本 → 不能再用 P-010
+    ("P-010", 2, (TAILS, TAILS), 6),        # E-005 已翻過自己的魔書 → 不能再用 P-010
     ("P-018", 10, (HEADS, HEADS), 6),       # E-005 已回翻過 → 不能再用 P-018
 ])
 def test_partner_blocked_after_e005_same_direction(partner, pos, coins, after_e005):
@@ -1953,7 +1953,7 @@ def test_m017_not_usable_when_defending():
 
 @pytest.mark.parametrize("opp_page3,gain", [("E-003", 2), ("S-029", 0)])
 def test_m018_gain_mp_if_opponent_open_pages_lack_defense(opp_page3, gain):
-    # 對手翻開第 2、3 頁;第 2 頁固定為事件卡,第 3 頁決定有無可防禦的術
+    # 對手翻開第 2、3 頁;第 2 頁固定為事件卡,第 3 頁決定有無可防禦的戰術
     g, _ = mk(book("M-018"), book("M-001", "E-003", opp_page3))
     g.state.players[0].mp = 5
     to_battle(g, 0)
@@ -1969,7 +1969,7 @@ def _use_m018(g):
 
 def test_m018_peeks_opponent_open_pages():
     # 效果文「相手の魔本の今のページを見る」:檢視事件只對使用者揭露對手翻開的頁
-    g, _ = mk(book("M-018"), book("M-001", "E-003", "E-003"))   # 翻開的頁沒有防禦術 → MP +2
+    g, _ = mk(book("M-018"), book("M-001", "E-003", "E-003"))   # 翻開的頁沒有防禦戰術 → MP +2
     g.state.players[0].mp = 5
     to_battle(g, 0)
     opp = g.state.players[1]
@@ -2115,7 +2115,7 @@ def test_m029_discards_injured_armor_and_m028_turns_attacker_pages():
     assert "M-027" in opp.discard
     assert [e["type"] for e in events if e["type"] in ("stack_detached", "pages_turned")] == [
         "stack_detached", "pages_turned"]
-    assert g.state.players[0].pos == pos0 + 4                   # 玩家 0 的魔本被翻 2 張
+    assert g.state.players[0].pos == pos0 + 4                   # 玩家 0 的魔書被翻 2 張
 
 
 @pytest.mark.parametrize("spell,immune", [("S-001", True), ("S-029", False)])
@@ -2129,7 +2129,7 @@ def test_m031_immune_to_spell_damage_at_most_6000(spell, immune):
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     _run_attack_to_damage(g, 0, 1)
     assert g.state.pending.kind == "protect"
-    events = submit(g, {"type": "choose", "player": 1, "value": kyclops.uid})   # 以キクロプ保護魔本
+    events = submit(g, {"type": "choose", "player": 1, "value": kyclops.uid})   # 以キクロプ保護魔書
     prevented = [e for e in events if e["type"] == "damage_prevented" and e.get("reason") == "immunity"]
     assert bool(prevented) is immune
     assert kyclops.injured is (not immune)
@@ -2146,7 +2146,7 @@ def test_full_regression_level1_deck_still_plays():
     assert g.state.phase == BATTLE
 
 
-# ---------------------------------------------------------------- 整合:無術攻擊造成傷害
+# ---------------------------------------------------------------- 整合:無戰術攻擊造成傷害
 
 def _run_attack_to_damage(g, attacker, defender):
     """防方不防禦、雙方戰鬥中 pass,推進到傷害/保護決策點。"""
@@ -2160,13 +2160,13 @@ def test_mamodo_attack_deals_book_damage():
     g, tp = mk(b0, book("M-001"))
     g.state.players[0].mp = 10
     to_battle(g, 0)
-    # 疊裝甲(S-048 非戰鬥術)
+    # 疊裝甲(S-048 非戰鬥戰術)
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
     submit(g, {"type": "pass", "player": 1})
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027"
     pos1 = g.state.players[1].pos
-    # 無術攻擊,防方無魔物可保護魔本(對手只有 1 隻魔物,可保護)→ 選不保護
+    # 無戰術攻擊,防方無魔物可保護魔書(對手只有 1 隻魔物,可保護)→ 選不保護
     submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": slot.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
@@ -2189,15 +2189,15 @@ def test_s058_injure_instead_in_battle():
     submit(g, {"type": "no_defense", "player": 1})
     while g.state.battle and g.state.battle.step == "effects" and g.state.pending is None:
         submit(g, {"type": "pass", "player": g.state.battle.data["effect_turn"]})
-    # 對手只有 1 隻魔物 → 自動負傷,無魔本傷害
+    # 對手只有 1 隻魔物 → 自動負傷,無魔書傷害
     assert g.state.players[1].slots[0].injured is True
-    assert g.state.players[1].pos == 2  # 魔本未受傷害
+    assert g.state.players[1].pos == 2  # 魔書未受傷害
 
 
 def test_no_attack_spell_restriction():
-    # 玩家1 用 P-014 禁玩家0 攻擊術(佩利可對應波基李歐)
-    b0 = book("M-023", "S-029")  # 波基李歐 + 賈修香草術(相容需 M-023?否)
-    # 用 S-023 波基李歐術更準確;此處僅測 restriction 生效
+    # 玩家1 用 P-014 禁玩家0 攻擊戰術(佩利可對應波基李歐)
+    b0 = book("M-023", "S-029")  # 波基李歐 + 賈修香草戰術(相容需 M-023?否)
+    # 用 S-023 波基李歐戰術更準確;此處僅測 restriction 生效
     from gash.engine.state import DUR_TURN, NO_ATTACK_SPELL
     from gash.engine.effects.primitives import add_restriction
     g, tp = mk(book("M-001", "S-029"), book("M-001"))

@@ -7,7 +7,7 @@ local-test-mode 的金手指端點,僅本機房與 NPC 房的玩家可用,讓開
 ## Requirements
 
 ### Requirement: 金手指端點僅限本機房與 NPC 房
-API SHALL 提供 `GET`/`POST /api/rooms/{code}/debug-state`,僅 `room.mode` 為 `local` 或 `npc` 時開放;`online` 房請求 MUST 回 403;觀戰 token 的請求 MUST 回 403。`GET` SHALL 回傳雙方的 `book`(32 頁卡號陣列)與 `mp`(NPC 房亦含 NPC 的魔本)。`POST` SHALL 接受同構的 `{players: [{book, mp}, {book, mp}]}` JSON:`book` 長度 MUST 為 32,每個卡號 MUST 存在於卡片資料庫,否則回 4xx 且不套用;驗證通過後取代對應玩家的 `book`/`mp`。
+API SHALL 提供 `GET`/`POST /api/rooms/{code}/debug-state`,僅 `room.mode` 為 `local` 或 `npc` 時開放;`online` 房請求 MUST 回 403;觀戰 token 的請求 MUST 回 403。`GET` SHALL 回傳雙方的 `book`(32 頁卡號陣列)與 `mp`(NPC 房亦含 NPC 的魔書)。`POST` SHALL 接受同構的 `{players: [{book, mp}, {book, mp}]}` JSON:`book` 長度 MUST 為 32,每個卡號 MUST 存在於卡片資料庫,否則回 4xx 且不套用;驗證通過後取代對應玩家的 `book`/`mp`。
 
 #### Scenario: 本機房可讀取 book/mp
 - **WHEN** 本機房間的 client 請求 `GET /api/rooms/{code}/debug-state`

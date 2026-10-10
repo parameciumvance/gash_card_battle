@@ -149,7 +149,7 @@ def test_m006_opponent_no_spells_on_entry():
     dp = 1 - tp
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "play_card", "player": tp, "page": 2})
-    # 對手本回合不能使用術卡:防禦宣告也會被拒
+    # 對手本回合不能使用戰術卡:防禦宣告也會被拒
     submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
@@ -255,7 +255,7 @@ def test_m012_reflip_coin():
     dp = 1 - g.state.turn_player
     give(g, dp, "M-012")
     tp, _ = start_attack(g, 3)
-    # S-025 為指令術,防方有 2 隻魔物須指定使用者
+    # S-025 為指令戰術,防方有 2 隻魔物須指定使用者
     submit(g, {"type": "declare_defense", "player": dp, "page": 2,
                "slot_uid": slot0(g, dp).uid})
     assert g.state.pending.kind == "coin_confirm"
@@ -290,7 +290,7 @@ def test_m013_no_damage_when_injured():
     events = submit(g, {"type": "choose", "player": dp, "value": kan.uid})  # 以 M-013 保護
     assert any(e["type"] == "damage_prevented" for e in events)
     assert kan in g.state.players[dp].slots and kan.injured  # 沒被棄掉
-    assert g.state.players[dp].pos == pos_before  # 魔本也沒受傷
+    assert g.state.players[dp].pos == pos_before  # 魔書也沒受傷
 
 
 def test_m013_condition_requires_injured():
@@ -396,7 +396,7 @@ def test_p004_gofure_damage_double():
 
 def _effects_step_then_resolve(g, tp, dp, use=()):
     """不防禦進入效果步驟,依序以 use 中的 (player, slot) 使用搭檔效果(另一方 pass 交回行動權),
-    之後雙方 pass、不保護,回傳防方魔本位置。"""
+    之後雙方 pass、不保護,回傳防方魔書位置。"""
     submit(g, {"type": "no_defense", "player": dp})
     for player, slot in use:
         if g.state.battle.data["effect_turn"] != player:
@@ -544,14 +544,14 @@ def test_e002_both_players_no_spells():
         submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     assert exc.value.code == "spell.restricted"
     submit(g, {"type": "pass", "player": tp})  # 與前一 pass 合計雙 pass → 回合結束
-    # 對手回合(下回合)也不能用術
+    # 對手回合(下回合)也不能用戰術
     submit(g, {"type": "flip_pages", "player": dp, "count": 0})
     with pytest.raises(IllegalCommand) as exc:
         submit(g, {"type": "declare_attack", "player": dp, "page": 3})
     assert exc.value.code == "spell.restricted"
     submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "pass", "player": tp})
-    # 再下一回合恢復(tp 魔本已被結束階段強制翻至 pos=4,用翻開中的第 4 頁)
+    # 再下一回合恢復(tp 魔書已被結束階段強制翻至 pos=4,用翻開中的第 4 頁)
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
     submit(g, {"type": "declare_attack", "player": tp, "page": 4})
     assert g.state.battle_in is not None
@@ -1072,7 +1072,7 @@ def test_e026_two_tails_no_mp_gain():
     assert g.state.players[0].mp == 0
 
 
-# ================================================================ 術
+# ================================================================ 戰術
 
 def test_s003_rashield_counter():
     g = game(book1=book(p2="S-003"))
@@ -1083,7 +1083,7 @@ def test_s003_rashield_counter():
     events = submit(g, {"type": "pass", "player": dp})
     sd = showdown_of(events)
     assert sd["defender_total"] == 8000 and sd["winner"] == "defender"
-    # 反擊:攻方魔本受 1 點傷害(攻方可保護)
+    # 反擊:攻方魔書受 1 點傷害(攻方可保護)
     assert g.state.pending.kind == "protect" and g.state.pending.player == tp
     submit(g, {"type": "choose", "player": tp, "value": None})
     assert g.state.players[tp].pos == 4
@@ -1103,7 +1103,7 @@ def test_spell_lock_after_damage(spell, mamodo, coin):
     submit(g, {"type": "pass", "player": tp})
     submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "choose", "player": dp, "value": None})  # 不保護
-    # 對手下回合不能使用術卡(重置 pos 使第 3 頁 S-001 翻開,以隔離傷害翻頁的影響)
+    # 對手下回合不能使用戰術卡(重置 pos 使第 3 頁 S-001 翻開,以隔離傷害翻頁的影響)
     end_turn(g)
     g.state.players[dp].pos = 2
     submit(g, {"type": "flip_pages", "player": dp, "count": 0})
@@ -1136,7 +1136,7 @@ def test_s017_attack_bonus():
     submit(g, {"type": "no_defense", "player": dp})
     events = both_pass(g)
     sd = showdown_of(events)
-    assert sd["attacker_total"] == 1000 + 3000 + 2000  # 可魯魯+術+攻擊加值 = 6000
+    assert sd["attacker_total"] == 1000 + 3000 + 2000  # 可魯魯+戰術+攻擊加值 = 6000
     assert sd["winner"] == "attacker"
 
 
@@ -1150,7 +1150,7 @@ def test_s017_no_bonus_on_defense():
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     sd = showdown_of(events)
-    assert sd["defender_total"] == 1000 + 3000  # 可魯魯+術,防禦時不再加值 = 4000
+    assert sd["defender_total"] == 1000 + 3000  # 可魯魯+戰術,防禦時不再加值 = 4000
 
 
 def test_s019_next_attack_undefendable():
@@ -1160,7 +1160,7 @@ def test_s019_next_attack_undefendable():
     submit(g, {"type": "no_defense", "player": dp})
     pos_before = g.state.players[dp].pos
     both_pass(g)
-    assert g.state.players[dp].pos == pos_before  # 無魔本傷害
+    assert g.state.players[dp].pos == pos_before  # 無魔書傷害
     # 本回合下一次攻擊不可被防禦(j 版:下一次「攻擊」)
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
@@ -1175,7 +1175,7 @@ def test_s020_mp_drain_on_win():
     events = both_pass(g)
     assert showdown_of(events)["winner"] == "attacker"
     assert g.state.players[dp].mp == 2  # -3
-    assert g.state.players[dp].pos == 2  # 無魔本傷害
+    assert g.state.players[dp].pos == 2  # 無魔書傷害
     assert g.state.battle is None
 
 
@@ -1199,7 +1199,7 @@ def test_s026_set_then_undefendable():
     tp = g.state.turn_player
     dp = 1 - tp
     submit(g, {"type": "flip_pages", "player": tp, "count": 0})
-    submit(g, {"type": "use_book_card", "player": tp, "page": 2})  # S-026(非戰鬥術)
+    submit(g, {"type": "use_book_card", "player": tp, "page": 2})  # S-026(非戰鬥戰術)
     submit(g, {"type": "pass", "player": dp})
     submit(g, {"type": "declare_attack", "player": tp, "page": 3})
     submit(g, {"type": "battle_in_response", "player": dp, "allow": True})
@@ -1289,7 +1289,7 @@ def test_e010_each_partner_borrowed_acts_for_borrower(number):
     try:
         events = submit(g, {"type": "use_borrowed_effect", "player": 0})
     except IllegalCommand as e:
-        # 只有「沒有可無效的對手術」這類對象不存在的使用條件可以拒絕(防方未用術、自己是攻方)
+        # 只有「沒有可無效的對手術」這類對象不存在的使用條件可以拒絕(防方未用戰術、自己是攻方)
         assert number in ("P-009", "P-016", "P-017") and e.code == "ability.condition"
         return
     assert any(ev["type"] == "ability_used" and ev["player"] == 0 for ev in events)
@@ -1299,7 +1299,7 @@ def test_e010_each_partner_borrowed_acts_for_borrower(number):
 
 
 def test_e010_borrowed_p017_negates_opponent_defense():
-    # 無效類搭檔在有對象時也能借用:自己攻擊、對手以術防禦,借來的 P-017 使該防禦無效
+    # 無效類搭檔在有對象時也能借用:自己攻擊、對手以戰術防禦,借來的 P-017 使該防禦無效
     g = game(book0=book(p2="E-010"), book1=book(p2="S-001"))
     give(g, 1, "M-004", partner="P-017")
     g.state.players[0].mp = 10

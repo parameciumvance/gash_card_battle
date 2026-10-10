@@ -228,7 +228,7 @@ def test_s025_single_coin_branches(coin, negated):
     assert g.rng.calls == 1
 
 
-# ================================================================ 入口 3:非戰鬥術擲幣(S-026)
+# ================================================================ 入口 3:非戰鬥戰術擲幣(S-026)
 
 def _s026_use(g):
     tp = g.state.turn_player
@@ -489,7 +489,7 @@ def test_e027_opponent_chooses_partner_to_keep_then_self_fetches():
 
 
 def test_e027_self_chooses_page_then_mamodo():
-    # 自己沒有搭檔:自己選魔本哪一頁的搭檔,可裝的魔物有多隻時再選裝到哪一隻
+    # 自己沒有搭檔:自己選魔書哪一頁的搭檔,可裝的魔物有多隻時再選裝到哪一隻
     g = strict_game(book0=book(p2="E-027", p9="P-001", p10="P-010"), book1=book())
     g.state.players[0].mp = 10
     gash = slot0(g, 0)
@@ -517,7 +517,7 @@ def test_e027_single_partner_kept_without_asking():
 
 
 def test_e027_side_without_partner_and_none_in_book_does_nothing():
-    g = strict_game(book0=book(p2="E-027"), book1=book())   # 對手魔本沒有搭檔卡
+    g = strict_game(book0=book(p2="E-027"), book1=book())   # 對手魔書沒有搭檔卡
     g.state.players[0].mp = 10
     slot0(g, 0).partner = "P-001"
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})

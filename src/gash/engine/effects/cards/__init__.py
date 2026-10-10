@@ -9,7 +9,7 @@
 - 沒有子節點的葉節點、條件、選項規格寫在同一行。
 - 整張卡只有一個葉節點(或只有旗標 / 查詢規格)時,整個註冊寫成一行;參數太長時續行對齊。
 
-只有旗標、沒有邏輯的術卡(如 counter / damage_cap / injure_instead)也一併登記在 spells.py,讓登記集中。
+只有旗標、沒有邏輯的戰術卡(如 counter / damage_cap / injure_instead)也一併登記在 spells.py,讓登記集中。
 """
 
 # 匯入順序即登記順序:events → mamodo → partners → spells,與卡號順序一致

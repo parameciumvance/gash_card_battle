@@ -1,4 +1,4 @@
-"""術卡(S-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
+"""戰術卡(S-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
 from .. import registry as reg
@@ -14,8 +14,8 @@ from ..tree import (
 )
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
-# 效果不解決,不需註冊(純資料驅動)。純香草術卡(攻/防獲勝→魔本傷害)同樣不需註冊:
-# S-001 等第一彈香草術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
+# 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
+# S-001 等第一彈香草戰術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
 
 reg.spell_rider("S-003", counter=True)
 

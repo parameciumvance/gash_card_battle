@@ -11,7 +11,7 @@
   - `name` / `attr` 由同一工具自 TTS 卡表(`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx`,「The Table」工作表)寫入,「-」為 null;同一卡號有 e / j 兩版時名稱相同,取第一筆。卡表的名稱照用,不另行修正(例:S-011 卡表寫「Ion Gravirei」)。
   - `effect` 是依 `effect_ja` 手寫的翻譯,存在檔中,工具重新執行時保留。
   - 不照抄卡表或卡圖(民間英譯版)的英文效果文:兩者與日文效果文有出入(見 `card-effects` design「行為決定與理由」),遊戲行為依日文效果文,畫面文字應與行為一致。卡表的英文只作用語參考。
-  - 寫法:「」括起的卡名 / 術名改為該卡的英文 `name` 並保留引號;效果類型用規則頁的英文稱呼(Declare use →、Reduce MP by N →、Discard this card →、While this card is in play →);開頭的《效果名》省略(與中文一致,效果名已在卡名中)。用語對齊卡圖:MAMODO、SPELL、Spell Book、Power、Partner、Event、[STANDBY]、[STAY]、[COUNTER]、PROTECT、Injured、Healthy、Discard Pile、heads / tails。
+  - 寫法:「」括起的卡名 / 戰術名改為該卡的英文 `name` 並保留引號;效果類型用規則頁的英文稱呼(Declare use →、Reduce MP by N →、Discard this card →、While this card is in play →);開頭的《效果名》省略(與中文一致,效果名已在卡名中)。用語對齊卡圖:MAMODO、SPELL、Spell Book、Power、Partner、Event、[STANDBY]、[STAY]、[COUNTER]、PROTECT、Injured、Healthy、Discard Pile、heads / tails。
 - **簡體中文**:`tools/build_zh_cn.py` 把繁中的卡片文字、介面字典、規則頁三個檔轉成簡中,不手動編輯;測試以同一函式(`build()`)重新產生並比對,繁中改了沒重跑就會失敗。
   - 轉換:OpenCC `tw2sp`(字形 + 大陸用語,例如「圖示→图标」「連結→链接」「咖哩→咖喱」)。轉換前把 `TERMS` 的詞換成私用區佔位字元,轉換後換回指定寫法:保留遊戲術語「宣告」(不轉為「声明」),修正誤轉(「進階→高端」、「顯示」被斷詞、「複製→拷贝」、「文字→文本」),替換「預設→默认」「帳號→账号」。
   - 譯名只轉字形(賈修・貝爾→贾修・贝尔),使用者決定先不改用大陸譯名;之後要換譯名時加進 `TERMS`。

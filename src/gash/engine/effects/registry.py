@@ -1,6 +1,6 @@
 """卡片效果註冊表:引擎透過這些掛鉤呼叫各卡效果,各卡 handler 於 effects 子模組註冊。
 
-香草術卡(效果僅「攻/防獲勝→對魔本傷害N」)完全由卡片資料驅動,不需註冊。
+香草戰術卡(效果僅「攻/防獲勝→對魔書傷害N」)完全由卡片資料驅動,不需註冊。
 """
 
 from __future__ import annotations
@@ -41,30 +41,30 @@ EVENT: dict[str, Callable] = {}
 # 事件卡使用前置條件: fn(game, player) -> bool(於支付費用前檢查)
 EVENT_CONDITION: dict[str, Callable] = {}
 
-# 非香草術卡的附加效果
+# 非香草戰術卡的附加效果
 @dataclass
 class SpellRider:
     on_declare: Callable | None = None    # 宣告時(擲硬幣等) fn(game, batch, player, side)
     on_win: Callable | None = None        # 該側獲勝時(取代或附加於傷害) fn(game, batch, player)
     on_damage: Callable | None = None     # 造成傷害後 fn(game, batch, player)
     counter: bool = False                 # 【反擊】防方獲勝時仍解決
-    no_book_damage: bool = False          # 獲勝時不造成魔本傷害(改由 on_win 處理)
+    no_book_damage: bool = False          # 獲勝時不造成魔書傷害(改由 on_win 處理)
     on_win_owns_damage: bool = False      # on_win 自行呼叫 _start_damage 處理完整傷害流程,呼叫後不再執行預設分支(S-036)
     damage_cap: int | None = None         # 傷害上限(S-032/S-034)
-    injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔本傷害(S-058)
-    on_defense_damaged: Callable | None = None  # 以此術防禦卻被造成傷害後 fn(game, batch, defender, amount)
+    injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔書傷害(S-058)
+    on_defense_damaged: Callable | None = None  # 以此戰術防禦卻被造成傷害後 fn(game, batch, defender, amount)
     damage_bonus: Callable | None = None  # 依合計魔力調整傷害 fn(game, battle) -> int(S-042)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
 
-# 非戰鬥術卡 handler(自分/相手のターン、不經戰鬥流程直接使用): fn(game, batch, player)
+# 非戰鬥戰術卡 handler(自分/相手のターン、不經戰鬥流程直接使用): fn(game, batch, player)
 SPELL_NONBATTLE: dict[str, Callable] = {}
 
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
 
-# 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾術)
+# 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾戰術)
 SPELL_ONLY_STACK: set[str] = set()
 
 # 疊放頂層單獨入墓、下層保留(M-027);分離時發出 stack_detached 事件供觸發器使用
@@ -79,16 +79,16 @@ TRIGGERS: dict[str, list[tuple[str, Callable]]] = {}
 # 查詢型 hook(驗證/結算時查詢場上卡)
 # 傷害/負傷免疫: 卡號 -> fn(game, player, slot, ctx) -> bool(True=免疫)
 DAMAGE_IMMUNITY: dict[str, Callable] = {}
-# 術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此術)
+# 戰術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此戰術)
 SPELL_COMPAT: dict[str, Callable] = {}
 
 # ジャマー(妨礙者):場上魔物卡號 -> {"mp_cost": int};對手用完魔物的啟動效果後立即詢問是否使其無效(M-026)
 JAMMER: dict[str, dict] = {}
 
-# 術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
+# 戰術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
 SPELL_USE_LIMIT: dict[str, Callable] = {}
 
-# 無術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
+# 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
 
 # pending choice 的解決器: key -> fn(game, batch, choice_value, data)
@@ -191,14 +191,14 @@ def event(number: str, condition: Callable | None = None, *, effect=None, when: 
 
 
 def spell_rider(number: str, **kwargs):
-    """術卡附加效果,每張卡只能註冊一次(整筆記錄,不做部分更新)。
+    """戰術卡附加效果,每張卡只能註冊一次(整筆記錄,不做部分更新)。
 
     on_declare / on_damage / on_win / on_defense_damaged 可傳可呼叫物件或效果樹。
     任何檢查失敗時,註冊表保持不變。
     """
     from . import tree
     if number in SPELL_RIDERS:
-        raise ValueError(f"{number} 的術卡附加效果已註冊,每張卡只能註冊一次")
+        raise ValueError(f"{number} 的戰術卡附加效果已註冊,每張卡只能註冊一次")
     misplaced = [k for k, v in kwargs.items()
                  if isinstance(v, tree.Effect) and k not in tree.RIDER_TREE_HOOKS]
     if misplaced:
@@ -218,7 +218,7 @@ def spell_rider(number: str, **kwargs):
 
 
 def spell_nonbattle(number: str, *, effect=None):
-    """非戰鬥術註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹。"""
+    """非戰鬥戰術註冊。裝飾器形式註冊 handler;`effect=<效果樹>` 形式直接註冊效果樹。"""
     if effect is not None:
         from . import tree
         SPELL_NONBATTLE[number] = tree.register_spell_nonbattle(number, effect)
@@ -262,12 +262,12 @@ def damage_immunity(number: str, *, check=None):
 
 
 def spell_use_limit(number: str, *, value=None):
-    """此卡在場上時,術卡每張每回合可用次數的查詢 fn(game, player, spell_card) -> int | None。"""
+    """此卡在場上時,戰術卡每張每回合可用次數的查詢 fn(game, player, spell_card) -> int | None。"""
     return _value_hook(SPELL_USE_LIMIT, number, "spell_use_limit", value)
 
 
 def spell_compat(number: str, *, check=None):
-    """術相容性擴充查詢 fn(game, player, slot, spell_card) -> bool。"""
+    """戰術相容性擴充查詢 fn(game, player, slot, spell_card) -> bool。"""
     return _value_hook(SPELL_COMPAT, number, "spell_compat", check)
 
 
@@ -301,7 +301,7 @@ def jammer(number: str, *, mp_cost: int):
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
-    """無術攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
+    """無戰術攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
     if number in MAMODO_ATTACK:
         raise ValueError(f"{number} 的 mamodo_attack 已登記")
     MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage}

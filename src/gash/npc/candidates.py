@@ -39,7 +39,7 @@ def candidates(game: Game, player: int) -> list[dict]:
 
 
 def _actions(game: Game, player: int) -> list[dict]:
-    """非戰鬥中的一般行動:放卡、使用魔本中的卡、場上卡的啟動效果。"""
+    """非戰鬥中的一般行動:放卡、使用魔書中的卡、場上卡的啟動效果。"""
     ps = game.state.players[player]
     out = []
     for page in ps.open_pages():
@@ -67,7 +67,7 @@ def _field_abilities(game: Game, player: int) -> list[dict]:
 
 
 def _spell_declarations(game: Game, player: int, ctype: str) -> list[dict]:
-    """攻擊 / 防禦術宣告:目前翻開頁與待命允許的任意頁,每隻能使用該術的魔物各一個候選。"""
+    """攻擊 / 防禦戰術宣告:目前翻開頁與待命允許的任意頁,每隻能使用該戰術的魔物各一個候選。"""
     ps = game.state.players[player]
     pages = list(ps.open_pages())
     pages += [p for p in range(1, BOOK_SIZE + 1)
