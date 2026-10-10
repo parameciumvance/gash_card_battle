@@ -11,6 +11,7 @@
 
 以下欄位對所有視角相同,因為內容本來就是公開資訊:
 
+- `consecutive_passes`:非戰鬥中雙方連續 pass 的次數(引擎判斷結束戰鬥階段用的同一個值),供回合轉盤顯示「再 pass 就換人」;pass 是公開的行動結果。戰鬥效果步驟的 `effect_passes` 不送。
 - `pending.info`:決策的公開脈絡(目前是擲幣結果,見 `game-engine/design.md`「中途決策」)。`pending.data` 永遠不送。
 - `battle.attacker_breakdown` / `defender_breakdown`:合計魔力的即時明細,內容是場上的卡、已宣告的戰術與已公開的效果。
 - `effects`:作用中的待命與持續效果(待命在前、持續效果在後,各自依建立順序)。

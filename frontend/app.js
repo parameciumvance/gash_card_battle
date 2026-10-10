@@ -849,6 +849,7 @@ function render() {
   renderPlayerZone(document.getElementById("zone-bottom"), 1 - topPlayerIndex(), false);
   renderTimingTrack();
   renderBattleStage();
+  renderTurnDial();
   renderActionBar();
   if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔書網格依新狀態重繪(決策結束時不再可選)
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
@@ -1149,7 +1150,6 @@ function renderPlayerZone(zone, p, isTop) {
     el.textContent = t(key);
     head.appendChild(el);
   };
-  if (S.phase !== "game_over" && S.turn_player === p) badge("turn-marker", "ui.turn_marker");   // 整個回合都在
   if (active) badge("acting-label", "ui.acting_label");
   const rest = document.createElement("span");
   rest.className = "pz-head-rest";
@@ -1635,6 +1635,57 @@ function renderTimingTrack() {
   track.append(step("start"), span("sep", "›"), phase, span("sep", "›"), step("end"));
 }
 
+// 回合轉盤(行動欄左端,取代摘要文字):外圈「回合玩家」箭頭指向回合玩家那一側(下方 0°、上方 180°);
+// 非戰鬥中已 pass 一次順時鐘多轉 45°,表示再 pass 就換人。角度累計保存:轉回時反向 45°,其餘一律順時鐘轉到目標。
+// 右側「行動玩家」箭頭指向等待輸入的一方。轉盤元素常駐(不隨行動欄重建),旋轉才有動畫。
+let dialAngle = null;
+let dialRoom = null;
+
+function renderTurnDial() {
+  const cluster = document.getElementById("turn-cluster");
+  const timing = currentTiming();
+  cluster.classList.toggle("hidden", timing === "over");
+  if (timing === "over") return;
+  const dial = document.getElementById("turn-dial");
+  const tilted = (timing === "nonbattle" || timing === "end") && S.consecutive_passes >= 1;
+  const target = (topPlayerIndex() === S.turn_player ? 180 : 0) + (tilted ? 45 : 0);
+  const room = SESSION && SESSION.code;
+  const instant = dialAngle === null || dialRoom !== room;
+  if (instant) {
+    dialAngle = target;
+  } else {
+    const cur = ((dialAngle % 360) + 360) % 360;
+    if (target === (cur + 315) % 360) dialAngle -= 45;               // 有人行動:轉回
+    else dialAngle += (target - cur + 360) % 360;                    // 順時鐘前進
+  }
+  dialRoom = room;
+  dial.classList.toggle("instant", instant);
+  dial.dataset.angle = dialAngle;
+  dial.style.setProperty("--dial-angle", `${dialAngle}deg`);
+  dial.querySelector(".dial-tab-text").textContent = t("ui.turn_dial.label");
+  const center = dial.querySelector(".dial-center");
+  const phase = IN_BATTLE_STEPS.includes(timing) ? "battle" : timing;   // start / nonbattle / battle / end
+  center.textContent = t(`ui.turn_dial.${phase}`);
+  center.dataset.phase = phase;
+
+  const awaited = awaitedPlayer();
+  const pointer = document.getElementById("acting-pointer");
+  pointer.querySelector(".pointer-text").textContent = t("ui.turn_dial.acting");
+  pointer.classList.toggle("up", awaited !== null && topPlayerIndex() === awaited);
+  pointer.classList.toggle("hidden", awaited === null);
+  cluster.setAttribute("aria-label", awaited === null ? "" : actionSummary(awaited, timing));
+
+  const note = document.getElementById("dial-note");               // 傾斜時的固定小字提示(不隨外圈旋轉)
+  const me = selfPlayer();                                            // 下一個回合是誰的,依觀看者稱呼
+  note.textContent = me === null ? t("ui.turn_dial.one_pass.named", { player: pname(1 - S.turn_player) })
+    : t(S.turn_player === me ? "ui.turn_dial.one_pass.opp" : "ui.turn_dial.one_pass.mine");
+  note.classList.toggle("hidden", !(tilted && timing === "nonbattle"));
+  if (instant) {
+    void dial.offsetWidth;                                           // 先套用角度再恢復動畫
+    dial.classList.remove("instant");
+  }
+}
+
 function renderBattleStage() {
   const stage = document.getElementById("battle-stage");
   const content = document.getElementById("stage-content");
@@ -1706,7 +1757,7 @@ function renderBattleStage() {
   }
 }
 
-// 行動欄摘要:輪到誰、誰的回合、目前的時機。可操作的一方以「你」稱呼(本機與觀戰以名稱)
+// 行動欄摘要(回合轉盤的 aria-label):輪到誰、誰的回合、目前的時機。可操作的一方以「你」稱呼(本機與觀戰以名稱)
 function actionSummary(awaited, timing) {
   const me = selfPlayer();
   const turn = me === null ? t("ui.turn_of.named", { player: pname(S.turn_player) })
@@ -1738,19 +1789,15 @@ function hintsShown() {
 }
 
 function renderActionBar() {
-  const bar = document.getElementById("action-bar");
+  const outer = document.getElementById("action-bar");
+  const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
-  bar.classList.remove("mine");
+  outer.classList.remove("mine");
   if (!S || S.phase === "game_over") return;
   const timing = currentTiming();
   const awaited = awaitedPlayer();
   const mine = awaited !== null && iControl(awaited);
-  bar.classList.toggle("mine", mine);                // 輪到自己:行動欄醒目
-
-  const summary = document.createElement("span");
-  summary.className = "summary";
-  summary.textContent = actionSummary(awaited, timing);
-  bar.appendChild(summary);
+  outer.classList.toggle("mine", mine);              // 輪到自己:行動欄醒目
   let details = null;
   if (mine && PICK) {                                  // 決策:行動欄顯示決策區塊,目標在原位置選
     bar.appendChild(PICK.local ? localPromptEl() : choicePromptEl());
@@ -1783,9 +1830,20 @@ function renderActionBar() {
       }
     }
   }
-  const addBtn = (label, onclick, primary) => {
+  const addBtn = (label, onclick, primary, note) => {
     const btn = document.createElement("button");
-    btn.textContent = label;
+    if (note) {                                        // 兩行:上行按鈕名稱,下行小字附註
+      const main = document.createElement("span");
+      main.className = "btn-label";
+      main.textContent = label;
+      const sub = document.createElement("span");
+      sub.className = "btn-note";
+      sub.textContent = note;
+      btn.classList.add("noted");
+      btn.append(main, sub);
+    } else {
+      btn.textContent = label;
+    }
     if (primary) btn.classList.add("primary");
     btn.onclick = onclick;
     bar.appendChild(btn);
@@ -1810,11 +1868,13 @@ function renderActionBar() {
       }
     } else if (timing === "battle_in") {
       addBtn(t("ui.allow_battle"),
-        () => send({ type: "battle_in_response", player: awaited, allow: true }), true);
+        () => send({ type: "battle_in_response", player: awaited, allow: true }), true, t("ui.allow_battle_note"));
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
-      addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }));
+      const passNote = timing === "effects" ? "ui.pass_note.battle"
+        : awaited === S.turn_player ? "ui.pass_note.own_turn" : "ui.pass_note.opp_turn";
+      addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }), false, t(passNote));
       const borrow = borrowedEffect(awaited);        // E-010:借來的搭檔效果(該搭檔離場也在)
       if (borrow) {
         addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
@@ -2071,9 +2131,20 @@ function choicePromptEl() {
   }
   const row = document.createElement("div");
   row.className = "choice-options";
-  const addBtn = (label, onclick, primary) => {
+  const addBtn = (label, onclick, primary, note) => {
     const btn = document.createElement("button");
-    btn.textContent = label;
+    if (note) {                                        // 兩行:上行按鈕名稱,下行小字附註
+      const main = document.createElement("span");
+      main.className = "btn-label";
+      main.textContent = label;
+      const sub = document.createElement("span");
+      sub.className = "btn-note";
+      sub.textContent = note;
+      btn.classList.add("noted");
+      btn.append(main, sub);
+    } else {
+      btn.textContent = label;
+    }
     if (primary) btn.classList.add("primary");
     btn.onclick = onclick;
     row.appendChild(btn);

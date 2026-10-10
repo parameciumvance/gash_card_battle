@@ -27,16 +27,16 @@ def zone_of(page, player):
     return "#zone-top" if page.evaluate(f"topPlayerIndex() === {player}") else "#zone-bottom"
 
 
-def test_turn_marker_and_acting_label_in_opponent_turn(page):
+def test_turn_dial_and_acting_label_in_opponent_turn(page):
     tp, me = start_as(page, "other")
     send(page, tp, {"type": "flip_pages", "count": 0})
     send(page, tp, {"type": "pass"})                                     # 對手的回合、輪到自己
     page.wait_for_function(f"S.action_player === {me}")
-    assert page.locator(f"{zone_of(page, tp)} .pz-head .turn-marker").count() == 1
-    assert page.locator(f"{zone_of(page, me)} .pz-head .turn-marker").count() == 0
+    dial = page.evaluate("Number(document.getElementById('turn-dial').dataset.angle) % 360")
+    assert dial == (180 if zone_of(page, tp) == "#zone-top" else 0) + 45   # 轉盤指向對手(回合玩家),已 pass 一次
     assert page.locator(f"{zone_of(page, me)} .pz-head .acting-label").count() == 1
     assert page.locator(f"{zone_of(page, tp)} .pz-head .acting-label").count() == 0
-    assert page.locator("#action-bar .summary").text_content() == "輪到你(對手的回合・非戰鬥中)"
+    assert page.locator("#turn-cluster").get_attribute("aria-label") == "輪到你(對手的回合・非戰鬥中)"
     assert "mine" in page.locator("#action-bar").get_attribute("class")
     assert page.locator("#timing-track .current").get_attribute("data-step") == "nonbattle"
 
@@ -57,7 +57,7 @@ def test_timing_track_marks_defense(page):
 def test_start_phase_marked_and_opponent_waiting_summary(page):
     tp, me = start_as(page, "other")
     assert page.locator("#timing-track .current").get_attribute("data-step") == "start"
-    assert page.locator("#action-bar .summary").text_content() == \
+    assert page.locator("#turn-cluster").get_attribute("aria-label") == \
         page.evaluate(f"`等待 ${{pname({tp})}} 行動(對手的回合・開始階段)`")
     assert "mine" not in (page.locator("#action-bar").get_attribute("class") or "")
 
@@ -109,7 +109,7 @@ def test_spectator_sees_indicators_but_no_glow(page):
     send(page, tp, {"type": "flip_pages", "count": 0})
     page.evaluate("SESSION = {...SESSION, viewer: 'spectator'}; render();")
     assert page.locator("#board .usable").count() == 0
-    assert page.locator(".pz-head .turn-marker").count() == 1
+    assert page.locator("#turn-cluster:not(.hidden)").count() == 1
     assert page.locator(".pz-head .acting-label").count() == 1
     assert page.locator("#timing-track .current").count() == 1
 

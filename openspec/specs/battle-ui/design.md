@@ -184,12 +184,22 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 
 ## 回合與時機指示
 
-- **單一來源**:`currentTiming()`(start / nonbattle / battle_in / defense / effects / end / over)與 `awaitedPlayer()` 由快照推得,區塊標示、時機指示、行動欄摘要與提示共用。
+- **單一來源**:`currentTiming()`(start / nonbattle / battle_in / defense / effects / end / over)與 `awaitedPlayer()` 由快照推得,區塊標示、時機指示、回合轉盤、行動欄提示共用。
   - 結束階段沒有自己的 `phase` 值:引擎在結束處理期間 `phase` 仍為 battle,只有魔物消失處理等待選頁時停下,以 `pending.kind == "deploy_page"` 判斷為 end。
   - `awaitedPlayer()` 與伺服器的 `awaited_player` 同一規則。
-- **區塊**:回合玩家記號依 `turn_player`(整個回合);「行動中」依 `awaitedPlayer()`;輪到可操作的一方時行動欄加 `mine`。
+- **區塊**:「行動中」依 `awaitedPlayer()`;輪到可操作的一方時行動欄加 `mine`。回合玩家不再在區塊名稱旁標示,改由回合轉盤表示。
+- **回合轉盤**(`renderTurnDial`,行動欄左端,取代摘要文字):
+  - 行動欄拆成常駐的 `#turn-cluster` 與每次重建的 `#action-main`;轉盤不隨 `renderActionBar` 重建,旋轉才有動畫。
+  - 三層:`.dial-ring` 外圈與順時鐘箭頭固定(箭頭分左右兩段弧,避開標籤會停留的上、下、左下、右上);`.dial-rotor` 以 `--dial-angle` 旋轉,帶「回合玩家」三角箭頭標籤(文字反向旋轉維持正向);`.dial-center` 依 `data-phase` 顯示綠底「非戰鬥」/ 紅底「戰鬥中」/「開始階段」/「結束階段」。
+  - 角度:回合玩家在下方 0°、上方 180°;非戰鬥中(或結束階段)`consecutive_passes >= 1` 加 45°。戰鬥中不加(宣告攻擊時次數已歸零)。角度累計保存:目標為目前 − 45° 時反向轉回,其餘一律順時鐘前進到等值角度,所以換人時從 45° 繼續轉到 180°。第一次繪製或換房時不做動畫,動畫關閉時不做 transition。
+  - 右側「行動玩家」三角箭頭指向 `awaitedPlayer()` 所在的一側;傾斜時下方以小字提示再 pass 就換誰的回合(依觀看者稱呼對手 / 你 / 玩家名)。不用滑鼠提示,觸控也看得到。
+  - 原摘要 `actionSummary()` 作為 `#turn-cluster` 的 `aria-label`。
+  - 位置的決定經過:中線正中央上下緊貼魔物欄、會蓋到卡;中線右端太小、文字被蓋、英日文出框;使用者確認改為放大放在行動欄(Confirmed)。
 - **時機指示**:`#timing-track` 在中線(`#battle-stage`)內、對決內容之上。窄螢幕時只顯示當下所在的一層,維持單行:不在戰鬥中時收起「戰鬥中」的子步驟;在戰鬥中時收起外層的開始、戰鬥階段與結束,只留「非戰鬥中 ⇄ 戰鬥中:開始確認 → 防禦 → 效果」。步驟文字不斷行,更窄的螢幕上只在步驟之間換行。`#battle-stage` 設 `flex-shrink: 0`,盤面比視窗高時不被壓扁。
-- **行動欄**:摘要一律顯示;詳細提示只對可操作的一方,條目依時機與是否回合玩家取自 `HINTS`(內容對應規則書「戰鬥階段可做的事」),展開狀態存 `gash-action-hints`,缺省收起。
+- **行動欄**:
+  - 行動欄底色深,行動選項用淺色按鈕(主要選項淺橘)做出對比;「展開提示」為虛線外框、透明底,和選項區分;三角箭頭用亮金色。只限行動欄,放大檢視與對話框的按鈕不變。
+  - Pass 與迎戰按鈕內兩行,下行小字附註(`ui.pass_note.*`、`ui.allow_battle_note`):Pass 依時機與是否回合玩家選「不進行自己回合行動 / 不進行對手回合行動 / 不使用戰鬥中效果」;「不防禦」沒有附註。
+  - 詳細提示只對可操作的一方,條目依時機與是否回合玩家取自 `HINTS`(內容對應規則書「戰鬥階段可做的事」),展開狀態存 `gash-action-hints`,缺省收起。
 - **可用卡發光**:`markUsable` 對可操作的一方的場上魔物、搭檔與翻開頁,以 `zoomActions(ctx)` 的按鈕判斷,有任一啟用即加 `usable`。發光與放大檢視按鈕同一套判斷,前端判斷不精確的地方兩者一起錯,修一處即可:
   - 搭檔卡:對應魔物須在場上且未裝搭檔。
   - 事件卡:依「自己的回合 / 對手的回合」圖示與是否回合玩家。
@@ -235,6 +245,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 語言只存在瀏覽器,伺服器不知道玩家的語言;同房玩家與觀戰者各自使用自己的語言。
 - **卡片文字**:全域 `TEXT` 是目前語言的卡片文字。`cname()` 對魔物以 `ui.card_with_attr` 加上效果名區分同名魔物(中、日「名稱《效果名》」,英「Name (Effect)」);放大檢視用 `cname()`,盤面小卡只顯示卡名(版面有限)。卡名下方的日文原名小字只在非日文時顯示。
 - **錯誤碼**:`api()` 失敗時,字典有 `error.<code>` 就用它,否則用伺服器的 `message`。字典裡的錯誤訊息是每個錯誤碼一條通用訊息,不帶伺服器訊息中的動態參數(卡號、頁數)。`tests/test_i18n_languages.py` 掃描伺服器程式中的錯誤碼(`IllegalCommand`、`DeckError`、`RoomError`、`_npc_http_error`、`"code": …`),要求三種字典都有;新增錯誤碼時要補三種語言的訊息。
+- **日文用語**:「バトルしていないとき」「バトル以外」統一為「非バトル」(介面字典與規則頁;卡片效果文不動),與「バトル中」對稱,也放得進回合轉盤的中心(使用者指定)。
 - **預組名稱**:`GET /api/decks` 回傳 `name_key` 時,前端以目前字典解析(`presetName()`),字典沒有才用伺服器的 `name`。
 - **標點與分隔**:清單分隔、卡片資訊分隔、頂欄分隔、括號與「玩家:標題」也走字典(`ui.sep.*`、`ui.paren`、`ui.choice_title`、`ui.you_suffix`),英文用半形與空白。
 - **用語**:中文一律稱「魔書」「戰術」「戰術卡」(專案負責人指定),畫面文字、卡片中譯、README、規格與設計文件、程式註解與伺服器訊息都相同;歸檔的 change 是歷史紀錄,保留當時的「魔本」「術」。屬性名「武術」與「術語」「技術」等一般詞不受影響。日文採規則書用語(スタートフェイズ、ターンプレイヤー、魔書、戰術、パートナー、捨て札、負傷状態、かばう、スタンバイ、ステイ、ジャマー、表 / 裏);英文對齊卡圖與 TTS 卡表(START PHASE、turn player、Spell Book、SPELL、MAMODO、Partner、Event、Power、Injured、PROTECT、STANDBY、STAY、Discard Pile、heads / tails)。卡面圖示三種語言都用卡面上的稱呼:「攻(A)」「防(D)」(英文 A (Attack) / D (Defense))、BATTLE、NO BATTLE、CUT-IN。

@@ -142,6 +142,7 @@ def snapshot(game: Game, viewer) -> dict:
         "turn_no": st.turn_no,
         "turn_player": st.turn_player,
         "action_player": st.action_player,
+        "consecutive_passes": st.consecutive_passes,   # 非戰鬥中雙方連續 pass 的次數(公開)
         "players": [_player_view(game, 0, viewer), _player_view(game, 1, viewer)],
         "winner": st.winner,
         "end_reason": st.end_reason,
