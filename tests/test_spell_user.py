@@ -184,3 +184,68 @@ def test_any_page_spells_listed_while_standby_active():
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})     # 戰鬥開始時消耗待命
     assert g.state.battle.attack_slot == second.uid                            # 以指定的分身體使用
     assert not snapshot(g, 0)["players"][0]["any_page_spells"]                # 待命用掉後不再列出
+
+
+# ---------------------------------------------------------------- 使用事件帶使用魔物
+
+def _used_event(events):
+    return next(e for e in events if e["type"] == "book_card_used")
+
+
+def test_book_card_used_records_chosen_user():
+    g = mk(book("M-001", "S-026"))
+    gash = g.state.players[0].slots[0]
+    give(g, 0, "M-008")
+    to_battle(g)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2, "slot_uid": gash.uid})
+    assert _used_event(events)["mamodo"] == "M-001"
+
+
+def test_book_card_used_records_default_user():
+    # 未指定:能用且未被封鎖者中費用最低的第一隻(S-026 都是 0 費 → 依場上順序,略過被封鎖的賈修)
+    g = mk(book("M-001", "S-026"))
+    gash = g.state.players[0].slots[0]
+    give(g, 0, "M-008")
+    to_battle(g)
+    lock(g, 0, gash)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert _used_event(events)["mamodo"] == "M-008"
+
+
+def test_event_card_used_has_no_user():
+    g = mk(book("M-001", "E-003"))
+    to_battle(g)
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert "mamodo" not in _used_event(events)
+
+
+# ---------------------------------------------------------------- P-001 只能在自己的回合使用
+
+def _to_opponent_turn_with_action(g):
+    """玩家 0 結束回合;對手翻頁後 pass,行動權回到玩家 0(對手回合的非戰鬥中)。"""
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})
+    submit(g, {"type": "pass", "player": 1})
+    assert g.state.turn_player == 1 and g.state.action_player == 0 and g.state.battle is None
+
+
+def test_p001_rejected_on_opponent_turn():
+    # 「このターン中の次のバトルで、自分が…攻撃するとき」:對手回合一定沒有效果
+    g = mk(book("M-001"))
+    gash = g.state.players[0].slots[0]
+    gash.partner = "P-001"
+    _to_opponent_turn_with_action(g)
+    assert code(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": gash.uid}) == "ability.timing"
+    assert gash.partner == "P-001" and "P-001" not in g.state.players[0].discard
+
+
+def test_p007_usable_on_opponent_turn():
+    # P-007 攻擊與防禦都有作用,不限制
+    g = mk(book("M-001"))
+    gash = g.state.players[0].slots[0]
+    gash.partner = "P-007"
+    _to_opponent_turn_with_action(g)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "partner", "slot_uid": gash.uid})
+    assert "P-007" in g.state.players[0].discard

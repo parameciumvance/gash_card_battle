@@ -516,7 +516,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在自己的回合使用")
         if card.ad == "D" and player == st.turn_player:
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在對手的回合使用")
-        user = _nonbattle_spell_user(game, player, card, command.get("slot_uid"))
+        user = _nonbattle_spell_user(game, player, page, card, command.get("slot_uid"))
         if number in st.players[player].used_nonbattle_spells:
             raise IllegalCommand("spell.used", "此非戰鬥戰術本回合已使用過")
         handler = reg.SPELL_NONBATTLE.get(number)
@@ -527,7 +527,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
             raise IllegalCommand("spell.mp", "MP 不足")
         st.players[player].used_nonbattle_spells.add(number)
         pay_mp(game, batch, player, cost, f"spell:{number}")
-        game.emit(batch, "book_card_used", player=player, card=number, page=page)
+        game.emit(batch, "book_card_used", player=player, card=number, page=page, mamodo=user.top)
         handler(game, batch, player)
         _check_victory(game, batch)
     else:
@@ -578,8 +578,8 @@ def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -
     return bool(compat and compat(game, player, slot, card))
 
 
-def _nonbattle_spell_user(game: Game, player: int, card: CardDef, slot_uid) -> MamodoSlot | None:
-    """非戰鬥戰術的使用魔物:指定時須能使用且未被 E-024 封鎖;未指定時回傳 None(以未被封鎖者的最低費用計)。
+def _nonbattle_spell_user(game: Game, player: int, page: int, card: CardDef, slot_uid) -> MamodoSlot:
+    """非戰鬥戰術的使用魔物:指定時須能使用且未被 E-024 封鎖;未指定時取未被封鎖者中費用最低的第一隻。
     E-024「その魔物の…術を使えない」不分戰鬥與非戰鬥。"""
     st = game.state
     usable = [s for s in st.players[player].slots
@@ -593,9 +593,11 @@ def _nonbattle_spell_user(game: Game, player: int, card: CardDef, slot_uid) -> M
         return slot
     if not usable:
         raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
-    if all(slot_restricted(game, player, MAMODO_LOCKED, s.uid) for s in usable):
+    free = [s for s in usable if not slot_restricted(game, player, MAMODO_LOCKED, s.uid)]
+    if not free:
         raise IllegalCommand("spell.mamodo_locked", "此魔物本回合不能使用戰術卡")
-    return None
+    # 未指定:未被封鎖者中費用最低的第一隻(依場上順序),記在使用事件中
+    return min(free, key=lambda s: spell_cost(game, player, page, card, slot=s))
 
 
 def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, attack: bool,

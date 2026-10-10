@@ -105,6 +105,8 @@
   "log.card_played_stacked": "{player} 叠放《{card}》(变身)",
   "log.card_played_forced": "{player} 强制放出《{card}》(魔物消失处理)",
   "log.book_card_used": "{player} 使用事件卡《{card}》",
+  "log.spell_used": "{player} 使用战术《{card}》",
+  "log.spell_used_by": "{player} 以〔{mamodo}〕使用战术《{card}》",
   "log.ability_used": "{player} 发动《{card}》的效果",
   "ui.borrowed_effect": "借用效果:{card}",
   "ui.use_borrowed": "使用",

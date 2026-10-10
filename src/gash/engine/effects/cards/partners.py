@@ -16,7 +16,8 @@ from ..tree import (
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
 # 「某魔物の術 / 某魔物による」類效果以「使用戰術的魔物」判定,指令戰術由該魔物使用時也適用。
 
-reg.activated("P-001", mode="discard", timing="nonbattle",
+# 對手回合的「次のバトル」是對手攻擊,一定沒有效果:限自己的回合(P-007 攻防都有作用,不限制)
+reg.activated("P-001", mode="discard", timing="nonbattle", own_turn=True,
               effect=MakeNextAttackUndefendable(mamodo="ガッシュ・ベル"))
 reg.activated("P-002", mode="discard", timing="nonbattle", effect=StealOpponentMp(amount=3))
 # 作用對象(自分の「ブラゴ」/「ゴフレ」による攻撃、重複しない)不是使用條件:不成立時能用但沒有效果

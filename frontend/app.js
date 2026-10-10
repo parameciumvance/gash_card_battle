@@ -802,14 +802,12 @@ function spellUsable(p, entry, forAttack) {
   return { ...spellUsersCheck(p, entry), isCommand: isCommandSpell(def) };
 }
 
-// 選擇戰術的使用魔物:可選的只有一隻 → 直接;攻防兩隻以上 → 選擇視窗;
-// 非戰鬥戰術兩隻以上且費用不全相同 → 選擇視窗,否則第一隻可選者。一律送出 slot_uid
-function pickSpellUser(p, entry, nonbattle, cb) {
+// 選擇戰術的使用魔物(攻防、非戰鬥相同):可選的只有一隻 → 直接;兩隻以上 → 場上選擇。一律送出 slot_uid
+function pickSpellUser(p, entry, cb) {
   const users = spellUsers(p, entry);
   const ok = users.filter((u) => u.selectable);
   if (!ok.length) return;
-  const sameCost = ok.every((u) => u.cost === ok[0].cost);
-  if (ok.length === 1 || (nonbattle && sameCost)) { cb(ok[0].slot_uid); return; }
+  if (ok.length === 1) { cb(ok[0].slot_uid); return; }
   const title = isCommandSpell(CARDS[entry.card]) ? t("ui.pick_command_user") : t("ui.pick_spell_user");
   startLocalPick({
     player: p, title, source: entry.card, onpick: cb,
@@ -1484,7 +1482,7 @@ function anyPageButtons(p, entry) {
     label: t("ui.attack"), primary: true, disabled: !u.ok, reason: u.reason,
     onclick: () => {
       closeBookReview();   // 網格在選擇視窗之上:先關閉,使用魔物的選擇才看得到
-      pickSpellUser(p, entry, false,
+      pickSpellUser(p, entry,
         (uid) => send({ type: "declare_attack", player: p, page: entry.page, slot_uid: uid }));
     },
   }];
@@ -1541,7 +1539,7 @@ function pageButtons(p, entry) {
       const u = nonbattleSpellUsable(p, entry);
       buttons.push({
         label: t("ui.use_event"), primary: true, disabled: !u.ok, reason: u.reason,
-        onclick: () => pickSpellUser(p, entry, true,
+        onclick: () => pickSpellUser(p, entry,
           (uid) => send({ type: "use_book_card", player: p, page: entry.page, slot_uid: uid })),
       });
     }
@@ -1550,7 +1548,7 @@ function pageButtons(p, entry) {
       if (["A", "AD"].includes(def.ad)) {
         buttons.push({
           label: t("ui.attack"), primary: true, disabled: !u.ok, reason: u.reason,
-          onclick: () => pickSpellUser(p, entry, false,
+          onclick: () => pickSpellUser(p, entry,
             (uid) => send({ type: "declare_attack", player: p, page: entry.page, slot_uid: uid })),
         });
       }
@@ -1565,7 +1563,7 @@ function pageButtons(p, entry) {
       buttons.push({
         label: t("ui.defend"), primary: true,
         disabled: S.battle.attack_undefendable || !u.ok, reason: blocked,
-        onclick: () => pickSpellUser(p, entry, false,
+        onclick: () => pickSpellUser(p, entry,
           (uid) => send({ type: "declare_defense", player: p, page: entry.page, slot_uid: uid })),
       });
     }
@@ -2676,7 +2674,13 @@ function logLine(ev) {
       if (ev.stacked) return t("log.card_played_stacked", { ...P, card: cname(ev.card) });
       if (ev.forced) return t("log.card_played_forced", { ...P, card: cname(ev.card) });
       return t("log.card_played", { ...P, card: cname(ev.card) });
-    case "book_card_used": return t("log.book_card_used", { ...P, card: cname(ev.card) });
+    case "book_card_used":   // 戰術依是否帶使用魔物描述;事件卡維持「使用事件卡」
+      if (CARDS[ev.card] && CARDS[ev.card].type === "spell") {
+        return ev.mamodo
+          ? t("log.spell_used_by", { ...P, mamodo: cname(ev.mamodo), card: cname(ev.card) })
+          : t("log.spell_used", { ...P, card: cname(ev.card) });
+      }
+      return t("log.book_card_used", { ...P, card: cname(ev.card) });
     case "ability_used":
       return ev.via   // E-010 借用的搭檔效果:顯示為使用者經 E-010 使用
         ? t("log.ability_used_borrowed", { ...P, source: cname(ev.via), card: cname(ev.card) })

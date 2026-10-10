@@ -105,6 +105,8 @@
   "log.card_played_stacked": "{player} stacks “{card}” (transformation)",
   "log.card_played_forced": "{player} is forced to play “{card}” (no MAMODO in play)",
   "log.book_card_used": "{player} uses the Event “{card}”",
+  "log.spell_used": "{player} uses the SPELL “{card}”",
+  "log.spell_used_by": "{player} uses the SPELL “{card}” with {mamodo}",
   "log.ability_used": "{player} uses the effect of “{card}”",
   "ui.borrowed_effect": "Borrowed effect: {card}",
   "ui.use_borrowed": "Use",

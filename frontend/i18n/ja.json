@@ -105,6 +105,8 @@
   "log.card_played_stacked": "{player} が「{card}」を重ねる(変身)",
   "log.card_played_forced": "{player} が「{card}」を場に出す(魔物がいなくなったときの処理)",
   "log.book_card_used": "{player} がイベント「{card}」を使う",
+  "log.spell_used": "{player} が術「{card}」を使う",
+  "log.spell_used_by": "{player} が〔{mamodo}〕で術「{card}」を使う",
   "log.ability_used": "{player} が「{card}」の効果を使う",
   "ui.borrowed_effect": "借りた効果:{card}",
   "ui.use_borrowed": "使う",

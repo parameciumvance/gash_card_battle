@@ -148,26 +148,69 @@ def test_locked_user_skipped(page):
     assert sent(page)[0]["slot_uid"] == slots["M-029"]
 
 
-def test_nonbattle_picker_only_when_costs_differ(page):
+def test_nonbattle_picker_when_two_users(page):
+    # 非戰鬥戰術(含指令戰術)與攻防相同:可選的兩隻以上就在場上選,費用相同也問
     tp = start_local(page)
     pos = page.evaluate(f"S.players[{tp}].pos")
     set_book(page, tp, {pos: "S-026"})
     send(page, {"type": "flip_pages", "player": tp, "count": 0})
     gash = page.evaluate(f"S.players[{tp}].slots[0].uid")
-    def users(costs):
+    def users(uids):
         page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
           open_pages: ps.open_pages.map((e) => e.page === {pos} ? {{...e, cost: 0,
-            users: {costs}.map((c, k) => ({{slot_uid: {gash} + k * 100, cost: c, locked: false}}))}} : e)}})}}; render()""")
+            users: {uids}.map((u) => ({{slot_uid: u, cost: 0, locked: false}}))}} : e)}})}}; render()""")
     stub_send(page)
-    users([0, 0])
+    users([gash])
     open_page_zoom(page, tp, pos)
     page.locator("#zoom-actions button", has_text="使用").click()
-    assert not dialog_open(page) and sent(page)[0]["slot_uid"] == gash
+    assert page.locator("#action-bar .choice-prompt").count() == 0 and sent(page)[0]["slot_uid"] == gash
     page.evaluate("closeZoom(); window.__sent = []")
-    users([0, 2])
+    users([gash, gash + 100])
     open_page_zoom(page, tp, pos)
     page.locator("#zoom-actions button", has_text="使用").click()
-    assert page.locator("#action-bar .choice-prompt").count() == 1 and sent(page) == []   # 費用不同:在場上選
+    assert page.locator("#action-bar .choice-prompt").count() == 1 and sent(page) == []
+
+
+def test_book_card_used_log_by_type(page):
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "S-026", pos + 1: "E-003"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    gash = page.evaluate(f"S.players[{tp}].slots[0].uid")
+    send(page, {"type": "use_book_card", "player": tp, "page": pos, "slot_uid": gash})
+    page.wait_for_function("S.players[S.turn_player].used_nonbattle_spells.includes('S-026')")
+    if page.evaluate("S.pending"):
+        page.evaluate("send({type: 'choose', player: S.pending.player, value: S.pending.options[0].value})")
+    names = page.evaluate("[cname('S-026'), cname('M-001'), cname('E-003')]")
+    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用戰術《{names[0]}》')")
+    log = page.locator("#log").inner_text()
+    assert f"以〔{names[1]}〕使用戰術《{names[0]}》" in log
+    assert f"使用事件卡《{names[0]}》" not in log
+    send(page, {"type": "pass", "player": 1 - tp})
+    page.wait_for_function(f"S.action_player === {tp}")
+    send(page, {"type": "use_book_card", "player": tp, "page": pos + 1})
+    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用事件卡《{names[2]}》')")
+
+
+def test_p001_disabled_on_opponent_turn(page):
+    tp = start_local(page)
+    op = 1 - tp
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "P-001"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    gash = page.evaluate(f"S.players[{tp}].slots[0].uid")
+    send(page, {"type": "play_card", "player": tp, "page": pos, "slot_uid": gash})
+    page.wait_for_function(f"S.players[{tp}].slots[0].partner === 'P-001'")
+    send(page, {"type": "pass", "player": op})
+    send(page, {"type": "pass", "player": tp})
+    page.wait_for_function(f"S.turn_player === {op} && S.phase === 'start'")
+    send(page, {"type": "flip_pages", "player": op, "count": 0})
+    send(page, {"type": "pass", "player": op})
+    page.wait_for_function(f"S.action_player === {tp}")
+    page.evaluate(f"zoom('P-001', {{kind: 'partner', p: {tp}, uid: {gash}}})")
+    button = page.locator("#zoom-actions button").first
+    assert button.is_disabled()
+    assert "只能在自己的回合使用" in page.locator("#zoom-actions").inner_text()
 
 
 # ---------------------------------------------------------------- P-015 任意頁戰術
