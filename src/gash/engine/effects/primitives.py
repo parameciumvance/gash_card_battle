@@ -145,7 +145,7 @@ def return_to_book(game, batch, player, number, page):
 def play_mamodo_from_book(game, batch, player, page):
     """效果指示:自魔書任意頁放出魔物(受場上上限/同名上限約束,不合法時無效果)。"""
     from ..engine import MAX_FIELD_MAMODO, same_name_copies
-    from ..state import MamodoSlot
+    from ..state import MamodoSlot, place_slot
     ps = game.state.players[player]
     number = ps.card_at(page)
     card = game.db[number]
@@ -155,7 +155,7 @@ def play_mamodo_from_book(game, batch, player, page):
         return None
     take_from_book(game, batch, player, page)
     slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
-    ps.slots.append(slot)
+    place_slot(ps.slots, slot)
     game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
               zone="mamodo", from_book=True)
     if number in reg.ON_PLAY:

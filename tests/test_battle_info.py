@@ -228,3 +228,65 @@ def test_every_breakdown_kind_has_i18n_text():
     kinds |= set(re.findall(r'add_spell_power\([^)]*?kind="([a-z_]+)"', src, re.S)) | {"spell_bonus"}  # 預設種類
     assert len(kinds) >= 12
     assert [k for k in kinds if f"breakdown.{k}" not in _i18n()] == []
+
+
+# ================================================================ showdown 事件的對峙資訊
+
+def faceoff(ev):
+    return [ev.get(k, "missing") for k in ("attack_mamodo", "attack_spell", "defense_mamodo", "defense_spell")]
+
+
+def test_showdown_names_faceoff_cards():
+    g = game(turn=0)
+    start_attack(g, 3)                                                  # ガッシュ + S-001
+    submit(g, {"type": "declare_defense", "player": 1, "page": 3})
+    ev = showdown_of(both_pass(g))
+    assert faceoff(ev) == ["M-001", "S-001", slot0(g, 1).top, "S-001"]
+
+
+def test_showdown_no_defense_has_empty_defense_side():
+    g = game(turn=0)
+    start_attack(g, 3)
+    submit(g, {"type": "no_defense", "player": 1})
+    ev = showdown_of(both_pass(g))
+    assert faceoff(ev) == ["M-001", "S-001", None, None]
+
+
+def test_showdown_mamodo_attack_uses_stack_top():
+    g = game(turn=0)
+    armored = slot0(g, 0)
+    armored.stack = ["M-028", "M-027"]                                  # 疊放:最上面是 M-027
+    g.state.players[0].mp = 5
+    submit(g, {"type": "flip_pages", "player": 0, "count": 0})
+    submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": armored.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    submit(g, {"type": "no_defense", "player": 1})
+    ev = showdown_of(both_pass(g))
+    assert faceoff(ev) == ["M-027", None, None, None]
+
+
+# ================================================================ protected 事件標明原本的傷害對象
+
+def test_protected_event_names_book_target():
+    g = game(turn=0)
+    start_attack(g, 3)
+    submit(g, {"type": "no_defense", "player": 1})
+    both_pass(g)
+    assert g.state.pending.kind == "protect"
+    protector = slot0(g, 1)
+    events = submit(g, {"type": "choose", "player": 1, "value": protector.uid})
+    ev = next(e for e in events if e["type"] == "protected")
+    assert ev["slot"] == protector.uid and ev["target"] == "book" and ev["target_slot"] is None
+
+
+def test_protected_event_names_mamodo_target():
+    from gash.engine.engine import _start_damage
+    g = game(turn=0)
+    target = slot0(g, 1)
+    other = give(g, 1, "M-004")
+    _start_damage(g, [], [{"kind": "slot", "player": 1, "slot_uid": target.uid, "amount": 1}],
+                  {"cause": "test", "source": None})
+    assert g.state.pending.kind == "protect"
+    events = submit(g, {"type": "choose", "player": 1, "value": other.uid})
+    ev = next(e for e in events if e["type"] == "protected")
+    assert ev["target"] == "slot" and ev["target_slot"] == target.uid

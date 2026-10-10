@@ -12,7 +12,7 @@ from ..engine.engine import (
     MAMODO_LOCKED, _spell_any_page_standby, _spell_usable_by, exhausted_spell_pages, side_breakdown,
     slot_power, slot_restricted, spell_cost,
 )
-from ..engine.state import BOOK_SIZE, Game
+from ..engine.state import BOOK_SIZE, Game, slot_columns
 
 # 帶 viewer 欄位、內容僅該玩家可見的事件型別
 _VIEWER_SCOPED_EVENTS = {"book_revealed", "pages_peeked"}
@@ -39,6 +39,7 @@ def _slot_view(game: Game, player: int, slot) -> dict:
     from ..engine.effects import registry as reg
     return {
         "uid": slot.uid,
+        "column": slot_columns(game.state.players[player].slots)[slot.uid],   # 場上欄位(公開)
         "stack": list(slot.stack),
         "top": slot.top,
         "injured": slot.injured,

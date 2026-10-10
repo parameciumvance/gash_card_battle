@@ -1,6 +1,6 @@
 /* 事件驅動動畫層 — 統一管線:量測 → 時間軸(聚焦展示與阻塞演出依事件順序)→ 重繪 → 疊加特效。
  * 疊加式(翻頁/飛卡/MP token/負傷棄牌)不阻塞盤面更新;
- * 阻塞式(coin_flipped、showdown)短暫延後重繪(500-800ms),帶 1.5s 硬性逾時保底。
+ * 阻塞式(coin_flipped 約 800ms、showdown 對峙演出 2.5 / 1.2 秒)延後重繪,帶硬性逾時保底。
  * 聚焦展示:對手行動(與對自己不利的結果)在畫面中央停留,整批播完才重繪;點擊跳過。
  * 動畫開關依演出設定(未設定時依 prefers-reduced-motion);聚焦不屬於動畫,只看聚焦設定。
  * 音效(sound.js)跟著畫面:聚焦格出現時、阻塞演出時,其餘在重繪時;重繪後輪到自己時提示。
@@ -56,6 +56,20 @@ const Anim = (() => {
     return others || unfavorable(ev, me);
   }
 
+  // 阻塞演出的保底上限:依演出長度(對峙;能量加上保護者橫置與回原位)再留 1 秒
+  function blockingLimit(ev) {
+    if (ev.type === "showdown") return faceoffMs() + 1000;
+    if (damageHit(ev)) return energyMs() + 2 * guardMs() + 1000;
+    if (ev.type === "protected") return 2 * guardMs() + 1000;
+    return HARD_TIMEOUT;
+  }
+
+  // 造成傷害的事件:魔書受傷、魔物因傷害負傷或送墓
+  function damageHit(ev) {
+    return ev.type === "damage_dealt" || ev.type === "mamodo_injured"
+      || (ev.type === "mamodo_discarded" && ev.reason === "damage");
+  }
+
   function blocking(ev) {
     return BLOCKING.has(ev.type) && !(ev.type === "coin_flipped" && ev.source === "setup");
   }
@@ -74,6 +88,11 @@ const Anim = (() => {
         if (motion) steps.push({ kind: "anim", ev, events: [ev] });
         cur = null;
         continue;
+      }
+      const hit = motion && (damageHit(ev) || ev.type === "protected");
+      if (hit) {                                  // 保護 / 傷害:保護者移到傷害對象前、能量衝向承受者,之後的文字另起一格
+        steps.push({ kind: "anim", ev, events: [ev] });
+        cur = null;
       }
       if (ev.type === "turn_started") {           // 回合開始橫幅:每回合都顯示,不論行動者
         if (enabled) {
@@ -97,7 +116,7 @@ const Anim = (() => {
           steps.push(cur);
         }
         cur.lines.push(line);
-        cur.events.push(ev);
+        if (!hit) cur.events.push(ev);            // 傷害的音效已在能量命中時播放
         cur.pass = cur.pass && ev.type === "passed";
       }
     }
@@ -123,12 +142,16 @@ const Anim = (() => {
     pending += 1;
     queue = queue
       .then(() => run(events, prevState, renderFn, actor))
-      .catch(() => { try { renderFn(); } catch (_) { /* 保底 */ } })
+      .catch(() => {
+        try { renderFn(); } catch (_) { /* 保底 */ }
+        clearGuardLeftovers();                    // 保護演出中斷時復原
+      })
       .finally(() => { pending -= 1; });
     return queue;
   }
 
   async function run(events, prevState, renderFn, actor) {
+    clearGuardLeftovers();                        // 上一批逾時後才回到原位的保護演出殘留
     if (!events.length || !boardVisible() || !overlay()) {
       renderFn();
       return;
@@ -142,10 +165,14 @@ const Anim = (() => {
     const sound = actor !== null && actor !== undefined;
     for (const step of steps) {
       if (sound) Sfx.play(Sfx.pick(step.events, me));
-      if (step.kind === "anim") await withTimeout(playBlocking(step.ev, prevState), HARD_TIMEOUT);
+      if (step.kind === "anim") {
+        await withTimeout(playBlocking(step.ev, prevState), blockingLimit(step.ev));
+      }
       else await spotlight(step, motion);
     }
+    await guardReturn();                          // 保護者沒有承受能量(傷害被防止等)時回到原位
     renderFn();
+    clearGuardLeftovers();
     if (motion) playOverlays(events, marks);
     if (!sound) return;
     const used = new Set(steps.flatMap((step) => step.events));
@@ -393,7 +420,9 @@ const Anim = (() => {
 
   function playBlocking(ev, prevState) {
     if (ev.type === "coin_flipped") return coinFlip(ev);
-    if (ev.type === "showdown") return showdown(ev, prevState);
+    if (ev.type === "showdown") return showdown(ev);
+    if (damageHit(ev)) return energyShot(ev);
+    if (ev.type === "protected") return guardMove(ev);
     return Promise.resolve();
   }
 
@@ -412,36 +441,244 @@ const Anim = (() => {
     wrap.remove();
   }
 
-  // 魔力對決:中央橫幅,攻防數字滾動至合計,勝方金光/敗方黯淡(合計約 800ms)
-  async function showdown(ev, prevState) {
+  // 魔力對決:中央上下對峙(各組自己那一側滑入)→ 合計滾動 → 勝方衝撞 → 結果大字。
+  // 總長標準 2.5 秒、快(或落後)1.2 秒,點擊跳過;各時段依總長比例。
+  function faceoffMs() { return spotlightMode() === "fast" || pending >= 2 ? 1200 : 2500; }
+
+  function faceoffGroup(side, ev) {
+    const attack = side === "attack";
+    const player = attack ? ev.attacker : 1 - ev.attacker;
+    const g = document.createElement("div");
+    g.className = `fo-group ${side} ${topPlayerIndex() === player ? "top" : "bottom"}`;
+    const label = document.createElement("div");
+    label.className = "fo-label";
+    label.textContent = `${t(attack ? "anim.showdown.att" : "anim.showdown.def")} ${pname(player)}`;
+    const cards = document.createElement("div");
+    cards.className = "fo-cards";
+    const slot = (num, emptyKey) => {
+      const cell = document.createElement("div");
+      cell.className = "fo-card";
+      if (num) {
+        cell.dataset.card = num;
+        cell.appendChild(cardEl(num));
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "fo-empty";
+        empty.textContent = emptyKey ? t(emptyKey) : "";
+        cell.appendChild(empty);
+      }
+      cards.appendChild(cell);
+    };
+    const mamodo = attack ? ev.attack_mamodo : ev.defense_mamodo;
+    let spell = attack ? ev.attack_spell : ev.defense_spell;
+    if (attack && !spell) {                         // 無戰術攻擊:固定魔力的來源卡
+      const fixed = (ev.attacker_breakdown || []).find((i) => i.kind === "fixed");
+      spell = fixed && fixed.source && fixed.source !== mamodo ? fixed.source : null;
+    }
+    if (attack || spell) {
+      slot(mamodo, null);
+      slot(spell, "anim.showdown.no_spell");
+    } else {
+      slot(null, "anim.showdown.no_defense");      // 不防禦:沒有特定的魔物,只放「不防禦」
+    }
+    const total = document.createElement("div");
+    total.className = "fo-total";
+    total.dataset.final = attack ? ev.attacker_total : ev.defender_total;
+    total.textContent = "0";
+    g.append(label, cards, total);
+    return g;
+  }
+
+  async function showdown(ev) {
+    const T = faceoffMs();
     const wrap = document.createElement("div");
-    wrap.className = "fx-showdown";
-    wrap.innerHTML =
-      `<div class="sd-side attack"><span class="sd-label">${t("anim.showdown.att")}</span>` +
-      `<span class="sd-num" data-final="${ev.attacker_total}">0</span></div>` +
-      `<div class="sd-vs">VS</div>` +
-      `<div class="sd-side defense"><span class="sd-label">${t("anim.showdown.def")}</span>` +
-      `<span class="sd-num" data-final="${ev.defender_total}">0</span></div>`;
+    wrap.className = "fx-faceoff";
+    wrap.style.setProperty("--fo-ms", `${T}ms`);
+    const att = faceoffGroup("attack", ev);
+    const def = faceoffGroup("defense", ev);
+    const vs = document.createElement("div");
+    vs.className = "fo-vs";
+    vs.textContent = t("anim.showdown.vs");
+    const stage = document.createElement("div");
+    stage.className = "fo-stage";
+    const [upper, lower] = att.classList.contains("top") ? [att, def] : [def, att];
+    stage.append(upper, vs, lower);
+    wrap.appendChild(stage);
+    let skipped = false;
+    let skip = null;
+    const skipP = new Promise((res) => { skip = res; });
+    wrap.style.pointerEvents = "auto";
+    wrap.onclick = () => { skipped = true; skip(); };
     overlay().appendChild(wrap);
-    const rollMs = 380;
-    const start = performance.now();
-    const nums = wrap.querySelectorAll(".sd-num");
-    await new Promise((done) => {
-      (function tick(now) {
-        const k = Math.min(1, (now - start) / rollMs);
-        for (const el of nums) {
-          el.textContent = Math.round(Number(el.dataset.final) * k);
-        }
-        if (k < 1) requestAnimationFrame(tick);
-        else done();
-      })(start);
+    const phase = (k) => Promise.race([wait(T * k), skipP]);
+    try {
+      await phase(0.2);                                                 // 滑入
+      if (skipped) return;
+      const rollMs = T * 0.3;
+      const start = performance.now();
+      const nums = [att, def].map((g) => g.querySelector(".fo-total"));
+      await Promise.race([skipP, new Promise((done) => {
+        (function tick(now) {
+          const k = Math.min(1, (now - start) / rollMs);
+          for (const el of nums) el.textContent = Math.round(Number(el.dataset.final) * k);
+          if (k < 1 && !skipped) requestAnimationFrame(tick);
+          else done();
+        })(start);
+      })]);
+      if (skipped) return;
+      for (const [g, negated] of [[att, ev.attack_negated], [def, (ev.defender_breakdown || []).some((i) => i.kind === "negated")]]) {
+        if (!negated) continue;
+        const stamp = document.createElement("div");
+        stamp.className = "fo-stamp";
+        stamp.textContent = t("anim.showdown.negated");
+        g.querySelector(".fo-cards").appendChild(stamp);
+      }
+      const [win, lose] = ev.winner === "attacker" ? [att, def] : [def, att];
+      win.classList.add("clash");                                       // 勝方朝敗方衝撞
+      lose.classList.add("shake");
+      await phase(0.12);
+      if (skipped) return;
+      win.classList.add("win");
+      lose.classList.add("lose");
+      const result = document.createElement("div");
+      result.className = "fo-result";
+      const main = document.createElement("div");
+      main.className = "fo-result-main";
+      const tie = ev.winner !== "attacker" && !ev.attack_negated && ev.attacker_total === ev.defender_total;
+      main.textContent = t(ev.winner === "attacker" ? "anim.showdown.attack_success"
+        : ev.attack_negated ? "anim.showdown.attack_negated" : "anim.showdown.defense_success");
+      result.appendChild(main);
+      if (tie) {
+        const sub = document.createElement("div");
+        sub.className = "fo-result-sub";
+        sub.textContent = t("anim.showdown.tie");
+        result.appendChild(sub);
+      }
+      vs.replaceWith(result);
+      await phase(0.38);
+    } finally {
+      wrap.remove();
+    }
+  }
+
+  // 傷害能量:自畫面中央(對峙演出與聚焦展示的位置)飛向承受傷害的魔書或魔物,命中時爆光。
+  // 盤面尚未重繪,目標仍在原位(送墓的魔物也還在)。標準約 650ms、快約 380ms。
+  function energyMs() { return spotlightMode() === "fast" || pending >= 2 ? 380 : 650; }
+
+  function damageTarget(ev) {
+    const zone = zoneOf(ev.player);
+    if (!zone) return null;
+    const el = ev.type === "damage_dealt" ? zone.querySelector(".book-cover")
+      : zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="mamodo"]`);
+    return el && el.getBoundingClientRect();
+  }
+
+  async function energyShot(ev) {
+    const guarding = guard && ev.type !== "damage_dealt" && guard.player === ev.player && guard.slot === ev.slot;
+    const rect = guarding ? guard.el.getBoundingClientRect() : damageTarget(ev);
+    if (!rect) return;
+    const T = energyMs();
+    const fly = T * 0.7;
+    const orb = document.createElement("div");
+    orb.className = "fx-energy";
+    orb.dataset.target = ev.type === "damage_dealt" ? `book-${ev.player}` : `slot-${ev.slot}`;
+    const x0 = window.innerWidth / 2;
+    const y0 = window.innerHeight / 2;
+    const x1 = rect.left + rect.width / 2;
+    const y1 = rect.top + rect.height / 2;
+    Object.assign(orb.style, { left: `${x0}px`, top: `${y0}px`, "--fly-ms": `${fly}ms` });
+    const angle = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
+    orb.style.setProperty("--angle", `${angle}deg`);
+    overlay().appendChild(orb);
+    orb.getBoundingClientRect();
+    Object.assign(orb.style, { left: `${x1}px`, top: `${y1}px` });
+    await wait(fly);
+    orb.remove();
+    const burst = document.createElement("div");
+    burst.className = "fx-impact";
+    Object.assign(burst.style, {
+      left: `${x1}px`, top: `${y1}px`, "--impact-ms": `${T - fly}ms`,
+      width: `${Math.max(rect.width, rect.height) * 1.3}px`, height: `${Math.max(rect.width, rect.height) * 1.3}px`,
     });
-    const winSide = ev.winner === "attacker" ? ".attack" : ".defense";
-    const loseSide = ev.winner === "attacker" ? ".defense" : ".attack";
-    wrap.querySelector(winSide).classList.add("win");
-    wrap.querySelector(loseSide).classList.add("lose");
-    await wait(420);
-    wrap.remove();
+    overlay().appendChild(burst);
+    await wait(T - fly);
+    burst.remove();
+    if (guarding) await guardAfterHit(ev);
+  }
+
+  // 保護:保護的魔物(複製的卡)自原位移到原本傷害對象(魔書或魔物)前方,承受接著的能量後回到原位。
+  // 保護後傷害被防止等沒有能量時,在重繪前回到原位。標準約 450ms、快約 250ms。
+  let guard = null;   // {player, slot, el, home}
+  function guardMs() { return spotlightMode() === "fast" || pending >= 2 ? 250 : 450; }
+
+  async function guardMove(ev) {
+    const zone = zoneOf(ev.player);
+    const src = zone && zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="mamodo"]`);
+    const target = zone && (ev.target === "book" ? zone.querySelector(".book-cover")
+      : zone.querySelector(`[data-slot-uid="${ev.target_slot}"][data-zone-kind="mamodo"]`));
+    if (!src || !target) return;
+    if (guard) await guardReturn();
+    const ms = guardMs();
+    const box = src.getBoundingClientRect();
+    const home = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    const to = target.getBoundingClientRect();
+    // 外框只負責移動(以中心定位);裡面的卡保留自己的樣式(負傷的卡維持橫置)
+    const wrap = document.createElement("div");
+    wrap.className = "fx-guard-wrap";
+    wrap.dataset.guardFor = ev.target === "book" ? `book-${ev.player}` : `slot-${ev.target_slot}`;
+    Object.assign(wrap.style, { left: `${home.x}px`, top: `${home.y}px`, "--guard-ms": `${ms}ms` });
+    const card = src.cloneNode(true);
+    card.classList.add("fx-guard");
+    wrap.appendChild(card);
+    overlay().appendChild(wrap);
+    src.style.visibility = "hidden";
+    guard = { player: ev.player, slot: ev.slot, el: wrap, card, home, src };
+    wrap.getBoundingClientRect();
+    // 對象正前方:中心對齊對象,朝畫面中央(傷害來的方向)偏一些,對象仍露出一部分
+    const dy = Math.sign(window.innerHeight / 2 - (to.top + to.height / 2)) * Math.min(28, to.height * 0.25);
+    Object.assign(wrap.style, { left: `${to.left + to.width / 2}px`, top: `${to.top + to.height / 2 + dy}px` });
+    card.classList.add("guarding");
+    await wait(ms);
+  }
+
+  // 保護者承受能量後:負傷 → 在原地轉成橫置再回到原位;送墓 → 在原地淡出(盤面重繪時移除)
+  async function guardAfterHit(ev) {
+    const g = guard;
+    if (!g) return;
+    if (ev.type === "mamodo_discarded") {
+      guard = null;
+      g.card.classList.add("guard-gone");
+      await wait(guardMs());
+      g.el.remove();
+      return;                                     // 原元素維持隱藏,重繪後即不存在
+    }
+    if (ev.type === "mamodo_injured") {
+      g.card.classList.add("injured");
+      await wait(guardMs());
+    }
+    await guardReturn();
+  }
+
+  // 回到原位後複製品留在原位,等盤面重繪後才移除(clearGuardLeftovers):
+  // 重繪前盤面上的還是舊樣子(例如尚未負傷的直放卡),提早換回會閃一下
+  const guardLeftovers = [];
+  async function guardReturn() {
+    const g = guard;
+    if (!g) return;
+    guard = null;
+    Object.assign(g.el.style, { left: `${g.home.x}px`, top: `${g.home.y}px` });
+    g.card.classList.remove("guarding");
+    await wait(guardMs());
+    guardLeftovers.push(g);
+  }
+
+  function clearGuardLeftovers() {
+    if (guard) guardLeftovers.push(guard);
+    guard = null;
+    for (const g of guardLeftovers.splice(0)) {
+      g.el.remove();
+      g.src.style.visibility = "";                // 重繪後原元素通常已被取代;保險起見恢復
+    }
   }
 
   // idle:目前排隊中的播放全部結束時完成(測試與需要等畫面追上的流程使用)

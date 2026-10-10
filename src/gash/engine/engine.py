@@ -18,6 +18,7 @@ from .state import (
     NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT_BOOK,
     NO_SPELLS, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
+    place_slot,
 )
 
 
@@ -44,7 +45,7 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
         ps = players[p]
         number = ps.card_at(1)
         slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
-        ps.slots.append(slot)
+        place_slot(ps.slots, slot)
         ps.consumed_pages.add(1)
         game.emit(batch, "card_played", player=p, card=number, slot=slot.uid, zone="mamodo")
         if number in reg.ON_PLAY:
@@ -365,7 +366,7 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
         if same_name_copies(game, player, card) >= reg.MAX_COPIES.get(number, 1):
             raise IllegalCommand("play.same_name", "同名魔物已達同場上限")
         slot = MamodoSlot(uid=st.next_uid(), stack=[number])
-        ps.slots.append(slot)
+        place_slot(ps.slots, slot)
         ps.consumed_pages.add(command["page"])
         game.emit(batch, "card_played", player=player, card=number, slot=slot.uid, zone="mamodo")
         if number in reg.ON_PLAY:
@@ -1026,10 +1027,16 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
     attacker_wins = (not battle.attack_negated) and att > deff
+    a_slot = st.slot_by_uid(battle.attacker, battle.attack_slot)
+    d_slot = st.slot_by_uid(battle.defender, battle.defense_slot) if battle.defense_spell else None
     game.emit(batch, "showdown", attacker=battle.attacker, attacker_total=att, defender_total=deff,
               winner="attacker" if attacker_wins else "defender",
               attack_negated=battle.attack_negated,
-              attacker_breakdown=att_items, defender_breakdown=def_items)
+              attacker_breakdown=att_items, defender_breakdown=def_items,
+              # 對峙的卡(宣告時已公開):魔物取最上面的卡;不防禦時防禦方為空
+              attack_mamodo=a_slot.top if a_slot else None, attack_spell=battle.attack_spell,
+              defense_mamodo=d_slot.top if d_slot else None,
+              defense_spell=battle.defense_spell or None)
     rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if attacker_wins:
         if rider and rider.on_win:
@@ -1428,7 +1435,8 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
             raise IllegalCommand("choose.invalid", "無效的保護對象")
         st.pending = None
         ctx["items"].pop(0)
-        game.emit(batch, "protected", player=pending.player, slot=slot.uid, card=slot.top)
+        game.emit(batch, "protected", player=pending.player, slot=slot.uid, card=slot.top,
+                  target=item["kind"], target_slot=item.get("slot_uid"))   # 原本的傷害對象(魔書或魔物)
         _apply_damage_item(game, batch,
                            {"kind": "slot", "player": pending.player,
                             "slot_uid": slot.uid, "amount": 1}, ctx)
@@ -1586,7 +1594,7 @@ def _deploy_mamodo_from_page(game: Game, batch: list[dict], player: int, page: i
     ps = st.players[player]
     number = ps.card_at(page)
     slot = MamodoSlot(uid=st.next_uid(), stack=[number])
-    ps.slots.append(slot)
+    place_slot(ps.slots, slot)
     ps.consumed_pages.add(page)
     game.emit(batch, "card_played", player=player, card=number, slot=slot.uid, zone="mamodo", forced=True)
     if number in reg.ON_PLAY:

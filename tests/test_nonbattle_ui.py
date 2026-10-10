@@ -111,7 +111,7 @@ def test_battle_command_spells_and_events(page):
     page.evaluate("""() => {
       const p=S.turn_player;
       const c=Object.values(CARDS).find(c=>isCommandSpell(c)&&c.effect_icon!=='nonbattle'&&c.ad==='D');
-      S.players[p].slots.push({...S.players[p].slots[0],uid:999});
+      S.players[p].slots.push({...S.players[p].slots[0],uid:999,column:1});
       S.players[p].open_pages=[{page:2,card:c.number,cost:0,
         users:S.players[p].slots.map((s)=>({slot_uid:s.uid,cost:0,locked:false}))}];
       S.battle={step:'defense',attacker:1-p};

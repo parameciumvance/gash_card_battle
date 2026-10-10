@@ -1452,7 +1452,7 @@ class DeployMamodoFromBook(Effect):
     page: Ref = Ref("page")
 
     def run(self, rt, ctx, path):
-        from ..state import MamodoSlot
+        from ..state import MamodoSlot, place_slot
         game = rt.game
         player = ctx["player"]
         page = ctx[self.page.name]
@@ -1466,7 +1466,7 @@ class DeployMamodoFromBook(Effect):
                       zone="mamodo", stacked=True)
         else:
             slot = MamodoSlot(uid=game.state.next_uid(), stack=[number])
-            ps.slots.append(slot)
+            place_slot(ps.slots, slot)
             game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                       zone="mamodo")
         if number in reg.ON_PLAY:

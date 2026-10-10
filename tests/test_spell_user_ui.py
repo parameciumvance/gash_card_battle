@@ -93,7 +93,7 @@ def test_field_pick_cancel_and_unselectable(page):
     tp, pg, slots = with_zeon(page)
     # 前端複製第三隻(uid 901),快照標示它被封鎖:不發光,點開時「選擇」停用並顯示原因
     page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
-      slots: [...ps.slots, {{...ps.slots[0], uid: 901}}],
+      slots: [...ps.slots, {{...ps.slots[0], uid: 901, column: ps.slots.length}}],
       open_pages: ps.open_pages.map((e) => e.page === {pg}
         ? {{...e, users: [...e.users, {{slot_uid: 901, cost: 1, locked: true}}]}} : e)}})}}; render()""")
     stub_send(page)
@@ -263,7 +263,7 @@ def _two_gash(page, first_partner=None):
     send(page, {"type": "flip_pages", "player": tp, "count": 0})
     page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
       slots: [{{...ps.slots[0], partner: {repr(first_partner) if first_partner else 'null'}}},
-              {{...ps.slots[0], uid: 900, partner: null}}]}})}}; render()""")
+              {{...ps.slots[0], uid: 900, partner: null, column: 1}}]}})}}; render()""")
     stub_send(page)
     return tp, pos
 

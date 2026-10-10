@@ -38,7 +38,7 @@ def two_same_mamodo(page, p):
     """自己場上放兩隻同名魔物,回傳兩個 uid。"""
     return page.evaluate("""(p) => {
         const ps = S.players[p];
-        const copy = {...ps.slots[0], uid: 999};
+        const copy = {...ps.slots[0], uid: 999, column: ps.slots.length};
         S = {...S, players: S.players.map((x, i) => i === p ? {...x, slots: [x.slots[0], copy]} : x)};
         return S.players[p].slots.map(s => s.uid);
     }""", p)

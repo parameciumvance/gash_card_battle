@@ -168,16 +168,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 .partner-cell { height: var(--card-h); }  /* 搭檔欄與魔物欄同高 */
 /* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視 */
-#board .card { width: var(--card-w); height: var(--card-h); min-height: 0; overflow: hidden; }
+#board .card, .fx-guard.card { width: var(--card-w); height: var(--card-h); min-height: 0; overflow: hidden; }
 #board .card.small { width: var(--card-w); height: var(--card-h); }  /* 搭檔卡與魔物同尺寸 */
-#board .card img.art { height: var(--art-h); flex-shrink: 0; }
-#board .card.injured { width: var(--injured-w); height: var(--injured-h); }
-#board .card.injured img.art { height: auto; aspect-ratio: var(--art-ratio); }
+#board .card img.art, .fx-guard.card img.art { height: var(--art-h); flex-shrink: 0; }
+#board .card.injured, .fx-guard.card.injured { width: var(--injured-w); height: var(--injured-h); }
+#board .card.injured img.art, .fx-guard.card.injured img.art { height: auto; aspect-ratio: var(--art-ratio); }
 /* 盤面卡面只留卡名:隱藏費用/魔力/傷害(cmeta)、效果全文、日文名、卡號 */
 #board .card .cmeta,
 #board .card .ceffect,
 #board .card .cname-ja,
-#board .card .cnum { display: none; }
+#board .card .cnum,
+.fx-guard .cmeta, .fx-guard .ceffect, .fx-guard .cname-ja, .fx-guard .cnum { display: none; }
 #board .card .cname {         /* 卡名限 2 行省略 */
   display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
@@ -359,47 +360,50 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   position: sticky; bottom: 0; backdrop-filter: blur(3px);
 }
 #action-main { flex: 1; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-/* 回合轉盤(行動欄左端):外圈與順時鐘箭頭固定;「回合玩家」箭頭標籤在 .dial-rotor 上以 --dial-angle 繞行 */
-#turn-cluster { --dial-size: 96px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+/* 回合轉盤(行動欄左端,橢圓):外圈與順時鐘箭頭固定;「回合玩家」標籤沿橢圓邊緣移到 --dial-angle
+ * (0° 在下方、順時鐘),位置以 sin/cos 計算;--dial-angle 以 @property 登記為角度,才能做轉場。
+ * 標籤維持正向,三角箭頭只朝上或朝下(依回合玩家在上方或下方)。 */
+@property --dial-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+#turn-cluster { --dial-w: 132px; --dial-h: 70px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 #turn-dial {
-  --dial-angle: 0deg; position: relative; flex-shrink: 0;
-  width: calc(var(--dial-size) + 40px); height: calc(var(--dial-size) + 44px);
+  --dial-angle: 0deg; --pad-x: 30px; --pad-y: 21px; position: relative; flex-shrink: 0;
+  width: calc(var(--dial-w) + 2 * var(--pad-x)); height: calc(var(--dial-h) + 2 * var(--pad-y));
+  transition: --dial-angle .6s ease-in-out;
 }
-#turn-dial .dial-ring, #turn-dial .dial-rotor {
-  position: absolute; left: 20px; top: 22px; width: var(--dial-size); height: var(--dial-size); border-radius: 50%;
+#turn-dial .dial-ring {
+  position: absolute; left: var(--pad-x); top: var(--pad-y); width: var(--dial-w); height: var(--dial-h);
+  border-radius: 50%; background: #f5b800; border: 2px solid #5a9a3a; box-shadow: 0 2px 8px rgba(0,0,0,.3);
 }
-#turn-dial .dial-ring { background: #f5b800; border: 2px solid #5a9a3a; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
-#turn-dial .dial-rotor { transform: rotate(var(--dial-angle)); transition: transform .6s ease-in-out; }
+#turn-dial .dial-rotor { position: absolute; inset: 0; pointer-events: none; }
 #turn-dial .dial-arrow { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* 順時鐘箭頭在左右兩側,避開「回合玩家」標籤會停留的上、下、左下、右上 */
 #turn-dial .dial-arrow path:nth-child(odd) { stroke: #155e80; }
 #turn-dial .dial-arrow path:nth-child(even) { fill: #155e80; }
-/* 「回合玩家」標籤:跨在外圈下緣,下方三角形指向回合玩家;文字反向旋轉維持正向 */
 #turn-dial .dial-tab {
-  position: absolute; left: 50%; top: calc(100% - 9px); transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center;
+  position: absolute; z-index: 1; transform: translate(-50%, -50%);
+  left: calc(50% - var(--dial-w) / 2 * sin(var(--dial-angle)));
+  top: calc(50% + var(--dial-h) / 2 * cos(var(--dial-angle)));
 }
-#turn-dial .dial-tab::after {
-  content: ""; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent;
-  border-top: 9px solid var(--glow);
+#turn-dial .dial-tab::after {           /* 三角箭頭:只朝上或朝下,指向回合玩家那一側 */
+  content: ""; position: absolute; left: 50%; top: 100%; width: 0; height: 0; transform: translateX(-50%);
+  border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid var(--glow);
 }
+#turn-dial .dial-tab.up::after { top: auto; bottom: 100%; border-top: 0; border-bottom: 9px solid var(--glow); }
 #turn-dial .dial-tab-text, #acting-pointer .pointer-text {
   display: block; white-space: nowrap; font-size: 11px; font-weight: bold; color: #10324a;
   padding: 2px 7px; border-radius: 6px; border: 1px solid #2a8ac0;
   background: linear-gradient(180deg, #a6d4f5, #74b9ea);
 }
-#turn-dial .dial-tab-text { transform: rotate(calc(-1 * var(--dial-angle))); transition: transform .6s ease-in-out; }
 #turn-dial .dial-center {
-  position: absolute; left: calc(20px + var(--dial-size) * .2); top: calc(22px + var(--dial-size) * .2);
-  width: calc(var(--dial-size) * .6); height: calc(var(--dial-size) * .6); border-radius: 50%;
+  position: absolute; left: calc(var(--pad-x) + var(--dial-w) * .2); top: calc(var(--pad-y) + var(--dial-h) * .2);
+  width: calc(var(--dial-w) * .6); height: calc(var(--dial-h) * .6); border-radius: 50%;
   background: #fff; border: 2px solid #155e80; color: #1b1b1b;
   display: flex; align-items: center; justify-content: center; text-align: center;
   font-size: 13px; font-weight: bold; line-height: 1.1; padding: 2px; word-break: keep-all;
 }
 #turn-dial .dial-center[data-phase="nonbattle"] { background: #47d65c; }
 #turn-dial .dial-center[data-phase="battle"] { background: #ff3b30; color: #fff; }
-#turn-dial.instant .dial-rotor, #turn-dial.instant .dial-tab-text,
-.motion-off #turn-dial .dial-rotor, .motion-off #turn-dial .dial-tab-text { transition: none; }
+#turn-dial.instant, .motion-off #turn-dial { transition: none; }
 #turn-cluster .turn-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 170px; }
 /* 「行動玩家」:三角形指向等待輸入的一方(上方玩家朝上,下方玩家朝下) */
 #acting-pointer { display: flex; flex-direction: column; align-items: center; }
@@ -791,29 +795,109 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #spotlight .spot-art { width: 110px; }
 }
 
-/* 魔力對決橫幅 */
-.fx-showdown {
-  left: 50%; top: 44%; transform: translate(-50%, -50%);
-  display: flex; gap: 26px; align-items: center; padding: 18px 34px;
-  background: rgba(20,14,26,.92); border: 2px solid var(--gold);
-  border-radius: 14px; box-shadow: 0 0 30px rgba(255,157,108,.4);
-  animation: showdown-in .18s ease-out;
+/* 魔力對決對峙演出:半透明背景(點擊跳過),中央上下兩組「魔物+戰術」,中間 VS → 結果大字;
+ * 各時段長度依總長 --fo-ms 的比例(滑入 20%、衝撞 12%) */
+.fx-faceoff {
+  inset: 0; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(46,22,58,.94), rgba(8,6,14,.96));
+  cursor: pointer; animation: fo-fade calc(var(--fo-ms) * .1) ease-out;
 }
-@keyframes showdown-in { 0% { opacity: 0; transform: translate(-50%, -46%) scale(.9); } }
-.fx-showdown .sd-vs { color: #ff9d6c; font-weight: bold; font-size: 22px; }
-.fx-showdown .sd-side { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.fx-showdown .sd-label { font-size: 13px; color: var(--ink-dim); }
-.fx-showdown .sd-num { font-size: 40px; font-weight: bold; color: var(--ink); }
-.fx-showdown .sd-side.win .sd-num {
-  color: var(--glow); text-shadow: 0 0 16px rgba(255,209,102,.9);
-  animation: win-pop .3s ease-out;
+@keyframes fo-fade { 0% { opacity: 0; } }
+.fo-stage { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fo-group {
+  display: grid; grid-template-columns: auto auto; grid-template-areas: "label label" "cards total";
+  align-items: center; column-gap: 18px; row-gap: 4px; padding: 8px 14px; border-radius: 12px;
+  background: #241a33; border: 2px solid rgba(255,255,255,.12);
+  transition: transform .2s, opacity .2s, filter .2s, border-color .2s, box-shadow .2s;
 }
-.fx-showdown .sd-side.lose { opacity: .45; animation: lose-shake .3s ease-in; }
-@keyframes win-pop { 50% { transform: scale(1.25); } }
-@keyframes lose-shake {
-  25% { transform: translateX(-4px); } 50% { transform: translateX(4px); }
-  75% { transform: translateX(-3px); }
+.fo-group.top { animation: fo-in-top calc(var(--fo-ms) * .2) cubic-bezier(.2,.8,.3,1.1); }
+.fo-group.bottom { animation: fo-in-bottom calc(var(--fo-ms) * .2) cubic-bezier(.2,.8,.3,1.1); }
+@keyframes fo-in-top { 0% { transform: translateY(-60vh); opacity: 0; } }
+@keyframes fo-in-bottom { 0% { transform: translateY(60vh); opacity: 0; } }
+.fo-label { grid-area: label; font-size: 14px; font-weight: bold; color: var(--ink-dim); }
+.fo-group.attack .fo-label { color: #ff9d6c; }
+.fo-group.defense .fo-label { color: var(--accent-blue); }
+.fo-cards { grid-area: cards; position: relative; display: flex; gap: 8px; }
+.fo-card .card { width: 112px; height: 134px; min-height: 0; overflow: hidden; cursor: inherit; }
+.fo-card .card img.art { height: 82px; flex-shrink: 0; }
+.fo-empty {
+  width: 112px; height: 134px; display: flex; align-items: center; justify-content: center; text-align: center;
+  border: 2px dashed var(--ink-dim); border-radius: 8px; color: var(--ink); font-size: 15px; font-weight: bold;
 }
+.fo-total { grid-area: total; font-size: 44px; font-weight: bold; color: var(--ink); min-width: 3.2em; text-align: center; }
+.fo-vs { font-size: 34px; font-weight: 900; color: #ff9d6c; text-shadow: 0 0 14px rgba(255,157,108,.8); letter-spacing: 2px; }
+.fo-stamp {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 2px 14px; border: 4px solid var(--danger); border-radius: 8px; color: var(--danger);
+  font-size: 28px; font-weight: 900; background: rgba(20,10,10,.7);
+}
+/* 衝撞:勝方朝敗方位移後彈回;敗方震動 */
+.fo-group.top.clash { animation: fo-clash-down calc(var(--fo-ms) * .12) ease-in-out; }
+.fo-group.bottom.clash { animation: fo-clash-up calc(var(--fo-ms) * .12) ease-in-out; }
+@keyframes fo-clash-down { 50% { transform: translateY(36px) scale(1.05); } }
+@keyframes fo-clash-up { 50% { transform: translateY(-36px) scale(1.05); } }
+.fo-group.shake { animation: fo-shake calc(var(--fo-ms) * .12) ease-in; }
+@keyframes fo-shake {
+  20% { transform: translateX(-8px); } 40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); } 80% { transform: translateX(5px); }
+}
+.fo-group.win {
+  transform: scale(1.1); border-color: var(--glow);
+  box-shadow: 0 0 28px rgba(255,209,102,.75), inset 0 0 18px rgba(255,209,102,.25);
+}
+.fo-group.win .fo-total { color: var(--glow); text-shadow: 0 0 16px rgba(255,209,102,.9); }
+.fo-group.lose { opacity: .5; filter: grayscale(.8); transform: scale(.94); }
+.fo-group.lose .fo-cards::after {          /* 打叉 */
+  content: ""; position: absolute; inset: -6px;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 3px), var(--danger) calc(50% - 3px), var(--danger) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(to bottom right, transparent calc(50% - 3px), var(--danger) calc(50% - 3px), var(--danger) calc(50% + 3px), transparent calc(50% + 3px));
+}
+.fo-result { display: flex; flex-direction: column; align-items: center; animation: fo-result-in .25s ease-out; }
+.fo-result-main {
+  font-size: 40px; font-weight: 900; color: var(--glow); letter-spacing: 3px;
+  text-shadow: 0 0 6px #6b2b00, 0 0 22px rgba(255,209,102,.9);
+}
+.fo-result-sub { font-size: 15px; color: var(--ink); }
+@keyframes fo-result-in { 0% { transform: scale(2.2); opacity: 0; } }
+@media (max-width: 700px) {
+  .fo-card .card, .fo-empty { width: 78px; height: 96px; }
+  .fo-card .card img.art { height: 56px; }
+  .fo-total { font-size: 30px; }
+  .fo-group { column-gap: 10px; padding: 6px 8px; }
+  .fo-result-main { font-size: 30px; }
+  .fo-vs { font-size: 26px; }
+}
+
+/* 傷害能量:發光球帶尾跡自中央飛向目標(left/top 過渡),命中處爆光 */
+.fx-energy {
+  width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; z-index: 2;
+  background: radial-gradient(circle, #fff 0 22%, #ffe27a 38%, #ff8a3c 62%, rgba(255,80,40,0) 72%);
+  box-shadow: 0 0 22px 8px rgba(255,170,60,.85);
+  transition: left var(--fly-ms) cubic-bezier(.5,0,.9,.6), top var(--fly-ms) cubic-bezier(.5,0,.9,.6);
+}
+.fx-energy::after {               /* 尾跡:朝飛行反方向延伸 */
+  content: ""; position: absolute; right: 50%; top: 50%; width: 160px; height: 20px; margin-top: -10px;
+  transform-origin: right center; transform: rotate(var(--angle));
+  background: linear-gradient(to left, rgba(255,190,80,.85), rgba(255,120,40,0));
+  border-radius: 10px; filter: blur(3px);
+}
+.fx-impact {
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0 12%, rgba(255,200,90,.85) 30%, rgba(255,70,40,.45) 55%, rgba(255,60,40,0) 70%);
+  animation: fx-impact var(--impact-ms) ease-out forwards;
+}
+@keyframes fx-impact { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0; } }
+
+/* 保護:外框(以中心定位)帶著複製的保護魔物移到傷害對象前方;卡保留自己的樣式(負傷維持橫置),
+ * 承受能量後在原地轉成橫置(負傷)或淡出(送墓) */
+.fx-guard-wrap {
+  z-index: 1; pointer-events: none; transform: translate(-50%, -50%);
+  transition: left var(--guard-ms) ease-in-out, top var(--guard-ms) ease-in-out;
+}
+.fx-guard { transition: transform var(--guard-ms) ease-out, opacity var(--guard-ms), box-shadow var(--guard-ms); }
+.fx-guard.guarding { box-shadow: 0 0 0 3px var(--accent-blue), 0 0 22px rgba(108,196,255,.85); }
+.fx-guard.guard-gone { opacity: 0; filter: grayscale(1); }
 
 /* 動畫關閉(演出設定;未設定時依 prefers-reduced-motion,由 app.js 切換 html.motion-off) */
 .motion-off *, .motion-off *::before, .motion-off *::after {
@@ -1050,10 +1134,13 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #action-bar .choice-options button { min-height: 44px; font-size: 14px; }
   #action-bar button { min-height: 40px; font-size: 14px; padding: 8px 14px; }
   /* 窄螢幕:回合轉盤縮小 */
-  #turn-cluster { --dial-size: 72px; gap: 6px; }
+  #turn-cluster { --dial-w: 88px; --dial-h: 48px; gap: 4px; }
+  #turn-dial { --pad-x: 24px; --pad-y: 19px; }
+  #action-bar { gap: 6px; padding: 8px 10px; }
   #turn-dial .dial-tab-text { font-size: 10px; padding: 1px 5px; }
   #turn-dial .dial-center { font-size: 11px; }
-  #turn-cluster .turn-side { max-width: 120px; }
+  #turn-cluster .turn-side { max-width: 84px; }
+  #dial-note { font-size: 10px; }
   #timing-track { font-size: 11px; gap: 2px; }
   #timing-track .step { padding: 1px 5px; }
   #timing-track .seg-battle.collapsed .step, #timing-track .seg-battle.collapsed .sep { display: none; }

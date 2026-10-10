@@ -1189,8 +1189,11 @@ function renderFieldBlock(p, ps, isTop) {
   mamodoRow.className = "field-row mamodo-row";
   const partnerRow = document.createElement("div");
   partnerRow.className = "field-row partner-row";
-  for (let i = 0; i < Math.max(FIELD_COLUMNS, ps.slots.length); i++) {
-    const slot = ps.slots[i];
+  // 依快照的欄位排列(魔物離場後那一欄留空,其他魔物不移動);沒有欄位時退回清單順序
+  const byColumn = [];
+  ps.slots.forEach((s, i) => { byColumn[Number.isInteger(s.column) ? s.column : i] = s; });
+  for (let i = 0; i < Math.max(FIELD_COLUMNS, byColumn.length); i++) {
+    const slot = byColumn[i];
     const mamodoCell = document.createElement("div");
     mamodoCell.className = "mcell mamodo-cell";
     const partnerCell = document.createElement("div");
@@ -1663,6 +1666,7 @@ function renderTurnDial() {
   dial.dataset.angle = dialAngle;
   dial.style.setProperty("--dial-angle", `${dialAngle}deg`);
   dial.querySelector(".dial-tab-text").textContent = t("ui.turn_dial.label");
+  dial.querySelector(".dial-tab").classList.toggle("up", topPlayerIndex() === S.turn_player);
   const center = dial.querySelector(".dial-center");
   const phase = IN_BATTLE_STEPS.includes(timing) ? "battle" : timing;   // start / nonbattle / battle / end
   center.textContent = t(`ui.turn_dial.${phase}`);

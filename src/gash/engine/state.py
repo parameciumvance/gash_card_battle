@@ -81,10 +81,33 @@ class MamodoSlot:
     stack: list[str]            # 疊放的魔物卡號,最上層生效
     injured: bool = False
     partner: str | None = None
+    column: int | None = None   # 場上欄位(0–2,由左至右);只表示位置,不影響規則
 
     @property
     def top(self) -> str:
         return self.stack[-1]
+
+
+def slot_columns(slots: list["MamodoSlot"]) -> dict[int, int]:
+    """各魔物槽的欄位(uid → 欄位)。沒有欄位的魔物槽(測試或金手指直接建立)依清單順序補最左邊的空欄。"""
+    out = {s.uid: s.column for s in slots if s.column is not None}
+    for s in slots:
+        if s.column is None:
+            out[s.uid] = min(c for c in range(len(slots) + 1) if c not in out.values())
+    return out
+
+
+def free_column(slots: list["MamodoSlot"]) -> int:
+    """最左邊的空欄。"""
+    used = set(slot_columns(slots).values())
+    return min(c for c in range(len(slots) + 1) if c not in used)
+
+
+def place_slot(slots: list["MamodoSlot"], slot: "MamodoSlot") -> "MamodoSlot":
+    """魔物登場:放在最左邊的空欄;其他魔物的欄位不變。"""
+    slot.column = free_column(slots)
+    slots.append(slot)
+    return slot
 
 
 @dataclass
