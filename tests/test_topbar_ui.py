@@ -16,5 +16,6 @@ def test_phone_landing_topbar_buttons_fit_in_one_row(browser, server):  # noqa: 
         .map((b) => { const r = b.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.left)]; })""")
     assert len(boxes) == 4
     assert len({top for top, _ in boxes}) == 1                             # 同一列,不換行
-    assert boxes[0][1] <= 12                                               # 從左側內距開始,前面沒有空欄位的間距
+    badge = page.evaluate("Math.round(document.getElementById('title').getBoundingClientRect().right)")
+    assert boxes[0][1] <= badge + 12                                       # 緊接在徽章(可點回首頁)之後,前面沒有空欄位的間距
     context.close()

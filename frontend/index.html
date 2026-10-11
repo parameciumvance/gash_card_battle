@@ -10,7 +10,7 @@
 <body>
   <header id="topbar">
     <!-- 標題字(GASH / CARD BATTLE / ONLINE)與網站名稱 app.title 一致;螢幕閱讀器讀 aria-label -->
-    <span id="title" role="img"><span class="wordmark small"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></span>
+    <span id="title" role="link" tabindex="0"><span class="wordmark small"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></span>
     <span id="identity"></span>
     <span id="turn-info"></span>
     <span id="phase-info"></span>
@@ -31,6 +31,7 @@
   <section id="landing" class="hidden">
     <h1 id="landing-title"><span class="wordmark large"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></h1>
     <div id="assets-hint" class="hidden"></div>
+    <div id="landing-resume" class="hidden"><h2 class="resume-title"></h2><div class="resume-list"></div></div>
     <div id="landing-cards">
       <button class="entry" id="entry-npc"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-friend"><span class="entry-title"></span><span class="entry-desc"></span></button>
