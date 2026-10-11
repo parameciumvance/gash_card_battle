@@ -91,6 +91,10 @@ JAMMER: dict[str, dict] = {}
 # 戰術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
 SPELL_USE_LIMIT: dict[str, Callable] = {}
 
+# 擲幣重擲(M-012 / M-019): 場上魔物卡號 -> "self"(重擲自己擲的硬幣)/ "opponent"(令對手重擲);
+# 只在擲幣確認鏈(primitives.flip_coins)中詢問,不能主動宣告
+COIN_REFLIP: dict[str, str] = {}
+
 # 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
 
@@ -304,6 +308,16 @@ def jammer(number: str, *, mp_cost: int):
     if number in JAMMER:
         raise ValueError(f"{number} 的 jammer 已登記")
     JAMMER[number] = {"mp_cost": mp_cost}
+
+
+def coin_reflip(number: str, *, coins: str):
+    """擲幣重擲(「魔物の効果」,每回合一次):coins="self" 重擲自己擲的 1 枚,"opponent" 令對手重擲。
+    擲幣後由引擎在確認鏈中詢問,不能主動宣告(不登記為 activated)。"""
+    if coins not in ("self", "opponent"):
+        raise ValueError(f"{number} 的 coin_reflip coins 須為 self / opponent")
+    if number in COIN_REFLIP:
+        raise ValueError(f"{number} 的 coin_reflip 已登記")
+    COIN_REFLIP[number] = coins
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):

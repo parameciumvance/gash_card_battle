@@ -1916,7 +1916,7 @@ class OwnBookAtLastPage:
 
 @dataclass(frozen=True)
 class Never:
-    """永遠不成立:效果不由玩家主動宣告,而由其他流程處理(M-019 於擲幣確認鏈中處理)。"""
+    """永遠不成立的條件 / 查詢。"""
 
     def __call__(self, game, player, slot) -> bool:
         return False

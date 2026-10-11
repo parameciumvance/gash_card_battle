@@ -60,7 +60,8 @@
 
 - 會執行動作的效果以效果樹登記:`reg.event`、`reg.spell_rider(on_declare / on_damage / on_win / on_defense_damaged)`、`reg.spell_nonbattle`、`reg.activated`、`reg.on_play`、`reg.on_discard`、`reg.start_phase`、`reg.trigger`。後面幾種的 `ctx` 含 `self_slot`,觸發器另含 `event`。
 - 只回傳值的查詢不是效果,以不可變、可呼叫的規格物件登記,不經效果樹:`static_power`、`damage_immunity`、`spell_compat`、`spell_use_limit`、`activated(condition=)`、`damage_bonus`。
-- 純資料以對應函式登記:`stack_on`、`max_copies`、`mamodo_attack`、`jammer`。
+- 純資料以對應函式登記:`stack_on`、`max_copies`、`mamodo_attack`、`jammer`、`coin_reflip`。
+- 不能主動宣告、由引擎在特定流程中詢問的魔物效果(`jammer`、`coin_reflip`)不登記為 `activated`:登記了快照就會給 `ability`,前端會顯示一個按了必被拒絕的「使用」按鈕,NPC 也會把它列為候選。
 - 登記是原子操作:先完成全部檢查才寫入;同卡同掛鉤重複登記一律拒絕。
 - `registry.py` 仍接受舊的 `@reg.xxx` 裝飾器,只剩測試使用;新卡一律用效果樹。
 

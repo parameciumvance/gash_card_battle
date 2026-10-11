@@ -1,7 +1,7 @@
 """效果原語:卡片 handler 用來組合效果的共用積木。
 
-硬幣判定為互動式:擲出後若玩家場上有可用的 M-012(凱喬美《幸運的所有者》),
-會進入 pending 讓玩家決定是否重擲,確定後才呼叫 callback 繼續解決。
+硬幣判定為互動式:擲出後若有可用的擲幣重擲魔物(reg.coin_reflip:M-012 重擲自己擲的、
+M-019 令對手重擲),會進入 pending 讓玩家決定是否重擲,確定後才呼叫 callback 繼續解決。
 """
 
 from __future__ import annotations
@@ -270,28 +270,30 @@ def choose_or_auto(game, batch, *, kind, player, options, data=None, source=None
 
 # ---------------------------------------------------------------- 互動式硬幣
 
-def _reflip_available(game, player) -> bool:
-    ps = game.state.players[player]
-    return (any(s.top == "M-012" for s in ps.slots)
-            and "mamodo:M-012" not in ps.used_abilities)
-
-
-def _opp_redo_available(game, opp) -> bool:
-    """M-019 凱喬美《奇怪的生物》:宣告使用→對手重擲(每回合一次)。"""
+def _reflip_slot(game, player, coins):
+    """player 場上可用的擲幣重擲魔物槽(coins:"self" 重擲自己擲的 / "opponent" 令對手重擲);沒有時 None。
+    重擲是「魔物の効果」:每回合一次,受「魔物の効果」全體限制(E-025)與個別封鎖(E-024)。"""
     from ..engine import restricted, slot_restricted
     from ..state import MAMODO_LOCKED, NO_MAMODO_EFFECTS
-    ps = game.state.players[opp]
-    slot = next((s for s in ps.slots if s.top == "M-019"), None)
-    if slot is None or "mamodo:M-019" in ps.used_abilities:
-        return False
-    if restricted(game, opp, NO_MAMODO_EFFECTS):
-        return False
-    return not slot_restricted(game, opp, MAMODO_LOCKED, slot.uid)
+    if restricted(game, player, NO_MAMODO_EFFECTS):
+        return None
+    ps = game.state.players[player]
+    return next((s for s in ps.slots
+                 if reg.COIN_REFLIP.get(s.top) == coins
+                 and f"mamodo:{s.top}" not in ps.used_abilities
+                 and not slot_restricted(game, player, MAMODO_LOCKED, s.uid)), None)
+
+
+def _use_reflip(game, batch, player, slot):
+    """記錄使用擲幣重擲(每回合一次)並發出使用事件。"""
+    game.state.players[player].used_abilities.add(f"mamodo:{slot.top}")
+    game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
 
 
 def flip_coins(game, batch, player, count, source, callback, data=None):
     """由 player 擲 count 次硬幣;結果確定後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
-    確認鏈:擲幣者的對手可用 M-019 時先問是否令整組重擲;擲幣者有可用 M-012 時再進重擲確認。
+    確認鏈:擲幣者的對手有可用的「令對手重擲」(M-019)時先問是否令整組重擲;
+    擲幣者有可用的「重擲自己的硬幣」(M-012)時再進重擲確認。
 
     擲幣者記在 data["flipper"]。呼叫端放進 data 的 "player" 會原樣保留(E-020 由對手擲幣,
     callback 需要的是效果擁有者);沒有放時才預設為擲幣者。"""
@@ -312,15 +314,16 @@ def _coin_confirm_chain(game, batch, data):
     results = data["results"]
     source = data["source"]
     opp = 1 - player
-    if not data.get("m019_done") and _opp_redo_available(game, opp):
+    redo = None if data.get("opp_redo_done") else _reflip_slot(game, opp, "opponent")
+    if redo is not None:
         game.state.pending = PendingChoice(
-            kind="opp_coin_redo", player=opp, source="M-019",
+            kind="opp_coin_redo", player=opp, source=redo.top,
             options=[{"value": None, "label": "keep"}, {"value": True, "label": "pay_reflip"}],
             data=data, info=coin_info(results))
         game.emit(batch, "choice_required", kind="opp_coin_redo", player=opp,
                   results=["heads" if r else "tails" for r in results])
         return
-    if _reflip_available(game, player):
+    if _reflip_slot(game, player, "self") is not None:
         game.state.pending = PendingChoice(
             kind="coin_confirm", player=player, source=source,
             options=[{"value": None, "label": "keep"}]
@@ -335,13 +338,11 @@ def _coin_confirm_chain(game, batch, data):
 @reg.choice_resolver("opp_coin_redo")
 def _opp_coin_redo(game, batch, value, data):
     opp = 1 - data["flipper"]
-    data["m019_done"] = True
+    data["opp_redo_done"] = True
     game.state.pending = None
-    if value:
-        ps = game.state.players[opp]
-        ps.used_abilities.add("mamodo:M-019")
-        game.emit(batch, "ability_used", player=opp, card="M-019",
-                  slot=next(s.uid for s in ps.slots if s.top == "M-019"), zone="mamodo")
+    redo = _reflip_slot(game, opp, "opponent") if value else None
+    if redo is not None:
+        _use_reflip(game, batch, opp, redo)
         for i in range(len(data["results"])):
             heads = game.rng.random() < 0.5
             data["results"][i] = heads
@@ -361,18 +362,16 @@ def _coin_confirm(game, batch, value, data):
         return
     if not isinstance(value, int) or not 0 <= value < len(results):
         raise IllegalCommand("choose.invalid", "無效的重擲選擇")
-    if not _reflip_available(game, player):
-        raise IllegalCommand("choose.invalid", "M-012 的效果已不可使用")
-    ps = game.state.players[player]
-    ps.used_abilities.add("mamodo:M-012")
-    game.emit(batch, "ability_used", player=player, card="M-012",
-              slot=next(s.uid for s in ps.slots if s.top == "M-012"), zone="mamodo")
+    reflip = _reflip_slot(game, player, "self")
+    if reflip is None:
+        raise IllegalCommand("choose.invalid", "重擲的效果已不可使用")
+    _use_reflip(game, batch, player, reflip)
     heads = game.rng.random() < 0.5
     results[value] = heads
     game.emit(batch, "coin_flipped", player=player,
               result="heads" if heads else "tails", source=data["source"], reflip=True)
     game.state.pending = None
-    if _reflip_available(game, player):
+    if _reflip_slot(game, player, "self") is not None:
         game.state.pending = PendingChoice(
             kind="coin_confirm", player=player, source=data["source"],
             options=[{"value": None, "label": "keep"}]

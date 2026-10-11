@@ -6,7 +6,7 @@ from ..tree import (
     AddPower, All, AttachPartnerFromBookPage, Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose,
     DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner, DiscardFromOpponentBook,
     DiscardedCardsToReturn, GainMp, HasOptions, ImmuneToSpellDamageAtMost, IncreaseSelfDamage,
-    Never, Nothing, OpponentBookCards, OpponentInjuredMamodo, OpponentOpenPagesLackDefenseSpell,
+    OpponentBookCards, OpponentInjuredMamodo, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
     PeekOpponentOpenPages, PreventDamageToSelf, Ref, RestrictOpponent, ReturnDiscardToBook,
@@ -54,6 +54,9 @@ reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True,
     ),
 )))
 
+# M-012 的「重擲自己擲的硬幣」在擲幣確認鏈中詢問,不由玩家主動宣告
+reg.coin_reflip("M-012", coins="self")
+
 reg.activated("M-013", mode="mp", mp_cost=2, timing="battle", condition=SelfInjured(),
               effect=PreventDamageToSelf(duration=DUR_BATTLE))
 
@@ -79,8 +82,8 @@ reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, 
     When(OpponentOpenPagesLackDefenseSpell(), then=GainMp(amount=2)),
 )))
 
-# M-019 的「令對手重擲」在擲幣確認鏈(primitives.flip_coins)中詢問,不由玩家主動宣告
-reg.activated("M-019", mode="declare", timing="any", condition=Never(), effect=Nothing())
+# M-019 的「令對手重擲」在擲幣確認鏈中詢問,不由玩家主動宣告
+reg.coin_reflip("M-019", coins="opponent")
 
 reg.activated("M-020", mode="mp", mp_cost=1, timing="nonbattle",
               condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("大海恵"))), effect=Choose(
