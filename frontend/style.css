@@ -117,10 +117,12 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   background: var(--panel); border: 1px solid #4a5a80; border-radius: 12px;
   padding: 16px; max-width: 92vw; max-height: 88vh; overflow-y: auto;
 }
-#book-review-head { display: flex; align-items: center; justify-content: space-between;
+#book-review-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 20px; margin: -16px -16px 12px; padding: 16px 16px 8px;
   position: sticky; top: -16px; z-index: 1; background: var(--panel); }   /* 捲到當前頁時標題與關閉鈕仍在 */
 #book-review-head h3 { color: var(--glow); font-size: 16px; }
+/* 選擇提示:決策開啟的網格在標題下寫出這次要選什麼(除了發光以外) */
+#book-review-hint { order: 3; flex-basis: 100%; font-size: 13px; color: var(--accent-green); }
 #book-review-close { padding: 5px 14px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
 /* 魔書網格(查閱、構築器、金手指):固定欄寬,每欄一組對頁、各列對齊;P1 靠右、P32 靠左(實體魔書的右頁與左頁) */
@@ -731,12 +733,13 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 
 /* 魔物送墓:灰化縮小淡出 */
-.fx-discard {
-  background: rgba(120,120,120,.55); border-radius: 8px;
-  border: 2px solid #777;
-  transition: transform .7s ease, opacity .7s ease; opacity: .9;
+.fx-to-discard {
+  margin: 0; z-index: 1; pointer-events: none; overflow: hidden;
+  transition: left var(--fly-ms) ease-in, top var(--fly-ms) ease-in, transform var(--fly-ms) ease-in, opacity var(--fly-ms) ease-in;
 }
-.fx-discard.gone { transform: scale(.4) rotate(8deg); opacity: 0; }
+.fx-to-discard img.art { height: 60%; }
+.fx-to-discard .cmeta, .fx-to-discard .ceffect, .fx-to-discard .cname-ja, .fx-to-discard .cnum { display: none; }
+.fx-to-discard.gone { transform: scale(.25) rotate(-12deg); opacity: .35; filter: grayscale(.6); }
 
 /* 3D 硬幣 */
 .fx-coin-wrap {

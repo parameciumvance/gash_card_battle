@@ -1772,7 +1772,7 @@ class DiscardTopMamodoCard(Effect):
         slot.stack.pop()
         to_discard(rt.game.state.players[player], self.number)
         rt.game.emit(rt.batch, "card_discarded", player=player, card=self.number, zone="mamodo",
-                     reason=ctx["source"])
+                     reason=ctx["source"], slot=slot.uid)
         return True
 
 

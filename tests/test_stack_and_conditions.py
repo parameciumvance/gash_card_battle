@@ -147,3 +147,18 @@ def test_snapshot_condition_ok():
     give(g3, 0, "M-004")
     assert _entry(g3, 0, "E-021")["condition_ok"] is True
     assert "condition_ok" not in _entry(g3, 1, None)
+
+
+def test_s043_split_with_exactly_two_places_one_then_asks_again():
+    # 實體操作:選一張放出、再選一張放出;第二張只剩一張也由玩家選(不自動放出)
+    g = robnos(["M-025"], ["M-024", "M-024"])                               # 第 3、4 頁
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending.kind == "pick_mamodo_in_own_book"
+    submit(g, {"type": "choose", "player": 0, "value": 3})
+    p = g.state.pending
+    assert p is not None and p.kind == "pick_mamodo_in_own_book"
+    assert [o["value"] for o in p.options] == [4]
+    assert [s.top for s in g.state.players[0].slots] == ["M-024"]          # 第一張已放出,第二張還沒
+    submit(g, {"type": "choose", "player": 0, "value": 4})
+    assert g.state.pending is None
+    assert [s.top for s in g.state.players[0].slots] == ["M-024", "M-024"]

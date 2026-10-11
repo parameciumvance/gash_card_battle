@@ -195,7 +195,8 @@ def discard_partner(game, batch, player, slot, source):
     number = slot.partner
     slot.partner = None
     to_discard(game.state.players[player], number)
-    game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason=source)
+    game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason=source,
+              slot=slot.uid)
     return number
 
 

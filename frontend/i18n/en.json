@@ -448,6 +448,7 @@
   "ui.book_review_title": "My Spell Book (all 32 pages)",
   "ui.book_revealed_title": "{player}'s Spell Book (revealed)",
   "ui.book_revealed_none": "{player}'s Spell Book (revealed, nothing to choose)",
+  "ui.pick_hint_with_source": "{title} — from {card}",
   "ui.book_page_current": "Open",
   "ui.book_page_used": "Used",
   "ui.book_page_left": "In play",

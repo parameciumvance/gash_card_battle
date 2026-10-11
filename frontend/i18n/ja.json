@@ -448,6 +448,7 @@
   "ui.book_review_title": "自分の魔本(全32ページ)",
   "ui.book_revealed_title": "{player}の魔本(閲覧中)",
   "ui.book_revealed_none": "{player}の魔本(閲覧中・選べるカードなし)",
+  "ui.pick_hint_with_source": "{title} — {card}の効果",
   "ui.book_page_current": "開いている",
   "ui.book_page_used": "使用済み",
   "ui.book_page_left": "場に出た",

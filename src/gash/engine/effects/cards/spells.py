@@ -145,8 +145,8 @@ reg.spell_nonbattle("S-043", when=HasOptions(RobnosTransformMode()), effect=Choo
                     OwnBookCopiesOf("M-024"), bind="page", prompt="pick_mamodo_in_own_book",
                     then=PlayMamodoFromBook(),
                 ),
-                Choose(
-                    OwnBookCopiesOf("M-024"), bind="page", prompt="pick_mamodo_in_own_book",
+                Choose(   # 第二張只剩一張也由玩家選(實體操作:選一張放出、再選一張放出)
+                    OwnBookCopiesOf("M-024"), bind="page", prompt="pick_mamodo_in_own_book", auto_single=False,
                     then=PlayMamodoFromBook(),
                 ),
             )),

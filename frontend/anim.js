@@ -251,7 +251,7 @@ const Anim = (() => {
   }
 
   function measure(events) {
-    const marks = { bookRect: {}, trayRect: {}, cardSrc: {}, slotRect: {} };
+    const marks = { bookRect: {}, trayRect: {}, cardSrc: {}, slotRect: {}, discardSrc: {} };
     for (const p of [0, 1]) {
       const zone = zoneOf(p);
       if (!zone) continue;
@@ -270,6 +270,14 @@ const Anim = (() => {
         const zone = zoneOf(ev.player);
         const el = zone && zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="mamodo"]`);
         if (el) marks.slotRect[ev.seq] = el.getBoundingClientRect();
+      }
+      if (ev.type === "card_discarded") {         // 棄牌的起點:搭檔 / 疊放的魔物所在槽,或魔書頁(看不到時用魔書)
+        const zone = zoneOf(ev.player);
+        const el = !zone ? null
+          : ev.zone === "book" ? zone.querySelector(`.book-pages [data-card="${ev.card}"]`)
+            : zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="${ev.zone}"]`);
+        const rect = el ? el.getBoundingClientRect() : ev.zone === "book" ? marks.bookRect[ev.player] : null;
+        if (rect) marks.discardSrc[ev.seq] = rect;
       }
     }
     return marks;
@@ -297,7 +305,9 @@ const Anim = (() => {
       case "mamodo_injured":
         return hitFlash(ev);
       case "mamodo_discarded":
-        return discardFade(ev, marks);
+        return flyToDiscard(ev.player, ev.cards[ev.cards.length - 1], marks.slotRect[ev.seq]);
+      case "card_discarded":
+        return flyToDiscard(ev.player, ev.card, marks.discardSrc[ev.seq]);
     }
   }
 
@@ -400,20 +410,34 @@ const Anim = (() => {
     el.addEventListener("animationend", () => el.classList.remove("fx-hit"), { once: true });
   }
 
-  // 魔物送墓:原位灰化縮小淡出
-  function discardFade(ev, marks) {
-    const rect = marks.slotRect[ev.seq];
-    if (!rect) return;
-    const ghost = document.createElement("div");
-    ghost.className = "fx-discard";
+  // 棄牌:卡片自原位置(重繪前量得)飛向該玩家的棄牌區(區塊標頭的「棄牌區」)並縮小淡出
+  const DISCARD_FLY_MS = 600;
+  function flyToDiscard(player, card, from) {
+    const zone = zoneOf(player);
+    const pile = zone && zone.querySelector(".discard-btn");
+    if (!from || !pile || !card) return;
+    const to = pile.getBoundingClientRect();
+    const ghost = cardEl(card, { small: true });
+    ghost.classList.add("fx-to-discard");
+    ghost.dataset.card = card;
     Object.assign(ghost.style, {
-      left: `${rect.left}px`, top: `${rect.top}px`,
-      width: `${rect.width}px`, height: `${rect.height}px`,
+      left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`,
     });
+    ghost.style.setProperty("--fly-ms", `${DISCARD_FLY_MS}ms`);   // 自訂屬性只能用 setProperty
     overlay().appendChild(ghost);
-    ghost.getBoundingClientRect();
+    ghost.getBoundingClientRect();                // 強制 reflow 後過渡到棄牌區(與飛卡相同)
+    Object.assign(ghost.style, {
+      left: `${to.left + to.width / 2 - from.width / 2}px`, top: `${to.top + to.height / 2 - from.height / 2}px`,
+    });
     ghost.classList.add("gone");
-    setTimeout(() => ghost.remove(), 800);
+    setTimeout(() => ghost.remove(), DISCARD_FLY_MS + 50);
+  }
+
+  // 疊加特效(重繪後播放、不阻塞)大約要播多久;等它播完再做會遮住畫面的事(自動開啟選擇網格)
+  const OVERLAY_SETTLE = { card_played: 480, mamodo_discarded: DISCARD_FLY_MS, card_discarded: DISCARD_FLY_MS };
+  function overlaySettleMs(events) {
+    if (motionOff()) return 0;
+    return Math.max(0, ...events.map((ev) => OVERLAY_SETTLE[ev.type] || 0));
   }
 
   // ---------------------------------------------------------------- 阻塞式
@@ -586,7 +610,8 @@ const Anim = (() => {
     const y0 = window.innerHeight / 2;
     const x1 = rect.left + rect.width / 2;
     const y1 = rect.top + rect.height / 2;
-    Object.assign(orb.style, { left: `${x0}px`, top: `${y0}px`, "--fly-ms": `${fly}ms` });
+    Object.assign(orb.style, { left: `${x0}px`, top: `${y0}px` });
+    orb.style.setProperty("--fly-ms", `${fly}ms`);
     const angle = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
     orb.style.setProperty("--angle", `${angle}deg`);
     overlay().appendChild(orb);
@@ -597,9 +622,10 @@ const Anim = (() => {
     const burst = document.createElement("div");
     burst.className = "fx-impact";
     Object.assign(burst.style, {
-      left: `${x1}px`, top: `${y1}px`, "--impact-ms": `${T - fly}ms`,
+      left: `${x1}px`, top: `${y1}px`,
       width: `${Math.max(rect.width, rect.height) * 1.3}px`, height: `${Math.max(rect.width, rect.height) * 1.3}px`,
     });
+    burst.style.setProperty("--impact-ms", `${T - fly}ms`);
     overlay().appendChild(burst);
     await wait(T - fly);
     burst.remove();
@@ -626,7 +652,8 @@ const Anim = (() => {
     const wrap = document.createElement("div");
     wrap.className = "fx-guard-wrap";
     wrap.dataset.guardFor = ev.target === "book" ? `book-${ev.player}` : `slot-${ev.target_slot}`;
-    Object.assign(wrap.style, { left: `${home.x}px`, top: `${home.y}px`, "--guard-ms": `${ms}ms` });
+    Object.assign(wrap.style, { left: `${home.x}px`, top: `${home.y}px` });
+    wrap.style.setProperty("--guard-ms", `${ms}ms`);
     const card = src.cloneNode(true);
     card.classList.add("fx-guard");
     wrap.appendChild(card);
@@ -682,5 +709,5 @@ const Anim = (() => {
   }
 
   // idle:目前排隊中的播放全部結束時完成(測試與需要等畫面追上的流程使用)
-  return { apply, idle: () => queue };
+  return { apply, idle: () => queue, overlaySettleMs };
 })();

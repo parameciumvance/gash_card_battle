@@ -46,6 +46,7 @@ negated                                                                ← 無�
 - 戰鬥中戰術魔力的加減一律經 `primitives.add_spell_power` 記進 `battle.data["<side>_spell_power"]`(每筆含來源卡);無效化的來源記在 `battle.data["<side>_negated_by"]`;無戰術攻擊的魔物記在 `attack_fixed_source`。新增會改變戰術魔力的效果時,也要經這個函式,明細才會有來源。
 - `showdown` 事件附 `attacker`、`attacker_breakdown`、`defender_breakdown`;快照的 `battle` 附同樣的即時明細。
 - `showdown` 事件另附對峙的卡:`attack_mamodo` / `defense_mamodo`(魔物槽最上面的卡)、`attack_spell` / `defense_spell`;不防禦時防禦兩欄為 None,無戰術攻擊時 `attack_spell` 為 None。前端的對峙演出只靠事件本身,不依賴快照時序。
+- `card_discarded` 對場上的卡(搭檔、疊放頂層)附 `slot`,魔書的卡附 `page`,供前端從原位置播放棄牌演出。
 - `protected` 事件附 `target`(`book` / `slot`)與 `target_slot`(被保護的魔物槽),供保護演出知道保護者要移到哪裡。
 
 ## 場上魔物的欄位

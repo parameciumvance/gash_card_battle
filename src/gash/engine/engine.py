@@ -436,7 +436,8 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
         if zone == "partner":
             slot.partner = None
             to_discard(st.players[player], number)
-            game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason="cost")
+            game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason="cost",
+                      slot=slot.uid)
         else:
             raise IllegalCommand("ability.mode", "此卡不能以棄掉方式啟動")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone=zone)
@@ -1350,7 +1351,8 @@ def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, 
     if len(slot.stack) > 1 and slot.top in reg.DETACH_KEEP_UNDER:
         top = slot.stack.pop()
         to_discard(ps, top)
-        game.emit(batch, "card_discarded", player=player, card=top, zone="mamodo", reason=reason)
+        game.emit(batch, "card_discarded", player=player, card=top, zone="mamodo", reason=reason,
+                  slot=slot.uid)
         game.emit(batch, "stack_detached", player=player, slot=slot.uid,
                   detached=top, remaining=slot.top)
         if top in reg.ON_DISCARD:
@@ -1361,7 +1363,8 @@ def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, 
         to_discard(ps, number)
     if slot.partner:
         to_discard(ps, slot.partner)
-        game.emit(batch, "card_discarded", player=player, card=slot.partner, zone="partner", reason="attached")
+        game.emit(batch, "card_discarded", player=player, card=slot.partner, zone="partner", reason="attached",
+                  slot=slot.uid)
     game.emit(batch, "mamodo_discarded", player=player, slot=slot.uid,
               cards=list(slot.stack), reason=reason)
     for number in slot.stack:

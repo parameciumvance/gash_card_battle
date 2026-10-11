@@ -448,6 +448,7 @@
   "ui.book_review_title": "我的魔書(全 32 頁)",
   "ui.book_revealed_title": "{player} 的魔書(檢視中)",
   "ui.book_revealed_none": "{player} 的魔書(檢視中・沒有可選的卡)",
+  "ui.pick_hint_with_source": "{title} — 來源:{card}",
   "ui.book_page_current": "翻開中",
   "ui.book_page_used": "已使用",
   "ui.book_page_left": "已上場",

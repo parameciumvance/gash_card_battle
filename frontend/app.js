@@ -265,13 +265,22 @@ function applyPayload(body) {
   for (const ev of reveals) {
     REVEALED[ev.player] = { turn: S.turn_no, cards: new Map(ev.cards.map((c) => [c.page, c.card])) };
   }
-  played.then(autoOpenPick);
+  // 等飛卡、棄牌等特效播完,網格才不會蓋住演出。同一批經 HTTP 與 WS 各到一次時,第二次沒有新事件,
+  // 仍要等第一次的特效:記下最早可開啟的時間,之後的觸發都等到那時
+  const settle = Anim.overlaySettleMs(fresh);
+  played.then(() => {
+    pickOpenNotBefore = Math.max(pickOpenNotBefore, performance.now() + settle);
+    setTimeout(autoOpenPick, Math.max(0, pickOpenNotBefore - performance.now()));
+  });
 }
 
 // 決策開始時,可選的目標都在同一本魔書或同一個棄牌區(場上沒有目標)就自動開啟它;
 // 每個決策只自動開啟一次,關閉後由決策提示的按鈕再開(可關閉查閱場面)
 let autoOpenedPick = null;
+let pickOpenNotBefore = 0;   // 疊加演出播完的時間;自動開啟不早於此
 function autoOpenPick() {
+  const wait = pickOpenNotBefore - performance.now();
+  if (wait > 0) { setTimeout(autoOpenPick, wait); return; }
   if (!PICK || PICK.local || !S || !S.pending) return;
   const key = JSON.stringify([S.pending.kind, S.pending.player, S.pending.source, S.pending.options]);
   if (key === autoOpenedPick) return;
@@ -291,6 +300,16 @@ function revealedBook(p) {
   // 挑卡決策期間以 book_revealed 的內容補上非候選頁;決策結束(檢視結束)後不再提供,網格隨之關閉
   const r = REVEALED[p];
   return r && S && r.turn === S.turn_no && bookTargets(p).length ? r.cards : null;
+}
+
+// 選擇提示:目前的決策在 p 的魔書(zone="book")或棄牌區(zone="discard")有目標時,
+// 回傳 {title: 決策的通用標題, source: 來源卡號};只是查閱時為 null
+function pickHint(p, zone) {
+  if (!PICK || PICK.local || !S.pending) return null;
+  const has = zone === "book" ? PICK.books.has(p) : PICK.discards.has(p);
+  if (!has) return null;
+  const key = `choice.title.${S.pending.kind}`;
+  return { title: DICT[key] ? t(key) : S.pending.kind, source: S.pending.source || null };
 }
 
 function bookTargets(p) {
@@ -2691,6 +2710,7 @@ document.getElementById("rules-toggle").onclick = () => openRules();
 
 function showDiscard(p) {
   const ps = S.players[p];
+  const hint = pickHint(p, "discard");            // 決策目標:另以決策標題與來源卡提示要選什麼
   showDialog(pname(p) + t("ui.sep.meta") + t("ui.discard", { n: ps.discard.length }),
     ps.discard.length
       ? ps.discard.map((num, index) => {
@@ -2698,7 +2718,8 @@ function showDiscard(p) {
         const target = pickValue(ctx) !== undefined;
         return { cardNum: num, pickable: target, onpick: () => zoom(num, target ? ctx : undefined) };
       })
-      : [{ label: t("ui.close"), onpick: () => {} }]);
+      : [{ label: t("ui.close"), onpick: () => {} }],
+    hint ? hint.source : null, hint ? [hint.title] : []);
 }
 
 // 查閱魔書:對頁網格呈現 32 頁,標示當前翻開 / 已離場 / 已用戰術頁。
@@ -2719,6 +2740,11 @@ function showBookReview(p) {
     ps.book && iControl(p) ? t("ui.book_review_title")
       : revealed ? t(targets.length ? "ui.book_revealed_title" : "ui.book_revealed_none", { player: pname(p) })
         : pname(p) + t("ui.book");
+  const hint = pickHint(p, "book");               // 除了發光,也寫出這次要選什麼
+  const hintEl = document.getElementById("book-review-hint");
+  hintEl.textContent = !hint ? ""
+    : hint.source ? t("ui.pick_hint_with_source", { title: hint.title, card: cname(hint.source) }) : hint.title;
+  hintEl.classList.toggle("hidden", !hint);
   const close = document.getElementById("book-review-close");
   close.textContent = t("ui.close");
   close.onclick = closeBookReview;

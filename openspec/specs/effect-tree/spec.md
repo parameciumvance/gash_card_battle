@@ -7,6 +7,7 @@
 Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、決策回應的分派、擲幣確認鏈、待命的時效)、效果樹的登記入口與登記規則。不含個別卡片的效果行為(見 `card-effects`)與遊戲規則本身(見 `game-engine`)。
 
 ## Requirements
+
 ### Requirement: 效果以不可變節點樹描述
 系統 SHALL 提供效果樹:效果由不可變(frozen)節點組合而成,節點命名 MUST 以語意為主、不含卡號;卡號 MUST 僅出現在註冊處。效果樹 SHALL 在註冊時建立並存入 `EFFECTS[effect_id]`,對局期間不得被修改。
 
@@ -72,7 +73,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 註冊時拋出錯誤
 
 ### Requirement: Choose 節點自動驗證與自動解決
-`Choose` 節點 SHALL 依選項規格自動產生選項與驗證:僅有一個選項時 MUST 自動解決、不進入 pending;有多個選項時進入 pending;玩家回應的值不在選項內時 MUST 拒絕並保留 pending,不得修改遊戲狀態。
+`Choose` 節點 SHALL 依選項規格自動產生選項與驗證:僅有一個選項時 MUST 自動解決、不進入 pending,但登記時指定不自動解決(`auto_single=False`)的 `Choose` 仍進入 pending,由玩家選擇(實體操作上必須由玩家做的選擇,如 S-043 分裂的第二張、檢視對手魔書挑卡);有多個選項時進入 pending;玩家回應的值不在選項內時 MUST 拒絕並保留 pending,不得修改遊戲狀態。
 
 #### Scenario: 單一選項自動解決
 - **WHEN** 玩家使用 E-001,場上僅有 1 隻魔物
@@ -85,6 +86,10 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 #### Scenario: 無效選擇保留 pending
 - **WHEN** 玩家對 E-001 的 pending 回應不在選項內的值
 - **THEN** 指令被拒絕,pending 保留,可重新選擇,遊戲狀態不變
+
+#### Scenario: 指定不自動解決時仍由玩家選
+- **WHEN** S-043 分裂的第二次選擇只剩 1 張 M-024
+- **THEN** 產生 pending,選項只有那一頁,玩家選了才繼續
 
 ### Requirement: Standby 節點跨回合續體與時效
 `Standby` 節點 SHALL 排程待命效果,於指定觸發時機從其 `then` 節點繼續解決。`expires` 為 `"turn"` 時,待命 MUST 於建立當回合結束時移除;為 `"next_start"` 時,MUST 保留到觸發為止。

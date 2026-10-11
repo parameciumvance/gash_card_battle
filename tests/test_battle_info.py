@@ -290,3 +290,22 @@ def test_protected_event_names_mamodo_target():
     events = submit(g, {"type": "choose", "player": 1, "value": other.uid})
     ev = next(e for e in events if e["type"] == "protected")
     assert ev["target"] == "slot" and ev["target_slot"] == target.uid
+
+
+# ================================================================ 棄牌事件標明來源魔物槽(棄牌演出的起點)
+
+def test_card_discarded_names_slot_for_field_cards():
+    from gash.engine.effects.primitives import discard_partner
+    from gash.engine.engine import _discard_slot
+    g = game(turn=0)
+    s = slot0(g, 0)
+    s.partner = "P-001"
+    events = []
+    discard_partner(g, events, 0, s, "TEST")
+    ev = next(e for e in events if e["type"] == "card_discarded")
+    assert ev["zone"] == "partner" and ev["slot"] == s.uid
+    s.partner = "P-001"
+    events = []
+    _discard_slot(g, events, 0, s, reason="damage")                     # 魔物送墓時一併棄掉的搭檔
+    ev = next(e for e in events if e["type"] == "card_discarded")
+    assert ev["zone"] == "partner" and ev["slot"] == s.uid
