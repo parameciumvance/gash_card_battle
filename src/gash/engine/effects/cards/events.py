@@ -5,7 +5,7 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AddPower, Always, AttachPartnerFromBookPage, AttachPartnerFromDiscard,
+    AwaitBookReviewEnd, AddPower, Always, AttachPartnerFromBookPage, AttachPartnerFromDiscard,
     AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin,
     CoinWithPaidReflip, DeployMamodoFromBook, DeployableMamodoInOwnBook, DiscardChosenMamodo,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
@@ -93,19 +93,28 @@ reg.event("E-015", when=has_own_mamodo, effect=Choose(
     then=AddPower(amount=2000, duration=DUR_UNTIL_END_NEXT_TURN, target=Ref("slot")),
 ))
 
-reg.event("E-016", when=HasOptions(OpponentBookCards("spell", exclude_last=True)), effect=Sequence(steps=(
+# E-016 / E-017:對手魔書有沒有對象是檢視後才知道的資訊,不當使用條件;沒有時檢視後不棄、不減 MP
+reg.event("E-016", effect=Sequence(steps=(
     RevealOpponentBook(),
-    Choose(
-        OpponentBookCards("spell", exclude_last=True), bind="page", prompt="pick_opponent_book_card",
-        then=DiscardFromOpponentBookPayCost(),
+    When(
+        HasOptions(OpponentBookCards("spell", exclude_last=True)),
+        then=Choose(
+            OpponentBookCards("spell", exclude_last=True), bind="page", prompt="pick_opponent_book_card", auto_single=False,
+            then=DiscardFromOpponentBookPayCost(),
+        ),
+        otherwise=AwaitBookReviewEnd(),
     ),
 )))
 
-reg.event("E-017", when=HasOptions(OpponentBookCards("event")), effect=Sequence(steps=(
+reg.event("E-017", effect=Sequence(steps=(
     RevealOpponentBook(),
-    Choose(
-        OpponentBookCards("event"), bind="page", prompt="pick_opponent_book_card",
-        then=DiscardFromOpponentBookPayCost(),
+    When(
+        HasOptions(OpponentBookCards("event")),
+        then=Choose(
+            OpponentBookCards("event"), bind="page", prompt="pick_opponent_book_card", auto_single=False,
+            then=DiscardFromOpponentBookPayCost(),
+        ),
+        otherwise=AwaitBookReviewEnd(),
     ),
 )))
 

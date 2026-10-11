@@ -260,6 +260,41 @@ function applyPayload(body) {
   const live = body.actor !== null && body.actor !== undefined;
   const peeks = live ? fresh.filter((ev) => ev.type === "pages_peeked" && ev.cards) : [];
   if (peeks.length) played.then(() => showPeek(peeks));
+  // 檢視對手魔書(M-011 / E-016 / E-017):記下整本內容,挑卡時網格以它補上非候選頁
+  const reveals = live ? fresh.filter((ev) => ev.type === "book_revealed" && ev.cards) : [];
+  for (const ev of reveals) {
+    REVEALED[ev.player] = { turn: S.turn_no, cards: new Map(ev.cards.map((c) => [c.page, c.card])) };
+  }
+  played.then(autoOpenPick);
+}
+
+// 決策開始時,可選的目標都在同一本魔書或同一個棄牌區(場上沒有目標)就自動開啟它;
+// 每個決策只自動開啟一次,關閉後由決策提示的按鈕再開(可關閉查閱場面)
+let autoOpenedPick = null;
+function autoOpenPick() {
+  if (!PICK || PICK.local || !S || !S.pending) return;
+  const key = JSON.stringify([S.pending.kind, S.pending.player, S.pending.source, S.pending.options]);
+  if (key === autoOpenedPick) return;
+  autoOpenedPick = key;
+  if (PICK.slot.size || PICK.books.size + PICK.discards.size !== 1) return;
+  if (PICK.books.size) showBookReview([...PICK.books][0]);
+  else showDiscard([...PICK.discards][0]);
+}
+
+// 被檢視的對手魔書:玩家 → {turn, cards: Map(頁 → 卡號)}。只在檢視的那個回合、挑卡決策期間有效
+const REVEALED = {};
+function revealedBook(p) {
+  // 等待結束檢視的決策附整本卡面(只送給檢視者),重新整理後也有
+  const pd = S && S.pending;
+  const end = pd && pd.kind === "end_book_review" && iControl(pd.player) && (pd.options || [])[0];
+  if (end && end.player === p && end.cards) return new Map(end.cards.map((c) => [c.page, c.card]));
+  // 挑卡決策期間以 book_revealed 的內容補上非候選頁;決策結束(檢視結束)後不再提供,網格隨之關閉
+  const r = REVEALED[p];
+  return r && S && r.turn === S.turn_no && bookTargets(p).length ? r.cards : null;
+}
+
+function bookTargets(p) {
+  return PICK ? [...PICK.book.keys()].filter((k) => k.startsWith(`${p}:`)) : [];
 }
 
 function toast(msg) {
@@ -1977,6 +2012,7 @@ function pickState() {
   for (const opt of pd.options) {
     const value = opt.index !== undefined ? opt.index : opt.value !== undefined ? opt.value : opt.page;
     const label = choiceLabel(opt, results);
+    if (opt.label === "end_review") pick.books.add(opt.player);   // 結束檢視:另給開啟對手魔書的按鈕
     if (label !== null) { pick.buttons.push({ label, value }); continue; }
     if (opt.zone === "slot") {
       const slot = S.players[opt.player]?.slots.find((x) => x.uid === opt.slot);
@@ -2016,6 +2052,7 @@ function choiceLabel(opt, results) {
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
     case "gain_mp_2": return t("choice.gain_mp_2");
+    case "end_review": return t("choice.end_review");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
   return null;
@@ -2670,15 +2707,18 @@ let BOOK_VIEW = null;   // 開啟中的魔書網格屬於哪位玩家
 
 function showBookReview(p) {
   const ps = S.players[p];
-  const targets = PICK ? [...PICK.book.keys()].filter((k) => k.startsWith(`${p}:`)) : [];
+  const targets = bookTargets(p);
+  const revealed = ps.book ? null : revealedBook(p);   // 檢視對手魔書:整本卡面
   const overlay = document.getElementById("book-review-overlay");
-  if (!ps.book && !targets.length) { closeBookReview(); return; }
+  if (!ps.book && !targets.length && !revealed) { closeBookReview(); return; }
   // 開啟時捲到當前翻開的對頁;開啟期間的重繪保留玩家捲動的位置
   const box = document.getElementById("book-review");
   const keepScroll = BOOK_VIEW === p ? box.scrollTop : null;
   BOOK_VIEW = p;
   document.getElementById("book-review-title").textContent =
-    ps.book && iControl(p) ? t("ui.book_review_title") : pname(p) + t("ui.book");
+    ps.book && iControl(p) ? t("ui.book_review_title")
+      : revealed ? t(targets.length ? "ui.book_revealed_title" : "ui.book_revealed_none", { player: pname(p) })
+        : pname(p) + t("ui.book");
   const close = document.getElementById("book-review-close");
   close.textContent = t("ui.close");
   close.onclick = closeBookReview;
@@ -2693,7 +2733,7 @@ function showBookReview(p) {
     const ctx = { kind: "pick", zone: "book", p, page: pg };
     const target = PICK && PICK.book.get(`${p}:${pg}`);
     const usable = anyPage.get(pg);   // P-015:可從魔書使用的戰術頁
-    const num = ps.book ? ps.book[pg - 1] : target && target.card;
+    const num = ps.book ? ps.book[pg - 1] : target ? target.card : revealed && revealed.get(pg);
     const wrap = document.createElement("div");
     wrap.className = "review-cell";
     wrap.dataset.page = pg;

@@ -289,14 +289,17 @@ def opponent_has_mamodo(game, player) -> bool:
 
 @dataclass(frozen=True)
 class HasOptions:
-    """使用條件:選項規格至少有一個選項才能使用。可當事件卡的 when=(fn(game, player)),
-    也可當啟動型效果的 condition=(fn(game, player, slot),ctx 另含 self_slot)。"""
+    """選項規格至少有一個選項。可當事件卡的 when=(fn(game, player))、啟動型效果的
+    condition=(fn(game, player, slot),ctx 另含 self_slot),也可當 When 的條件(test)。"""
     spec: Any
 
     def __call__(self, game, player, slot=None) -> bool:
         ctx = {"player": player}
         if slot is not None:
             ctx["self_slot"] = slot.uid
+        return bool(self.spec.options(game, ctx))
+
+    def test(self, game, ctx) -> bool:
         return bool(self.spec.options(game, ctx))
 
 
@@ -741,11 +744,13 @@ class NextStartPhase:
 
 @dataclass(frozen=True)
 class Choose(Effect):
-    """玩家選擇:單一選項自動解決;多選項建立 pending,回應後把選到的值綁定到 bind。"""
+    """玩家選擇:單一選項自動解決(auto_single=False 時仍由玩家選);多選項建立 pending,
+    回應後把選到的值綁定到 bind。"""
     target: Any = None
     bind: str = "choice"
     prompt: str = ""
     then: Effect = field(default_factory=Nothing)
+    auto_single: bool = True
 
     def children(self):
         return (self.then,)
@@ -759,7 +764,7 @@ class Choose(Effect):
         options = self.target.options(game, ctx)
         if not options:
             return True
-        if len(options) == 1:
+        if len(options) == 1 and self.auto_single:
             ctx[self.bind] = options[0]["value"]
             return self.then.run(rt, ctx, path + (0,))
         game.state.pending = PendingChoice(
@@ -774,6 +779,36 @@ class Choose(Effect):
         ctx[self.bind] = value
         if self.then.run(rt, ctx, path + (0,)):
             _ascend(rt, ctx, path, floor)
+
+
+@dataclass(frozen=True)
+class AwaitBookReviewEnd(Effect):
+    """檢視對手魔書後沒有可選的卡:停下等檢視者「結束檢視」,在這之前對手不能行動。
+    選項附對手魔書所有未離開頁的卡面(pending 的選項只送給決策者),重新整理後仍可檢視。"""
+    prompt: ClassVar[str] = "end_book_review"
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        player = ctx["player"]
+        opp = game.state.players[1 - player]
+        options = [{"value": None, "label": "end_review", "player": 1 - player,
+                    "cards": [{"page": p, "card": opp.card_at(p)}
+                              for p in range(1, 33) if p not in opp.consumed_pages]}]
+        game.state.pending = PendingChoice(
+            kind=self.prompt, player=player, options=options, source=ctx["source"],
+            data={CHOICE_KEY: rt.cont(ctx, path)})
+        game.emit(rt.batch, "choice_required", kind=self.prompt, player=player, options=options)
+        return False
+
+    def resume(self, rt, ctx, value, path, floor):
+        from ..engine import IllegalCommand
+        if value is not None:
+            raise IllegalCommand("choose.invalid", "只能結束檢視")
+        _ascend(rt, ctx, path, floor)
 
 
 @dataclass(frozen=True)

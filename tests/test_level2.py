@@ -710,7 +710,7 @@ def test_e016_reveal_opponent_book_discard_spell_pay_cost():
     assert g.state.players[0].mp == mp - DB["S-002"].cost
 
 
-def test_e017_single_event_auto_discard_pay_cost():
+def test_e017_single_event_chosen_by_player_pay_cost():
     b0 = book("M-001", "E-017")
     b1 = book("M-001", "E-003")
     g, tp = mk(b0, b1)
@@ -718,7 +718,8 @@ def test_e017_single_event_auto_discard_pay_cost():
     to_battle(g, 0)
     mp_before_use = g.state.players[0].mp
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert g.state.pending is None                              # 唯一事件卡自動選
+    submit(g, {"type": "choose", "player": 0, "value": 2})     # 唯一事件卡也由玩家選(檢視到選完為止)
+    assert g.state.pending is None
     assert "E-003" in g.state.players[1].discard
     assert g.state.players[0].mp == mp_before_use - DB["E-017"].cost - DB["E-003"].cost
 
@@ -1270,7 +1271,8 @@ def test_p013_counts_mamodo_card_discarded_from_book():
     st.players[0].slots.append(fein)
     pos1 = st.players[1].pos
     submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": fein.uid})
-    assert st.pending is None                               # 唯一的魔物卡 → 自動選
+    assert [o["value"] for o in st.pending.options] == [10]  # 唯一的魔物卡也由玩家選
+    submit(g, {"type": "choose", "player": 0, "value": 10})
     assert "M-002" in st.players[1].discard
     assert st.players[1].pos == pos1 + 2
 

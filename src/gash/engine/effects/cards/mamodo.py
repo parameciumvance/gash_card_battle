@@ -3,7 +3,7 @@
 from ...state import DUR_BATTLE, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
-    AddPower, All, AttachPartnerFromBookPage, Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose,
+    AwaitBookReviewEnd, AddPower, All, AttachPartnerFromBookPage, Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose,
     DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner, DiscardFromOpponentBook,
     DiscardedCardsToReturn, GainMp, HasOptions, ImmuneToSpellDamageAtMost, IncreaseSelfDamage,
     OpponentBookCards, OpponentInjuredMamodo, OpponentOpenPagesLackDefenseSpell,
@@ -45,12 +45,16 @@ reg.stack_on("M-010", base=("M-009",))
 reg.activated("M-010", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("defense"),
               effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
 
-reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True,
-              condition=HasOptions(OpponentBookCards("mamodo")), effect=Sequence(steps=(
+# 對手魔書有沒有魔物是檢視後才知道的資訊,不當使用條件;沒有時檢視後不棄
+reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True, effect=Sequence(steps=(
     RevealOpponentBook(),
-    Choose(
-        OpponentBookCards("mamodo"), bind="page", prompt="pick_opponent_book_card",
-        then=DiscardFromOpponentBook(),
+    When(
+        HasOptions(OpponentBookCards("mamodo")),
+        then=Choose(
+            OpponentBookCards("mamodo"), bind="page", prompt="pick_opponent_book_card", auto_single=False,
+            then=DiscardFromOpponentBook(),
+        ),
+        otherwise=AwaitBookReviewEnd(),
     ),
 )))
 
