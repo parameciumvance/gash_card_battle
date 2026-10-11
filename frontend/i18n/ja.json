@@ -381,6 +381,7 @@
   "builder.page_first": "P1 最初のページ(魔物)",
   "builder.page_last": "P32 最後のページ(術、コスト0)",
   "builder.empty_page": "P{n}",
+  "builder.remove": "外す",
   "builder.deck_name": "デッキ名",
   "builder.new": "新しいデッキ",
   "builder.new_blank": "空",

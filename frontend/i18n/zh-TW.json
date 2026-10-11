@@ -381,6 +381,7 @@
   "builder.page_first": "P1 首頁(魔物)",
   "builder.page_last": "P32 末頁(戰術,費用0)",
   "builder.empty_page": "P{n}",
+  "builder.remove": "移除",
   "builder.deck_name": "牌組名稱",
   "builder.new": "新牌組",
   "builder.new_blank": "空白",

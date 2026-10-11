@@ -162,3 +162,34 @@ def test_phone_layout_keeps_labels_apart(browser, server):  # noqa: F811
     page.evaluate("B.deck.pages[0] = null; builderMutated()")
     assert "首頁" in page.locator('#book-grid .page-slot[data-page="0"] .pno').text_content()
     context.close()
+
+
+# ---------------------------------------------------------------- 移除改用按鈕(deck-builder「對頁編輯」)
+
+def test_double_click_does_not_remove(builder):
+    put(builder, {3: "S-001"})
+    slot = builder.locator('#book-grid .page-slot[data-page="2"]')
+    slot.click()
+    builder.locator('#book-grid .page-slot[data-page="2"]').click()
+    assert builder.evaluate("B.deck.pages[2]") == "S-001"                    # 連點不刪卡
+    assert builder.evaluate("B.selected") is None                             # 第二次取消選取
+
+
+def test_remove_button_on_selected_filled_slot(builder):
+    put(builder, {3: "S-001"})
+    assert builder.locator("#book-grid .slot-remove").count() == 0           # 未選中:沒有按鈕
+    builder.locator('#book-grid .page-slot[data-page="2"]').click()
+    btn = builder.locator('#book-grid .page-slot[data-page="2"] .slot-remove')
+    assert btn.count() == 1 and btn.text_content() == "移除"
+    btn.click()
+    assert builder.evaluate("B.deck.pages[2]") is None
+    assert builder.evaluate("B.selected") == 2                                # 仍選中,可直接補卡
+    assert builder.locator("#book-grid .slot-remove").count() == 0           # 空頁沒有按鈕
+
+
+def test_delete_key_removes_selected(builder):
+    put(builder, {3: "S-001"})
+    slot = builder.locator('#book-grid .page-slot[data-page="2"]')
+    slot.click()
+    builder.locator('#book-grid .page-slot[data-page="2"]').press("Delete")
+    assert builder.evaluate("B.deck.pages[2]") is None

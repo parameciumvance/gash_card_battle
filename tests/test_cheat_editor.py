@@ -292,7 +292,7 @@ def test_builder_shared_components_keep_original_behavior(page):
     slot(page, 0, "book-grid").drag_to(slot(page, 1, "book-grid"))
     assert page.evaluate("B.deck.pages.slice(0,2)") == ["M-001", "S-001"]
     slot(page, 0, "book-grid").click()
-    slot(page, 0, "book-grid").click()
+    slot(page, 0, "book-grid").locator(".slot-remove").click()             # 移除改用選中頁位上的按鈕
     assert page.evaluate("B.deck.pages[0]") is None
     assert page.evaluate("DeckStore.loadDraft().pages") == page.evaluate("B.deck.pages")
     page.locator("#pool-filters select").first.select_option("event")

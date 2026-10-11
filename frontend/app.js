@@ -2993,14 +2993,19 @@ function loadDeckIntoBuilder(deck) {
 function togglePage(i) {
   const pages = B.deck.pages;
   if (B.selected === i) {
-    if (pages[i]) pages[i] = null;       // 再點選中的有卡頁 → 移除
-    else B.selected = null;
+    B.selected = null;                   // 再點選中的頁 → 取消選取(移除改用頁位上的「移除」,避免連點誤刪)
   } else if (B.selected !== null && pages[B.selected]) {
     [pages[B.selected], pages[i]] = [pages[i], pages[B.selected]];  // 移動/互換
     B.selected = null;
   } else {
     B.selected = i;
   }
+  builderMutated();
+}
+
+function removePage(i) {
+  B.deck.pages[i] = null;                // 移除後仍選中這頁,可直接從卡池補卡
+  B.selected = i;
   builderMutated();
 }
 
@@ -3218,7 +3223,7 @@ function renderCardPool(grid, filters, onPick, opts = {}) {
 
 function pageSlotEl(i) {
   return bookPageSlotEl(i, B.deck.pages, B.selected, {
-    scope: "builder", enabled: () => true, select: togglePage, swap: swapPages, detail: true,
+    scope: "builder", enabled: () => true, select: togglePage, swap: swapPages, remove: removePage, detail: true,
   });
 }
 
@@ -3245,6 +3250,13 @@ function bookPageSlotEl(i, pages, selected, actions) {
     card.onclick = (ev) => { ev.stopPropagation(); pick(); };
     card.querySelector("img").draggable = false;
     slot.appendChild(card);
+    if (actions.remove && selected === i) {     // 選中的有卡頁位:明確的移除按鈕
+      const rm = document.createElement("button");
+      rm.className = "slot-remove";
+      rm.textContent = t("builder.remove");
+      rm.onclick = (ev) => { ev.stopPropagation(); if (actions.enabled()) actions.remove(i); };
+      slot.appendChild(rm);
+    }
     slot.draggable = true;
     slot.ondragstart = (ev) => {
       if (!actions.enabled()) { ev.preventDefault(); return; }
@@ -3260,6 +3272,8 @@ function bookPageSlotEl(i, pages, selected, actions) {
   slot.onclick = pick;
   slot.onkeydown = (ev) => {
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); }
+    else if ((ev.key === "Delete" || ev.key === "Backspace") && actions.remove && selected === i && pages[i]
+             && actions.enabled()) { ev.preventDefault(); actions.remove(i); }
   };
   slot.ondragover = (ev) => {
     if (!actions.enabled() || !Array.from(ev.dataTransfer.types).includes("application/x-gash-page")) return;

@@ -381,6 +381,7 @@
   "builder.page_first": "P1 first page (MAMODO)",
   "builder.page_last": "P32 last page (SPELL, cost 0)",
   "builder.empty_page": "P{n}",
+  "builder.remove": "Remove",
   "builder.deck_name": "Deck name",
   "builder.new": "New deck",
   "builder.new_blank": "Blank",

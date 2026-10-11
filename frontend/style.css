@@ -1073,6 +1073,12 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .page-slot .card .cname-ja { display: none; }
 .page-slot .card img.art { height: 40px; }
 .page-slot.dragover { outline: 2px solid var(--accent-green); }
+/* 選中的有卡頁位:明確的移除按鈕(取代再點一次移除,避免連點誤刪) */
+.page-slot .slot-remove {
+  position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2;
+  font-size: 11px; padding: 2px 10px; border-radius: 10px; cursor: pointer;
+  background: var(--danger); color: #fff; border: 1px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
 .page-slot .empty-label { font-size: 11px; color: #5b6682; }
 
 #builder-validation {
