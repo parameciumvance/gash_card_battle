@@ -946,6 +946,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   color: var(--on-page-amber); background: rgba(217, 164, 65, 0.15);
   border: 1px solid var(--gold); word-break: break-all; }
 .card img.art.placeholder { opacity: 0.45; }
+/* 返回進行中的對局(入口卡片上方) */
+#landing-resume { width: min(640px, 100%); margin: 0 auto 16px; display: flex; flex-direction: column; gap: 8px; }
+#landing-resume .resume-title { font-size: 16px; color: var(--on-page); margin: 0; }
+#landing-resume .resume-list { display: flex; flex-direction: column; gap: 6px; }
+#landing-resume .resume-item {
+  text-align: left; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;
+  background: #fff3c4; color: #5a3d00; border: 1px solid #e0b84a;
+}
+#landing-resume .resume-item:hover { background: #ffe9a0; }
+#title { cursor: pointer; }
 #landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
   max-width: 820px; }
 .entry { background: #202a42; border: 1px solid #4a5a80; border-radius: 12px;
@@ -1112,7 +1122,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --art-ratio: 72 / 64; }
 
   #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
-  #topbar #title { display: none; }
+  #topbar #title .wm-text { display: none; }   /* 手機只留徽章(仍可點回首頁) */
   .wordmark.large { --wm-badge: 76px; --wm-gap: 14px; --wm-gash: 54px; --wm-sub: 16px; --wm-line-gap: 4px; }
 
   #layout { flex-direction: column; }

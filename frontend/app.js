@@ -372,7 +372,7 @@ function show(sectionId) {
   for (const id of ["landing", "setup", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
-  if (sectionId === "landing") maybeShowRelease();
+  if (sectionId === "landing") { maybeShowRelease(); refreshResumeRooms(); }
   else if (INFO && INFO.kind.startsWith("release")) closeInfo();   // 更新內容只在首頁顯示
   syncOnline();   // 對戰中人數:進入首頁時抓取,離開時停止
 }
@@ -539,6 +539,66 @@ async function resumeRoom(code) {
     history.replaceState(null, "", "/");
     show("landing");
   }
+}
+
+// ---------------------------------------------------------------- 返回進行中的對局
+// 瀏覽器記得的房間(gash-room-<房號>)中,伺服器上仍在、尚未結束的列在首頁;不存在的移除記錄
+let resumeGen = 0;
+async function refreshResumeRooms() {
+  const gen = ++resumeGen;
+  const box = document.getElementById("landing-resume");
+  const codes = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("gash-room-")) codes.push(key.slice("gash-room-".length));
+    }
+  } catch (_) { /* 無法讀取:不顯示 */ }
+  const found = await Promise.all(codes.map(async (code) => {
+    let saved;
+    try { saved = loadSession(code); } catch (_) { return null; }
+    if (!saved || !saved.tokens) return null;
+    const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
+    try {
+      const body = await api(`/api/rooms/${code}/state`, { headers: { "X-Player-Token": token } });
+      if (body.state && body.state.phase === "game_over") return null;
+      return { code, saved, body };
+    } catch (_) {
+      try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
+      return null;
+    }
+  }));
+  if (gen !== resumeGen) return;                      // 期間又進了一次首頁:以後來的為準
+  const items = found.filter(Boolean);
+  box.classList.toggle("hidden", !items.length);
+  box.querySelector(".resume-title").textContent = t("ui.resume.title");
+  box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body }) => {
+    const btn = document.createElement("button");
+    btn.className = "resume-item";
+    btn.dataset.code = code;
+    const room = body.room || {};
+    const names = room.names || [];
+    const me = saved.viewer === 0 || saved.viewer === 1 ? saved.viewer : null;
+    const opp = me === null ? null : names[1 - me] || t(saved.mode === "npc" ? "ui.resume.npc" : "ui.resume.opponent");
+    const status = room.started && body.state ? t("ui.turn", { n: body.state.turn_no }) : t("ui.resume.waiting");
+    const parts = [t(`ui.landing.${saved.mode === "online" ? "friend" : saved.mode}`)];
+    if (opp && saved.mode !== "local") parts.push(t("ui.resume.vs", { name: opp }));
+    parts.push(t("ui.resume.code", { code }), status);
+    btn.textContent = parts.join(t("ui.sep.bar"));
+    btn.onclick = () => {
+      history.replaceState(null, "", `/?room=${code}`);
+      resumeRoom(code);
+    };
+    return btn;
+  }));
+}
+
+// 頂欄標題字:回到首頁(在房間中等同離開房間,對局仍可從首頁返回)
+function goHome() {
+  if (SESSION) { leaveRoom(); return; }
+  history.replaceState(null, "", "/");
+  renderLanding();
+  show("landing");
 }
 
 function leaveRoom() {
@@ -1145,7 +1205,8 @@ document.getElementById("cheat-panel").addEventListener("cancel", (ev) => {
 });
 
 function renderTopbar() {
-  document.getElementById("title").setAttribute("aria-label", t("app.title"));
+  document.getElementById("title").setAttribute("aria-label", `${t("app.title")} — ${t("ui.resume.home")}`);
+  document.getElementById("title").title = t("ui.resume.home");
   updateLogTab();
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
@@ -3596,6 +3657,9 @@ function renderLanding() {
     };
   }
   document.getElementById("leave-room").onclick = leaveRoom;
+  const title = document.getElementById("title");
+  title.onclick = goHome;
+  title.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); goHome(); } };
   renderAssetsHint();
 }
 
