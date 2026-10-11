@@ -1,6 +1,39 @@
 {
   "releases": [
     {
+      "version": "v1.0.0",
+      "date": "2026-10-11",
+      "title": "Official release",
+      "items": [
+        {"kind": "new", "text": "Turn dial: the action bar shows the turn player and the acting player on a dial; after one pass it tilts 45° to warn that one more pass ends the turn"},
+        {"kind": "new", "text": "Pass and Accept buttons now explain what they do (take no more actions this turn / take no action on opponent's turn / use no BATTLE effect; or take a No-BATTLE action instead of accepting)"},
+        {"kind": "new", "text": "Power showdown: both mamodo and their spells face off in the center, with a clear \"Attack succeeds\" or \"Defense holds\""},
+        {"kind": "new", "text": "Damage and protection effects: energy flies to the damaged Spell Book or mamodo, a protecting mamodo steps in front to take it, and discarded cards fly to the Discard Pile"},
+        {"kind": "new", "text": "Browse your Spell Book on the board with the arrow buttons; in the Start Phase, browse to the page you want and the matching flip button appears"},
+        {"kind": "new", "text": "Choose which mamodo uses a spell and which mamodo a partner attaches to, right on the board"},
+        {"kind": "new", "text": "When choosing a card, the Spell Book or Discard Pile opens automatically and says what to choose"},
+        {"kind": "new", "text": "View the cards stacked under a stacked mamodo"},
+        {"kind": "new", "text": "Sound effects in games"},
+        {"kind": "new", "text": "The home page shows how many people are playing"},
+        {"kind": "new", "text": "Maintenance notices appear at the top of the screen before maintenance"},
+        {"kind": "new", "text": "Deck builder: cards show Intermediate / Superior and the card number, with a details view; the mamodo filter has \"None\" to find command spells"},
+        {"kind": "change", "text": "The site is now Gash Card Battle Online, with a new title and icon"},
+        {"kind": "change", "text": "Chinese terms unified; local test mode is now called \"Free Investigation\""},
+        {"kind": "change", "text": "Mamodo keep their positions on the board; when the left one leaves, the others no longer shift left"},
+        {"kind": "change", "text": "Deck builder: remove a card with the Remove button, so double-clicking no longer deletes by accident"},
+        {"kind": "change", "text": "Phone layout adjustments for the action log and Spell Book grid"},
+        {"kind": "fix", "text": "Viewing a Spell Book: M-011, E-016 and E-017 can be used even if the opponent's book has no target; you see the whole book, and the opponent acts only after you finish viewing. M-018 and E-014 now show you the opponent's open pages first"},
+        {"kind": "fix", "text": "Choosing effects in any order: E-021 lets you use one or both effects in the order you choose"},
+        {"kind": "fix", "text": "Borrowed partner effects: an effect borrowed with E-010 stays usable after that partner leaves play"},
+        {"kind": "fix", "text": "Usable without a target: P-003, P-004 and P-006 can be used any time; they just have no effect if their target isn't there"},
+        {"kind": "fix", "text": "Not usable without a target: S-043 and S-048 can't be used (and cost no MP) when there is no mamodo to choose; S-043's split places the two mamodo one at a time"},
+        {"kind": "fix", "text": "Timing: P-001 can only be used on your own turn; M-012 can't reflip while restricted by E-024 / E-025"},
+        {"kind": "fix", "text": "Command spells: S-026 and other command spells let you choose which mamodo uses them, and the log shows them as spells"},
+        {"kind": "fix", "text": "A mamodo stacked onto an injured one stays injured"},
+        {"kind": "fix", "text": "Non-BATTLE spells with the same name on different pages can each be used once"}
+      ]
+    },
+    {
       "version": "v0.9.3",
       "date": "2026-10-06",
       "items": [
