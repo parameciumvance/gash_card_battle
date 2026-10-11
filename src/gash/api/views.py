@@ -132,7 +132,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
     if can_see_player(viewer, p):
         view["book"] = list(ps.book)
         view["any_page_spells"] = _any_page_spells(game, p)
-        view["used_nonbattle_spells"] = sorted(ps.used_nonbattle_spells)
+        view["used_nonbattle_pages"] = sorted(ps.used_nonbattle_pages)
     return view
 
 

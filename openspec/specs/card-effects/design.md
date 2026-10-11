@@ -50,6 +50,8 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 `spell_page_uses` 以頁計數,上限由 `spell_use_limit` 查詢掛鉤決定(M-024 兩隻分身體時 ビライツ 每張每回合 2 次)。
 
+非戰鬥戰術另以 `used_nonbattle_pages` 以頁記錄,每頁每回合一次(同名的另一頁仍可用;使用者確認)。不併入 `spell_page_uses`:那裡的上限掛鉤只為戰鬥戰術設計,混用會讓非戰鬥戰術受 M-024 影響。
+
 ### 啟動效果「限自己回合」(M-018)
 
 - `Activated.own_turn` 由 `engine._use_field_ability` 在時機檢查旁檢查:非回合玩家使用時拒絕 `ability.timing`,在支付 MP 與標記已使用之前。時機(`timing`:戰鬥中與否)與回合歸屬是兩個獨立條件。

@@ -178,7 +178,7 @@ def test_book_card_used_log_by_type(page):
     send(page, {"type": "flip_pages", "player": tp, "count": 0})
     gash = page.evaluate(f"S.players[{tp}].slots[0].uid")
     send(page, {"type": "use_book_card", "player": tp, "page": pos, "slot_uid": gash})
-    page.wait_for_function("S.players[S.turn_player].used_nonbattle_spells.includes('S-026')")
+    page.wait_for_function(f"S.players[S.turn_player].used_nonbattle_pages.includes({pos})")
     if page.evaluate("S.pending"):
         page.evaluate("send({type: 'choose', player: S.pending.player, value: S.pending.options[0].value})")
     names = page.evaluate("[cname('S-026'), cname('M-001'), cname('E-003')]")

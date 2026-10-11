@@ -519,7 +519,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         if card.ad == "D" and player == st.turn_player:
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在對手的回合使用")
         user = _nonbattle_spell_user(game, player, page, card, command.get("slot_uid"))
-        if number in st.players[player].used_nonbattle_spells:
+        if page in st.players[player].used_nonbattle_pages:
             raise IllegalCommand("spell.used", "此非戰鬥戰術本回合已使用過")
         handler = reg.SPELL_NONBATTLE.get(number)
         if handler is None:
@@ -530,7 +530,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         cost = spell_cost(game, player, page, card, slot=user)
         if st.players[player].mp < cost:
             raise IllegalCommand("spell.mp", "MP 不足")
-        st.players[player].used_nonbattle_spells.add(number)
+        st.players[player].used_nonbattle_pages.add(page)
         pay_mp(game, batch, player, cost, f"spell:{number}")
         game.emit(batch, "book_card_used", player=player, card=number, page=page, mamodo=user.top)
         handler(game, batch, player)
@@ -1540,7 +1540,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     for p in st.players:
         p.spell_page_uses.clear()
         p.used_abilities.clear()
-        p.used_nonbattle_spells.clear()
+        p.used_nonbattle_pages.clear()
         p.used_event_this_turn = False
         p.discarded_this_turn.clear()
         p.page_effect_used = False

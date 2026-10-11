@@ -842,7 +842,7 @@ function nonbattleSpellUsable(p, entry) {
   if ((def.ad === "A" && p !== S.turn_player) || (def.ad === "D" && p === S.turn_player)) {
     return { ok: false, reason: t(def.ad === "A" ? "ui.spell.own_turn" : "ui.spell.other_turn") };
   }
-  if ((ps.used_nonbattle_spells || []).includes(entry.card)) return { ok: false, reason: t("ui.used") };
+  if ((ps.used_nonbattle_pages || []).includes(entry.page)) return { ok: false, reason: t("ui.used") };   // 以頁計,同名的另一頁仍可用
   if (entry.condition_ok === false) return { ok: false, reason: t("ui.condition") };   // 例如選不到對象
   return spellUsersCheck(p, entry);
 }

@@ -52,17 +52,19 @@ def test_s026_real_effect_and_reload(page):
       zoom('S-026',{kind:'page',p:S.turn_player,page:2});
     }""")
     page.locator("#zoom-actions button").click()
-    page.wait_for_function("S.players[S.turn_player].used_nonbattle_spells.includes('S-026')")
+    page.wait_for_function("S.players[S.turn_player].used_nonbattle_pages.includes(2)")
     assert page.evaluate("!S.battle && !S.battle_in")
     events = page.evaluate("api(`/api/rooms/${SESSION.code}/events?since=0`, {headers:{'X-Player-Token':Object.values(SESSION.tokens)[0]}})")["events"]
     assert any(e["type"] == "book_card_used" and e["card"] == "S-026" for e in events)
     assert any(e["type"] == "coin_flipped" and e.get("source") == "S-026" for e in events)
     page.reload()
-    page.wait_for_function("S && S.players[S.turn_player].used_nonbattle_spells.includes('S-026')")
+    page.wait_for_function("S && S.players[S.turn_player].used_nonbattle_pages.includes(2)")
     page.evaluate("p => send({type:'pass',player:1-p})", p)
-    page.evaluate("p => zoom('S-026',{kind:'page',p,page:3})", p)
-    assert page.locator("#zoom-actions button").is_disabled()
+    page.evaluate("p => zoom('S-026',{kind:'page',p,page:2})", p)
+    assert page.locator("#zoom-actions button").is_disabled()               # 用過的那一頁停用
     assert page.locator("#zoom-actions .zoom-reason").inner_text()
+    page.evaluate("p => zoom('S-026',{kind:'page',p,page:3})", p)
+    assert page.locator("#zoom-actions button").is_enabled()                # 同名的另一頁仍可用
 
 
 def test_reasons_and_latest_snapshot(page):
@@ -73,9 +75,9 @@ def test_reasons_and_latest_snapshot(page):
     assert "MP 不足" in page.locator(".zoom-reason").inner_text()
     update("S.players[p].mp=20; S.players[p].open_pages[0].users=[]")
     assert "魔物" in page.locator(".zoom-reason").inner_text()
-    update("S.players[p].used_nonbattle_spells=['S-041']")
+    update("S.players[p].used_nonbattle_pages=[S.players[p].open_pages[0].page]")
     assert page.locator(".zoom-reason").inner_text() == page.evaluate("t('ui.used')")
-    update("S.players[p].used_nonbattle_spells=[]; S.players[p].open_pages[0].users=[{slot_uid:1,cost:1,locked:false}]")
+    update("S.players[p].used_nonbattle_pages=[]; S.players[p].open_pages[0].users=[{slot_uid:1,cost:1,locked:false}]")
     assert page.locator("#zoom-actions button").is_enabled()
     page.evaluate("S.turn_player=1-S.turn_player; renderZoom()")
     assert "自己的回合" in page.locator(".zoom-reason").inner_text()
@@ -85,7 +87,7 @@ def test_reasons_and_latest_snapshot(page):
     assert "對手的回合" in page.locator(".zoom-reason").inner_text()
     page.evaluate("CARDS['S-041'].ad='AD'; renderZoom()")
     assert page.locator("#zoom-actions button").is_enabled()
-    page.evaluate("delete S.players[S.turn_player].used_nonbattle_spells; renderZoom()")
+    page.evaluate("delete S.players[S.turn_player].used_nonbattle_pages; renderZoom()")
     assert page.locator("#zoom-actions button").is_enabled()
 
 

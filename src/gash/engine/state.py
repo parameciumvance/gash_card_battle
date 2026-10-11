@@ -121,7 +121,7 @@ class PlayerState:
     spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各戰術卡頁已使用次數
     used_event_this_turn: bool = False
     used_abilities: set[str] = field(default_factory=set)   # 本回合已用啟動效果 key
-    used_nonbattle_spells: set[str] = field(default_factory=set)  # 本回合已用非戰鬥戰術卡號
+    used_nonbattle_pages: set[int] = field(default_factory=set)  # 本回合已用的非戰鬥戰術所在頁(以頁計,同名的另一頁仍可用)
     used_per_game: set[str] = field(default_factory=set)    # 一場遊戲限一次
     discarded_this_turn: list[str] = field(default_factory=list)  # 本回合入墓的卡(E-022)
     page_effect_used: bool = False        # 本回合已用「翻自己魔書」的效果(P-010 / E-005)

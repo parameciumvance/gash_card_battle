@@ -96,7 +96,7 @@ def test_nonbattle_spell_without_user_skips_locked():
     to_battle(g)
     lock(g, 0, first)
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})          # 由未被封鎖的另一隻使用
-    assert "S-041" in g.state.players[0].used_nonbattle_spells
+    assert 2 in g.state.players[0].used_nonbattle_pages
 
 
 # ---------------------------------------------------------------- 快照的可使用魔物

@@ -343,7 +343,7 @@ def test_used_nonbattle_spell_blocks_same_turn_reuse():
     _end_turn(g)  # 結束玩家 1 回合,輪回玩家 0
     # 下回合(輪到自己時)應恢復可用(回合結束的強制翻頁會讓 S-041 離開開啟頁範圍,
     # 故直接驗證使用紀錄已清空,而非重新對同一頁提交指令)
-    assert "S-041" not in g.state.players[0].used_nonbattle_spells
+    assert 2 not in g.state.players[0].used_nonbattle_pages
 
 
 # ---------------------------------------------------------------- 傷害管線修正(S-036)

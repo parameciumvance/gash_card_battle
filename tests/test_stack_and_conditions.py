@@ -58,7 +58,7 @@ def test_s048_rejected_without_armor_in_book():
     to_battle(g)
     assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "spell.condition"
     assert g.state.players[0].mp == 5
-    assert "S-048" not in g.state.players[0].used_nonbattle_spells
+    assert 2 not in g.state.players[0].used_nonbattle_pages
 
 
 def test_s048_rejected_without_base_on_field():
@@ -162,3 +162,17 @@ def test_s043_split_with_exactly_two_places_one_then_asks_again():
     submit(g, {"type": "choose", "player": 0, "value": 4})
     assert g.state.pending is None
     assert [s.top for s in g.state.players[0].slots] == ["M-024", "M-024"]
+
+
+# ---------------------------------------------------------------- 非戰鬥戰術以頁計次(同名的另一張仍可用)
+
+def test_nonbattle_spell_used_per_page_not_per_name():
+    g = mk(book("M-001", "S-026", "S-026"))                                  # 第 2、3 頁都是 S-026(指令戰術)
+    g.state.players[0].mp = 10
+    to_battle(g)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    submit(g, {"type": "pass", "player": 1})
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "spell.used"
+    submit(g, {"type": "use_book_card", "player": 0, "page": 3})            # 同名的另一張仍可用
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_pages"] == [2, 3]
+    assert "used_nonbattle_pages" not in snapshot(g, 1)["players"][0]

@@ -97,18 +97,18 @@ def test_filter_events_keeps_order_and_seq():
     assert len(out) == len(g.events)  # 事件都在(內容可能裁剪),序號連續可對齊
 
 
-def test_nonbattle_usage_visibility_and_sorted_card_numbers():
+def test_nonbattle_usage_visibility_and_sorted_pages():
     g = mk()
-    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == []
-    g.state.players[0].used_nonbattle_spells.update(["S-057", "S-026"])
-    g.state.players[1].used_nonbattle_spells.add("S-041")
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_pages"] == []
+    g.state.players[0].used_nonbattle_pages.update([9, 3])
+    g.state.players[1].used_nonbattle_pages.add(5)
     for viewer in (0, 1, "spectator", "all"):
         view = snapshot(g, viewer)
         for p in (0, 1):
             if viewer == "all" or viewer == p:
-                assert view["players"][p]["used_nonbattle_spells"] == sorted(g.state.players[p].used_nonbattle_spells)
+                assert view["players"][p]["used_nonbattle_pages"] == sorted(g.state.players[p].used_nonbattle_pages)
             else:
-                assert "used_nonbattle_spells" not in view["players"][p]
+                assert "used_nonbattle_pages" not in view["players"][p]
 
 
 def test_nonbattle_usage_snapshot_after_use_and_turn_reset():
@@ -116,8 +116,8 @@ def test_nonbattle_usage_snapshot_after_use_and_turn_reset():
     g.state.players[0].book[1] = "S-026"
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == ["S-026"]
-    assert snapshot(g, "all")["players"][0]["used_nonbattle_spells"] == ["S-026"]
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_pages"] == [2]
+    assert snapshot(g, "all")["players"][0]["used_nonbattle_pages"] == [2]
     submit(g, {"type": "pass", "player": 1})
     submit(g, {"type": "pass", "player": 0})
-    assert snapshot(g, 0)["players"][0]["used_nonbattle_spells"] == []
+    assert snapshot(g, 0)["players"][0]["used_nonbattle_pages"] == []
