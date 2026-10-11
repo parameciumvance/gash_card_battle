@@ -755,6 +755,33 @@ function renderZoom() {
   card.onclick = (ev) => ev.stopPropagation();  // 點卡面不關閉、不重開
   holder.appendChild(card);
 
+  // 疊放中的魔物:列出疊在下方的卡(由上而下),點了改為純展示並可返回
+  const slot = ZOOM.ctx && ZOOM.ctx.kind === "slot"
+    ? S.players[ZOOM.ctx.p].slots.find((x) => x.uid === ZOOM.ctx.uid) : null;
+  if (slot && slot.stack && slot.stack.length > 1) {
+    const box = document.createElement("div");
+    box.className = "zoom-stack";
+    box.onclick = (ev) => ev.stopPropagation();
+    const head = document.createElement("div");
+    head.className = "zoom-stack-title";
+    head.textContent = t("ui.stack_under");
+    const row = document.createElement("div");
+    row.className = "zoom-stack-cards";
+    const back = { num: ZOOM.num, ctx: ZOOM.ctx };
+    for (const num of slot.stack.slice(0, -1).reverse()) {
+      const el = cardEl(num, { small: true });
+      el.dataset.card = num;
+      el.onclick = (ev) => { ev.stopPropagation(); ZOOM = { num, ctx: null, back }; renderZoom(); };
+      row.appendChild(el);
+    }
+    box.append(head, row);
+    actions.appendChild(box);
+  }
+  if (ZOOM.back) {
+    const prev = ZOOM.back;
+    buttons = [...buttons, { label: t("ui.back"), onclick: () => zoom(prev.num, prev.ctx), keepOpen: true }];
+  }
+
   for (const b of buttons) {
     const row = document.createElement("div");
     row.className = "zoom-action";
@@ -771,7 +798,7 @@ function renderZoom() {
         row.appendChild(why);
       }
     } else {
-      btn.onclick = (ev) => { ev.stopPropagation(); closeZoom(); b.onclick(); };
+      btn.onclick = (ev) => { ev.stopPropagation(); if (!b.keepOpen) closeZoom(); b.onclick(); };
     }
     row.prepend(btn);
     actions.appendChild(row);

@@ -544,6 +544,14 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* 檢視內行動區:卡片實例的統一操作入口 */
 #zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
 .zoom-action { display: flex; align-items: center; gap: 8px; }
+/* 疊放中的魔物:下方的卡(由上而下)以小卡列出 */
+.zoom-stack { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 8px;
+  background: #1c2438; border: 1px solid var(--panel-line); }
+.zoom-stack-title { font-size: 13px; color: var(--ink-dim); }
+.zoom-stack-cards { display: flex; gap: 8px; flex-wrap: wrap; }
+.zoom-stack-cards .card { width: 88px; height: 112px; min-height: 0; overflow: hidden; cursor: pointer; }
+.zoom-stack-cards .card img.art { height: 62px; }
+.zoom-stack-cards .card .cmeta, .zoom-stack-cards .card .ceffect, .zoom-stack-cards .card .cname-ja { display: none; }
 #zoom-actions button { flex: 1; font-size: 14px; padding: 9px 14px; min-height: 38px; }
 .zoom-reason { font-size: 12px; color: var(--danger); flex-shrink: 0; max-width: 45%; }
 .hidden { display: none !important; }

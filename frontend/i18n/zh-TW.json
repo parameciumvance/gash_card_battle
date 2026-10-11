@@ -449,6 +449,8 @@
   "ui.book_revealed_title": "{player} 的魔書(檢視中)",
   "ui.book_revealed_none": "{player} 的魔書(檢視中・沒有可選的卡)",
   "ui.pick_hint_with_source": "{title} — 來源:{card}",
+  "ui.stack_under": "疊放在下方",
+  "ui.back": "返回",
   "ui.book_page_current": "翻開中",
   "ui.book_page_used": "已使用",
   "ui.book_page_left": "已上場",
