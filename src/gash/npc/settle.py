@@ -1,6 +1,7 @@
 """模擬到停點:NPC 送出候選後,雙方以簡單的回應規則續行,直到可以評估的時點。
 
 停點:對局結束、回合交替、又輪到 NPC 做非戰鬥的決定,或達到步數上限。
+`turn_end_value` 在停於「又輪到 NPC」時再延伸一層(pass / 攻擊)到回合結束,讓所有候選以同一基準評分。
 對手的回應規則刻意簡單(迎戰、擋得下就以最低費用防禦、魔書受傷時保護、戰鬥中 pass、其他走安全預設);
 NPC 在模擬中遇到的中途決策,以各選項立即的評估挑選(不再往下模擬)。
 """
@@ -17,6 +18,8 @@ from .candidates import candidates, choice_value
 from .evaluate import evaluate
 
 MAX_STEPS = 60
+# 延伸一層才達到的結果略低於直接達到的:同樣的結果時,偏好早一步達成(例如能致勝就直接攻擊,不先放卡)
+EXTENSION_DISCOUNT = 0.01
 
 
 def clone(game: Game) -> Game:
@@ -41,8 +44,10 @@ def npc_free(game: Game, npc: int) -> bool:
             and st.battle_in is None and st.action_player == npc)
 
 
-def settle(game: Game, npc: int, max_steps: int = MAX_STEPS) -> None:
-    start_turn = game.state.turn_no
+def settle(game: Game, npc: int, max_steps: int = MAX_STEPS, start_turn: int | None = None) -> None:
+    """模擬到停點。start_turn:以哪個回合的交替為停點(預設目前的回合;候選已讓回合交替時要傳送出前的回合)。"""
+    if start_turn is None:
+        start_turn = game.state.turn_no
     for _ in range(max_steps):
         st = game.state
         if st.phase == GAME_OVER or st.turn_no != start_turn:
@@ -53,6 +58,40 @@ def settle(game: Game, npc: int, max_steps: int = MAX_STEPS) -> None:
         if not try_submit(game, who, respond(game, who, npc)):
             if not try_submit(game, who, default_command(game)):
                 return
+
+
+def finish_turn(game: Game, npc: int, start_turn: int) -> None:
+    """之後 NPC 一律 pass,模擬到 start_turn 這個回合交替、對局結束或步數上限。"""
+    for _ in range(MAX_STEPS):
+        if game.state.phase == GAME_OVER or game.state.turn_no != start_turn:
+            return
+        settle(game, npc, start_turn=start_turn)
+        st = game.state
+        if st.phase == GAME_OVER or st.turn_no != start_turn or not npc_free(game, npc):
+            return
+        if not try_submit(game, npc, {"type": "pass"}):
+            return
+
+
+def turn_end_value(game: Game, npc: int, start_turn: int) -> float:
+    """以「本回合結束」為共同基準的評分。送出候選後先模擬到停點;若又輪到 NPC 的非戰鬥決定
+    (尚未算到結束階段),延伸一層:接著 pass 或宣告各攻擊,各自模擬到回合結束,取最好者。
+    否則停在行動後的候選會少算結束階段的強制翻頁,比 pass 佔便宜(例如不攻擊卻使用 P-001)。
+    start_turn 是送出候選前的回合:pass 可能已讓回合交替,不能再往下模擬對手的整個回合。"""
+    settle(game, npc, start_turn=start_turn)
+    st = game.state
+    if st.phase == GAME_OVER or st.turn_no != start_turn or not npc_free(game, npc):
+        return evaluate(game, npc)
+    follow = [{"type": "pass"}] + [c for c in candidates(game, npc) if c["type"] == "declare_attack"]
+    best = None
+    for cmd in follow:
+        sim = clone(game)
+        if not try_submit(sim, npc, cmd):
+            continue
+        finish_turn(sim, npc, start_turn)   # 以送出前的回合為準:pass 可能已讓回合交替
+        score = evaluate(sim, npc)
+        best = score if best is None else max(best, score)
+    return evaluate(game, npc) if best is None else best - EXTENSION_DISCOUNT
 
 
 def respond(game: Game, who: int, npc: int) -> dict:

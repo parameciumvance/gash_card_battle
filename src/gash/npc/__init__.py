@@ -14,7 +14,7 @@ from ..engine.state import Game
 from .candidates import candidates
 from .determinize import Determinizer
 from .evaluate import evaluate
-from .settle import settle, try_submit
+from .settle import try_submit, turn_end_value
 
 LEVELS = ("dummy", "normal")
 SAMPLES = 16      # 每個決策點的抽樣次數(所有候選共用同一組抽樣)
@@ -38,15 +38,16 @@ def decide(game: Game, player: int, level: str, rng: random.Random) -> list[dict
         total, legal = 0.0, 0
         for sample in samples:
             sim = det.build(sample)
+            start_turn = sim.state.turn_no
             if not try_submit(sim, player, cmd):
                 continue
-            settle(sim, player)
-            total += evaluate(sim, player)
+            total += turn_end_value(sim, player, start_turn)
             legal += 1
         if legal:
-            scored.append((-total / legal, index, cmd))
-    scored.sort(key=lambda t: (t[0], t[1]))
-    ranked = [{**cmd, "player": player} for _, _, cmd in scored]
+            # 評分相同時先宣告攻擊(例如兩條路都致勝:直接攻擊不給對手多一次反應),其餘依候選順序
+            scored.append((-total / legal, 0 if cmd["type"] == "declare_attack" else 1, index, cmd))
+    scored.sort(key=lambda t: t[:3])
+    ranked = [{**cmd, "player": player} for *_, cmd in scored]
     if fallback not in ranked:
         ranked.append(fallback)
     return ranked

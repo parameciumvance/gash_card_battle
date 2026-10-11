@@ -260,8 +260,18 @@ def test_attacks_when_it_can_win():
     opp.pos, opp.mp = 32, 0                                             # 再受 1 點魔書傷害即耗盡
     opp.slots[0].injured = True
     assert g.state.action_player == 0
-    choice = top_choice(g, 0)
-    assert choice["type"] == "declare_attack" and choice["page"] == 5
+    # 本回合會宣告攻擊、不會 pass;可以先放出提高勝率的卡(第 4 頁 P-001:攻擊不能被防禦)
+    for _ in range(3):
+        choice = top_choice(g, 0)
+        assert choice["type"] != "pass"
+        submit(g, choice)
+        if choice["type"] == "declare_attack":
+            assert choice["page"] == 5
+            break
+        if g.state.action_player != 0:                                   # 對手 pass,行動權回到 NPC
+            submit(g, {"type": "pass", "player": g.state.action_player})
+    else:
+        raise AssertionError("NPC 本回合沒有宣告攻擊")
 
 
 # ---------------------------------------------------------------- 可重現
@@ -288,3 +298,43 @@ def test_npc_considers_borrowed_partner_effect():
     submit(g, {"type": "use_borrowed_effect", "player": 0})
     submit(g, {"type": "pass", "player": 1})
     assert {"type": "use_borrowed_effect"} not in candidates(g, 0)
+
+
+# ---------------------------------------------------------------- 以本回合結束為評估基準(npc-opponent「一般難度的基本判斷」)
+
+def _gash_with_p001(book0, mp, pos):
+    from tests.test_spell_user import mk, to_battle
+    g = mk(book0)
+    g.state.players[0].slots[0].partner = "P-001"
+    g.state.players[0].mp = mp
+    to_battle(g)
+    g.state.players[0].pos = pos
+    return g
+
+
+P001 = {"type": "use_field_ability", "zone": "partner", "slot_uid": 1, "player": 0}
+
+
+def test_npc_does_not_waste_p001_when_it_cannot_attack():
+    # 魔書剩餘頁數少、MP 0 付不起翻開的 S-001:用了 P-001 本回合也不會有戰鬥
+    book0 = ["M-001"] + ["E-003"] * 22 + ["S-001", "S-001"] + ["E-003"] * 7
+    g = _gash_with_p001(book0, mp=0, pos=24)
+    ranked = npc.decide(g, 0, "normal", random.Random(1))
+    assert ranked[0] != P001
+
+
+def test_npc_values_p001_together_with_following_attack():
+    # 付得起賈修的攻擊戰術:使用 P-001 的評分包含之後的攻擊,不低於直接 pass
+    from gash.npc.determinize import Determinizer
+    from gash.npc.settle import try_submit, turn_end_value
+    book0 = ["M-001", "S-001", "E-003"] + ["E-003"] * 29
+    g = _gash_with_p001(book0, mp=5, pos=2)
+    det = Determinizer(g, 0)
+    sample = det.sample(random.Random(1))
+    scores = {}
+    for name, cmd in (("p001", P001), ("pass", {"type": "pass", "player": 0})):
+        sim = det.build(sample)
+        start = sim.state.turn_no
+        assert try_submit(sim, 0, cmd)
+        scores[name] = turn_end_value(sim, 0, start)
+    assert scores["p001"] >= scores["pass"]
