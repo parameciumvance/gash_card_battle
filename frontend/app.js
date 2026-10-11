@@ -7,6 +7,10 @@
 
 let DICT = {};        // i18n 字典(目前語言)
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
+let PENDING = new Set();   // 資料已收錄、效果尚未實作的卡號(data/pending_cards.json):卡池不顯示、構築規則拒絕
+
+// 已開放的卡(卡池、篩選選項用)
+function openCards() { return Object.values(CARDS).filter((c) => !PENDING.has(c.number)); }
 let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { assets: null, version: null };  // /api/meta:卡圖安裝狀態、版本號
@@ -663,6 +667,7 @@ function cardEl(num, opts = {}) {
     if (def.power.special) bits.push(t("ui.power_special"));
   }
   if (def.damage) bits.push(t("ui.damage", { n: def.damage }));
+  else if (def.damage_variable) bits.push(t("ui.damage", { n: "?" }));   // 卡面「ダメージ?」:傷害依效果決定
   if (def.ad) bits.push(def.ad);
   meta.textContent = bits.join(t("ui.sep.meta"));
   if (def.class === "intermediate" || def.class === "superior") {   // 中級 / 上級:限制可放的頁數
@@ -3221,12 +3226,12 @@ function renderCardPoolFilters(holder, filters, onChange) {
   holder.appendChild(typeSel);
 
   const mamodoSel = document.createElement("select");
-  const names = [...new Set(Object.values(CARDS)
+  const names = [...new Set(openCards()
     .map((c) => c.related_mamodo).filter((m) => m && m !== COMMAND_MAMODO))].sort();
   mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`
     + `<option value="${MAMODO_NONE}">${t("builder.filter.mamodo")}:${t("builder.filter.none")}</option>`;
   for (const name of names) {
-    const numAny = Object.values(CARDS).find(
+    const numAny = openCards().find(
       (c) => c.type === "mamodo" && c.related_mamodo === name);
     const label = numAny && TEXT[numAny.number] ? TEXT[numAny.number].name : name;
     mamodoSel.innerHTML += `<option value="${name}">${label}</option>`;
@@ -3239,7 +3244,7 @@ function renderCardPoolFilters(holder, filters, onChange) {
 
   // 產品(彈數)篩選:同一張卡可屬多個產品
   const productSel = document.createElement("select");
-  const products = [...new Set(Object.values(CARDS).flatMap((c) => c.sets || []))].sort();
+  const products = [...new Set(openCards().flatMap((c) => c.sets || []))].sort();
   productSel.innerHTML = `<option value="">${t("builder.filter.product")}:${t("builder.filter.all")}</option>`;
   for (const tag of products) {
     productSel.innerHTML += `<option value="${tag}">${tag}</option>`;
@@ -3264,7 +3269,7 @@ function matchesMamodoFilter(def, filters) {
 
 function renderCardPool(grid, filters, onPick, opts = {}) {
   grid.innerHTML = "";
-  const numbers = Object.keys(CARDS).sort();
+  const numbers = openCards().map((c) => c.number).sort();
   for (const num of numbers) {
     const def = CARDS[num];
     if (filters.ftype && def.type !== filters.ftype) continue;
@@ -3757,6 +3762,8 @@ async function boot() {
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
+    fetch("/data/pending_cards.json").then((r) => r.json())
+      .then((d) => { PENDING = new Set(d.cards || []); }).catch(() => {}),
   ]);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   applyMotionClass();

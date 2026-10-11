@@ -478,3 +478,95 @@ def test_parse_card_page_missing_ad_raises():
     # 也可能先在「無法辨識的標籤」報錯——兩者都是「不可靜默放行」這個核心行為的體現。
     with pytest.raises(ValueError):
         parse_card_page(SPELL_MISSING_AD_HTML, "術", "T-104")
+
+
+# ---------------------------------------------------------------- 第三彈:土元素、傷害依效果、卡號範圍
+
+def test_parse_header_earth_element():
+    header, used = parse_header(["術　MP2　＋4000　ダメージ1　土　バトル攻撃"], "spell", "T-201")
+    assert header["attr_ja"] == "土" and header["damage"] == 1
+
+
+def test_parse_header_variable_damage():
+    header, used = parse_header(["術　中級　MP4　＋8000　ダメージ?　バトル攻撃"], "spell", "T-202")
+    assert header["damage"] == "?"
+
+
+def test_number_ranges_filter():
+    from tools.scrape_ja_effects import in_ranges, parse_range
+    ranges = [parse_range("M-032:M-034"), parse_range("E-041:E-043")]
+    assert in_ranges("M-033", ranges) and in_ranges("E-043", ranges)
+    assert not in_ranges("M-059", ranges) and not in_ranges("S-033", ranges)
+    assert in_ranges("M-059", [])                                            # 未指定範圍:不篩選
+
+
+def test_parse_header_third_line_only_when_all_tokens():
+    # S-093 型:資料頭跨 3 行(第 2 行只有 power,ad 與效果 icon 在第 3 行)
+    header, used = parse_header(["術　MP1", "特殊", "自分のターン　非バトル", "効果文。"], "spell", "T-203")
+    assert used == 3 and header["ad"] == "A" and header["effect_icon_ja"] == "非バトル"
+
+
+def test_parse_header_third_line_effect_text_not_consumed():
+    # 第 3 行是效果文時不讀入資料頭,仍以缺漏報錯
+    with pytest.raises(ValueError):
+        parse_header(["術　MP1", "特殊", "仮の効果文。"], "spell", "T-204")
+
+
+def test_spell_tail_with_unknown_spell_number():
+    from tools.scrape_ja_effects import SPELL_TAIL_RE
+    m = SPELL_TAIL_RE.search("ゼオン第Xの術")
+    assert m and m.group(1) == "ゼオン"
+
+
+def test_parse_header_trailing_icon_line_consumed():
+    # S-086 型:必填欄位在前 2 行已齊,第 3 行只有效果 icon
+    header, used = parse_header(["術　MP1　特殊", "自分のターン", "非バトル", "効果文。"], "spell", "T-205")
+    assert used == 3 and header["effect_icon_ja"] == "非バトル"
+
+
+def test_parse_header_mamodo_ad_only_line_consumed():
+    # M-039 型:魔物卡第 2 行只有回合欄位(直接攻擊 / 防禦的標示)
+    header, used = parse_header(["魔物　4500", "バトル攻撃　バトル防御", "《格闘》効果文。"], "mamodo", "T-206")
+    assert used == 2 and header["ad"] == "AD"
+
+
+def test_parse_header_effect_line_not_consumed_after_satisfied():
+    header, used = parse_header(["イベント　MP0　自分のターン", "仮の効果文。"], "event", "T-207")
+    assert used == 1
+
+
+def test_parse_header_marker_lines_split_across_lines():
+    # M-039 實際頁面:「バトル攻撃」「バトル防御」分在兩行
+    header, used = parse_header(["魔物　4500", "バトル攻撃", "バトル防御", "《格闘》効果文。"], "mamodo", "T-208")
+    assert used == 3 and header["ad"] == "AD"
+
+
+MAMODO_MARKER_IN_SECOND_DIV_HTML = """
+<blockquote><div>
+T-301　テスト魔物
+<br />
+魔物　4500　
+<br />
+バトル攻撃
+</div>
+<hr />
+<div>
+バトル防御
+<br />
+《格闘》仮の効果文。
+<br />
+パートナー＝テスト人
+</div>
+<hr />
+<div>
+風味文。
+<br />
+LEVEL:テスト
+</div></blockquote>
+"""
+
+
+def test_parse_card_page_marker_line_in_middle_segment():
+    r = parse_card_page(MAMODO_MARKER_IN_SECOND_DIV_HTML, "魔物", "T-301")
+    assert r["ad"] == "AD" and r["effect_ja"].startswith("《格闘》")
+    assert r["related_partner_ja"] == "テスト人"

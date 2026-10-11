@@ -79,6 +79,8 @@ function validateDeckPages(pages) {
     errors.push({ key: "deck.err.unknown", params: { cards: unknown.join(", ") } });
     return errors; // 未知卡號後續規則無法判定
   }
+  const pending = [...new Set(pages.filter((c) => c && PENDING.has(c)))];
+  if (pending.length) errors.push({ key: "deck.err.pending", params: { cards: pending.join(", ") } });
   if (pages[0] && CARDS[pages[0]].type !== "mamodo") {
     errors.push({ key: "deck.err.first_page", params: {} });
   }

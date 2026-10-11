@@ -38,6 +38,7 @@ class CardDef:
     power_special: bool         # 戰術魔力為 Special(不參與合計)
     damage: int | None
     image_url: str | None
+    damage_variable: bool = False   # 卡面「ダメージ?」:傷害依效果決定
 
     @property
     def is_command_spell(self) -> bool:
@@ -70,6 +71,7 @@ def _to_def(raw: dict) -> CardDef:
         power_special=bool(power.get("special")),
         damage=raw.get("damage"),
         image_url=raw.get("image_url"),
+        damage_variable=bool(raw.get("damage_variable")),
     )
 
 
@@ -77,6 +79,15 @@ def load_cards(path: Path | None = None) -> dict[str, CardDef]:
     path = path or DATA_DIR / "cards.json"
     raws = json.loads(path.read_text(encoding="utf-8"))
     return {c["number"]: _to_def(c) for c in raws}
+
+
+@lru_cache(maxsize=1)
+def pending_cards() -> frozenset[str]:
+    """資料已收錄、效果尚未實作的卡號(data/pending_cards.json):構築規則拒絕。"""
+    path = DATA_DIR / "pending_cards.json"
+    if not path.exists():
+        return frozenset()
+    return frozenset(json.loads(path.read_text(encoding="utf-8"))["cards"])
 
 
 @lru_cache(maxsize=1)

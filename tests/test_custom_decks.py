@@ -87,3 +87,10 @@ def test_join_with_illegal_deck_keeps_seat_free():
     # 玩家位未被佔用:改用合法牌組可加入
     res = client.post(f"/api/rooms/{r['code']}/join", json={})
     assert res.status_code == 200
+
+
+def test_create_room_with_pending_card_rejected():
+    pages = list(LEVEL1)
+    pages[5] = "E-028"                                              # 尚未開放的第三彈卡
+    r = client.post("/api/rooms", json={"mode": "online", "deck": {"pages": pages}})
+    assert r.status_code == 422 and "deck.card_pending" in r.text

@@ -15,7 +15,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from .cards import MAMODO, SPELL, CardDef
+from .cards import MAMODO, SPELL, CardDef, pending_cards
 
 BOOK_SIZE = 32
 INTERMEDIATE_MIN_PAGE = 12
@@ -42,6 +42,9 @@ def validate_deck(pages: list[str], db: dict[str, CardDef]) -> None:
     for number in pages:
         if number not in db:
             raise DeckError("deck.unknown_card", f"卡號不存在: {number}")
+    pending = sorted(set(pages) & pending_cards())
+    if pending:
+        raise DeckError("deck.card_pending", f"尚未開放的卡: {', '.join(pending)}")
     if db[pages[0]].type != MAMODO:
         raise DeckError("deck.first_page", f"第 1 頁須為魔物卡,實際為 {pages[0]}")
     if db[pages[-1]].type != SPELL:

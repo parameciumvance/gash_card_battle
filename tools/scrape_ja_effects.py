@@ -11,8 +11,8 @@
 
 資料頭解析規則(token 式,全形空白分隔,不依賴固定位置):
 - 每個 token 都必須被歸類到下列其中一種,否則視為未知標籤,直接 raise(不靜默略過、不歸類為屬性):
-  類型(魔物/術/パートナー/イベント,已知略過)/ 級別(中級/上級)/ 費用(MP+數字)/ 傷害(ダメージ+數字)/
-  魔力 power(見下)/ 元素屬性(水/火/雷/氷/木/風/重力)/ 效果 icon(バトル/非バトル/ジャマー)/
+  類型(魔物/術/パートナー/イベント,已知略過)/ 級別(中級/上級)/ 費用(MP+數字)/ 傷害(ダメージ+數字;ダメージ? 存為「?」,傷害依效果決定)/
+  魔力 power(見下)/ 元素屬性(水/火/雷/氷/木/風/重力/土)/ 效果 icon(バトル/非バトル/ジャマー)/
   回合欄位 AD(バトル攻撃/バトル防御/自分のターン/相手のターン,四者皆換算為 A/D/AD)。
 - power 保留原始標記以區分格式:"4000"(無加號,魔物基礎魔力)、"+4000"(有加號,術的魔力加值)、
   "特殊"(Special)、"2000x" 這種數字+x 後綴(擲幣倍率型,如 S-040)。
@@ -29,6 +29,11 @@
   python tools/scrape_ja_effects.py https://w.atwiki.jp/zatchbell/pages/33.html
   python tools/scrape_ja_effects.py https://w.atwiki.jp/zatchbell/pages/33.html https://w.atwiki.jp/zatchbell/pages/34.html
   python tools/scrape_ja_effects.py ref/1345.html   # 先用本機另存的頁面驗證解析邏輯
+  python tools/scrape_ja_effects.py --range M-032:M-034 https://w.atwiki.jp/zatchbell/pages/58.html
+      # 只抓範圍內的卡(商品頁收錄後續彈的卡時)
+
+第三彈(LEVEL:3 與同期商品):pages/35(LEVEL:3)、1189(ガッシュ・ベルと仲間達)、
+1190(ゼオンと最凶魔物達)、58(魔本ファイル,限 M-032:M-034)。
 """
 
 from __future__ import annotations
@@ -55,7 +60,7 @@ FIELDNAMES = [
 
 CATEGORY_TO_TYPE = {"魔物": "mamodo", "術": "spell", "パートナー": "partner", "イベント": "event"}
 CLASS_MAP = {"中級": "intermediate", "上級": "superior"}
-ELEMENT_TOKENS = {"水", "火", "雷", "氷", "木", "風", "重力"}
+ELEMENT_TOKENS = {"水", "火", "雷", "氷", "木", "風", "重力", "土"}
 EFFECT_ICON_TOKENS = {"バトル", "非バトル", "ジャマー"}
 AD_TOKENS = {"バトル攻撃": "A", "バトル防御": "D", "自分のターン": "A", "相手のターン": "D"}
 REQUIRED_FIELDS = {"event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set()}
@@ -69,6 +74,7 @@ REQUIRE_RELATED_PARTNER = {"mamodo"}
 KNOWN_DATA_GAPS: dict[str, dict] = {
     "S-021": {"power": "特殊"},  # 效果為「無視魔力」的特殊防禦術,頁面漏刊 power token
     "P-018": {"related_mamodo_ja": "ヨポポ"},  # 頁面尾行寫成「パートナー＝ヨポポ」而非「魔物＝X」
+    "S-098": {"power": "特殊"},  # 非バトル術,頁面沒有 power token(TTS 卡表記為 Special)
 }
 
 POWER_X_RE = re.compile(r"^\d+[x×]$", re.I)  # 擲幣倍率型,如 S-040 的 "2000×"(乘號,非字母 x)
@@ -123,7 +129,7 @@ FRAME_NOTE = "以上、枠囲み"
 # 對象魔物名不一定包在連結裡(比對前先 strip_tags),也不一定自成一行——可能跟前一句效果文
 # 黏在同一行(無 <br/> 分隔)。用 [^。] 排除句號,確保只切出「最後一個句號之後」的魔物名,
 # 不會把前面的敘述文字也吃進去;用 .search() 讓比對從最後一個句號之後的位置自然找到起點。
-SPELL_TAIL_RE = re.compile(r'([^。]+?)第(\d+)の?術$')
+SPELL_TAIL_RE = re.compile(r'([^。]+?)第(\d+|[XＸ])の?術$')   # 「第Xの術」:術番號未公開(S-100)
 COMMAND_SPELL_TAIL = "コマンド"  # 指令術(不屬於特定魔物,對應英文 related_mamodo="Command: All")
 COMMAND_SPELL_TAIL_RE = re.compile(r'コマンド$')
 PARTNER_TAIL_RE = re.compile(r'^魔物＝(.+)$')
@@ -142,6 +148,9 @@ def classify_token(tok: str, header: dict, number: str) -> None:
         return
     if tok.startswith("ダメージ") and tok[4:].isdigit():
         header["damage"] = int(tok[4:])
+        return
+    if tok in ("ダメージ?", "ダメージ？"):      # 傷害依效果決定(如 S-061)
+        header["damage"] = "?"
         return
     if tok in ELEMENT_TOKENS:
         header["attr_ja"] = tok
@@ -199,11 +208,30 @@ def parse_header(main_lines: list[str], type_: str, number: str) -> tuple[dict, 
         consume(strip_tags(main_lines[1]))
         consumed = 2
         missing = missing_fields()
+    if missing and len(main_lines) > 2:
+        # 資料頭跨 3 行(S-093):第 3 行必須全是可辨識的標記才讀入,否則視為效果文
+        saved = {k: (set(v) if isinstance(v, set) else list(v) if isinstance(v, list) else v)
+                 for k, v in header.items()}
+        try:
+            consume(strip_tags(main_lines[2]))
+            consumed = 3
+            missing = missing_fields()
+        except ValueError:
+            header.clear()
+            header.update(saved)
     if missing and number in KNOWN_DATA_GAPS:
         header.update(KNOWN_DATA_GAPS[number])
         missing = missing_fields()
     if missing:
         raise ValueError(f"{number}: 缺少必填欄位 {missing}(已讀 {consumed} 行資料頭)")
+    # 必填欄位已齊,但下一行只有效果 icon / 回合欄位的標記(S-086 的「非バトル」、M-039 魔物的
+    # 「バトル攻撃　バトル防御」)時,仍屬資料頭
+    while consumed < len(main_lines):
+        toks = [t.strip() for t in strip_tags(main_lines[consumed]).split("　") if t.strip()]
+        if not toks or not all(t in EFFECT_ICON_TOKENS or t in AD_TOKENS for t in toks):
+            break
+        consume(strip_tags(main_lines[consumed]))
+        consumed += 1
 
     header.pop("_line", None)
     ad_hits = header.pop("ad_hits")
@@ -226,15 +254,18 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
     main_lines = [x for x in BR_RE.split(main_raw) if strip_tags(x)]
     main_lines = main_lines[1:]  # 第一行是「卡號　名稱」,略去
 
-    header, consumed = parse_header(main_lines, type_, number)
+    # 中間段落接在第一段之後一起交給資料頭解析:只有整行都是標記的行才會讀入資料頭
+    # (M-039 的「バトル防御」在第二段開頭),其餘照舊併入效果文
+    lines = list(main_lines)
+    for extra in extra_raws:
+        lines += [x for x in BR_RE.split(extra)
+                  if strip_tags(x) and strip_tags(x) != FRAME_NOTE]
+    header, consumed = parse_header(lines, type_, number)
     result: dict = {"related_mamodo_ja": "", "related_partner_ja": "", "effect_ja": "",
-                     "raw_header_lines": "|".join(strip_tags(x) for x in main_lines[:consumed]),
+                     "raw_header_lines": "|".join(strip_tags(x) for x in lines[:consumed]),
                      **header}
 
-    body_lines = main_lines[consumed:]
-    for extra in extra_raws:
-        body_lines += [x for x in BR_RE.split(extra)
-                       if strip_tags(x) and strip_tags(x) != FRAME_NOTE]
+    body_lines = lines[consumed:]
     if type_ == "spell" and body_lines:
         last = strip_tags(body_lines[-1])
         m = SPELL_TAIL_RE.search(last)
@@ -281,8 +312,30 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
     return result
 
 
+def parse_range(text: str) -> tuple[str, int, int]:
+    """「M-032:M-053」→ ("M", 32, 53)。只接受同一類別前綴。"""
+    m = re.fullmatch(r"([A-Z]+)-(\d+):([A-Z]+)-(\d+)", text)
+    if not m or m.group(1) != m.group(3):
+        raise ValueError(f"卡號範圍格式錯誤: {text!r}(例: M-032:M-053)")
+    return m.group(1), int(m.group(2)), int(m.group(4))
+
+
+def in_ranges(number: str, ranges: list[tuple[str, int, int]]) -> bool:
+    """卡號是否在任一範圍內;沒有指定範圍時一律 True。"""
+    if not ranges:
+        return True
+    m = re.fullmatch(r"([A-Z]+)-(\d+)", number)
+    return bool(m) and any(m.group(1) == p and lo <= int(m.group(2)) <= hi for p, lo, hi in ranges)
+
+
 def main() -> None:
-    sources = sys.argv[1:]
+    args = sys.argv[1:]
+    ranges = []
+    while "--range" in args:                 # --range M-032:M-053(可重複):只抓範圍內的卡號
+        i = args.index("--range")
+        ranges.append(parse_range(args[i + 1]))
+        del args[i:i + 2]
+    sources = args
     if not sources:
         print(__doc__)
         raise SystemExit(1)
@@ -296,7 +349,8 @@ def main() -> None:
     for src in sources:
         html = fetch(src)
         for number, url, name, category in parse_product_page(html, src):
-            entries[number] = (url, name, category)
+            if in_ranges(number, ranges):
+                entries[number] = (url, name, category)
     print(f"從 {len(sources)} 個產品頁取得 {len(entries)} 張卡(去重後)")
 
     def flush() -> None:
