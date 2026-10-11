@@ -56,6 +56,15 @@ body {
 /* 日文以日文字型顯示,避免漢字以中文字形呈現(含中、英模式下的日文原名小字) */
 body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif; }
 
+/* 維護公告橫幅(頂欄下方,所有畫面) */
+#announcement {
+  display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  background: #fff3c4; border-bottom: 1px solid #e0b84a; color: #5a3d00; font-size: 14px; font-weight: bold;
+}
+#announcement .ann-text { flex: 1; white-space: pre-wrap; }
+#announcement .ann-close {
+  border: none; background: transparent; color: #5a3d00; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
 #topbar {
   display: flex; align-items: center; gap: 16px;
   padding: 8px 16px; background: var(--page-deep); border-bottom: 1px solid var(--page-line);

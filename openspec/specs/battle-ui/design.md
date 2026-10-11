@@ -112,6 +112,12 @@
 - **全部歷史**:首頁版本號旁的 `#release-open`(kind `release-history`),列出全部版本,只有「關閉」。版本號這一行 `#landing-version-line` 放在免責聲明 `#landing-disclaimer` 之外(同一個 `#landing-foot` 內),免責聲明本身不含按鈕或入口。
 - **瀏覽器測試**:共用的 `browser` fixture(`tests/test_cheat_editor.py`)為每個 context 預設把 repo 中最新一版記為已確認(只在尚未記錄時寫入),否則首頁的跳出面板會擋住其他測試的操作;更新內容的測試以 route 換成固定資料,並自行設定或清除已確認的版本。
 
+## 維護公告橫幅
+
+- `#announcement` 在頂欄下方,所有畫面共用;body 是直向 flex,盤面 `#layout` 以 `flex: 1` 自動讓出高度。
+- `refreshAnnouncement()` 在啟動時與每 `ANN_POLL_MS`(120 秒)查詢;失敗時維持目前顯示。訊息依 `LANG`,沒有時改用 `zh-TW`、再任一語言,以 `textContent` 呈現。
+- 關閉時把 `id` 記在 `localStorage` 的 `gash-announcement-dismissed`(只記最後一則);新的 `id` 自然再顯示。
+
 ## 行動記錄抽屜(窄螢幕)
 
 - 窄螢幕(≤700px)的 `#log-panel` 是 `#layout` 直欄的最後一個 flex 子項。收合時只靠 CSS 顯示 `#log` 的最後 4 條(`.ev:not(:nth-last-child(-n+4))` 隱藏),每條單行省略,高度固定,不會隨記錄內容擠動盤面;頁籤 `#log-title` 只顯示標題,點擊展開 / 收合。

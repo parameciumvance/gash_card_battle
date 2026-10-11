@@ -318,6 +318,36 @@ dev container 以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo
 
 順序反過來的話,從新版上線到放好 WebP 之間,所有卡面都會是卡背。
 
+### 維護公告
+
+發布新版(重啟)會讓進行中的對局消失,可以先發公告提醒玩家。公告是卡圖 volume 裡的
+`/app/assets/announcement.json`,服務每次查詢都即時讀檔,不需重啟;網頁在頂欄下方顯示
+橫幅,首頁與對局中都看得到(對局中的玩家最多 2 分鐘內看到)。玩家關閉後同一則不再顯示,
+發新公告時換一個 `id`。
+
+```json
+{"id": "2026-10-12-maint",
+ "message": {"zh-TW": "10/12 22:00–22:30 維護,進行中的對局會中斷",
+             "en": "Maintenance 10/12 22:00–22:30 (UTC+8); games in progress will end",
+             "ja": "10/12 22:00–22:30 メンテナンス。対戦中のゲームは中断されます"},
+ "until": "2026-10-12T22:30:00+08:00"}
+```
+
+可以從 `frontend/assets/template.announcement.json`(含四種語言)複製後修改。
+
+- `message`:各語言的文字,玩家的語言沒有時改用 `zh-TW`;簡中玩家沒有 `zh-CN` 時也顯示 `zh-TW`。
+- `until`(可省略):過了這個時間就不再顯示(要寫時區,沒寫視為 UTC)。
+
+```bash
+# VPS(在 /opt/gash-card-battle 目錄下):先寫暫存檔再搬移,避免讀到寫了一半的內容
+docker compose cp announcement.json app:/app/assets/announcement.json.tmp
+docker compose exec app mv /app/assets/announcement.json.tmp /app/assets/announcement.json
+# 撤下
+docker compose exec app rm /app/assets/announcement.json
+```
+
+檔案格式錯誤時視為沒有公告(服務記錄一行警告),不影響其他功能。
+
 ## 意見回報
 
 首頁的「意見回報」與頂欄的「回報」會開啟同一個對話框,提供兩個管道:

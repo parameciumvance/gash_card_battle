@@ -53,6 +53,12 @@
   - `.webp` 屬於 Cloudflare 預設在邊緣快取的副檔名,邊緣也依這個 `max-age` 快取,VPS 的卡圖流量隨之下降。
 - 卡圖的 `Content-Type`:`app.py` 載入時以 `mimetypes.add_type("image/webp", ".webp")` 登記。Python 3.12 的 `.webp` 只在非嚴格的 `common_types`,`python:3.12-slim` 又沒有 `/etc/mime.types`,Starlette 以嚴格模式判斷不出就回 `application/octet-stream`。測試以子行程模擬這個環境(`tests/test_static_cache.py`)。
 
+## 維護公告
+
+- 公告檔在卡圖目錄(`GASH_ASSETS_DIR`,部署時是 volume)下的 `announcement.json`,`read_announcement` 每次請求即時讀取:編輯或刪除檔案就能發布 / 撤下,不需重新部署或重啟(重啟會讓對局消失,公告正是為了事先提醒)。
+- 驗證:`id` 非空字串、`message` 為非空的「語言 → 文字」物件、`until`(可選)為 ISO 8601,沒有時區視為 UTC;過了 `until` 回傳 null。不合格一律回傳 null 並記警告,不讓請求失敗。
+- 獨立端點 `GET /api/announcement`,不併入 `/api/meta`:前端每 2 分鐘查詢,端點保持輕量。`frontend/assets/template.announcement.json` 是發布用的範本(伺服器只讀 `announcement.json`)。
+
 ## 版本號
 
 - `gash.version.app_version()` 依序取:環境變數 `GASH_VERSION`(Docker,CI 以 tag 名稱傳入)→ `git describe --tags --always --dirty`(開發環境)→ `dev`。行程內快取。

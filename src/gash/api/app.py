@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import mimetypes
 import random
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -346,6 +348,40 @@ async def get_meta():
         },
         "version": app_version(),
     }
+
+
+ANNOUNCEMENT_FILE = "announcement.json"
+
+
+def read_announcement(now: datetime | None = None) -> dict | None:
+    """卡圖目錄下的公告檔;每次即時讀取,編輯檔案即可發布 / 撤下。不存在、格式錯誤或已過 until 時為 None。"""
+    path = ASSETS.dir / ANNOUNCEMENT_FILE
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        ann_id, message, until = data["id"], data["message"], data.get("until")
+        if not isinstance(ann_id, str) or not ann_id:
+            raise ValueError("id")
+        if not isinstance(message, dict) or not message or not all(
+                isinstance(k, str) and isinstance(v, str) for k, v in message.items()):
+            raise ValueError("message")
+        if until is not None:
+            end = datetime.fromisoformat(until)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)      # 沒有時區視為 UTC
+            if end <= (now or datetime.now(timezone.utc)):
+                return None
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        logging.getLogger(__name__).warning("公告檔格式錯誤,視為沒有公告:%s", exc)
+        return None
+    return {"id": ann_id, "message": message, "until": until}
+
+
+@app.get("/api/announcement")
+async def get_announcement():
+    """維護公告(前端定期查詢);沒有時為 null。"""
+    return {"announcement": read_announcement()}
 
 
 @app.get("/api/online")

@@ -3636,6 +3636,41 @@ async function loadLanguage() {
   document.documentElement.lang = LANG;   // 日文以 :lang(ja) 換日文字型
 }
 
+// ---------------------------------------------------------------- 維護公告
+// 伺服器上的公告檔(GET /api/announcement):載入時與每 2 分鐘查詢,對局中的玩家也看得到;
+// 關閉的公告 id 記在瀏覽器,同一則不再顯示,新的 id 再顯示
+const ANN_KEY = "gash-announcement-dismissed";
+const ANN_POLL_MS = 120000;
+let ANNOUNCEMENT = null;
+
+async function refreshAnnouncement() {
+  try {
+    const r = await fetch("/api/announcement");
+    if (!r.ok) return;                                // 查詢失敗:維持目前顯示
+    ANNOUNCEMENT = (await r.json()).announcement;
+  } catch (_) { return; }
+  renderAnnouncement();
+}
+
+function renderAnnouncement() {
+  const el = document.getElementById("announcement");
+  const a = ANNOUNCEMENT;
+  let dismissed = null;
+  try { dismissed = localStorage.getItem(ANN_KEY); } catch (_) { /* 無法讀取:視為沒關閉過 */ }
+  const msg = a && (a.message[LANG] || a.message["zh-TW"] || Object.values(a.message)[0]);
+  const visible = !!(a && msg && a.id !== dismissed);
+  el.classList.toggle("hidden", !visible);
+  if (!visible) return;
+  el.querySelector(".ann-text").textContent = msg;   // 純文字
+  const close = el.querySelector(".ann-close");
+  close.textContent = "×";
+  close.title = close.ariaLabel = t("ui.close");
+  close.onclick = () => {
+    try { localStorage.setItem(ANN_KEY, a.id); } catch (_) { /* 只在本次隱藏 */ }
+    el.classList.add("hidden");
+  };
+}
+
 async function boot() {
   let presets;
   [, CARDS, presets, META] = await Promise.all([
@@ -3649,6 +3684,8 @@ async function boot() {
   applyMotionClass();
   renderLanding();
   renderTopbar();
+  refreshAnnouncement();
+  setInterval(refreshAnnouncement, ANN_POLL_MS);
 
   const params = new URLSearchParams(location.search);
   if (params.has("join")) {
