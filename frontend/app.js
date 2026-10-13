@@ -2918,6 +2918,7 @@ function logLine(ev) {
                           : t("log.pages_flipped_forced", { ...P, count: ev.count });
     case "pages_turned": return t("log.pages_turned", { ...P, count: Math.abs(ev.count), source: cname(ev.source) || ev.source });
     case "page_turn_restricted": return t("log.page_turn_restricted", { ...P, source: cname(ev.source) || ev.source });
+    case "opp_mp_reduction_restricted": return t("log.opp_mp_reduction_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "mp_changed":
       return ev.delta >= 0 ? t("log.mp_changed_gain", { ...P, delta: ev.delta, mp: ev.mp })
                            : t("log.mp_changed_pay", { ...P, delta: -ev.delta, mp: ev.mp });

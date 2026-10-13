@@ -1557,7 +1557,8 @@ class DiscardOwnMamodoByNumber(Effect):
 class ReduceOpponentMpUnlessReducedLastTurn(Effect):
     """對手 MP 減少 amount;若直前的回合自己用過任何「減少對手 MP」的效果,則減 0(E-018 日版)。
 
-    被限制成減 0 時,本次仍算「使用了減少對手 MP 的效果」,一樣記錄。
+    被限制成減 0 時發出 opp_mp_reduction_restricted(行動記錄寫出原因);本次仍算「使用了減少對手 MP
+    的效果」,一樣記錄。
     記錄存在 PlayerState.opp_mp_reduced_turns,由 primitives.reduce_opponent_mp /
     mark_opp_mp_reduced 寫入(S-020、P-002、P-019、E-004 等都會寫)。
     """
@@ -1567,7 +1568,7 @@ class ReduceOpponentMpUnlessReducedLastTurn(Effect):
         st = rt.game.state
         player = ctx["player"]
         if st.turn_no - 1 in st.players[player].opp_mp_reduced_turns:
-            rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], skipped=True)
+            rt.game.emit(rt.batch, "opp_mp_reduction_restricted", player=player, source=ctx["source"])
             mark_opp_mp_reduced(rt.game, player)
             return True
         reduce_opponent_mp(rt.game, rt.batch, player, self.amount, ctx["source"])
