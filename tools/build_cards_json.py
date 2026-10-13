@@ -26,7 +26,7 @@ CSV_PATH = ROOT / "data/cards_ja.csv"
 XLSX = ROOT / "openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx"
 OUT = ROOT / "data/cards.json"
 
-EXPECTED_COUNT = 135  # 134(第一彈+Level 2)+ S-042
+EXPECTED_COUNT = 237  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102
 
 FORM_SUFFIX_RE = re.compile(r"（[^）]*）")
 POWER_X_RE = re.compile(r"^(\d+)×$")
@@ -99,13 +99,16 @@ def parse_card_cell(cell) -> tuple[str | None, str]:
     return url, value.strip()
 
 
-def load_image_urls(xlsx_path: Path) -> dict[str, str]:
-    """從 xlsx「The Table」工作表逐列讀取 (卡號 → 卡圖連結),e/j 雙版本時 j 優先。"""
+def load_tts(xlsx_path: Path) -> dict[str, dict]:
+    """從 xlsx「The Table」工作表逐列讀取 卡號 → {image_url, sets},e/j 雙版本時 j 優先。
+    sets 為 Sets 欄以「, 」分隔的產品(新卡沒有舊值時使用)。"""
     wb = openpyxl.load_workbook(xlsx_path)  # 非 read_only:才能讀儲存格超連結物件
     ws = wb["The Table"]
-    urls: dict[str, str] = {}
+    header = [c.value for c in next(ws.iter_rows(max_row=1))]
+    sets_col = header.index("Sets")
+    out: dict[str, dict] = {}
     versions: dict[str, str] = {}  # 基礎卡號 → 已入庫版本尾碼('' / 'e' / 'j')
-    for cells in ws.iter_rows():
+    for cells in ws.iter_rows(min_row=2):
         image_url, raw_number = parse_card_cell(cells[0])
         m = re.fullmatch(r"([A-Z]+-\d+)([ej]?)", raw_number)
         if not m or image_url is None:
@@ -114,8 +117,10 @@ def load_image_urls(xlsx_path: Path) -> dict[str, str]:
         if number in versions and not (suffix == "j" and versions[number] == "e"):
             continue
         versions[number] = suffix
-        urls[number] = image_url
-    return urls
+        raw_sets = str(cells[sets_col].value or "")
+        out[number] = {"image_url": image_url,
+                       "sets": [x.strip() for x in raw_sets.split(", ") if x.strip()]}
+    return out
 
 
 def load_old_cards(path: Path) -> dict[str, dict]:
@@ -125,14 +130,16 @@ def load_old_cards(path: Path) -> dict[str, dict]:
     return {c["number"]: c for c in raws}
 
 
-def convert(csv_path: Path, image_urls: dict[str, str], old_cards: dict[str, dict]) -> list[dict]:
+def convert(csv_path: Path, tts: dict[str, dict], old_cards: dict[str, dict],
+            expected: int | None = EXPECTED_COUNT) -> list[dict]:
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
 
     cards = []
     for row in rows:
         old = old_cards.get(row["number"], {})
-        cards.append(
+        info = tts.get(row["number"], {})
+        card = (
             {
                 "number": row["number"],
                 "type": row["type"],
@@ -145,22 +152,26 @@ def convert(csv_path: Path, image_urls: dict[str, str], old_cards: dict[str, dic
                 "effect_ja": row["effect_ja"],
                 "effect_icon": derive_effect_icon(row),
                 "power": parse_power(row["power"]),
-                "damage": _int_or_none(row["damage"]),
-                "sets": old.get("sets", []),
-                "image_url": image_urls.get(row["number"]),
+                "damage": None if row["damage"] == "?" else _int_or_none(row["damage"]),
+                # 沿用舊值;新卡取 TTS 卡表的 Sets 欄
+                "sets": old["sets"] if "sets" in old else info.get("sets", []),
+                "image_url": info.get("image_url"),
             }
         )
+        if row["damage"] == "?":                 # 傷害依效果決定(卡面「ダメージ?」)
+            card["damage_variable"] = True
+        cards.append(card)
 
     cards.sort(key=lambda c: (c["number"][0], c["number"]))
-    if len(cards) != EXPECTED_COUNT:
-        raise SystemExit(f"轉換出 {len(cards)} 種,預期 {EXPECTED_COUNT} 種")
+    if expected is not None and len(cards) != expected:
+        raise SystemExit(f"轉換出 {len(cards)} 種,預期 {expected} 種")
     return cards
 
 
 def main() -> None:
     old_cards = load_old_cards(OUT)
-    image_urls = load_image_urls(XLSX)
-    cards = convert(CSV_PATH, image_urls, old_cards)
+    tts = load_tts(XLSX)
+    cards = convert(CSV_PATH, tts, old_cards)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(cards, ensure_ascii=False, indent=1), encoding="utf-8")
 

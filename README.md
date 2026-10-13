@@ -294,6 +294,11 @@ docker compose up -d --remove-orphans
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
+**新增卡片後補圖**(例如加入第三彈 M-032〜M-053、P-020〜P-035、S-059〜S-106、E-028〜E-043):
+重跑 `download_images.py` 只會下載缺少的卡,再用步驟 2 的「補圖」指令把新的 `.webp` 複製進
+volume。第三彈的 M-050 在 TTS 清單裡的 Drive 連結不是公開檔案(會轉到登入頁),目前抓不到,
+該卡以文字卡面顯示。
+
 **在 VPS 上用 dev container 開發**:`.devcontainer/devcontainer.json` 會把同一個 volume
 (`gash-card-battle_card-assets`,名稱前綴是 compose 專案目錄名)唯讀掛到 `/app/assets`,
 並設定 `GASH_ASSETS_DIR`,開發時直接讀正式站的卡圖。在其他沒有這個 volume 的機器上開

@@ -4,9 +4,11 @@ from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import DeckError, load_deck, validate_deck
 
 
-def test_card_db_has_135_cards():
+def test_card_db_has_237_cards():
     db = card_db()
-    assert len(db) == 135  # Level 1 67 + Level 2 67 + S-042
+    assert len(db) == 237  # Level 1 67 + Level 2 67 + S-042 + 第三彈 102
+    assert db["S-061"].damage is None and db["S-061"].damage_variable    # 「ダメージ?」:傷害依效果決定
+    assert not db["S-001"].damage_variable
     assert db["M-001"].power_base == 4000
     assert db["S-001"].power_bonus == 2000 and db["S-001"].damage == 1
     assert db["S-005"].klass == "superior" and db["S-005"].cost == 6
@@ -58,3 +60,14 @@ def test_superior_page_restriction():
     with pytest.raises(DeckError) as exc:
         validate_deck(pages, db)
     assert exc.value.code in ("deck.superior_page", "deck.last_page")
+
+
+def test_pending_cards_rejected():
+    from gash.engine.cards import pending_cards
+    db = card_db()
+    assert "M-035" in pending_cards() and "M-001" not in pending_cards()
+    pages = list(load_deck(DATA_DIR / "decks/level1.json", db).pages)
+    pages[5] = "E-028"                                              # 第三彈事件卡(尚未開放)
+    with pytest.raises(DeckError) as e:
+        validate_deck(pages, db)
+    assert e.value.code == "deck.card_pending"

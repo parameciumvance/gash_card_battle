@@ -35,7 +35,8 @@ def pool_numbers(page):
 
 
 def cards_where(page, expr):
-    return page.evaluate(f"Object.values(CARDS).filter((c) => {expr}).map((c) => c.number).sort()")
+    """卡池中(已開放)符合條件的卡號。"""
+    return page.evaluate(f"openCards().filter((c) => {expr}).map((c) => c.number).sort()")
 
 
 def put(page, pages):
@@ -193,3 +194,21 @@ def test_delete_key_removes_selected(builder):
     slot.click()
     builder.locator('#book-grid .page-slot[data-page="2"]').press("Delete")
     assert builder.evaluate("B.deck.pages[2]") is None
+
+
+# ---------------------------------------------------------------- 尚未開放的卡(deck-builder「卡池不顯示尚未開放的卡」)
+
+def test_pending_cards_hidden_from_pool_and_products(builder):
+    assert "M-035" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
+    _, _, product = selects(builder)
+    options = product.locator("option").all_text_contents()
+    assert "Spell Book" not in options                                       # 只含第三彈卡的產品不列出
+    put(builder, {6: "E-028"})                                              # 匯入等方式放進魔書
+    assert "E-028" in builder.locator("#builder-validation").text_content()
+
+
+def test_variable_damage_card_face(builder):
+    builder.evaluate("zoom('S-061')")                                         # 卡面「ダメージ?」
+    assert "傷害 ?" in builder.locator("#zoom-card .cmeta").text_content()
+    builder.evaluate("zoom('S-001')")
+    assert "傷害 1" in builder.locator("#zoom-card .cmeta").text_content()
