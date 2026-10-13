@@ -455,9 +455,9 @@ def _e018_second_use(turns_later):
 def test_e018_zero_when_reduced_opponent_mp_in_previous_turn():
     g, before, events = _e018_second_use(turns_later=1)   # 對手回合 = 直前回合剛減過
     assert g.state.players[1].mp == before
-    applied = [e for e in events if e["type"] == "effect_applied"]
-    assert len(applied) == 1
-    assert (applied[0]["source"], applied[0]["skipped"]) == ("E-018", True)
+    restricted = [e for e in events if e["type"] == "opp_mp_reduction_restricted"]
+    assert [(e["player"], e["source"]) for e in restricted] == [(0, "E-018")]
+    assert not [e for e in events if e["type"] == "effect_applied" and e.get("source") == "E-018"]
 
 
 def test_e018_reduces_again_when_previous_turn_had_no_reduction():

@@ -106,6 +106,7 @@
   "log.pages_flipped_forced": "{player} が魔本を {count} 枚めくる(強制)",
   "log.pages_turned": "{player} の魔本が {count} 枚めくられる({source})",
   "log.page_turn_restricted": "{player} はこのターン「合計1回」の制限を受けているため、{source} によるページの移動は起きない",
+  "log.opp_mp_reduction_restricted": "{player} は直前のターンに相手のMPをへらす効果を使っているため、{source} でへらすMPは0になる",
   "log.mp_changed_gain": "{player} MP +{delta}(→{mp})",
   "log.mp_changed_pay": "{player} MP -{delta}(→{mp})",
   "log.card_played": "{player} が「{card}」を場に出す",

@@ -192,6 +192,15 @@ def test_book_card_used_log_by_type(page):
     page.wait_for_function(f"document.getElementById('log').innerText.includes('使用事件卡《{names[2]}》')")
 
 
+
+def test_opp_mp_reduction_restricted_log(page):
+    # E-018 因直前回合條款減 0:記錄寫出原因(battle-ui「減少對手 MP 被限制為 0 的記錄」)
+    start_local(page)
+    line = page.evaluate("logLine({type: 'opp_mp_reduction_restricted', player: 0, source: 'E-018'})")
+    text = line if isinstance(line, str) else page.evaluate("(l) => l.textContent ?? String(l)", line)
+    name = page.evaluate("cname('E-018')")
+    assert "上一個回合已使用減少對手 MP 的效果" in text and name in text and "MP 為 0" in text
+
 def test_p001_disabled_on_opponent_turn(page):
     tp = start_local(page)
     op = 1 - tp

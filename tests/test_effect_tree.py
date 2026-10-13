@@ -1063,7 +1063,7 @@ def test_reduce_opponent_mp_unless_reduced_last_turn():
     st.turn_no = 6
     events = run(g, node)                              # 直前回合(5)減過 → 減 0
     assert st.players[1].mp == 16
-    assert without_seq(events) == [{"type": "effect_applied", "source": "T-000", "skipped": True}]
+    assert without_seq(events) == [{"type": "opp_mp_reduction_restricted", "player": 0, "source": "T-000"}]
     assert st.players[0].opp_mp_reduced_turns == {5, 6}   # 減 0 也算使用過
     st.turn_no = 8
     run(g, node)                                       # 直前回合(7)沒用過 → 減 4

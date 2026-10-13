@@ -106,6 +106,7 @@
   "log.pages_flipped_forced": "{player} turns {count} page(s) of the Spell Book (forced)",
   "log.pages_turned": "{player}'s Spell Book is moved {count} page(s) ({source})",
   "log.page_turn_restricted": "{player} is limited to “once in total” this turn, so the page move from {source} does not happen",
+  "log.opp_mp_reduction_restricted": "{player} used an effect that reduced the opponent's MP in the previous turn, so {source} reduces 0 MP",
   "log.mp_changed_gain": "{player} MP +{delta} (→{mp})",
   "log.mp_changed_pay": "{player} MP -{delta} (→{mp})",
   "log.card_played": "{player} plays “{card}”",

@@ -106,6 +106,7 @@
   "log.pages_flipped_forced": "{player} 翻魔书 {count} 张(强制)",
   "log.pages_turned": "{player} 的魔书被翻动 {count} 张({source})",
   "log.page_turn_restricted": "{player} 本回合已受「合计1次」限制,{source} 的翻页不发生",
+  "log.opp_mp_reduction_restricted": "{player} 在上一个回合已使用减少对手 MP 的效果,{source} 减少的 MP 为 0",
   "log.mp_changed_gain": "{player} MP +{delta}(→{mp})",
   "log.mp_changed_pay": "{player} MP -{delta}(→{mp})",
   "log.card_played": "{player} 放出《{card}》",
