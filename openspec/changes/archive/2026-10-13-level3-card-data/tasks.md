@@ -14,10 +14,10 @@
 - [x] 3.1 `build_card_texts.py` 產生日文、寫入英文卡名;起草英文效果文、繁中卡名與效果文(design D4);`build_zh_cn.py`;`tests/test_i18n_languages.py` 全過
 - [x] 3.2 卡面「傷害 ?」顯示
 - [x] 3.3 下載卡圖;README 提醒正式站上傳第三彈卡圖(M-050 的 Drive 連結非公開、抓不到,以文字卡面顯示)
-- [ ] 3.4 使用者確認(翻譯抽查)
+- [x] 3.4 使用者確認(翻譯抽查):使用者同意先歸檔,翻譯維持初版待校對
 
 ## 4. Reconciliation 與歸檔(指南 §13)
 
-- [ ] 4.1 同步 delta spec 回 `card-data`、`deck-builder` 主 spec
-- [ ] 4.2 `card-data/design.md` 補第三彈來源、`damage_variable`、尚未開放清單;capability map 的 card-data 說明補第三彈
-- [ ] 4.3 `openspec validate --all --strict`(與既有基準相比沒有新增失敗)與 `pytest` 全過後歸檔
+- [x] 4.1 同步 delta spec 回 `card-data`、`deck-builder` 主 spec
+- [x] 4.2 `card-data/design.md` 補第三彈來源、`damage_variable`、尚未開放清單;capability map 的 card-data 說明補第三彈
+- [x] 4.3 `openspec validate --all --strict`(與既有基準相比沒有新增失敗)與 `pytest` 全過後歸檔
