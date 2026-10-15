@@ -2513,7 +2513,8 @@ function effectText(e) {
   if (e.optional) changes.push(t("effect.piece.optional"));
   return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
     mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
-    card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")) });
+    card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")),
+    attr: e.attr ? t(`attr.${e.attr}`) : "" });
 }
 
 // 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
@@ -2923,6 +2924,7 @@ function logLine(ev) {
                           : t("log.pages_flipped_forced", { ...P, count: ev.count });
     case "pages_turned": return t("log.pages_turned", { ...P, count: Math.abs(ev.count), source: cname(ev.source) || ev.source });
     case "page_turn_restricted": return t("log.page_turn_restricted", { ...P, source: cname(ev.source) || ev.source });
+    case "mp_reduction_prevented": return t("log.mp_reduction_prevented", { ...P, source: cname(ev.source) || ev.source });
     case "opp_mp_reduction_restricted": return t("log.opp_mp_reduction_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "mp_changed":
       return ev.delta >= 0 ? t("log.mp_changed_gain", { ...P, delta: ev.delta, mp: ev.mp })
@@ -2969,7 +2971,10 @@ function logLine(ev) {
     case "damage_prevented":
       return ev.reason === "no_target" ? t("log.damage_no_target", P) : t("log.damage_prevented", P);
     case "damage_negated": return t("log.damage_negated", { card: cname(ev.card) });
-    case "protected": return t("log.protected", { ...P, card: cname(ev.card) });
+    case "protected":   // P-027:保護者是對手的魔物時,寫出持有者與被保護的一方
+      return ev.target_player !== undefined && ev.target_player !== ev.player
+        ? t("log.protected_by_opponent", { player: pname(ev.target_player), owner: pname(ev.player), card: cname(ev.card) })
+        : t("log.protected", { ...P, card: cname(ev.card) });
     case "mamodo_injured": return t("log.mamodo_injured", { ...P, card: cname(ev.card) });
     case "mamodo_discarded": return t("log.mamodo_discarded", { ...P, card: cname(ev.cards[ev.cards.length - 1]) });
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });

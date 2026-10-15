@@ -47,7 +47,13 @@ negated                                                                ← 無�
 - `showdown` 事件附 `attacker`、`attacker_breakdown`、`defender_breakdown`;快照的 `battle` 附同樣的即時明細。
 - `showdown` 事件另附對峙的卡:`attack_mamodo` / `defense_mamodo`(魔物槽最上面的卡)、`attack_spell` / `defense_spell`;不防禦時防禦兩欄為 None,無戰術攻擊時 `attack_spell` 為 None。前端的對峙演出只靠事件本身,不依賴快照時序。
 - `card_discarded` 對場上的卡(搭檔、疊放頂層)附 `slot`,魔書的卡附 `page`,供前端從原位置播放棄牌演出。
-- `protected` 事件附 `target`(`book` / `slot`)與 `target_slot`(被保護的魔物槽),供保護演出知道保護者要移到哪裡。
+- `protected` 事件附 `target`(`book` / `slot`)、`target_slot`(被保護的魔物槽)與 `target_player`(原本傷害對象的持有者),供保護演出知道保護者要移到哪裡。事件的 `player` 是保護者的持有者。
+
+## 保護者
+
+- `_eligible_protectors(game, item, ctx)` 回傳(持有者, 魔物)。一般是受方自己的其他魔物;傷害原因是對手的攻擊、對象是自己魔書時,另加 `protect_with_opponent` 持續效果指定、仍在場的對手魔物(P-027)。
+- 建立保護決策只有 `_protect_choice` 一處(傷害流程與受傷順序決策共用)。選項的 `player` 是保護者的持有者;`choose` 驗證時依選項找出持有者,傷害打在持有者的魔物上(負傷,已負傷入墓)。決策者仍是受方。
+- 不採用「把對手的魔物暫時視為自己的魔物」:會牽動場面計數與其他效果。
 
 ## 場上魔物的欄位
 

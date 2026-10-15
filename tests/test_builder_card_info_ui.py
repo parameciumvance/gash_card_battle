@@ -202,7 +202,9 @@ def test_pending_cards_hidden_from_pool_and_products(builder):
     assert "M-035" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
     _, _, product = selects(builder)
     options = product.locator("option").all_text_contents()
-    assert "Spell Book" not in options                                       # 只含第三彈卡的產品不列出
+    # 只含尚未開放卡的產品不列出;含已開放卡的產品照常列出(Spell Book 含第 1 批的 M-033)。
+    # 之後的批次開放 Dawn of the Ancients 的卡時,改用其他仍全為尚未開放卡的產品。
+    assert "Dawn of the Ancients" not in options and "Spell Book" in options
     put(builder, {6: "E-028"})                                              # 匯入等方式放進魔書
     assert "E-028" in builder.locator("#builder-validation").text_content()
 

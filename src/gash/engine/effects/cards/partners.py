@@ -3,10 +3,11 @@
 from ...state import DUR_TURN, NO_ATTACK_SPELL
 from .. import registry as reg
 from ..tree import (
-    All, CanNegateOpponentSpell, Choose, DiscardChosenPartner, DiscardTopMamodoCard,
-    DoubleAttackDamage, HasOptions, IncreaseAttackDamage, MakeNextAttackUndefendable,
+    All, AllowAttrSpellsThisTurn, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
+    DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMpWhenOpponentUsesEvent,
+    GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage, MakeNextAttackUndefendable,
     NegateNextDamageThisBattle, NegateOpponentSpell, NoBattleDamageModifierFrom, OpponentMamodo,
-    OpponentPartneredMamodo, OwnAttackBy, OwnPageTurnBackEffectAvailable,
+    OpponentMamodoExcept, OpponentPartneredMamodo, OwnAttackBy, OwnPageTurnBackEffectAvailable,
     OwnPageTurnEffectAvailable, ProtectorsDiscardedThisTurn, ReduceOpponentMpPerPageTurnedBack,
     RestrictOpponent, ScheduleNextSpellBonus, ScheduleSpellFromAnyPage, SetPowerZeroThisTurn,
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
@@ -70,3 +71,16 @@ reg.activated("P-017", mode="discard", timing="battle", condition=CanNegateOppon
 reg.activated("P-018", mode="discard", timing="nonbattle", condition=OwnPageTurnBackEffectAvailable(),
               effect=TurnOwnPagesBackOncePerTurn(leaves=1))
 reg.trigger("P-019", "pages_turned", effect=ReduceOpponentMpPerPageTurnedBack(per_page=2))
+
+# ---------------------------------------------------------------- 第三彈
+
+reg.activated("P-021", mode="discard", timing="nonbattle", effect=GuardOwnMpThisTurn())
+reg.activated("P-027", mode="discard", timing="battle",
+              condition=HasOptions(OpponentMamodoExcept("ゾボロン")), effect=Choose(
+    OpponentMamodoExcept("ゾボロン"), bind="slot", prompt="pick_opponent_mamodo",
+    then=AllowProtectWithOpponentMamodo(),
+))
+
+reg.activated("P-029", mode="discard", timing="nonbattle",
+              effect=AllowAttrSpellsThisTurn(mamodo="ザバス", attr="風"))
+reg.trigger("P-030", "book_card_used", effect=GainMpWhenOpponentUsesEvent(amount=2))

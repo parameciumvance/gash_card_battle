@@ -7,15 +7,16 @@ from ..tree import (
     AdjustDefenseDamage, All, Always, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
     DamageOpponentBookAndAllMamodo, DisableBookProtection, DiscardChosenPartner,
     DiscardOwnMamodoByNumber, GainMpPerDamage, GrantFullImmune, HasOptions, HeadsAtLeast,
-    MakeAttackUndefendable, MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
-    OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas, PlayMamodoFromBook, ReduceOpponentMp,
-    RestrictOpponent, RobnosTransformMode, ScheduleInjureInsteadNextWin, Sequence, SideIs,
-    StackFromBookOnto, When,
+    IncreaseThisSpellDamage, MakeAttackUndefendable, MakeNextAttackUndefendable,
+    MarkInjuredMamodoDiscarded, NegateAttack, OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas,
+    PlayMamodoFromBook, ReduceOpponentMp, RestrictOpponent, RobnosTransformMode,
+    ScheduleInjureInsteadNextWin, Sequence, SideIs, StackFromBookOnto, When,
 )
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
 # S-001 等第一彈香草戰術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
+# 第三彈的香草戰術:S-080 S-085。
 
 reg.spell_rider("S-003", counter=True)
 
@@ -185,3 +186,49 @@ reg.spell_nonbattle("S-057", effect=Coin(
 ))
 
 reg.spell_rider("S-058", injure_instead=True)
+
+# ---------------------------------------------------------------- 第三彈
+
+reg.spell_rider("S-076", on_declare=When(
+    SideIs("attack"),
+    then=MarkInjuredMamodoDiscarded(),
+))
+
+reg.spell_rider("S-077", on_declare=When(
+    SideIs("attack"),
+    then=MarkInjuredMamodoDiscarded(),
+))
+
+reg.spell_rider("S-081", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=DisableBookProtection(),
+    ),
+))
+
+reg.spell_rider("S-082", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=IncreaseThisSpellDamage(amount=1),
+    ),
+))
+
+reg.spell_rider("S-083", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=IncreaseThisSpellDamage(amount=2),
+    ),
+))
+
+reg.spell_rider("S-084", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=MakeAttackUndefendable(),
+    ),
+))
+
+reg.spell_rider("S-101", on_win=DamageOpponentBookAndAllMamodo(), on_win_owns_damage=True)

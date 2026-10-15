@@ -96,11 +96,21 @@ def mark_opp_mp_reduced(game, player):
     ps.opp_mp_reduced_turns.add(st.turn_no)
 
 
+def mp_guarded(game, player) -> bool:
+    """player 的 MP 本回合不會因對手的效果減少(P-021)。"""
+    st = game.state
+    return any(m.kind == "mp_guard" and m.target_player == player and m.active(st.turn_no)
+               for m in st.modifiers)
+
+
 def reduce_opponent_mp(game, batch, player, amount, source) -> int:
-    """player 的效果使對手 MP 減少(不低於 0),並記錄為「減少對手 MP」的效果。回傳實際減少量。"""
-    actual = reduce_mp(game, batch, 1 - player, amount, source)
+    """player 的效果使對手 MP 減少(不低於 0),並記錄為「減少對手 MP」的效果。回傳實際減少量。
+    對手受 P-021 保護時不減少(發出 mp_reduction_prevented),仍算使用了減少對手 MP 的效果。"""
     mark_opp_mp_reduced(game, player)
-    return actual
+    if amount > 0 and mp_guarded(game, 1 - player):
+        game.emit(batch, "mp_reduction_prevented", player=1 - player, source=source)
+        return 0
+    return reduce_mp(game, batch, 1 - player, amount, source)
 
 
 def heal_slot(game, batch, player, slot, source):

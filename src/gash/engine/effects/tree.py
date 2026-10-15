@@ -19,7 +19,7 @@ from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
     discard_from_book, discard_option, discard_partner, flip_coins,
-    heal_slot, mark_opp_mp_reduced, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
+    heal_slot, mark_opp_mp_reduced, mp_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
     reduce_opponent_mp, return_to_book,
     schedule_standby, slot_option, take_from_book,
     turn_pages,
@@ -452,6 +452,25 @@ class DiscardedCardsToReturn:
 
 
 @dataclass(frozen=True)
+class DiscardedMamodoToReturn:
+    """自己棄牌堆中的魔物卡,魔書有空頁時才可選(E-033)。選項值為棄牌索引;效果文不是「できる」,
+    所以沒有「不使用」。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..cards import MAMODO
+        ps = game.state.players[ctx["player"]]
+        if not ps.consumed_pages:
+            return []
+        return [discard_option(ctx["player"], i, n) for i, n in enumerate(ps.discard)
+                if game.db[n].type == MAMODO]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇棄牌區的魔物卡")
+
+
+@dataclass(frozen=True)
 class OwnEmptyBookPages:
     """自己魔書的空頁(卡片已離開的頁),依頁序(M-025 放回)。選項值為頁碼。"""
 
@@ -477,6 +496,22 @@ class OwnPartneredMamodo:
         slot = game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1)
         if slot is None or not slot.partner:
             raise IllegalCommand("choose.invalid", "須選擇自己場上裝有搭檔的魔物")
+
+
+@dataclass(frozen=True)
+class OpponentMamodoExcept:
+    """對手場上的魔物,名稱為 name 的除外(P-027「ゾボロン」以外)。選項值為 slot UID。"""
+    name: str
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = 1 - ctx["player"]
+        return [slot_option(opp, s) for s in game.state.players[opp].slots
+                if game.db[s.top].name_ja != self.name]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", f"須選擇「{self.name}」以外的對手魔物")
 
 
 def _partner_slots(game, player, card) -> list:
@@ -1358,6 +1393,9 @@ class ZeroBothPlayersMp(Effect):
             mark_opp_mp_reduced(rt.game, ctx["player"])
         for p in (0, 1):
             ps = rt.game.state.players[p]
+            if ps.mp and p != ctx["player"] and mp_guarded(rt.game, p):   # P-021:對手的效果不能使 MP 減少
+                rt.game.emit(rt.batch, "mp_reduction_prevented", player=p, source=ctx["source"])
+                continue
             if ps.mp:
                 rt.game.emit(rt.batch, "mp_changed", player=p, delta=-ps.mp, mp=0,
                              reason=ctx["source"])
@@ -1655,6 +1693,28 @@ class ScheduleSkipEndFlip(Effect):
 
 
 @dataclass(frozen=True)
+class ScheduleEndPhaseMp(Effect):
+    """[待命] 本回合自己的結束階段 MP +amount(E-038);由引擎在結束階段的強制翻頁之後解決。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="end_phase_mp", source=ctx["source"], owner=ctx["player"],
+                         data={"amount": self.amount})
+        return True
+
+
+@dataclass(frozen=True)
+class HealAllOwnMamodo(Effect):
+    """自己場上所有魔物回復健康狀態(E-040)。"""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        for slot in list(rt.game.state.players[player].slots):
+            heal_slot(rt.game, rt.batch, player, slot, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
 class DiscardFromOpponentBook(Effect):
     """棄掉對手魔書中 page 綁定的那頁卡(M-011)。"""
     page: Ref = Ref("page")
@@ -1889,6 +1949,82 @@ class ReduceOpponentMpPerPageTurnedBack(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class AddOwnDamageBonus(Effect):
+    """本回合自己使用的「魔物の効果」與戰術的傷害 +amount,含【反擊】(M-033)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="own_damage_bonus", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"], amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class GuardOwnMpThisTurn(Effect):
+    """本回合自己的 MP 不會因對手的效果減少(P-021);由 primitives.reduce_opponent_mp 等查詢。"""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="mp_guard", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class AllowAttrSpellsThisTurn(Effect):
+    """本回合自己可用 mamodo 家族的魔物使用所有屬性為 attr 的戰術(P-029)。"""
+    mamodo: str = ""
+    attr: str = ""
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="spell_compat_attr", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"],
+                     data={"mamodo": self.mamodo, "attr": self.attr})
+        return True
+
+
+@dataclass(frozen=True)
+class IncreaseThisSpellDamage(Effect):
+    """目前戰鬥中,攻擊所用的這張戰術傷害 +amount(S-082 / S-083)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        battle.data["attack_damage_delta"] = battle.data.get("attack_damage_delta", 0) + self.amount
+        rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class AllowProtectWithOpponentMamodo(Effect):
+    """本場戰鬥中,對手的攻擊對自己魔書造成傷害時,可用 target 綁定的對手魔物保護(P-027)。
+    由 engine._eligible_protectors 查詢;戰鬥結束時隨 DUR_BATTLE 移除。"""
+    target: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        from ..state import DUR_BATTLE
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="protect_with_opponent", source=ctx["source"], owner=player,
+                     duration=DUR_BATTLE, target_player=1 - player, target_slot=ctx[self.target.name])
+        return True
+
+
+@dataclass(frozen=True)
+class GainMpWhenOpponentUsesEvent(Effect):
+    """觸發器(book_card_used):對手使用事件卡時自己 MP +amount(P-030)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..cards import EVENT
+        from ..engine import gain_mp
+        ev = ctx["event"]
+        if ev.get("player") == 1 - ctx["player"] and rt.game.db[ev["card"]].type == EVENT:
+            gain_mp(rt.game, rt.batch, ctx["player"], self.amount, ctx["source"])
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
@@ -1997,6 +2133,27 @@ class CanNegateOpponentSpell:
 
     def __call__(self, game, player, slot=None) -> bool:
         return _negatable_opponent_spell(game, player, self.which) is not None
+
+
+@dataclass(frozen=True)
+class OpponentMpAtLeast:
+    """對手 MP 在 n 以上(M-044)。"""
+    n: int = 0
+
+    def __call__(self, game, player, slot) -> bool:
+        return game.state.players[1 - player].mp >= self.n
+
+
+@dataclass(frozen=True)
+class OpponentAttackDamageIs:
+    """目前戰鬥是對手的攻擊、尚未被無效,且傷害值(加成後)為 amount(M-043)。"""
+    amount: int = 0
+
+    def __call__(self, game, player, slot) -> bool:
+        from ..engine import _attack_damage_amount
+        b = game.state.battle
+        return (b is not None and b.attacker == 1 - player and not b.attack_negated
+                and _attack_damage_amount(game, b) == self.amount)
 
 
 def _negatable_opponent_spell(game, player, which):
@@ -2110,6 +2267,21 @@ class ImmuneToSpellDamageAtMost:
         if b is None or ctx.get("cause") != "battle_attack" or b.attack_spell is None:
             return False
         return b.data.get("attack_total", 0) <= self.total
+
+
+@dataclass(frozen=True)
+class ImmuneToAttackDamage:
+    """傷害免疫:不受傷害值為 amount 的攻擊造成的傷害(以加成後的攻擊傷害判定)(M-053)。
+    不限對手的攻擊:被 P-027 指定、替對手的魔書保護自己這方的攻擊時也適用。
+    fn(game, player, slot, ctx) -> bool。"""
+    amount: int
+
+    def __call__(self, game, player, slot, ctx) -> bool:
+        from ..engine import _attack_damage_amount
+        b = game.state.battle
+        if b is None or ctx.get("cause") != "battle_attack":
+            return False
+        return _attack_damage_amount(game, b) == self.amount
 
 
 @dataclass(frozen=True)
