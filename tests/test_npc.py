@@ -243,6 +243,23 @@ def test_protects_against_lethal_book_damage():
     assert top_choice(g, 1) == {"type": "choose", "value": gash, "player": 1}
 
 
+def test_protects_with_opponent_mamodo_from_p027():
+    # P-027 指定了對手的賈修:保護選項中有對手的魔物時優先以它保護(npc-opponent「以對手的魔物保護」)
+    from gash.engine.effects.primitives import add_modifier
+    from gash.engine.state import DUR_BATTLE
+    from gash.npc.settle import respond
+    g = _attack_on(10)
+    attacker = g.state.players[0].slots[0].uid
+    add_modifier(g, [], kind="protect_with_opponent", source="P-027", owner=1, duration=DUR_BATTLE,
+                 target_player=0, target_slot=attacker)
+    submit(g, {"type": "no_defense", "player": 1})
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    assert g.state.pending.kind == "protect"
+    assert top_choice(g, 1) == {"type": "choose", "value": attacker, "player": 1}
+    assert respond(g, 1, 1) == {"type": "choose", "value": attacker}
+
+
 def test_defends_when_no_defense_loses():
     g = _attack_on(32, no_protect_book=True)                            # P32=S-005 費用 0,合計 10000
     choice = top_choice(g, 1)

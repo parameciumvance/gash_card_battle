@@ -5,16 +5,18 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AwaitBookReviewEnd, AddPower, Always, AttachPartnerFromBookPage, AttachPartnerFromDiscard,
-    AttachablePartnerPagesInOwnBook, BoostPartneredMamodo, BorrowPartner, Bound, Choose, Coin,
-    CoinWithPaidReflip, DeployMamodoFromBook, DeployableMamodoInOwnBook, DiscardChosenMamodo,
+    AddPower, Always, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
+    AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
+    Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
+    DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
-    HasOptions, HeadsAtLeast, HeadsCount, HealSlot, LockChosenOpponentMamodo, NextStartPhase,
-    OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnHasPartner, OwnInjuredMamodo,
-    OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages,
-    PlayablePartnerInDiscard, ReduceOpponentMpUnlessReducedLastTurn, Ref, RestrictBothPlayers,
-    RestrictOpponent, RevealOpponentBook, ScheduleNoProtectBookNextBattle, Sequence,
-    SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot, LockChosenOpponentMamodo,
+    NextStartPhase, OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnEmptyBookPages,
+    OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
+    PeekOpponentOpenPages, PlayablePartnerInDiscard, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    RestrictBothPlayers, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook,
+    ScheduleEndPhaseMp, ScheduleNoProtectBookNextBattle, Sequence, SlotsForBookPartner, Standby,
+    TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
     has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
     opponent_has_mamodo, opponent_then_self,
 )
@@ -204,3 +206,23 @@ reg.event("E-027", effect=opponent_then_self(When(
         ),
     ),
 )))
+
+# ---------------------------------------------------------------- 第三彈
+
+reg.event("E-030", when=HasOptions(OpponentPartneredMamodo()), effect=Choose(
+    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+    then=DiscardChosenPartner(),
+))
+
+reg.event("E-032", effect=GainMp(amount=5))
+
+reg.event("E-033", when=HasOptions(DiscardedMamodoToReturn()), effect=Choose(
+    DiscardedMamodoToReturn(), bind="card", prompt="pick_card_in_own_discard",
+    then=Choose(
+        OwnEmptyBookPages(), bind="page", prompt="pick_own_empty_page",
+        then=ReturnDiscardToBook(),
+    ),
+))
+
+reg.event("E-038", effect=ScheduleEndPhaseMp(amount=4))
+reg.event("E-040", when=has_two_or_more_mamodo, effect=HealAllOwnMamodo())

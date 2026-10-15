@@ -110,12 +110,17 @@ def respond(game: Game, who: int, npc: int) -> dict:
 
 
 def _protect(game: Game, who: int) -> dict:
-    """魔書受傷:有健康魔物就以魔力最低者保護;會致命時負傷魔物也用。魔物受傷不保護。"""
+    """魔書受傷:能以對手的魔物保護時(P-027)優先用它;否則有健康魔物就以魔力最低者保護,
+    會致命時負傷魔物也用。魔物受傷不保護。"""
     st = game.state
     item = st.pending.data["ctx"]["items"][0]
     if item["kind"] != "book":
         return {"type": "choose", "value": None}
-    slots = [st.slot_by_uid(who, o["value"]) for o in st.pending.options if o.get("value") is not None]
+    options = [o for o in st.pending.options if o.get("value") is not None]
+    theirs = [o["value"] for o in options if o.get("player") == 1 - who]
+    if theirs:
+        return {"type": "choose", "value": theirs[0]}
+    slots = [st.slot_by_uid(who, o["value"]) for o in options]
     slots = [s for s in slots if s is not None]
     lethal = st.players[who].pos + 2 * item["amount"] > BOOK_SIZE
     usable = [s for s in slots if not s.injured] or (slots if lethal else [])

@@ -638,10 +638,13 @@ const Anim = (() => {
   function guardMs() { return spotlightMode() === "fast" || pending >= 2 ? 250 : 450; }
 
   async function guardMove(ev) {
+    // 保護者在 ev.player 的場上;原本的傷害對象在 target_player 的場上(P-027 以對手的魔物保護時兩者不同)
     const zone = zoneOf(ev.player);
+    const owner = ev.target_player !== undefined ? ev.target_player : ev.player;
+    const tzone = zoneOf(owner);
     const src = zone && zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="mamodo"]`);
-    const target = zone && (ev.target === "book" ? zone.querySelector(".book-cover")
-      : zone.querySelector(`[data-slot-uid="${ev.target_slot}"][data-zone-kind="mamodo"]`));
+    const target = tzone && (ev.target === "book" ? tzone.querySelector(".book-cover")
+      : tzone.querySelector(`[data-slot-uid="${ev.target_slot}"][data-zone-kind="mamodo"]`));
     if (!src || !target) return;
     if (guard) await guardReturn();
     const ms = guardMs();
@@ -651,7 +654,7 @@ const Anim = (() => {
     // 外框只負責移動(以中心定位);裡面的卡保留自己的樣式(負傷的卡維持橫置)
     const wrap = document.createElement("div");
     wrap.className = "fx-guard-wrap";
-    wrap.dataset.guardFor = ev.target === "book" ? `book-${ev.player}` : `slot-${ev.target_slot}`;
+    wrap.dataset.guardFor = ev.target === "book" ? `book-${owner}` : `slot-${ev.target_slot}`;
     Object.assign(wrap.style, { left: `${home.x}px`, top: `${home.y}px` });
     wrap.style.setProperty("--guard-ms", `${ms}ms`);
     const card = src.cloneNode(true);

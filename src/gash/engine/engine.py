@@ -438,8 +438,8 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
             to_discard(st.players[player], number)
             game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason="cost",
                       slot=slot.uid)
-        else:
-            raise IllegalCommand("ability.mode", "此卡不能以棄掉方式啟動")
+        else:   # 魔物卡「このカードを捨て札にする」:此魔物(連同疊放與搭檔)入墓(M-033)
+            _discard_slot(game, batch, player, slot, reason="cost")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone=zone)
     # ジャマー(M-026):對手可能在此效果結束後使其無效 → 先存效果解決前的快照(費用已付)
     snapshot = (copy.deepcopy(st) if zone == "mamodo" and _jammer_holder(game, 1 - player)
@@ -580,7 +580,13 @@ def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -
     if game.db[slot.top].related_mamodo == card.related_mamodo:
         return True
     compat = reg.SPELL_COMPAT.get(slot.top)
-    return bool(compat and compat(game, player, slot, card))
+    if compat and compat(game, player, slot, card):
+        return True
+    st = game.state
+    family = game.db[slot.top].related_mamodo
+    return any(m.kind == "spell_compat_attr" and m.target_player == player and m.active(st.turn_no)
+               and m.data.get("mamodo") == family and card.attr_name == m.data.get("attr")
+               for m in st.modifiers)
 
 
 def _nonbattle_spell_user(game: Game, player: int, page: int, card: CardDef, slot_uid) -> MamodoSlot:
@@ -1012,6 +1018,7 @@ def _attack_damage_amount(game: Game, battle: BattleState) -> int:
     total = base + delta
     if doubled:
         total *= 2
+    total += own_damage_bonus(game, battle.attacker)        # M-033:自己使用的魔物效果與戰術
     total += battle.data.get("defense_damage_delta", 0)  # S-027 減傷
     rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if rider and rider.damage_bonus is not None:  # 依合計魔力調整傷害(S-042)
@@ -1019,6 +1026,13 @@ def _attack_damage_amount(game: Game, battle: BattleState) -> int:
     if rider and rider.damage_cap is not None:  # 傷害上限(S-032/S-034)
         total = min(total, rider.damage_cap)
     return max(0, total)
+
+
+def own_damage_bonus(game: Game, player: int) -> int:
+    """player 本回合使用的「魔物の効果」與戰術的傷害加值(M-033)。"""
+    st = game.state
+    return sum(m.amount for m in st.modifiers
+               if m.kind == "own_damage_bonus" and m.target_player == player and m.active(st.turn_no))
 
 
 def _resolve_showdown(game: Game, batch: list[dict]) -> None:
@@ -1065,6 +1079,8 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     d_rider = reg.SPELL_RIDERS.get(battle.defense_spell) if battle.defense_spell else None
     if d_rider and d_rider.counter and not battle.defense_negated:
         amount = game.db[battle.defense_spell].damage or 0
+        if amount > 0:
+            amount += own_damage_bonus(game, battle.defender)
         if amount > 0:
             _start_damage(game, batch,
                           [{"kind": "book", "player": battle.attacker, "amount": amount}],
@@ -1228,16 +1244,40 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
 
 # ---------------------------------------------------------------- 傷害系統
 
-def _eligible_protectors(game: Game, item: dict) -> list[MamodoSlot]:
-    """可保護此項傷害的魔物。魔書傷害:任何自己魔物;魔物傷害:其他魔物。"""
+def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> list[tuple[int, MamodoSlot]]:
+    """可保護此項傷害的魔物 (持有者, 魔物)。魔書傷害:任何自己魔物;魔物傷害:其他魔物。
+    對手攻擊造成的魔書傷害,另可用 P-027 選定的對手魔物保護。"""
     st = game.state
     player = item["player"]
     if item["kind"] == "book":
         battle = st.battle
         if battle is not None and battle.data.get("no_protect_book") and player == battle.defender:
             return []
-        return list(st.players[player].slots)
-    return [s for s in st.players[player].slots if s.uid != item.get("slot_uid")]
+        out = [(player, s) for s in st.players[player].slots]
+        if (ctx is not None and ctx.get("cause") == "battle_attack"
+                and ctx.get("source_player") == 1 - player):
+            for m in st.modifiers:
+                if m.kind == "protect_with_opponent" and m.owner == player and m.active(st.turn_no):
+                    s = st.slot_by_uid(1 - player, m.target_slot)
+                    if s is not None and all(s is not t for _, t in out):
+                        out.append((1 - player, s))
+        return out
+    return [(player, s) for s in st.players[player].slots if s.uid != item.get("slot_uid")]
+
+
+def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> bool:
+    """有可保護的魔物時建立保護決策並回傳 True。"""
+    protectors = _eligible_protectors(game, item, ctx)
+    if not protectors or item.get("no_protect"):
+        return False
+    receiver = item["player"]
+    game.state.pending = PendingChoice(
+        kind="protect", player=receiver, source=ctx.get("source"),
+        options=[{"value": None, "label": "no_protect"}]
+        + [slot_option(owner, s) for owner, s in protectors],
+        data={"ctx": ctx})
+    game.emit(batch, "choice_required", kind="protect", player=receiver, item=dict(item))
+    return True
 
 
 def _start_damage(game: Game, batch: list[dict], items: list[dict], ctx: dict) -> None:
@@ -1274,16 +1314,7 @@ def _process_damage(game: Game, batch: list[dict], ctx: dict) -> None:
             game.emit(batch, "choice_required", kind="damage_order", player=receiver)
             return
         item = ctx["items"][0]
-        protectors = _eligible_protectors(game, item)
-        if protectors and not item.get("no_protect"):
-            receiver = item["player"]
-            st.pending = PendingChoice(
-                kind="protect", player=receiver, source=ctx.get("source"),
-                options=[{"value": None, "label": "no_protect"}]
-                + [slot_option(receiver, s) for s in protectors],
-                data={"ctx": ctx})
-            game.emit(batch, "choice_required", kind="protect", player=receiver,
-                      item=dict(item))
+        if _protect_choice(game, batch, item, ctx):
             return
         ctx["items"].pop(0)
         _apply_damage_item(game, batch, item, ctx)
@@ -1433,17 +1464,21 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
             _apply_damage_item(game, batch, item, ctx)
             _process_damage(game, batch, ctx)
             return
-        slot = st.slot_by_uid(pending.player, value)
+        owner = next((o["player"] for o in pending.options
+                      if o.get("value") is not None and o["value"] == value), None)
+        slot = st.slot_by_uid(owner, value) if owner is not None else None
         if slot is None or slot.uid == item.get("slot_uid"):
             raise IllegalCommand("choose.invalid", "無效的保護對象")
         st.pending = None
         ctx["items"].pop(0)
-        game.emit(batch, "protected", player=pending.player, slot=slot.uid, card=slot.top,
-                  target=item["kind"], target_slot=item.get("slot_uid"))   # 原本的傷害對象(魔書或魔物)
+        # 保護的魔物(P-027 時為對手的魔物)承受傷害;player 為保護的魔物的持有者
+        game.emit(batch, "protected", player=owner, slot=slot.uid, card=slot.top,
+                  target=item["kind"], target_slot=item.get("slot_uid"),   # 原本的傷害對象(魔書或魔物)
+                  target_player=item["player"])
         _apply_damage_item(game, batch,
-                           {"kind": "slot", "player": pending.player,
+                           {"kind": "slot", "player": owner,
                             "slot_uid": slot.uid, "amount": 1}, ctx)
-        _maybe_discard_protector(game, batch, pending.player, slot, ctx)
+        _maybe_discard_protector(game, batch, owner, slot, ctx)
         _process_damage(game, batch, ctx)
         return
     if pending.kind == "damage_order":
@@ -1455,14 +1490,7 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
         ctx["items"].insert(0, item)
         # 僅排序;實際套用回到傷害流程(單項時直接處理)
         first = ctx["items"][0]
-        protectors = _eligible_protectors(game, first)
-        if protectors and not first.get("no_protect"):
-            st.pending = PendingChoice(
-                kind="protect", player=first["player"], source=ctx.get("source"),
-                options=[{"value": None, "label": "no_protect"}]
-                + [slot_option(first["player"], s) for s in protectors],
-                data={"ctx": ctx})
-            game.emit(batch, "choice_required", kind="protect", player=first["player"], item=dict(first))
+        if _protect_choice(game, batch, first, ctx):
             return
         ctx["items"].pop(0)
         _apply_damage_item(game, batch, first, ctx)
@@ -1531,6 +1559,10 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         if ps.book_exhausted():
             _game_over(game, batch, winner=1 - st.turn_player, reason="book_out")
             return
+    # E-038 待命:本回合自己的結束階段 MP 增加(強制翻頁之後)
+    for sb in _consume_standby(game, "end_phase_mp", lambda s: s.owner == st.turn_player):
+        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+        gain_mp(game, batch, st.turn_player, sb.data.get("amount", 0), sb.source)
     # 時效到期與回合收尾
     st.modifiers = [m for m in st.modifiers if not _expires_now(m, st.turn_no)]
     st.standby = [s for s in st.standby

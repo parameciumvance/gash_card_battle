@@ -207,7 +207,9 @@ def _effects_view(game: Game) -> list[dict]:
 
 # 效果 data 中可公開、供顯示的欄位(白名單;其餘如續體一律不送)
 _PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_delta": int, "optional": bool,
-                       "used": bool}   # used:E-010 借用的效果本回合是否已使用
+                       "used": bool,   # used:E-010 借用的效果本回合是否已使用
+                       "attr": str,    # attr:P-029 可使用的戰術屬性(日文元素名)
+                       "amount": int}  # amount:E-038 待命的 MP 增加量(持續效果另有同名欄位)
 
 
 def _public_data(data: dict) -> dict:
