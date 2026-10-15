@@ -1328,13 +1328,13 @@
  "S-091": {
   "name": "Bao Zakeruga",
   "name_ja": "バオウ・ザケルガ",
-  "attr": null,
+  "attr": "Thunder",
   "effect": "Damage to your opponent's Spell Book."
  },
  "S-092": {
   "name": "Zakeruga",
   "name_ja": "ザケルガ",
-  "attr": null,
+  "attr": "Thunder",
   "effect": "Damage to your opponent's Spell Book. When this SPELL is used to attack, it gets +2000 Power."
  },
  "S-093": {
