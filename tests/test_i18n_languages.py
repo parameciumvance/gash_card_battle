@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.build_card_texts import build_ja, load_csv, load_tts_names
+from tools.build_card_texts import build_ja, element_names, load_csv, load_tts_names
 
 ROOT = Path(__file__).resolve().parents[1]
 I18N = ROOT / "frontend/i18n"
@@ -221,10 +221,45 @@ def test_ja_card_text_examples():
 
 
 def test_en_names_match_tts_sheet():
-    en, tts = card_texts("en"), load_tts_names()
-    assert {n: (en[n]["name"], en[n]["attr"]) for n in en
-            if (en[n]["name"], en[n]["attr"]) != (tts[n]["name"], tts[n]["attr"])} == {}
+    # 卡表有值的照卡表;卡表屬性缺漏的戰術,依卡表中同元素的英文補上(card-data「日文與英文卡片文字」)
+    en, tts, cards = card_texts("en"), load_tts_names(), cards_json()
+    names = element_names(load_csv(), tts)
+
+    def expected(n):
+        attr = tts[n]["attr"]
+        if attr is None and cards[n]["type"] == "spell" and cards[n]["attr_name"]:
+            attr = names.get(cards[n]["attr_name"])
+        return tts[n]["name"], attr
+
+    assert {n: (en[n]["name"], en[n]["attr"]) for n in en if (en[n]["name"], en[n]["attr"]) != expected(n)} == {}
     assert en["M-001"]["name"] == "Zatch Bell"
+
+
+def test_en_attr_fills_tts_gap():
+    en = card_texts("en")
+    assert load_tts_names()["S-091"]["attr"] is None                    # 卡表本身缺漏
+    assert (en["S-091"]["attr"], en["S-092"]["attr"]) == ("Thunder", "Thunder")
+
+
+def test_element_names_reject_conflicting_sheet():
+    rows = [{"number": "S-1", "type": "spell", "attr_ja": "雷", "effect_ja": ""},
+            {"number": "S-2", "type": "spell", "attr_ja": "雷", "effect_ja": ""}]
+    with pytest.raises(ValueError):
+        element_names(rows, {"S-1": {"attr": "Thunder"}, "S-2": {"attr": "Lightning"}})
+
+
+@pytest.mark.parametrize("lang", ["zh-TW", "en"])
+def test_spell_attr_translations_consistent(lang):
+    # 同一個日文元素只有一種譯名,有元素的戰術屬性不為空(card-data「戰術屬性譯名一致」)
+    texts, seen = card_texts(lang), {}
+    for n, c in cards_json().items():
+        if c["type"] == "spell" and c["attr_name"]:
+            seen.setdefault(c["attr_name"], {}).setdefault(texts[n]["attr"], []).append(n)
+    assert {e: v for e, v in seen.items() if len(v) != 1 or None in v} == {}
+    assert list(seen["雷"]) == (["雷"] if lang == "zh-TW" else ["Thunder"])
+    # 日文沒有元素的戰術(如 S-058)沒有屬性,以日文權威資料為準
+    assert [n for n, c in cards_json().items()
+            if c["type"] == "spell" and not c["attr_name"] and texts[n]["attr"]] == []
 
 
 def test_en_effects_are_translated():

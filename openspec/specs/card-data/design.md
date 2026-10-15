@@ -8,7 +8,7 @@
 - **日文 `cards.ja.json`**:由 `tools/build_card_texts.py` 自 `data/cards_ja.csv` 產生,不手動編輯;測試以同一函式(`build_ja`)重新產生並比對。
   - 魔物與搭檔的效果名不在 `attr_ja`,而是 `effect_ja` 開頭《》括起的文字,工具取第一個《》作為 `attr`。`effect` 是原文全文,所以日文效果文本身也帶著《效果名》。
 - **英文 `cards.en.json`**:
-  - `name` / `attr` 由同一工具自 TTS 卡表(`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx`,「The Table」工作表)寫入,「-」為 null;同一卡號有 e / j 兩版時名稱相同,取第一筆。卡表的名稱照用,不另行修正(例:S-011 卡表寫「Ion Gravirei」)。
+  - `name` / `attr` 由同一工具自 TTS 卡表(`openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx`,「The Table」工作表)寫入,「-」為 null。卡表屬性欄缺漏(「-」)而日文資料有元素的戰術(S-091 / S-092),由 `element_names` 以卡表中同元素其他戰術的英文補上;卡表對同一元素出現兩種英文時工具報錯,不自行選擇,也不在工具裡寫固定對照表(英文名稱跟著卡表,例如「Down Force」);同一卡號有 e / j 兩版時名稱相同,取第一筆。卡表的名稱照用,不另行修正(例:S-011 卡表寫「Ion Gravirei」)。
   - `effect` 是依 `effect_ja` 手寫的翻譯,存在檔中,工具重新執行時保留。
   - 不照抄卡表或卡圖(民間英譯版)的英文效果文:兩者與日文效果文有出入(見 `card-effects` design「行為決定與理由」),遊戲行為依日文效果文,畫面文字應與行為一致。卡表的英文只作用語參考。
   - 寫法:「」括起的卡名 / 戰術名改為該卡的英文 `name` 並保留引號;效果類型用規則頁的英文稱呼(Declare use →、Reduce MP by N →、Discard this card →、While this card is in play →);開頭的《效果名》省略(與中文一致,效果名已在卡名中)。用語對齊卡圖:MAMODO、SPELL、Spell Book、Power、Partner、Event、[STANDBY]、[STAY]、[COUNTER]、PROTECT、Injured、Healthy、Discard Pile、heads / tails。
@@ -17,7 +17,7 @@
   - 譯名只轉字形(賈修・貝爾→贾修・贝尔),使用者決定先不改用大陸譯名;之後要換譯名時加進 `TERMS`。
   - `name_ja` 不轉換:日文漢字會被改掉。`app.title` 不轉換:網站名稱是專有名稱,各語言相同。
   - `opencc-python-reimplemented` 只是 dev 依賴,執行時不需要。OpenCC 詞典升級可能改變輸出,同步測試會抓到,檢查差異後重跑工具。
-- **測試**(`tests/test_i18n_languages.py`):三個檔都涵蓋 `cards.json` 全部卡號且 `name`、`effect` 非空;`name_ja` 與 `cards_ja.csv` 一致;英文 `name` / `attr` 與卡表一致;英文 `effect` 不含假名(避免漏翻)。
+- **測試**(`tests/test_i18n_languages.py`):三個檔都涵蓋 `cards.json` 全部卡號且 `name`、`effect` 非空;同一個日文元素在繁中、英文各只有一種譯名、有元素的戰術屬性不為空、日文沒有元素的戰術沒有屬性(第二彈繁中曾把 S-029〜S-031 譯成「電擊」,與其他雷屬性的「雷」不一致,也曾自訂「火焰」「武術」等屬性與指令戰術的「指令」,都沒被發現,已依日文修正);`name_ja` 與 `cards_ja.csv` 一致;英文 `name` / `attr` 與卡表一致;英文 `effect` 不含假名(避免漏翻)。
 - **翻譯狀態**:日文為原文;英文效果文為初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。
 
 ## 第三彈卡片資料

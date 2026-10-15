@@ -4,7 +4,8 @@
   `name` / `name_ja` = `name_ja`;`effect` = `effect_ja`;`attr` 對戰術卡為 `attr_ja`(元素),
   對魔物與搭檔卡為 `effect_ja` 中第一個《》括起的效果名,沒有時 None;事件卡 None。
 - `data/cards.en.json`:`name` / `attr` 由 TTS 卡表(`Zatch Bell CCG List for TTS.xlsx`)的英文卡名與
-  Attribute / Effect Name 寫入(「-」為 None);`effect` 是依 `effect_ja` 手寫的翻譯,保留檔中既有的值。
+  Attribute / Effect Name 寫入(「-」為 None);卡表屬性缺漏的戰術,依卡表中同一元素其他戰術的英文補上
+  (`element_names`,卡表沒有該元素的英文時仍為 None)。`effect` 是依 `effect_ja` 手寫的翻譯,保留檔中既有的值。
   卡表的英文效果文與日文效果文有出入,不作為翻譯依據。
 
 用法: python tools/build_card_texts.py
@@ -79,14 +80,31 @@ def load_tts_names(xlsx_path: Path = XLSX) -> dict[str, dict]:
     return out
 
 
+def element_names(rows: list[dict], tts: dict[str, dict]) -> dict[str, str]:
+    """日文元素 → 卡表中戰術的英文屬性(S-091 / S-092 等卡表缺漏時補值用)。
+    卡表對同一元素有兩種英文時報錯,不默默挑一個。"""
+    out: dict[str, str] = {}
+    for row in rows:
+        element, attr = ja_attr(row), tts.get(row["number"], {}).get("attr")
+        if row["type"] != "spell" or not element or not attr:
+            continue
+        if out.setdefault(element, attr) != attr:
+            raise ValueError(f"卡表中元素「{element}」有兩種英文:{out[element]} / {attr}({row['number']})")
+    return out
+
+
 def build_en(rows: list[dict], tts: dict[str, dict], existing: dict[str, dict]) -> dict[str, dict]:
+    names = element_names(rows, tts)
     out = {}
     for row in sorted(rows, key=lambda r: r["number"]):
         num = row["number"]
+        attr = tts[num]["attr"]
+        if attr is None and row["type"] == "spell" and ja_attr(row):
+            attr = names.get(ja_attr(row))
         out[num] = {
             "name": tts[num]["name"],
             "name_ja": row["name_ja"],
-            "attr": tts[num]["attr"],
+            "attr": attr,
             "effect": existing.get(num, {}).get("effect", ""),
         }
     return out
