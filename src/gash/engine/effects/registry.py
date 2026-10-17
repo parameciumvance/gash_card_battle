@@ -55,6 +55,8 @@ class SpellRider:
     on_defense_damaged: Callable | None = None  # 以此戰術防禦卻被造成傷害後 fn(game, batch, defender, amount)
     damage_bonus: Callable | None = None  # 依合計魔力調整傷害 fn(game, battle) -> int(S-042)
     damage_regardless: bool = False       # 不論魔力勝負都造成攻擊的傷害(攻擊被無效時除外)(S-100)
+    extra_cost: tuple | None = None       # 宣告時的追加費用 (step, max, power, damage):每 step 魔力 +power、傷害 +damage(S-067 / S-097)
+    counter_damage_from_attack: bool = False  # 【反擊】傷害等於對手攻擊的傷害(S-061)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}

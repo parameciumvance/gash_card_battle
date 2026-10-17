@@ -5,21 +5,22 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AddPower, Always, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
+    AddPower, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
     DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
-    HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot, LockChosenOpponentMamodo,
-    NextStartPhase, OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnEmptyBookPages,
-    OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
-    PeekOpponentOpenPages, PlayablePartnerInDiscard, ProtectAnyway,
-    ReduceOpponentMpUnlessReducedLastTurn, Ref, RemoveRestrictions, RestrictBothPlayers,
-    RestrictOpponent, RestrictOthersThanChosen, ReturnDiscardToBook, RevealOpponentBook,
-    ScheduleEndPhaseMp, ScheduleNoProtectBookNextBattle, Sequence, SlotsForBookPartner, Standby,
-    TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
+    GainMpReducedByOpponent, HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot,
+    LockChosenOpponentMamodo, NextStartPhase, OpponentBookCards, OpponentMamodo,
+    OpponentPartneredMamodo, OrSkip, OwnEmptyBookPages, OwnHasPartner, OwnInjuredMamodo, OwnMamodo,
+    OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlayablePartnerInDiscard,
+    PlayMamodoFromBook, ProtectAnyway, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen,
+    ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseMp, ScheduleNoProtectBookNextBattle,
+    Sequence, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
+    ZeroBothPlayersMp,
     has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
-    opponent_has_mamodo, opponent_then_self,
+    mp_reduced_by_opponent, opponent_has_mamodo, opponent_then_self,
 )
 
 
@@ -210,6 +211,8 @@ reg.event("E-027", effect=opponent_then_self(When(
 
 # ---------------------------------------------------------------- 第三彈
 
+reg.event("E-028", when=mp_reduced_by_opponent, effect=GainMpReducedByOpponent())
+
 reg.event("E-030", when=HasOptions(OpponentPartneredMamodo()), effect=Choose(
     OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
@@ -226,6 +229,28 @@ reg.event("E-033", when=HasOptions(DiscardedMamodoToReturn()), effect=Choose(
     ),
 ))
 
+# 「それぞれ1枚まで」:先魔物、後搭檔,各自可不選(大海恵可裝到剛放出的ティオ);兩者都選不到時不能使用
+reg.event("E-034", when=AnyOf(HasOptions(DeployableMamodoInOwnBook(name="ティオ")),
+                              HasOptions(AttachablePartnerPagesInOwnBook(name="大海恵"))), effect=Sequence(steps=(
+    Choose(
+        OrSkip(DeployableMamodoInOwnBook(name="ティオ")), bind="page", prompt="pick_mamodo_in_own_book",
+        then=When(
+            Bound("page", None),
+            otherwise=PlayMamodoFromBook(),
+        ),
+    ),
+    Choose(
+        OrSkip(AttachablePartnerPagesInOwnBook(name="大海恵")), bind="partner_page", prompt="pick_partner_in_own_book",
+        then=When(
+            Bound("partner_page", None),
+            otherwise=Choose(
+                SlotsForBookPartner(page=Ref("partner_page")), bind="slot", prompt="pick_own_mamodo",
+                then=AttachPartnerFromBookPage(page=Ref("partner_page"), slot=Ref("slot")),
+            ),
+        ),
+    ),
+)))
+reg.event("E-035", when=mp_reduced_by_opponent, effect=TurnPagesForward(leaves=2, target="opponent"))
 reg.event("E-036", effect=RemoveRestrictions(categories=("spells", "protect", "mamodo_effects"), whose="both"))
 reg.event("E-038", effect=ScheduleEndPhaseMp(amount=4))
 reg.event("E-040", when=has_two_or_more_mamodo, effect=HealAllOwnMamodo())

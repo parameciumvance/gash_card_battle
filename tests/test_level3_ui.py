@@ -132,3 +132,40 @@ def test_revealed_opponent_pages_show_faces(page):
     assert faces.count() == 2
     faces.first.click()
     assert page.locator("#zoom-overlay").is_visible() and page.locator("#zoom-actions button").count() == 0
+
+
+def test_extra_cost_buttons(page):
+    # battle-ui「追加費用與效果選擇的選項文字」:S-067 的追加費用以行動欄按鈕呈現
+    p = start(page)
+    opts = [{"value": v, "label": "extra_cost", "amount": v, "power": v * 1000, "damage": v // 2} for v in (0, 2, 4)]
+    set_pending(page, {"kind": "spell_extra_cost", "player": p, "source": "S-067", "options": opts})
+    buttons = page.locator("#action-bar .choice-prompt .choice-options button")
+    assert buttons.all_text_contents() == ["不追加", "追加 2(魔力 +2000、傷害 +1)", "追加 4(魔力 +4000、傷害 +2)"]
+    buttons.nth(2).click()
+    assert sent(page) == [{"type": "choose", "player": p, "value": 4}]
+
+
+def test_any_page_spell_buttons_per_page(page):
+    # M-037:範圍內有多張可用的戰術時,每一頁各一個按鈕(標出頁碼),按下開該頁的放大檢視
+    p = start(page)
+    page.evaluate("""(p) => {
+        const users = [{slot_uid: S.players[p].slots[0].uid, cost: 2}];
+        S = {...S, phase: 'battle', turn_player: p, action_player: p, battle: null, battle_in: null,
+             players: S.players.map((x, i) => i !== p ? x : {...x, mp: 10, any_page_spells: [
+               {page: 5, card: 'S-065', cost: 2, users}, {page: 7, card: 'S-066', cost: 2, users}]})};
+        render();
+    }""", p)
+    buttons = page.locator("#action-bar button", has_text="從魔書使用")
+    assert buttons.count() == 2
+    assert "第 7 頁" in buttons.nth(1).text_content()
+    buttons.nth(1).click()
+    assert page.locator("#zoom-overlay").is_visible()
+    assert page.evaluate("ZOOM.ctx.kind === 'any_page' && ZOOM.ctx.page") == 7
+
+
+def test_s098_target_shown_in_log_and_effects(page):
+    start(page)
+    line = page.evaluate("logLine({type: 'standby_set', kind: 'spell_reuse', owner: 0, source: 'S-098', card: 'S-002', page: 4})")
+    assert page.evaluate("cname('S-002')") in line and "第 4 頁" in line
+    text = page.evaluate("effectText({type: 'standby', kind: 'spell_reuse', source: 'S-098', owner: 0, card: 'S-002', page: 4})")
+    assert page.evaluate("cname('S-002')") in text and "第 4 頁" in text

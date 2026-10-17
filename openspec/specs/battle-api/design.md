@@ -30,7 +30,7 @@
 
 - 對手翻開頁的卡片內容只在兩種情況出現:宣告中的攻防戰術頁(`in_use`),以及觀看者場上有 P-024(`engine.reveals_open_pages`,登記在 `reg.REVEAL_OPPONENT_PAGES`)。P-024 只對持有者公開,觀戰者與其他視角不變;持有者私有的 `users`、`condition_ok` 仍只給翻開頁的主人。
 - 翻開的事件卡附 `cost`(`engine.event_cost`:卡面費用加上對手場上 M-040 等的加成),與戰術卡的 `cost` 一樣是公開資訊;前端以它顯示與判斷 MP。
-- `_PUBLIC_EFFECT_DATA` 另含 `attr`(P-029)與 `amount`(E-038 待命)。
+- `_PUBLIC_EFFECT_DATA` 另含 `attr`(P-029)、`amount`(E-038 待命)與 `page`(S-098 選定要重用的戰術頁;本回合已用過、已公開)。待命資料帶 `card` / `page` 時,`standby_set` 事件也帶出(只有 S-098 的重用待命有),記錄據此寫出對象。
 
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
 

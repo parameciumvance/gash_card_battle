@@ -51,7 +51,9 @@ def schedule_standby(game, batch, *, kind, source, owner, data=None):
     sb = Standby(kind=kind, source=source, owner=owner,
                  created_turn=game.state.turn_no, data=data or {})
     game.state.standby.append(sb)
-    game.emit(batch, "standby_set", kind=kind, source=source, owner=owner)
+    # 待命指定的對象(S-098 選定的戰術)一併公開,供記錄顯示
+    target = {k: sb.data[k] for k in ("card", "page") if k in sb.data}
+    game.emit(batch, "standby_set", kind=kind, source=source, owner=owner, **target)
     return sb
 
 
@@ -110,7 +112,9 @@ def reduce_opponent_mp(game, batch, player, amount, source) -> int:
     if amount > 0 and mp_guarded(game, 1 - player):
         game.emit(batch, "mp_reduction_prevented", player=1 - player, source=source)
         return 0
-    return reduce_mp(game, batch, 1 - player, amount, source)
+    actual = reduce_mp(game, batch, 1 - player, amount, source)
+    game.state.players[1 - player].mp_reduced_by_opponent += actual   # E-028 / E-035
+    return actual
 
 
 def heal_slot(game, batch, player, slot, source):

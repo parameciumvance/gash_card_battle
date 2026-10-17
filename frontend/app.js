@@ -2035,7 +2035,14 @@ function renderActionBar() {
       // P-015:待命允許從魔書任意頁使用的戰術,在可宣告攻擊時從魔書網格使用
       const anyPage = S.players[awaited].any_page_spells || [];
       if (anyPage.length && awaited === S.turn_player && !S.battle && !S.battle_in) {
-        addBtn(t("ui.any_page_spell", { card: cname(anyPage[0].card) }), () => showBookReview(awaited));
+        if (anyPage.length === 1) {
+          addBtn(t("ui.any_page_spell", { card: cname(anyPage[0].card) }), () => showBookReview(awaited));
+        } else {   // M-037:範圍內有多張可用時,每一頁各一個按鈕,直接開該頁的放大檢視
+          for (const entry of anyPage) {
+            addBtn(t("ui.any_page_spell_page", { card: cname(entry.card), page: entry.page }),
+              () => zoom(entry.card, { kind: "any_page", p: awaited, page: entry.page }));
+          }
+        }
       }
     }
   }
@@ -2165,6 +2172,8 @@ function choiceLabel(opt, results) {
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
     case "gain_mp_2": return t("choice.gain_mp_2");
+    case "extra_cost": return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
+      : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
     case "end_review": return t("choice.end_review");
@@ -2517,7 +2526,7 @@ function effectText(e) {
   return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
     mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
     card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")),
-    attr: e.attr ? t(`attr.${e.attr}`) : "" });
+    attr: e.attr ? t(`attr.${e.attr}`) : "", page: e.page ?? "" });
 }
 
 // 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
@@ -2991,7 +3000,10 @@ function logLine(ev) {
     case "mamodo_discarded": return t("log.mamodo_discarded", { ...P, card: cname(ev.cards[ev.cards.length - 1]) });
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });
     case "card_discarded": return t("log.card_discarded", { ...P, card: cname(ev.card) });
-    case "standby_set": return t("log.standby_set", { player: pname(ev.owner), card: cname(ev.source) });
+    case "standby_set":
+      return ev.kind === "spell_reuse" && ev.card   // S-098:寫出選定的戰術
+        ? t("log.spell_reuse_set", { player: pname(ev.owner), source: cname(ev.source), card: cname(ev.card), page: ev.page })
+        : t("log.standby_set", { player: pname(ev.owner), card: cname(ev.source) });
     case "standby_resolved": return t("log.standby_resolved", { card: cname(ev.card) });
     case "modifier_added": return t("log.modifier_added", { card: cname(ev.source) || ev.source });
     case "effect_applied": return t("log.effect_applied", { source: cname(ev.source) || ev.source });
