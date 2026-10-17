@@ -100,3 +100,35 @@ def test_mp_reduction_prevented_log(page):
     start(page)
     line = page.evaluate("logLine({type: 'mp_reduction_prevented', player: 0, source: 'E-018'})")
     assert "MP 不會因對手的效果減少" in line and page.evaluate("cname('E-018')") in line
+
+
+def test_event_cost_from_snapshot(page):
+    # 對手場上有 M-040:快照的事件卡費用含 +1,卡面與「使用」都依它判斷(battle-ui「事件卡的費用加成與公開的翻開頁」)
+    p = start(page)
+    page.evaluate("""(p) => {
+        const ps = S.players[p];
+        const pg = ps.open_pages[1].page;
+        S = {...S, phase: 'battle', action_player: p, players: S.players.map((x, i) => i !== p ? x : {...x, mp: 2,
+             open_pages: x.open_pages.map((e) => e.page === pg ? {...e, card: 'E-032', cost: 3} : e)})};
+        render();
+        zoom('E-032', {kind: 'page', p, page: pg});
+    }""", p)
+    assert "費用 3" in page.locator("#zoom-card .cmeta").text_content()
+    use = page.locator("#zoom-actions button", has_text="使用")
+    assert use.is_disabled() and "MP < 3" in page.locator("#zoom-actions").inner_text()
+
+
+def test_revealed_opponent_pages_show_faces(page):
+    # P-024:快照含對手翻開頁的卡號時以卡面顯示,放大檢視沒有行動按鈕
+    p = start(page)
+    opp = 1 - p
+    page.evaluate("""([p, opp]) => {
+        SESSION = {...SESSION, viewer: p};
+        S = {...S, players: S.players.map((x, i) => i !== opp ? x : {...x,
+             open_pages: x.open_pages.map((e) => ({page: e.page, card: 'S-001', cost: 1}))})};
+        render();
+    }""", [p, opp])
+    faces = page.locator(f'.player-zone[data-player="{opp}"] .book-pages [data-card="S-001"]')
+    assert faces.count() == 2
+    faces.first.click()
+    assert page.locator("#zoom-overlay").is_visible() and page.locator("#zoom-actions button").count() == 0

@@ -9,8 +9,8 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    MAMODO_LOCKED, _spell_any_page_standby, _spell_usable_by, exhausted_spell_pages, side_breakdown,
-    slot_power, slot_restricted, spell_cost,
+    _spell_any_page_standby, _spell_usable_by, event_cost, exhausted_spell_pages, reveals_open_pages,
+    side_breakdown, slot_power, spell_block, spell_cost,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
 
@@ -69,9 +69,10 @@ def _in_use_pages(game: Game, p: int) -> set[int]:
 
 
 def _spell_users(game: Game, p: int, page: int, card) -> list[dict]:
-    """可使用此戰術的自己場上魔物(持有者私有):依引擎的相容判定,附依該魔物計算的費用與是否被 E-024 封鎖。"""
+    """可使用此戰術的自己場上魔物(持有者私有):依引擎的相容判定,附依該魔物計算的費用與是否被
+    指定魔物的封鎖擋下(E-024 / S-074 / E-043)。"""
     return [{"slot_uid": s.uid, "cost": spell_cost(game, p, page, card, slot=s),
-             "locked": slot_restricted(game, p, MAMODO_LOCKED, s.uid)}
+             "locked": spell_block(game, p, s) == "spell.mamodo_locked"}
             for s in game.state.players[p].slots
             if card.is_command_spell or _spell_usable_by(game, p, s, card)]
 
@@ -101,8 +102,9 @@ def _player_view(game: Game, p: int, viewer) -> dict:
     ps = game.state.players[p]
     in_use = _in_use_pages(game, p)
     open_pages = []
+    revealed = reveals_open_pages(game, viewer, p)   # P-024:對手看得到翻開的頁
     for page in ps.open_pages():
-        if can_see_player(viewer, p) or page in in_use:
+        if can_see_player(viewer, p) or page in in_use or revealed:
             number = ps.card_at(page)
             card = game.db[number]
             entry = {"page": page, "card": number}
@@ -110,6 +112,8 @@ def _player_view(game: Game, p: int, viewer) -> dict:
                 entry["cost"] = spell_cost(game, p, page, card)
                 if can_see_player(viewer, p):
                     entry["users"] = _spell_users(game, p, page, card)
+            elif card.type == "event":
+                entry["cost"] = event_cost(game, p, card)   # 含對手 M-040 的加成
             if can_see_player(viewer, p) and (card.type == "event" or card.effect_icon == "nonbattle"):
                 entry["condition_ok"] = _condition_ok(game, p, card)
             if page in in_use:

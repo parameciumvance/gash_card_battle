@@ -26,6 +26,7 @@
   - 已離開魔書的頁。
   - 宣告中的戰術頁。
   - 事件記錄中 NPC 看得到的頁:`book_card_used`,以及 `viewer` 為 NPC 的 `book_revealed` / `pages_peeked`。
+  - NPC 場上有 P-024 時,對手翻開的頁(與快照相同,由 `engine.reveals_open_pages` 判斷)。
 - 對手魔書其餘的頁以抽樣替換。先驗:與對手場上魔物同家族的卡加權,對手用過或場上、棄牌區出現過的卡次之。
 - `rng` 換成由抽樣帶來的 seed 建立的新 RNG;不帶事件記錄;`jammer` 快照的對手魔書同樣替換。
 

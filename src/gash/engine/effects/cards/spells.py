@@ -1,22 +1,29 @@
 """戰術卡(S-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_UNTIL_END_NEXT_TURN, NO_PARTNER_EFFECTS, NO_SPELLS
+from ...state import (
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, DUR_UNTIL_END_OWN_NEXT_TURN, NO_DEFENSE, NO_EFFECTS_AND_SPELLS,
+    NO_PARTNER_EFFECTS, NO_SPELLS,
+)
 from .. import registry as reg
 from ..tree import (
+    opponent_has_mamodo,
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
-    AdjustDefenseDamage, All, Always, Bound, Choose, Coin, DamageBonusIfAttackTotalAtLeast,
-    DamageOpponentBookAndAllMamodo, DisableBookProtection, DiscardChosenPartner,
-    DiscardOwnMamodoByNumber, GainMpPerDamage, GrantFullImmune, HasOptions, HeadsAtLeast,
-    IncreaseThisSpellDamage, MakeAttackUndefendable, MakeNextAttackUndefendable,
-    MarkInjuredMamodoDiscarded, NegateAttack, OpponentPartneredMamodo, OwnBookCopiesOf, OwnFieldHas,
-    PlayMamodoFromBook, ReduceOpponentMp, RestrictOpponent, RobnosTransformMode,
-    ScheduleInjureInsteadNextWin, Sequence, SideIs, StackFromBookOnto, When,
+    AdjustDefenseDamage, All, Always, AttackBookDamage, Bound, Choose, Coin,
+    DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DisableBookProtection,
+    DiscardChosenPartner, DiscardFromOpponentBook, DiscardOwnMamodoByNumber, EffectOptions,
+    FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
+    HeadsAtLeast, IncreaseThisSpellDamage, InjureOpponentMamodoInstead, LockChosenOpponentMamodo,
+    MakeAttackUndefendable, MakeNextAttackUndefendable, MarkInjuredMamodoDiscarded, NegateAttack,
+    NextStartPhase, OpponentMamodo, OpponentOpenPageCards, OpponentPartneredMamodo, OwnBookCopiesOf,
+    OwnFieldHas, PeekOpponentOpenPages, PlayMamodoFromBook, ReduceOpponentMp, RestrictBothPlayers,
+    RestrictOpponent, RobnosTransformMode, ScheduleInjureInsteadNextWin, Sequence, SideIs,
+    StackFromBookOnto, Standby, When,
 )
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
 # S-001 等第一彈香草戰術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
-# 第三彈的香草戰術:S-080 S-085。
+# 第三彈的香草戰術:S-071 S-080 S-085 S-099。
 
 reg.spell_rider("S-003", counter=True)
 
@@ -189,6 +196,44 @@ reg.spell_rider("S-058", injure_instead=True)
 
 # ---------------------------------------------------------------- 第三彈
 
+reg.spell_rider("S-069", on_declare=When(
+    SideIs("attack"),
+    then=MakeAttackUndefendable(),
+    otherwise=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=NegateAttack(),
+    ),
+), on_win=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=AttackBookDamage(),
+    otherwise=FinishAttackWithoutDamage(),
+), on_win_owns_damage=True)
+
+# 「次の効果の1つを使う」:攻擊獲勝時由攻擊方選擇魔書傷害或對手魔物傷害(對手沒有魔物時只有魔書)
+reg.spell_rider("S-070", on_win=Choose(
+    EffectOptions((("book", "damage_book", None), ("mamodo", "damage_mamodo", OpponentMamodo()))),
+    bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "book"),
+        then=AttackBookDamage(),
+        otherwise=InjureOpponentMamodoInstead(),
+    ),
+), on_win_owns_damage=True)
+
+reg.spell_nonbattle("S-073", effect=RestrictOpponent(flag=NO_DEFENSE, duration=DUR_TURN))
+
+# 待命至下回合開始階段、下回合中持續:使用時就選好對手的魔物(比照 E-001)
+reg.spell_nonbattle("S-074", when=opponent_has_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=Standby(
+        NextStartPhase(), expires="next_start", restricts=("spells", "mamodo_effects"),
+        then=LockChosenOpponentMamodo(),
+    ),
+))
+
+reg.spell_nonbattle("S-075",
+                    effect=RestrictBothPlayers(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_OWN_NEXT_TURN))
+
 reg.spell_rider("S-076", on_declare=When(
     SideIs("attack"),
     then=MarkInjuredMamodoDiscarded(),
@@ -197,6 +242,22 @@ reg.spell_rider("S-076", on_declare=When(
 reg.spell_rider("S-077", on_declare=When(
     SideIs("attack"),
     then=MarkInjuredMamodoDiscarded(),
+))
+
+reg.spell_rider("S-078", on_damage=Sequence(steps=(
+    PeekOpponentOpenPages(),
+    When(
+        HasOptions(OpponentOpenPageCards()),
+        then=Choose(
+            OpponentOpenPageCards(), bind="page", prompt="pick_opponent_book_card",
+            then=DiscardFromOpponentBook(),
+        ),
+    ),
+)))
+
+reg.spell_rider("S-079", on_declare=When(
+    SideIs("defense"),
+    then=GrantGuardImmune(mamodo="ウォンレイ"),
 ))
 
 reg.spell_rider("S-081", on_declare=When(
@@ -230,5 +291,10 @@ reg.spell_rider("S-084", on_declare=When(
         then=MakeAttackUndefendable(),
     ),
 ))
+
+reg.spell_rider("S-100", on_declare=When(
+    SideIs("attack"),
+    then=MakeAttackUndefendable(),
+), damage_regardless=True)
 
 reg.spell_rider("S-101", on_win=DamageOpponentBookAndAllMamodo(), on_win_owns_damage=True)

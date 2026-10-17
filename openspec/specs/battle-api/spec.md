@@ -37,7 +37,7 @@ API SHALL 提供指令提交端點:以 token 鑑別玩家(payload 的 `player` �
 - **THEN** 回應 4xx 與引擎原因碼,對局狀態不變
 
 ### Requirement: 狀態快照與資訊隱藏
-狀態快照 SHALL 依觀看者(player0/player1/觀戰)產生:包含渲染所需完整公開狀態(階段、行動權、雙方 MP、場面、魔書進度、戰鬥子狀態、pending 的 kind、決策者與來源卡號(`source`,無來源時為 null)、事件序號、雙方玩家暱稱)。對手與觀戰者的回應中,任一玩家未翻開頁的內容 MUST NOT 出現(僅頁碼/張數);翻開頁的卡片內容 MUST 只對持有者可見,對手與觀戰者僅見頁碼——**唯一例外:已宣告攻防戰術的「使用中頁」(攻擊宣告 `battle_in` 的攻方頁、戰鬥中 `battle` 的攻方 `attack_page` 與防方 `defense_page`)SHALL 對所有視角含卡片內容並標記 `in_use`(宣告即公開);戰鬥結束後 MUST 恢復僅頁碼**;持有者本人的視角 MAY 含自己完整魔書內容(`book`,全 32 頁順序)——此為己方隱藏資訊,規則上持有者本就已知,MUST NOT 出現在對手或觀戰者的回應中;pending 的選項細節 MUST 只對決策者可見。本機模式的 client 持有雙方 token,視為全視角(雙方 book 皆含)。
+狀態快照 SHALL 依觀看者(player0/player1/觀戰)產生:包含渲染所需完整公開狀態(階段、行動權、雙方 MP、場面、魔書進度、戰鬥子狀態、pending 的 kind、決策者與來源卡號(`source`,無來源時為 null)、事件序號、雙方玩家暱稱)。對手與觀戰者的回應中,任一玩家未翻開頁的內容 MUST NOT 出現(僅頁碼/張數);翻開頁的卡片內容 MUST 只對持有者可見,對手與觀戰者僅見頁碼——**唯一例外:已宣告攻防戰術的「使用中頁」(攻擊宣告 `battle_in` 的攻方頁、戰鬥中 `battle` 的攻方 `attack_page` 與防方 `defense_page`)SHALL 對所有視角含卡片內容並標記 `in_use`(宣告即公開);戰鬥結束後 MUST 恢復僅頁碼**;另一例外:對手場上有 P-024 時,該對手(P-024 的持有者)SHALL 看得到此玩家翻開頁的卡片內容;翻開頁中的事件卡 SHALL 附加成後的費用(`cost`,含對手 M-040 的 +1),與戰術卡相同;持有者本人的視角 MAY 含自己完整魔書內容(`book`,全 32 頁順序)——此為己方隱藏資訊,規則上持有者本就已知,MUST NOT 出現在對手或觀戰者的回應中;pending 的選項細節 MUST 只對決策者可見。本機模式的 client 持有雙方 token,視為全視角(雙方 book 皆含)。
 
 #### Scenario: 對手未翻頁內容不外洩
 - **WHEN** 玩家 A 查詢狀態
@@ -74,6 +74,14 @@ API SHALL 提供指令提交端點:以 token 鑑別玩家(payload 的 `player` �
 #### Scenario: 快照可完整重繪
 - **WHEN** 前端重新整理後以 token 查詢狀態
 - **THEN** 回應足以完整重建該視角畫面(含行動 log 與暱稱),無需重放指令
+
+#### Scenario: P-024 公開翻開頁
+- **WHEN** 玩家 A 場上有 P-024,A 查詢狀態
+- **THEN** B 的 open_pages 含卡號;觀戰者與 B 自己的視角規則不變
+
+#### Scenario: 事件卡費用含加成
+- **WHEN** 玩家 A 場上有 M-040,B 翻開費用 0 的事件卡,B 查詢狀態
+- **THEN** 該頁的 `cost` 為 1
 
 ### Requirement: 事件記錄
 對局 SHALL 累積自開局以來的全部事件(含序號);API MUST 支援自指定序號起增量取得事件,且回放內容 MUST 與即時推送同樣經視角過濾:帶 viewer 標記的事件(檢視魔書/偷看頁面)只對該玩家可見,choice_required 對非決策者去除選項細節。

@@ -1197,7 +1197,7 @@
   "name": "Rigron",
   "name_ja": "リグロン",
   "attr": null,
-  "effect": "• When used to defend: your opponent cannot defend this attack. Flip a coin; if heads, damage your opponent's Spell Book. • When used to attack: regardless of the Power showdown, flip a coin; if heads, negate your opponent's attack."
+  "effect": "• When used to attack: your opponent cannot defend this attack. Flip a coin; if heads, damage your opponent's Spell Book. • When used to defend: regardless of the Power showdown, flip a coin; if heads, negate your opponent's attack."
  },
  "S-070": {
   "name": "Rigrosen",

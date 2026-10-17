@@ -54,6 +54,7 @@ class SpellRider:
     injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔書傷害(S-058)
     on_defense_damaged: Callable | None = None  # 以此戰術防禦卻被造成傷害後 fn(game, batch, defender, amount)
     damage_bonus: Callable | None = None  # 依合計魔力調整傷害 fn(game, battle) -> int(S-042)
+    damage_regardless: bool = False       # 不論魔力勝負都造成攻擊的傷害(攻擊被無效時除外)(S-100)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
@@ -97,6 +98,18 @@ COIN_REFLIP: dict[str, str] = {}
 
 # 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
+
+# 「術を使えない」時仍可使用由這隻魔物使用的戰術(M-038)
+IGNORE_SPELL_BLOCK: set[str] = set()
+
+# 不能保護的魔物(「かばうことができる」時也不能;M-051)
+CANNOT_PROTECT: set[str] = set()
+
+# 此卡在場上時,對手使用事件卡的費用增加量(M-040)
+OPPONENT_EVENT_COST: dict[str, int] = {}
+
+# 此卡在場上時,持有者看得到對手翻開的頁(P-024)
+REVEAL_OPPONENT_PAGES: set[str] = set()
 
 # pending choice 的解決器: key -> fn(game, batch, choice_value, data)
 CHOICE_RESOLVERS: dict[str, Callable] = {}
@@ -325,3 +338,25 @@ def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
     if number in MAMODO_ATTACK:
         raise ValueError(f"{number} 的 mamodo_attack 已登記")
     MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage}
+
+
+def ignore_spell_block(number: str):
+    """「術を使えない」時,由這隻魔物使用的戰術仍可使用(M-038)。"""
+    IGNORE_SPELL_BLOCK.add(number)
+
+
+def cannot_protect(number: str):
+    """這隻魔物不能保護,任何效果都不能使它保護(M-051)。"""
+    CANNOT_PROTECT.add(number)
+
+
+def opponent_event_cost(number: str, amount: int):
+    """此卡在場上時,對手使用事件卡的費用 +amount(M-040)。"""
+    if number in OPPONENT_EVENT_COST:
+        raise ValueError(f"{number} 的 opponent_event_cost 已登記")
+    OPPONENT_EVENT_COST[number] = amount
+
+
+def reveal_opponent_pages(number: str):
+    """此卡在場上時,持有者看得到對手翻開的頁(P-024)。"""
+    REVEAL_OPPONENT_PAGES.add(number)
