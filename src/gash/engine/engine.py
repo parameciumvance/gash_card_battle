@@ -949,10 +949,36 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
         for sb in _consume_standby(game, kind, lambda s, applies=applies: s.owner == attacker and applies(s, a)):
             apply(battle, sb)
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 宣告時效果(擲硬幣等於宣告時確定)
-    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if a.is_spell else None
+    # 宣告時確定:改為傷害對手魔物的攻擊先選對象,之後才是宣告時效果(擲硬幣等)
+    if _ask_injure_target(game, batch):
+        return
+    _attack_declare_effects(game, batch)
+
+
+def _attack_declare_effects(game: Game, batch: list[dict]) -> None:
+    battle = game.state.battle
+    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if rider and rider.on_declare:
-        rider.on_declare(game, batch, attacker, "attack")
+        rider.on_declare(game, batch, battle.attacker, "attack")
+
+
+def _ask_injure_target(game: Game, batch: list[dict]) -> bool:
+    """S-058 / S-057 待命:攻擊宣告時由攻擊方選擇對手的魔物,存入 battle.data["injure_target"]
+    (game-engine「戰鬥流程五步驟」:對象於宣告時選擇)。建立決策時回傳 True,選擇後續行宣告時效果。"""
+    st = game.state
+    battle = st.battle
+    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
+    if not ((rider and rider.injure_instead) or battle.data.get("injure_instead")):
+        return False
+    targets = st.players[battle.defender].slots
+    if len(targets) <= 1:
+        battle.data["injure_target"] = targets[0].uid if targets else None
+        return False
+    st.pending = PendingChoice(
+        kind="injure_instead_target", player=battle.attacker, source=battle.attack_spell,
+        options=[slot_option(battle.defender, s) for s in targets], data={"declare": True})
+    game.emit(batch, "choice_required", kind="injure_instead_target", player=battle.attacker)
+    return True
 
 
 def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -> None:
@@ -1123,6 +1149,13 @@ def own_damage_bonus(game: Game, player: int) -> int:
 def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     st = game.state
     battle = st.battle
+    # S-021「このバトルの『効果の使用』の最後に、相手の攻撃を無効にする」:雙方 pass 之後、魔力勝負前;
+    # 防禦已被無效時一起失效
+    late = battle.data.pop("negate_at_effects_end", None)
+    if late and not battle.defense_negated and not battle.attack_negated:
+        battle.attack_negated = True
+        battle.data["attack_negated_by"] = late["source"]
+        game.emit(batch, "attack_negated", source=late["source"], player=late["player"])
     att, att_items = side_breakdown(game, battle, "attack")
     deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
@@ -1192,24 +1225,20 @@ def finish_attack_without_damage(game: Game, batch: list[dict]) -> None:
 
 
 def _injure_instead_of_damage(game: Game, batch: list[dict]) -> None:
-    """獲勝時使對手 1 隻魔物負傷代替魔書傷害;攻方選擇目標,無目標則無效果。"""
+    """獲勝時對宣告時選定的對手魔物(battle.data["injure_target"])造成傷害代替魔書傷害;
+    沒有對象或對象已離場時沒有這份傷害。"""
     st = game.state
     battle = st.battle
-    targets = st.players[battle.defender].slots
     ctx = {"cause": "battle_attack", "source": battle.attack_spell,
            "source_player": battle.attacker}
-    if not targets:
+    target = st.slot_by_uid(battle.defender, battle.data.get("injure_target", -1)) \
+        if battle.data.get("injure_target") is not None else None
+    if target is None:
         _finish_battle_damage(game, batch, {**ctx, "dealt": False})
         return
-    if len(targets) == 1:
-        _start_damage(game, batch,
-                      [{"kind": "slot", "player": battle.defender,
-                        "slot_uid": targets[0].uid, "amount": 1}], ctx)
-        return
-    st.pending = PendingChoice(
-        kind="injure_instead_target", player=battle.attacker, source=battle.attack_spell,
-        options=[slot_option(battle.defender, s) for s in targets], data={"ctx": ctx})
-    game.emit(batch, "choice_required", kind="injure_instead_target", player=battle.attacker)
+    _start_damage(game, batch,
+                  [{"kind": "slot", "player": battle.defender,
+                    "slot_uid": target.uid, "amount": 1}], ctx)
 
 
 def _damage_order_option(index: int, item: dict) -> dict:
@@ -1221,15 +1250,15 @@ def _damage_order_option(index: int, item: dict) -> dict:
 
 
 def _injure_instead_resolver(game: Game, batch: list[dict], value, data) -> None:
+    """攻擊宣告時選擇的對手魔物:記下後續行宣告時效果。"""
     st = game.state
     battle = st.battle
     slot = st.slot_by_uid(battle.defender, value) if battle else None
     if slot is None:
         raise IllegalCommand("choose.invalid", "無效的負傷對象")
     st.pending = None
-    _start_damage(game, batch,
-                  [{"kind": "slot", "player": battle.defender,
-                    "slot_uid": slot.uid, "amount": 1}], data["ctx"])
+    battle.data["injure_target"] = slot.uid
+    _attack_declare_effects(game, batch)
 
 
 reg.CHOICE_RESOLVERS["injure_instead_target"] = _injure_instead_resolver

@@ -31,6 +31,14 @@
 - 效果文寫「術」的待命只適用於戰術攻擊;無戰術攻擊(M-027)不消耗它們,留到下一場戰鬥。
 - **新增作用於下一場戰鬥的待命**:在表加一列,寫明對戰術攻擊與無戰術攻擊是否適用;`tests/test_battle_start_characterization.py` 以期望檔鎖定兩種攻擊在各待命下的事件序列,刻意改變行為時以 `GOLDEN_UPDATE=1` 重新產生並說明。
 
+## 攻防效果的宣告時確定
+
+- 規則出處:atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html)「バトル ②防御 ※重要」:攻撃や防御の効果で対象を選ぶとき・コインを投げるときは宣言時、効果は宣言時に確定。效果文明寫其他時機時依效果文(S-004 / S-014 / S-037「ダメージをあたえたとき、コインを投げて」、S-039、S-078 在造成傷害時;S-021「効果の使用の最後に」)。
+- 攻擊的宣告時點是 `_start_battle`(迎戰確認之後、防禦宣告之前)。改為傷害對手魔物的攻擊(S-058、S-057 待命)先由 `_ask_injure_target` 選對象,選完才執行 `on_declare`(擲幣等),避免兩個決策同時出現。
+- 宣告時的結果存在 `battle.data`(`injure_target`、`declared_targets`、`RememberInBattle` 的鍵),結算時讀取;`on_declare` 與 `on_win` 是兩次獨立的效果樹執行,不共用 ctx。戰鬥結束時 `battle` 清空,結果一起消失。
+- 宣告時選定的對象在結算前不在時,那份效果沒有作用;攻擊被無效時,`on_win` 不執行,宣告時確定的效果一起失效。
+- S-021:`battle.data["negate_at_effects_end"]` 由 `_resolve_showdown` 開頭(雙方 pass 之後)處理,防禦已被無效時不生效。
+
 ## 魔力勝負明細
 
 - 合計魔力由逐項明細推得,只有一份計算:`power_breakdown`(魔物魔力)與 `side_breakdown`(一方合計)回傳 `(total, items)`,`slot_power` / `_side_total` 只取 total。所以明細與合計不可能對不上。

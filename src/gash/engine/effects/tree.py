@@ -206,6 +206,17 @@ class Bound:
 
 
 @dataclass(frozen=True)
+class BattleRemembered:
+    """本場戰鬥宣告時記下的 battle.data[key] 等於 value(見 RememberInBattle)。"""
+    key: str = ""
+    value: Any = True
+
+    def test(self, game, ctx) -> bool:
+        battle = game.state.battle
+        return battle is not None and battle.data.get(self.key) == self.value
+
+
+@dataclass(frozen=True)
 class OwnMpAtMost:
     """自己 MP 不超過 n(M-002)。"""
     n: int = 0
@@ -1383,8 +1394,9 @@ class DamageOpponentBookAndAllMamodo(Effect):
         items = []
         if amount > 0:
             items.append({"kind": "book", "player": opp, "amount": amount})
+        declared = battle.data.get("declared_targets")   # 宣告時選定的魔物(只對仍在場者)
         items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
-                  for s in list(game.state.players[opp].slots)]
+                  for s in list(game.state.players[opp].slots) if declared is None or s.uid in declared]
         _start_damage(game, rt.batch, items,
                       {"cause": "battle_attack", "source": battle.attack_spell,
                        "source_player": player, "amount": amount})
@@ -2130,6 +2142,44 @@ class InjureOpponentMamodoInstead(Effect):
     def run(self, rt, ctx, path):
         from ..engine import _injure_instead_of_damage
         _injure_instead_of_damage(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class RememberInBattle(Effect):
+    """把宣告時確定的值存進本場戰鬥的 battle.data[key],供結算時讀取(on_declare 與 on_win 是
+    兩次獨立的執行,ctx 不共用)。ref 指定時存綁定的值,否則存 value。"""
+    key: str = ""
+    ref: Ref | None = None
+    value: Any = True
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data[self.key] = ctx[self.ref.name] if self.ref else self.value
+        return True
+
+
+@dataclass(frozen=True)
+class RememberOpponentMamodo(Effect):
+    """宣告時記下對手場上全部魔物(battle.data["declared_targets"],S-036 / S-101「相手の魔物すべてを選ぶ」)。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["declared_targets"] = [s.uid for s in rt.game.state.players[1 - ctx["player"]].slots]
+        return True
+
+
+@dataclass(frozen=True)
+class NegateAttackAtEffectsEnd(Effect):
+    """於「効果の使用」的最後(雙方都 pass、魔力勝負前)使攻擊無效(S-021);由 engine._resolve_showdown 執行,
+    防禦已被無效時不生效。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["negate_at_effects_end"] = {"source": ctx["source"], "player": ctx["player"]}
         return True
 
 

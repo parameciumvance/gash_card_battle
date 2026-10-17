@@ -1004,17 +1004,18 @@ def test_s069_defense_coin_negates(heads, negated):
 
 @pytest.mark.parametrize("pick_book", [True, False])
 def test_s070_attacker_chooses_book_or_mamodo(pick_book):
-    # 次の効果の1つを使う。●相手の魔本にダメージ。●相手の魔物1体を選び、ダメージをあたえる
+    # 次の効果の1つを使う。●相手の魔本にダメージ。●相手の魔物1体を選び、ダメージをあたえる(宣告時選擇)
     g, _ = mk(book("M-038", "S-070"), book("M-001"))
     st = g.state
     st.players[0].mp = 10
     to_battle(g, 0)
     pos1 = st.players[1].pos
-    attack(g, 2)
-    pass_effects(g)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     assert st.pending.player == 0 and st.pending.kind == "pick_effect"
-    value = next(o["value"] for o in st.pending.options if o["value"] == ("book" if pick_book else "mamodo"))
-    submit(g, {"type": "choose", "player": 0, "value": value})
+    submit(g, {"type": "choose", "player": 0, "value": "book" if pick_book else "mamodo"})
+    submit(g, {"type": "no_defense", "player": 1})
+    pass_effects(g)
     no_protect(g)
     target = st.players[1].slots[0]
     if pick_book:
