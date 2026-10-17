@@ -16,7 +16,7 @@
 - `battle.attacker_breakdown` / `defender_breakdown`:合計魔力的即時明細,內容是場上的卡、已宣告的戰術與已公開的效果。
 - `effects`:作用中的待命與持續效果(待命在前、持續效果在後,各自依建立順序)。
   - 待命與持續效果建立時都發過公開事件(`standby_set` / `modifier_added`),所以清單本身是公開資訊。
-  - 只送整理過的欄位;效果的 `data` 只挑白名單 `_PUBLIC_EFFECT_DATA` 內、型別相符的欄位(`mamodo`、`card`、`power_delta`、`cost_delta`、`optional`),續體等內部資料一律不送。
+  - 只送整理過的欄位;效果的 `data` 只挑白名單 `_PUBLIC_EFFECT_DATA` 內、型別相符的欄位(`mamodo`、`card`、`power_delta`、`cost_delta`、`optional`、`used`、`attr`、`amount`),續體等內部資料一律不送。
   - 新增效果種類時,若要在清單顯示額外資訊,把欄位加進白名單並確認它是公開資訊。
 
 ## 持有者私有的戰術使用資訊
@@ -25,6 +25,12 @@
 - 相容判定以引擎 `_spell_usable_by` 為準,前端不再自行判斷。
 - `used_nonbattle_pages`(本回合已用的非戰鬥戰術所在頁)也只給持有者。以頁記錄:同名的另一頁仍可用,與戰鬥戰術的 `used_spell_pages` 一致。
 - 翻開的事件卡與非戰鬥戰術的 `condition_ok`(使用條件是否成立)也只給持有者:條件可能依魔書未翻開的內容判斷(例如 S-048 看魔書有沒有 M-027)。
+
+## 翻開頁的公開例外與事件卡費用
+
+- 對手翻開頁的卡片內容只在兩種情況出現:宣告中的攻防戰術頁(`in_use`),以及觀看者場上有 P-024(`engine.reveals_open_pages`,登記在 `reg.REVEAL_OPPONENT_PAGES`)。P-024 只對持有者公開,觀戰者與其他視角不變;持有者私有的 `users`、`condition_ok` 仍只給翻開頁的主人。
+- 翻開的事件卡附 `cost`(`engine.event_cost`:卡面費用加上對手場上 M-040 等的加成),與戰術卡的 `cost` 一樣是公開資訊;前端以它顯示與判斷 MP。
+- `_PUBLIC_EFFECT_DATA` 另含 `attr`(P-029)與 `amount`(E-038 待命)。
 
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
 

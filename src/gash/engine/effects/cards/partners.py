@@ -1,14 +1,15 @@
 """搭檔卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_TURN, NO_ATTACK_SPELL
+from ...state import DUR_TURN, NO_ATTACK_SPELL, PROTECT_ONLY
 from .. import registry as reg
 from ..tree import (
     All, AllowAttrSpellsThisTurn, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
     DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMpWhenOpponentUsesEvent,
-    GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage, MakeNextAttackUndefendable,
-    NegateNextDamageThisBattle, NegateOpponentSpell, NoBattleDamageModifierFrom, OpponentMamodo,
-    OpponentMamodoExcept, OpponentPartneredMamodo, OwnAttackBy, OwnPageTurnBackEffectAvailable,
-    OwnPageTurnEffectAvailable, ProtectorsDiscardedThisTurn, ReduceOpponentMpPerPageTurnedBack,
+    GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage, LockChosenOpponentMamodo,
+    MakeNextAttackUndefendable, NegateNextDamageThisBattle, NegateOpponentSpell,
+    NoBattleDamageModifierFrom, OpponentMamodo, OpponentMamodoExcept, OpponentPartneredMamodo,
+    OwnAttackBy, OwnPageTurnBackEffectAvailable, OwnPageTurnEffectAvailable,
+    ProtectorsDiscardedThisTurn, ReduceOpponentMpPerPageTurnedBack, RemoveRestrictions,
     RestrictOpponent, ScheduleNextSpellBonus, ScheduleSpellFromAnyPage, SetPowerZeroThisTurn,
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
     TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
@@ -75,12 +76,20 @@ reg.trigger("P-019", "pages_turned", effect=ReduceOpponentMpPerPageTurnedBack(pe
 # ---------------------------------------------------------------- 第三彈
 
 reg.activated("P-021", mode="discard", timing="nonbattle", effect=GuardOwnMpThisTurn())
+reg.reveal_opponent_pages("P-024")
+reg.activated("P-026", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=PROTECT_ONLY),
+))
+
 reg.activated("P-027", mode="discard", timing="battle",
               condition=HasOptions(OpponentMamodoExcept("ゾボロン")), effect=Choose(
     OpponentMamodoExcept("ゾボロン"), bind="slot", prompt="pick_opponent_mamodo",
     then=AllowProtectWithOpponentMamodo(),
 ))
 
+reg.activated("P-028", mode="discard", timing="battle", effect=NegateNextDamageThisBattle(number="M-042"))
 reg.activated("P-029", mode="discard", timing="nonbattle",
               effect=AllowAttrSpellsThisTurn(mamodo="ザバス", attr="風"))
 reg.trigger("P-030", "book_card_used", effect=GainMpWhenOpponentUsesEvent(amount=2))
+reg.activated("P-034", mode="discard", timing="nonbattle", effect=RemoveRestrictions(categories=("spells",)))

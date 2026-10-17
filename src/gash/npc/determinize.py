@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import random
 
+from ..engine.engine import reveals_open_pages
 from ..engine.state import BOOK_SIZE, Game, GameState
 
 # 抽樣先驗:與對手場上魔物同家族的卡(其戰術、搭檔)較可能在對手魔書中
@@ -50,6 +51,9 @@ def known_opponent_pages(game: Game, npc: int) -> dict[int, str]:
     ps = game.state.players[opp]
     for page in in_use_pages(game, opp):
         known[page] = ps.card_at(page)
+    if reveals_open_pages(game, npc, opp):   # P-024:對手翻開的頁對 NPC 公開
+        for page in ps.open_pages():
+            known[page] = ps.card_at(page)
     return {p: c for p, c in known.items() if p not in ps.consumed_pages}
 
 

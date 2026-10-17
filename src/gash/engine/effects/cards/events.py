@@ -5,7 +5,7 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AddPower, Always, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
+    AddPower, Always, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
     DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
@@ -13,8 +13,9 @@ from ..tree import (
     HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot, LockChosenOpponentMamodo,
     NextStartPhase, OpponentBookCards, OpponentMamodo, OpponentPartneredMamodo, OwnEmptyBookPages,
     OwnHasPartner, OwnInjuredMamodo, OwnMamodo, OwnPartneredMamodo, PartnerDiscardedThisTurn,
-    PeekOpponentOpenPages, PlayablePartnerInDiscard, ReduceOpponentMpUnlessReducedLastTurn, Ref,
-    RestrictBothPlayers, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook,
+    PeekOpponentOpenPages, PlayablePartnerInDiscard, ProtectAnyway,
+    ReduceOpponentMpUnlessReducedLastTurn, Ref, RemoveRestrictions, RestrictBothPlayers,
+    RestrictOpponent, RestrictOthersThanChosen, ReturnDiscardToBook, RevealOpponentBook,
     ScheduleEndPhaseMp, ScheduleNoProtectBookNextBattle, Sequence, SlotsForBookPartner, Standby,
     TurnPagesBack, TurnPagesForward, When, ZeroBothPlayersMp,
     has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
@@ -214,6 +215,7 @@ reg.event("E-030", when=HasOptions(OpponentPartneredMamodo()), effect=Choose(
     then=DiscardChosenPartner(),
 ))
 
+reg.event("E-031", effect=ProtectAnyway())
 reg.event("E-032", effect=GainMp(amount=5))
 
 reg.event("E-033", when=HasOptions(DiscardedMamodoToReturn()), effect=Choose(
@@ -224,5 +226,15 @@ reg.event("E-033", when=HasOptions(DiscardedMamodoToReturn()), effect=Choose(
     ),
 ))
 
+reg.event("E-036", effect=RemoveRestrictions(categories=("spells", "protect", "mamodo_effects"), whose="both"))
 reg.event("E-038", effect=ScheduleEndPhaseMp(amount=4))
 reg.event("E-040", when=has_two_or_more_mamodo, effect=HealAllOwnMamodo())
+
+# 「相手は、相手の魔物1体を選ぶ」:由對手選擇保留的魔物;對手沒有魔物時沒有效果
+reg.event("E-043", effect=AsOpponent(then=When(
+    HasOptions(OwnMamodo()),
+    then=Choose(
+        OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+        then=RestrictOthersThanChosen(),
+    ),
+)))

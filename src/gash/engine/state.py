@@ -37,12 +37,16 @@ NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其戰術與效果(E-024,target_slot)
+NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
+ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁戰術、效果與保護(E-043)
+PROTECT_ONLY = "protect_only"              # 只能以選定魔物(target_slot)保護(P-026)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
 DUR_TURN = "turn"                        # 本回合(至結束階段完畢)
 DUR_UNTIL_END_NEXT_TURN = "until_end_next_turn"  # 至下回合結束階段
 DUR_NEXT_TURN = "next_turn"              # 僅下一回合中生效(E-001)
+DUR_UNTIL_END_OWN_NEXT_TURN = "until_end_own_next_turn"  # 至建立者的下一個回合結束階段(S-075)
 
 
 @dataclass

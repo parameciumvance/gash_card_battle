@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools.scrape_ja_effects import (  # noqa: E402
-    parse_card_page, parse_header, parse_product_page,
+    KNOWN_TEXT_ERRORS, parse_card_page, parse_header, parse_product_page,
 )
 
 PRODUCT_PAGE_HTML = """
@@ -570,3 +570,43 @@ def test_parse_card_page_marker_line_in_middle_segment():
     r = parse_card_page(MAMODO_MARKER_IN_SECOND_DIV_HTML, "魔物", "T-301")
     assert r["ad"] == "AD" and r["effect_ja"].startswith("《格闘》")
     assert r["related_partner_ja"] == "テスト人"
+
+
+S069_WRONG = ("●この術を防御に使ったとき相手は、この攻撃を防御できない。コインを投げてオモテなら、相手の魔本にダメージ。"
+              "●この術を攻撃に使ったとき魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。")
+
+
+def _s069_html(effect):
+    return f"""
+<h2>S-069　リグロン</h2>
+<blockquote><div>
+S-069　リグロン
+<br />
+術　MP2　特殊　ダメージ1　バトル攻撃　バトル防御
+<br />
+{effect}
+<br />
+<a href="//w.example.test/pages/901.html"  >ロップス</a>第1の術
+
+</div>
+<hr />
+<div>
+風味文。
+<br />
+LEVEL:3　テスト
+
+</div>
+</blockquote>
+"""
+
+
+def test_known_text_error_corrected():
+    """S-069:atwiki 的效果文把攻擊與防禦兩段的標題寫反,登記為已知效果文錯誤後取代。"""
+    r = parse_card_page(_s069_html(S069_WRONG), "術", "S-069")
+    assert r["effect_ja"] == KNOWN_TEXT_ERRORS["S-069"][1]
+    assert r["effect_ja"].startswith("●この術を攻撃に使ったとき相手は、この攻撃を防御できない。")
+
+
+def test_known_text_error_source_changed_raises():
+    with pytest.raises(ValueError):
+        parse_card_page(_s069_html("●別の効果文。"), "術", "S-069")

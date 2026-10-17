@@ -284,15 +284,12 @@ def choose_or_auto(game, batch, *, kind, player, options, data=None, source=None
 def _reflip_slot(game, player, coins):
     """player 場上可用的擲幣重擲魔物槽(coins:"self" 重擲自己擲的 / "opponent" 令對手重擲);沒有時 None。
     重擲是「魔物の効果」:每回合一次,受「魔物の効果」全體限制(E-025)與個別封鎖(E-024)。"""
-    from ..engine import restricted, slot_restricted
-    from ..state import MAMODO_LOCKED, NO_MAMODO_EFFECTS
-    if restricted(game, player, NO_MAMODO_EFFECTS):
-        return None
+    from ..engine import mamodo_effect_block
     ps = game.state.players[player]
     return next((s for s in ps.slots
                  if reg.COIN_REFLIP.get(s.top) == coins
                  and f"mamodo:{s.top}" not in ps.used_abilities
-                 and not slot_restricted(game, player, MAMODO_LOCKED, s.uid)), None)
+                 and not mamodo_effect_block(game, player, s)), None)
 
 
 def _use_reflip(game, batch, player, slot):

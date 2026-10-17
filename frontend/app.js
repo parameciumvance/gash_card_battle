@@ -1688,9 +1688,10 @@ function pageButtons(p, entry) {
       });
     } else if (def.type === "event") {
       const ps = S.players[p];
+      const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
       const blocked = ps.used_event_this_turn ? t("ui.used")
         : entry.condition_ok === false ? t("ui.condition")
-        : (def.cost || 0) > ps.mp ? `MP < ${def.cost}`
+        : cost > ps.mp ? `MP < ${cost}`
         : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
         : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
       buttons.push({
@@ -2164,6 +2165,8 @@ function choiceLabel(opt, results) {
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
     case "gain_mp_2": return t("choice.gain_mp_2");
+    case "damage_book": return t("choice.damage_book");
+    case "damage_mamodo": return t("choice.damage_mamodo");
     case "end_review": return t("choice.end_review");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
@@ -2523,6 +2526,11 @@ function effectWhen(e) {
   const later = e.created_turn === S.turn_no;
   if (e.duration === "until_end_next_turn" || e.duration === "next_turn") {
     return t(later ? `effect.duration.${e.duration}` : "effect.duration.turn");
+  }
+  if (e.duration === "until_end_own_next_turn") {   // S-075:建立回合、下一回合、再下一回合依序縮短
+    const passed = S.turn_no - e.created_turn;
+    return t(passed <= 0 ? "effect.duration.until_end_own_next_turn"
+      : passed === 1 ? "effect.duration.until_end_next_turn" : "effect.duration.turn");
   }
   return t(`effect.duration.${e.duration}`);
 }
@@ -2924,6 +2932,10 @@ function logLine(ev) {
                           : t("log.pages_flipped_forced", { ...P, count: ev.count });
     case "pages_turned": return t("log.pages_turned", { ...P, count: Math.abs(ev.count), source: cname(ev.source) || ev.source });
     case "page_turn_restricted": return t("log.page_turn_restricted", { ...P, source: cname(ev.source) || ev.source });
+    case "restrictions_removed":
+      return ev.sources && ev.sources.length
+        ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) })
+        : t("log.restrictions_removed_none", P);
     case "mp_reduction_prevented": return t("log.mp_reduction_prevented", { ...P, source: cname(ev.source) || ev.source });
     case "opp_mp_reduction_restricted": return t("log.opp_mp_reduction_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "mp_changed":

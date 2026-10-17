@@ -452,6 +452,23 @@ class DiscardedCardsToReturn:
 
 
 @dataclass(frozen=True)
+class OpponentOpenPageCards:
+    """對手目前翻開的頁中可棄掉的卡(最後一頁除外)(S-078)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..state import BOOK_SIZE
+        opp = 1 - ctx["player"]
+        ps = game.state.players[opp]
+        return [page_option(opp, p, ps.card_at(p)) for p in ps.open_pages()
+                if p not in ps.consumed_pages and p < BOOK_SIZE]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇對手翻開頁的卡")
+
+
+@dataclass(frozen=True)
 class DiscardedMamodoToReturn:
     """自己棄牌堆中的魔物卡,魔書有空頁時才可選(E-033)。選項值為棄牌索引;效果文不是「できる」,
     所以沒有「不使用」。"""
@@ -855,6 +872,7 @@ class Standby(Effect):
     at: Any = field(default_factory=NextStartPhase)
     expires: str = "turn"
     then: Effect = field(default_factory=Nothing)
+    restricts: tuple = ()   # 待命中的限制分類(作用於對手),供 P-034 / E-036 移除(S-074)
 
     def children(self):
         return (self.then,)
@@ -864,10 +882,12 @@ class Standby(Effect):
         return False
 
     def run(self, rt, ctx, path):
-        schedule_standby(
-            rt.game, rt.batch, kind=self.at.kind, source=ctx["source"], owner=ctx["player"],
-            data={"callback": "effect_tree_resume", "expires": self.expires,
-                  CONT_KEY: rt.cont(ctx, path, floor=len(path) + 1)})
+        data = {"callback": "effect_tree_resume", "expires": self.expires,
+                CONT_KEY: rt.cont(ctx, path, floor=len(path) + 1)}
+        if self.restricts:
+            data["restricts"] = list(self.restricts)
+        schedule_standby(rt.game, rt.batch, kind=self.at.kind, source=ctx["source"], owner=ctx["player"],
+                         data=data)
         return True
 
     def resume(self, rt, ctx, value, path, floor):
@@ -1472,21 +1492,22 @@ class BoostPartneredMamodo(Effect):
 
 @dataclass(frozen=True)
 class LockChosenOpponentMamodo(Effect):
-    """本回合封鎖 target 綁定的對手魔物:不能使用其魔物效果與戰術(E-024)。
+    """本回合以 flag 限制 target 綁定的對手魔物:預設封鎖其魔物效果與戰術(E-024);
+    P-026 以 `protect_only` 表示對手只能以這隻魔物保護。
 
     沿用遷移前的作法:先以 add_restriction 建立(此時 modifier_added 事件的 target_slot 為 None),
     再把 modifier 的 target_slot 設為選中的魔物。
     """
     target: Ref = Ref("choice")
+    flag: str = "mamodo_locked"
 
     def run(self, rt, ctx, path):
-        from ..state import MAMODO_LOCKED
         player = ctx["player"]
         slot = rt.game.state.slot_by_uid(1 - player, ctx[self.target.name])
         if slot is None:
             return True
         m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
-                            target_player=1 - player, flag=MAMODO_LOCKED, duration=DUR_TURN)
+                            target_player=1 - player, flag=self.flag, duration=DUR_TURN)
         m.target_slot = slot.uid
         return True
 
@@ -2025,6 +2046,93 @@ class GainMpWhenOpponentUsesEvent(Effect):
         return True
 
 
+@dataclass(frozen=True)
+class RestrictOthersThanChosen(Effect):
+    """在 AsOpponent 中使用:本回合 ctx["player"](被限制的一方)除了 target 綁定的魔物以外,
+    其他魔物的效果與戰術不能使用,也不能保護(E-043 由對手選擇保留的魔物)。"""
+    target: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        from ..state import ONLY_MAMODO
+        player = ctx["player"]
+        if rt.game.state.slot_by_uid(player, ctx[self.target.name]) is None:
+            return True
+        m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=1 - player,
+                            target_player=player, flag=ONLY_MAMODO, duration=DUR_TURN)
+        m.target_slot = ctx[self.target.name]
+        return True
+
+
+@dataclass(frozen=True)
+class ProtectAnyway(Effect):
+    """本回合自己在「かばうことができない」時仍可保護:target 為 None 時是自己所有魔物(E-031),
+    否則是 target 綁定的魔物(M-042)。M-051 等不能保護的魔物不受影響。"""
+    target: Ref | None = None
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="protect_anyway", source=ctx["source"], owner=player,
+                     duration=DUR_TURN, target_player=player,
+                     target_slot=ctx[self.target.name] if self.target else None)
+        return True
+
+
+@dataclass(frozen=True)
+class RemoveRestrictions(Effect):
+    """移除持續或待命中、屬於 categories 的限制,整個效果移除(P-034 只移除自己的「術を使えない」;
+    E-036 移除雙方三類)。whose:"self" / "both"。"""
+    categories: tuple = ()
+    whose: str = "self"
+
+    def run(self, rt, ctx, path):
+        from ..engine import remove_restrictions
+        remove_restrictions(rt.game, rt.batch, ctx["player"], set(self.categories), self.whose)
+        return True
+
+
+@dataclass(frozen=True)
+class GrantGuardImmune(Effect):
+    """本場戰鬥中,自己以 mamodo 家族的魔物保護對手攻擊的傷害時,該魔物不受傷害(S-079)。"""
+    mamodo: str = ""
+
+    def run(self, rt, ctx, path):
+        from ..state import DUR_BATTLE
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="guard_immune", source=ctx["source"], owner=player,
+                     duration=DUR_BATTLE, target_player=player, data={"mamodo": self.mamodo})
+        return True
+
+
+@dataclass(frozen=True)
+class AttackBookDamage(Effect):
+    """攻擊方獲勝的結算:以攻擊的傷害對防方魔書造成傷害(須搭配 on_win_owns_damage;S-069 / S-070)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import attack_book_damage
+        attack_book_damage(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class FinishAttackWithoutDamage(Effect):
+    """攻擊方獲勝但沒有造成傷害,結束戰鬥(須搭配 on_win_owns_damage;S-069 擲出反面)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import finish_attack_without_damage
+        finish_attack_without_damage(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class InjureOpponentMamodoInstead(Effect):
+    """攻擊方獲勝的結算:改為對對手 1 隻魔物造成傷害,攻擊方選擇(須搭配 on_win_owns_damage;S-070)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import _injure_instead_of_damage
+        _injure_instead_of_damage(rt.game, rt.batch)
+        return True
+
+
 # ================================================================ 數值查詢(SpellRider.damage_bonus 等)
 # 這類掛鉤要「回傳數值」、不執行動作也不會停下,所以不是效果樹節點:
 # 它們是不可變、可呼叫的規格物件,直接放進 SpellRider 欄位,不經過 EFFECTS / TREE_HOOKS。
@@ -2267,6 +2375,14 @@ class ImmuneToSpellDamageAtMost:
         if b is None or ctx.get("cause") != "battle_attack" or b.attack_spell is None:
             return False
         return b.data.get("attack_total", 0) <= self.total
+
+
+@dataclass(frozen=True)
+class AlwaysImmune:
+    """傷害免疫:不受任何傷害(M-051)。fn(game, player, slot, ctx) -> bool。"""
+
+    def __call__(self, game, player, slot, ctx) -> bool:
+        return True
 
 
 @dataclass(frozen=True)

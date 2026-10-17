@@ -77,6 +77,17 @@ KNOWN_DATA_GAPS: dict[str, dict] = {
     "S-098": {"power": "特殊"},  # 非バトル術,頁面沒有 power token(TTS 卡表記為 Special)
 }
 
+# 已確認的效果文錯誤:卡號 → (頁面上的錯誤原文, 修正後的文字)。頁面上找不到原文時報錯(來源已修正或改寫,
+# 人工確認後更新登記)。S-069:「防御に使ったとき」與「攻撃に使ったとき」兩段的標題寫反(依卡圖與 TTS 卡表確認)
+KNOWN_TEXT_ERRORS: dict[str, tuple[str, str]] = {
+    "S-069": (
+        "●この術を防御に使ったとき相手は、この攻撃を防御できない。コインを投げてオモテなら、相手の魔本にダメージ。"
+        "●この術を攻撃に使ったとき魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
+        "●この術を攻撃に使ったとき相手は、この攻撃を防御できない。コインを投げてオモテなら、相手の魔本にダメージ。"
+        "●この術を防御に使ったとき魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
+    ),
+}
+
 POWER_X_RE = re.compile(r"^\d+[x×]$", re.I)  # 擲幣倍率型,如 S-040 的 "2000×"(乘號,非字母 x)
 POWER_PLUS_RE = re.compile(r"^[＋+](\d+)$")  # 術的魔力加值,如 "＋4000"
 
@@ -305,6 +316,11 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
         require_tail_field("related_partner_ja")
 
     result["effect_ja"] = "".join(strip_tags(x) for x in body_lines)
+    if number in KNOWN_TEXT_ERRORS:
+        wrong, fixed = KNOWN_TEXT_ERRORS[number]
+        if wrong not in result["effect_ja"]:
+            raise ValueError(f"{number}: 找不到登記的效果文錯誤原文,來源可能已修正,請確認後更新 KNOWN_TEXT_ERRORS")
+        result["effect_ja"] = result["effect_ja"].replace(wrong, fixed)
 
     flavor_lines = [strip_tags(x) for x in BR_RE.split(flavor_raw) if strip_tags(x)]
     result["flavor_ja"] = flavor_lines[0] if flavor_lines else ""
