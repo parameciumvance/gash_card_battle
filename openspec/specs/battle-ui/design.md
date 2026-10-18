@@ -287,3 +287,9 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 英文標籤較長,手機版時機指示用較短的英文標籤(No BATTLE、BATTLE:、Check)維持單行;頂欄按鈕不換行。
 - **簡體中文**:三個檔都由 `tools/build_zh_cn.py` 自繁中產生,不手動編輯(轉換規則見 `card-data/design.md`)。選單上繁中稱「繁體中文」、簡中稱「简体中文」:有兩種中文時必須區分。
 - **翻譯狀態**:日文與英文是初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。測試只保證條目、參數、段落與涵蓋一致,不檢查品質。
+
+## 自由調查時間的輔助提示
+
+- **金手指的目前頁**:面板上方 `#cheat-current` 摘要雙方目前翻開的頁;網格以 `cheatMark` 標記目前翻開的兩頁(`cheat-open`,框線與「目前」)與已離開魔書的頁(`cheat-gone`)。資料取自快照的 `pos` / `consumed_pages`,不取自草稿:提示代表目前的對局狀態,草稿裡換了卡也不會變。`debug-state` 不必擴充。
+- **保護決策的傷害**:`choicePromptEl` 讀 `pending.info.damage`,以 `protectDamageText` 在標題下加一行(魔書傷害值,會耗盡時加註;魔物將負傷或將進入棄牌區)。資訊來自公開脈絡,對手與觀戰者也看得到。
+- **先攻**:本機模式固定玩家 1 先攻,記錄 `first_player_set` 寫「自由調查時間:玩家 1 先攻」。

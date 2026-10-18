@@ -169,3 +169,39 @@ def test_s098_target_shown_in_log_and_effects(page):
     assert page.evaluate("cname('S-002')") in line and "第 4 頁" in line
     text = page.evaluate("effectText({type: 'standby', kind: 'spell_reuse', source: 'S-098', owner: 0, card: 'S-002', page: 4})")
     assert page.evaluate("cname('S-002')") in text and "第 4 頁" in text
+
+
+def test_protect_prompt_shows_damage(page):
+    # battle-ui「保護決策顯示傷害」
+    p = start(page)
+    uid = page.evaluate("(p) => S.players[p].slots[0].uid", p)
+    top = page.evaluate("(p) => S.players[p].slots[0].top", p)
+    def prompt(info):
+        set_pending(page, {"kind": "protect", "player": p, "source": None, "info": {"damage": info},
+                           "options": [{"value": None, "label": "no_protect"}]})
+        return page.locator("#action-bar .choice-prompt").inner_text()
+    text = prompt({"kind": "book", "player": p, "amount": 3, "slot": None, "injured": False, "lethal": False})
+    assert "將受到 3 點傷害" in text and "耗盡" not in text
+    text = prompt({"kind": "book", "player": p, "amount": 3, "slot": None, "injured": False, "lethal": True})
+    assert "將受到 3 點傷害" in text and "耗盡" in text
+    text = prompt({"kind": "slot", "player": p, "amount": 1, "slot": uid, "injured": True, "lethal": False})
+    assert page.evaluate("(n) => cname(n)", top) in text and "棄牌區" in text
+
+
+def test_cheat_panel_shows_current_pages(page):
+    # battle-ui「金手指面板的目前頁提示」
+    start(page)
+    page.evaluate("openCheat()")
+    page.wait_for_function("CHEAT && CHEAT.players")
+    pos = page.evaluate("[S.players[0].pos, S.players[1].pos]")
+    summary = page.locator("#cheat-current").inner_text()
+    assert f"第 {pos[0]}、{pos[0] + 1} 頁" in summary and f"第 {pos[1]}、{pos[1] + 1} 頁" in summary
+    grid = page.locator("#cheat-book-grid")
+    assert grid.locator(".cheat-open").count() == 2
+    assert grid.locator(".cheat-gone").count() >= 1                           # 第 1 頁的魔物已放出
+
+
+def test_first_player_log(page):
+    start(page)
+    assert page.evaluate("logLine({type: 'first_player_set', player: 0, reason: 'local'})") == \
+        f"自由調查時間:{page.evaluate('pname(0)')} 先攻"

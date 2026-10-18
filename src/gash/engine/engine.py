@@ -32,8 +32,9 @@ class IllegalCommand(Exception):
 
 def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
              db: dict[str, CardDef] | None = None,
-             decks: tuple[list[str], list[str]] | None = None) -> Game:
-    """準備階段:雙方放出第 1 頁魔物、翻開第 2-3 頁(MP+2)、擲硬幣決定先攻。"""
+             decks: tuple[list[str], list[str]] | None = None, first_player: int | None = None) -> Game:
+    """準備階段:雙方放出第 1 頁魔物、翻開第 2-3 頁(MP+2)、擲硬幣決定先攻。
+    first_player 指定時不擲硬幣(自由調查時間固定玩家 1 先攻)。"""
     db = db or card_db()
     books = decks or (list(deck_pages), list(deck_pages))
     players = [PlayerState(book=list(b)) for b in books]
@@ -55,10 +56,14 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
         players[p].mp = 2
         game.emit(batch, "pages_flipped", player=p, count=1, pos=2, mp_gained=2)
 
-    first = game.rng.randint(0, 1)
+    if first_player is None:
+        first = game.rng.randint(0, 1)
+        game.emit(batch, "coin_flipped", player=first, result="first_player", source="setup")
+    else:
+        first = first_player
+        game.emit(batch, "first_player_set", player=first, reason="local")
     game.state.turn_player = first
     game.state.phase = START
-    game.emit(batch, "coin_flipped", player=first, result="first_player", source="setup")
     game.emit(batch, "turn_started", turn=1, player=first)
     return game
 
@@ -1562,6 +1567,19 @@ def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> lis
     return [(player, s) for s in st.players[player].slots if s.uid != item.get("slot_uid") and can_protect(s)]
 
 
+def _damage_info(game: Game, item: dict) -> dict:
+    """保護決策的公開脈絡:目前這份傷害(對象、受傷害的玩家、傷害值、魔物是否已負傷、魔書是否會耗盡)。"""
+    st = game.state
+    player = item["player"]
+    if item["kind"] == "book":
+        lethal = st.players[player].pos + 2 * item["amount"] > BOOK_SIZE
+        return {"kind": "book", "player": player, "amount": item["amount"], "slot": None,
+                "injured": False, "lethal": lethal}
+    slot = st.slot_by_uid(player, item.get("slot_uid"))
+    return {"kind": "slot", "player": player, "amount": item.get("amount", 1), "slot": item.get("slot_uid"),
+            "injured": bool(slot and slot.injured), "lethal": False}
+
+
 def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> bool:
     """有可保護的魔物時建立保護決策並回傳 True。"""
     protectors = _eligible_protectors(game, item, ctx)
@@ -1572,7 +1590,7 @@ def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> boo
         kind="protect", player=receiver, source=ctx.get("source"),
         options=[{"value": None, "label": "no_protect"}]
         + [slot_option(owner, s) for owner, s in protectors],
-        data={"ctx": ctx})
+        data={"ctx": ctx}, info={"damage": _damage_info(game, item)})
     game.emit(batch, "choice_required", kind="protect", player=receiver, item=dict(item))
     return True
 

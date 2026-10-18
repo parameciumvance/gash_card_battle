@@ -14,7 +14,8 @@
 - 引擎內建的決策種類保留給引擎使用,卡片效果不可重用(`tree.RESERVED_KINDS` 與 `reg.CHOICE_RESOLVERS` 的 key):`protect`、`damage_order`、`deploy_page`、`injure_instead_target`、`coin_confirm`、`opp_coin_redo`、`jammer_negate`、`spell_discount`。
 - 由效果樹建立的決策如何分派回樹,見 `effect-tree/design.md`。
 - **選項的位置**:目標為卡片的選項一律用 `primitives.slot_option` / `page_option` / `discard_option` 建立,帶 `zone`(`slot` / `book` / `discard`)、`player` 與定位欄位(`slot` uid / `page` / `index`),前端據此在畫面上的位置選擇。`value` 是指令值,與位置欄位無關;`extra` 附加欄位不可覆寫位置欄位。受傷順序(`damage_order`)的魔物項另外標上同樣的位置欄位,魔書項維持按鈕。新增選項來源時要用這些函式,`tests/test_choice_locations.py` 以 NPC 自我對戰掃描所有卡片選項都帶正確位置。
-- `PendingChoice.data` 是私有的(續體、傷害佇列等內部資料),不送出;`PendingChoice.info` 是公開的決策脈絡,快照對所有視角附上。目前擲幣相關的詢問(M-012 `coin_confirm`、M-019 `opp_coin_redo`、E-011 `paid_reflip`)在 `info.results` 放目前各枚的結果(`primitives.coin_info`)。
+- `PendingChoice.data` 是私有的(續體、傷害佇列等內部資料),不送出;`PendingChoice.info` 是公開的決策脈絡,快照對所有視角附上。目前擲幣相關的詢問(M-012 `coin_confirm`、M-019 `opp_coin_redo`、E-011 `paid_reflip`)在 `info.results` 放目前各枚的結果(`primitives.coin_info`)。保護決策(`_protect_choice`)在 `info.damage` 放目前這一份傷害(`_damage_info`:`kind`、`player`、`amount`、魔物的 `slot` / `injured`、魔書的 `lethal`,判定同受傷時的判負條件 `pos + 2 × 傷害 > BOOK_SIZE`);多份傷害時只描述目前這一份。
+- **先攻**:`new_game(first_player=None)` 時擲硬幣並發出 `coin_flipped(source="setup")`;指定時(自由調查時間固定玩家 1,`api/app._start_game` 在本機模式傳 0)不擲,改發 `first_player_set(player, reason="local")`。
 
 ## 戰鬥開始與待命表
 
