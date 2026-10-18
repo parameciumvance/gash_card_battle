@@ -12,7 +12,7 @@ import copy
 import random
 
 from ..engine.awaiting import awaited_player, default_command
-from ..engine.engine import IllegalCommand, _side_total, slot_power, submit
+from ..engine.engine import IllegalCommand, _side_total, attack_undefendable, slot_power, submit
 from ..engine.state import BATTLE, BOOK_SIZE, GAME_OVER, STEP_DEFENSE, Game
 from .candidates import candidates, choice_value
 from .evaluate import evaluate
@@ -133,7 +133,7 @@ def _protect(game: Game, who: int) -> dict:
 def _defend(game: Game, who: int) -> dict:
     """在合法的防禦中,選擋得下攻擊(防方合計 ≥ 攻方合計)且費用最低者;沒有就不防禦。"""
     st = game.state
-    if st.battle.attack_undefendable:
+    if attack_undefendable(game, st.battle):
         return {"type": "no_defense"}
     attack = _side_total(game, st.battle, "attack")
     mp = st.players[who].mp

@@ -43,12 +43,12 @@
 ## 魔力勝負明細
 
 - 合計魔力由逐項明細推得,只有一份計算:`power_breakdown`(魔物魔力)與 `side_breakdown`(一方合計)回傳 `(total, items)`,`slot_power` / `_side_total` 只取 total。所以明細與合計不可能對不上。
-- 每一項為 `{"kind", "source", "amount"}`,各項 amount 加總恆等於 total。「視為 0」(P-011)、「不低於 0」、「無效化」都寫成明確的調整項,數值為被補上或扣掉的量:
+- 每一項為 `{"kind", "source", "amount"}`,各項 amount 加總恆等於 total。「魔力設為某值」(P-011 / M-035)、「不低於 0」、「無效化」都寫成明確的調整項,數值為被補上或扣掉的量:
 
 ```text
-mamodo / static / modifier / partnered / power_zero / mamodo_floor   ← 魔物魔力
+mamodo / static / modifier / partnered / power_set / mamodo_floor    ← 魔物魔力
 spell / defense_self / spell_bonus / spell_floor                      ← 戰術魔力
-fixed                                                                  ← 無戰術攻擊(M-027)
+fixed                     ← 固定合計魔力(無戰術攻擊 M-027、魔物效果防禦 M-039、S-087)
 negated                                                                ← 無效化(合計歸 0)
 ```
 
@@ -57,6 +57,15 @@ negated                                                                ← 無�
 - `showdown` 事件另附對峙的卡:`attack_mamodo` / `defense_mamodo`(魔物槽最上面的卡)、`attack_spell` / `defense_spell`;不防禦時防禦兩欄為 None,無戰術攻擊時 `attack_spell` 為 None。前端的對峙演出只靠事件本身,不依賴快照時序。
 - `card_discarded` 對場上的卡(搭檔、疊放頂層)附 `slot`,魔書的卡附 `page`,供前端從原位置播放棄牌演出。
 - `protected` 事件附 `target`(`book` / `slot`)、`target_slot`(被保護的魔物槽)與 `target_player`(原本傷害對象的持有者),供保護演出知道保護者要移到哪裡。事件的 `player` 是保護者的持有者。
+
+- 「魔力設為某值」:持續效果 `power_set`(`data["value"]` 固定值,或 `copy_player` / `copy_slot` 複製對象),取最後建立、仍有效的一個;複製以遞迴 `power_breakdown` 取對象當下的魔力,帶走過的魔物集合,繞回時取那隻不計設定的魔力(`_raw=True`)。對象離場時跳過該設定。
+
+## 1 個行動、ジャマー與「使えない」
+
+- 規則出處:官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,印刷頁碼)第 42 頁「『無効にする』と『使えない』」;atwiki 規則頁「1アクションを使って」與「ジャマー効果は相手が直前でおこなったアクションを取り消し、無効にする」。
+- `use_action_effect`:非戰鬥中的一般行動(戰鬥開始確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
+- 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
+- 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。「使えない」是事先作用的限制,`mamodo_effect_block` / `restricted(NO_PARTNER_EFFECTS)` 也用來讓常駐效果失效。
 
 ## 保護者
 

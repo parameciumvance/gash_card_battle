@@ -3,7 +3,9 @@
 from ...state import DUR_BATTLE, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
-    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune,
+    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune, ImmuneWhileEffective,
+    OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
+    SetSelfPowerToChosenThisTurn,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
     DiscardedCardsToReturn, DiscardFromOpponentBook, GainMp, HasOptions, ImmuneToAttackDamage,
@@ -104,8 +106,8 @@ reg.activated("M-021", mode="mp", mp_cost=1, timing="nonbattle",
 ))
 
 reg.activated("M-022", mode="mp", mp_cost=5, timing="nonbattle",
-              condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+              condition=HasOptions(OpponentPartneredMamodo(discard=True)), effect=Choose(
+    OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -153,11 +155,23 @@ reg.damage_immunity("M-031", check=ImmuneToSpellDamageAtMost(total=6000))
 
 # ---------------------------------------------------------------- 第三彈
 
+# M-032 為ジャマー:對手用完事件卡後由引擎詢問是否棄掉自己使其無效
+reg.jammer("M-032", discard_self=True, on="event")
 reg.activated("M-033", mode="discard", timing="nonbattle", effect=AddOwnDamageBonus(amount=1))
+# M-034 的「改成正面」在擲幣確認鏈中詢問,不由玩家主動宣告
+reg.coin_set_heads("M-034")
+reg.activated("M-035", mode="mp", mp_cost=1, timing="nonbattle", condition=HasOptions(OpponentMamodo()),
+              effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=SetSelfPowerToChosenThisTurn(),
+))
+
 reg.spell_compat("M-036", check=CanUseSpellsWithAttr("氷"))
 reg.activated("M-037", mode="mp", mp_cost=2, timing="nonbattle",
               effect=ScheduleSpellFromNextSpreads(mamodo="エシュロス", spreads=2))
 reg.ignore_spell_block("M-038")
+reg.mamodo_attack("M-039", mp_cost=1, power=6500, damage=1)
+reg.mamodo_defense("M-039", mp_cost=1, power=6500)
 reg.opponent_event_cost("M-040", 1)
 reg.activated("M-041", mode="mp", mp_cost=2, timing="nonbattle",
               condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("ヒゲ"))), effect=Choose(
@@ -170,6 +184,24 @@ reg.activated("M-043", mode="mp", mp_cost=1, timing="battle", condition=Opponent
               effect=NegateAttack())
 reg.activated("M-044", mode="declare", timing="nonbattle", condition=OpponentMpAtLeast(8),
               effect=Sequence(steps=(ReduceOpponentMp(amount=3), GainMp(amount=3))))
+# 對手翻開頁沒有搭檔卡時只檢視
+reg.activated("M-045", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Sequence(steps=(
+    PeekOpponentOpenPages(),
+    Choose(
+        OpponentOpenPageCards(card_type="partner"), bind="page", prompt="pick_opponent_book_card",
+        then=DiscardFromOpponentBook(),
+    ),
+)))
+
+reg.stack_on("M-046", family="ウマゴン", spell_only=True)
+reg.action_discard("M-046", "top")
+reg.mamodo_attack("M-046", mp_cost=1, power=7000, damage=2)
+reg.stack_on("M-047", family="ガッシュ・ベル")
+reg.treated_as("M-047", "ガッシュ・ベル")
+reg.on_play("M-047", effect=ScheduleDetachSelf())
+reg.damage_immunity("M-047", check=ImmuneWhileEffective())
+reg.activated("M-048", mode="declare", timing="nonbattle", effect=ScheduleUndefendableAtTotal(min_total=10000))
+reg.partner_discard_guard("M-049")
 reg.activated("M-050", mode="declare", timing="nonbattle", condition=HasOptions(OwnOtherMamodo()), effect=Choose(
     OwnOtherMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=AddPower(amount=2000, duration=DUR_TURN),

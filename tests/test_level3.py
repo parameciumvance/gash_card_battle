@@ -77,9 +77,7 @@ def events_of(events, type_):
 # ---------------------------------------------------------------- 開放
 
 def test_batch1_cards_are_open():
-    assert not (set(BATCH1) | set(BATCH2) | set(BATCH3)) & pending_cards()
-    listed = json.loads((DATA_DIR / "pending_cards.json").read_text(encoding="utf-8"))["cards"]
-    assert len(listed) == 102 - len(BATCH1) - len(BATCH2) - len(BATCH3)
+    assert not (set(BATCH1) | set(BATCH2) | set(BATCH3)) & pending_cards()   # 剩餘張數見 test_batch4_cards_are_open
 
 
 # ---------------------------------------------------------------- ブラゴ
@@ -1688,3 +1686,822 @@ def test_s098_target_in_effects_and_event():
     assert (entry["card"], entry["page"]) == ("S-002", 4)
     ev = next(e for e in events if e["type"] == "standby_set" and e["kind"] == "spell_reuse")
     assert (ev["card"], ev["page"]) == ("S-002", 4)
+
+
+# ================================================================ 第 4 批
+
+BATCH4 = ("M-032", "M-035", "M-047", "M-048", "P-020", "S-059", "S-060", "S-091", "S-092",
+          "M-045", "M-046", "P-031", "S-086", "S-087", "M-039", "P-025", "S-072",
+          "M-034", "M-049", "P-032", "S-093", "S-094", "S-095")
+
+
+def test_batch4_cards_are_open():
+    assert not set(BATCH4) & pending_cards()
+    listed = json.loads((DATA_DIR / "pending_cards.json").read_text(encoding="utf-8"))["cards"]
+    assert len(listed) == 102 - len(BATCH1) - len(BATCH2) - len(BATCH3) - len(BATCH4)
+
+
+def end_turn(g):
+    """非戰鬥中雙方 pass,結束目前的回合;下一回合停在戰鬥階段(回合玩家不翻頁)。"""
+    st = g.state
+    submit(g, {"type": "pass", "player": st.action_player})
+    submit(g, {"type": "pass", "player": st.action_player})
+    if st.phase == "start":
+        to_battle(g, st.turn_player)
+
+
+def power_mod(g, player, slot, amount, source="X"):
+    from gash.engine.state import DUR_TURN, Modifier
+    g.state.modifiers.append(Modifier(kind="power", source=source, owner=player, duration=DUR_TURN,
+                                      created_turn=g.state.turn_no, target_player=player,
+                                      target_slot=slot.uid, amount=amount))
+
+
+# ---------------------------------------------------------------- 魔力設為某值(M-035 / P-011)
+
+def _m035():
+    g, _ = mk(book("M-035"), book("M-004"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    return g, st.players[0].slots[0], st.players[1].slots[0]
+
+
+def test_m035_follows_chosen_mamodo_power():
+    # 相手の魔物1体を選ぶ。このターン中、この魔物の魔力を、選んだ魔物の魔力と同じにする
+    from gash.engine.engine import slot_power
+    g, gash, reicom = _m035()
+    power_mod(g, 0, gash, 1000)                                               # 自己的加成不計
+    submit(g, ability(0, gash))
+    assert g.state.players[0].mp == 9
+    assert slot_power(g, 0, gash) == 3000
+    reicom.partner = "P-001"                                                  # 對象的魔力改變 → 跟著變
+    assert slot_power(g, 0, gash) == 4000
+    power_mod(g, 0, gash, 2000, source="Y")                                   # 之後的加成也不計
+    assert slot_power(g, 0, gash) == 4000
+
+
+def test_m035_target_leaves_reverts():
+    from gash.engine.engine import slot_power
+    g, gash, reicom = _m035()
+    submit(g, ability(0, gash))
+    g.state.players[1].slots.remove(reicom)
+    assert slot_power(g, 0, gash) == 3000
+
+
+def test_m035_chooses_among_opponent_mamodo():
+    from gash.engine.engine import slot_power
+    g, gash, reicom = _m035()
+    other = add_slot(g, 1, "M-051")
+    submit(g, ability(0, gash))
+    assert g.state.pending.kind == "pick_opponent_mamodo" and g.state.pending.player == 0
+    choose(g, other.uid)
+    assert slot_power(g, 0, gash) == 6000
+
+
+@pytest.mark.parametrize("p011_first", [True, False])
+def test_power_set_latest_wins(p011_first):
+    from gash.engine.engine import slot_power
+    g, gash, reicom = _m035()
+    reicom.partner = "P-011"
+    if p011_first:
+        submit(g, {"type": "pass", "player": 0})
+        submit(g, ability(1, reicom, zone="partner"))                        # 唯一的對手魔物:自動選 M-035
+        submit(g, ability(0, gash))
+        assert slot_power(g, 0, gash) == 3000                                 # 後發的 M-035 勝出
+    else:
+        submit(g, ability(0, gash))
+        submit(g, ability(1, reicom, zone="partner"))
+        assert slot_power(g, 0, gash) == 0                                    # 後發的 P-011 勝出
+
+
+def test_m035_mutual_copy_uses_own_raw_power():
+    from gash.engine.engine import slot_power
+    g, _ = mk(book("M-035"), book("M-035"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    a, b = st.players[0].slots[0], st.players[1].slots[0]
+    power_mod(g, 1, b, 1000)
+    submit(g, ability(0, a))
+    submit(g, ability(1, b))
+    assert slot_power(g, 0, a) == 3000 and slot_power(g, 1, b) == 4000
+
+
+def test_m035_breakdown_item():
+    from gash.engine.engine import power_breakdown
+    g, gash, reicom = _m035()
+    submit(g, ability(0, gash))
+    total, items = power_breakdown(g, 0, gash)
+    assert total == 3000 and sum(i["amount"] for i in items) == 3000
+    assert [i["source"] for i in items if i["kind"] == "power_set"] == ["M-035"]
+
+
+# ---------------------------------------------------------------- ジャマー無效事件卡(M-032)
+
+def _m032(p0_extra=None):
+    g, _ = mk(book("M-001", "E-018"), book("M-032"))
+    st = g.state
+    if p0_extra:
+        add_slot(g, 0, p0_extra)
+    st.players[0].mp, st.players[1].mp = 6, 5
+    to_battle(g, 0)
+    return g
+
+
+def test_m032_negates_opponent_event():
+    # 相手が直前に使ったイベントカード1つを無効にする(このカードを捨て札にする)
+    g = _m032()
+    st = g.state
+    use_event(g)
+    assert st.players[1].mp == 1
+    assert st.pending.kind == "jammer_negate" and st.pending.player == 1 and st.pending.source == "M-032"
+    events = choose(g, True)
+    assert st.players[1].mp == 5 and not st.players[1].slots and "M-032" in st.players[1].discard
+    assert st.players[0].mp == 4 and st.players[0].used_event_this_turn         # 費用與使用次數照算
+    assert events_of(events, "effect_negated")[0]["negated"] == "E-018"
+
+
+def test_m032_skip_keeps_event():
+    g = _m032()
+    st = g.state
+    use_event(g)
+    choose(g, None)
+    assert st.players[1].mp == 1 and st.players[1].slots[0].top == "M-032"
+
+
+def test_m032_blocked_by_mamodo_effect_restriction():
+    from gash.engine.state import DUR_TURN, NO_MAMODO_EFFECTS
+    from gash.engine.effects.primitives import add_restriction
+    g = _m032()
+    add_restriction(g, [], source="E-025", owner=0, target_player=1, flag=NO_MAMODO_EFFECTS, duration=DUR_TURN)
+    use_event(g)
+    assert g.state.pending is None and g.state.players[1].mp == 1
+
+
+def test_m032_not_triggered_by_mamodo_effect():
+    g, _ = mk(book("M-018"), book("M-032"))
+    st = g.state
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, ability(0, st.players[0].slots[0]))
+    assert st.pending is None
+
+
+def test_m032_negation_answered_by_m026():
+    # M-032 的無效化是魔物的效果:對手可用 M-026 使它失效
+    g = _m032(p0_extra="M-026")
+    st = g.state
+    use_event(g)
+    choose(g, True)
+    assert st.pending.kind == "jammer_negate" and st.pending.player == 0 and st.pending.source == "M-026"
+    choose(g, True)
+    assert st.players[1].mp == 1 and "M-032" in st.players[1].discard and st.players[0].mp == 2
+
+
+# ---------------------------------------------------------------- M-034 改成正面
+
+def _m034(*extra, coins=(TAILS,)):
+    g, _ = mk(book("M-049", "S-093"), book("M-001"))
+    st = g.state
+    kan = add_slot(g, 0, "M-034")
+    for n in extra:
+        add_slot(g, 0, n)
+    g.rng = Rng(*coins)
+    st.players[0].mp, st.players[1].mp = 10, 5
+    to_battle(g, 0)
+    return g, kan
+
+
+def test_m034_sets_own_coin_heads():
+    # 自分が投げたコイン1個をオモテにする(このカードを捨て札にする)
+    g, kan = _m034()
+    st = g.state
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert st.pending.kind == "coin_confirm" and st.pending.player == 0
+    assert [o["label"] for o in st.pending.options] == ["keep", "set_heads"]
+    events = choose(g, "heads:0")
+    assert kan not in st.players[0].slots and "M-034" in st.players[0].discard
+    assert events_of(events, "coin_set")[0]["result"] == "heads"
+    assert st.players[1].mp == 2                                               # S-093:相手のMP3をへらす
+
+
+def test_m034_keep():
+    g, kan = _m034()
+    st = g.state
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    choose(g, None)
+    assert kan in st.players[0].slots and st.players[1].mp == 5
+
+
+def test_m034_with_m012_offers_both():
+    g, kan = _m034("M-012")
+    st = g.state
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert [o["label"] for o in st.pending.options] == ["keep", "reflip", "set_heads"]
+    choose(g, 0)                                                               # 重擲仍是反面 → 再問(M-034 仍可用)
+    assert st.pending.kind == "coin_confirm" and [o["label"] for o in st.pending.options] == ["keep", "set_heads"]
+    choose(g, "heads:0")
+    assert st.players[1].mp == 2
+
+
+def test_m034_not_offered_for_heads_or_opponent_coins():
+    g, kan = _m034(coins=(HEADS,))
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert g.state.pending is None and g.state.players[1].mp == 2              # 已是正面:不詢問
+
+
+# ---------------------------------------------------------------- M-047 定時離場的疊放
+
+def _m047():
+    g, _ = mk(book("M-001", "M-047"), book("M-001", "M-047"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    return g
+
+
+def test_m047_own_turn_leaves_at_next_own_end_phase():
+    # 場に出した、次の自分のターンのエンドフェイズに、下のカードを残してこのカードを捨て札にする
+    g = _m047()
+    st = g.state
+    gash = st.players[0].slots[0]
+    submit(g, {"type": "play_card", "player": 0, "page": 2})
+    assert gash.stack == ["M-001", "M-047"]
+    end_turn(g)                                                                # 回合 1(放出的回合)結束
+    assert gash.top == "M-047"
+    end_turn(g)                                                                # 回合 2(對手)結束
+    assert gash.top == "M-047"
+    submit(g, {"type": "pass", "player": st.action_player})
+    events = submit(g, {"type": "pass", "player": st.action_player})          # 回合 3(下一個自己回合)結束
+    assert gash.stack == ["M-001"] and "M-047" in st.players[0].discard
+    assert events_of(events, "stack_detached")[0]["detached"] == "M-047"
+
+
+def test_m047_opponent_turn_leaves_at_coming_own_end_phase():
+    g = _m047()
+    st = g.state
+    gash = st.players[1].slots[0]
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "play_card", "player": 1, "page": 2})                  # 對手(玩家 0)的回合放出
+    assert gash.top == "M-047"
+    end_turn(g)
+    assert gash.top == "M-047"
+    end_turn(g)                                                                # 回合 2(自己的回合)結束
+    assert gash.stack == ["M-001"]
+
+
+def test_m047_needs_gash_and_is_treated_as_gash():
+    g, _ = mk(book("M-002", "M-047", "S-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "play_card", "player": 0, "page": 2})                  # M-002 也是「ガッシュ・ベル」
+    slot = st.players[0].slots[0]
+    assert slot.top == "M-047"
+    submit(g, {"type": "pass", "player": 1})
+    battle_in(g, 3, slot)                                                      # 視為ガッシュ・ベル:可用ザケル
+    assert st.battle is not None and st.battle.attack_slot == slot.uid
+
+
+def test_m047_without_gash_rejected():
+    g, _ = mk(book("M-004", "M-047"), book("M-001"))
+    to_battle(g, 0)
+    assert code(g, {"type": "play_card", "player": 0, "page": 2}) == "play.no_base"
+
+
+def test_m047_takes_no_damage():
+    # 《輝く体》この魔物はダメージを受けない
+    g, _ = mk(book("M-051", "S-058"), book("M-001", "M-047"))
+    st = g.state
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "play_card", "player": 1, "page": 2})
+    attack(g, 2)
+    pass_effects(g)
+    finish_damage(g)
+    assert not st.players[1].slots[0].injured
+
+
+# ---------------------------------------------------------------- ウマゴン:S-086 / M-046 / 1 行動
+
+def _umagon(*extra_book, mp=10):
+    g, _ = mk(book("M-045", "S-086", "M-046", *extra_book), book("M-001"))
+    st = g.state
+    st.players[0].book[9] = "M-046"
+    st.players[0].mp = mp
+    to_battle(g, 0)
+    return g, st.players[0].slots[0]
+
+
+def test_s086_stacks_m046_from_book():
+    # 自分の魔本の好きなページから、「ウマゴン(シュドルク形態)」1枚を選び、自分の場の「ウマゴン」の上に重ねる
+    g, uma = _umagon()
+    st = g.state
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert st.pending.kind == "pick_mamodo_in_own_book" and {o["page"] for o in st.pending.options} == {3, 10}
+    choose(g, 10)
+    assert uma.stack == ["M-045", "M-046"] and 10 in st.players[0].consumed_pages
+
+
+def test_s086_needs_m046_in_book():
+    g, _ = mk(book("M-045", "S-086"), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "spell.condition"
+
+
+def test_s086_needs_umagon_on_field():
+    # ウマゴン不在場上:沒有能使用此戰術的魔物
+    g, _ = mk(book("M-001", "S-086", "M-046"), book("M-001"))
+    g.state.players[0].mp = 10
+    to_battle(g, 0)
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "spell.no_mamodo"
+
+
+def test_m046_cannot_be_played_directly():
+    g, _ = _umagon()
+    assert code(g, {"type": "play_card", "player": 0, "page": 3}) == "play.spell_only"
+
+
+def test_m046_charge_attack():
+    # 《突撃》MPを1へらす→合計魔力7000で攻撃(相手の魔本に2ダメージ)する
+    g, uma = _umagon()
+    st = g.state
+    uma.stack.append("M-046")
+    pos1 = st.players[1].pos
+    submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": uma.uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    no_defense_pass(g)
+    finish_damage(g)
+    assert st.players[1].pos == pos1 + 2 * 2 and st.players[0].mp == 9
+
+
+def test_m046_one_action_discard_keeps_umagon():
+    # 1アクションを使って、下のカードを残してこのカードを捨て札にできる
+    g, uma = _umagon()
+    st = g.state
+    uma.stack.append("M-046")
+    uma.partner = "P-031"
+    submit(g, {"type": "use_action_effect", "player": 0, "zone": "mamodo", "slot_uid": uma.uid})
+    assert uma.stack == ["M-045"] and uma.partner == "P-031" and "M-046" in st.players[0].discard
+    assert st.action_player == 1
+
+
+def test_one_action_effect_needs_registered_card():
+    g, uma = _umagon()
+    assert code(g, {"type": "use_action_effect", "player": 0, "zone": "mamodo",
+                    "slot_uid": uma.uid}) == "action_effect.none"            # M-045 沒有 1 行動效果
+
+
+def test_p020_one_action_discard_in_opponent_turn():
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-020"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "use_action_effect", "player": 1, "zone": "partner", "slot_uid": st.players[1].slots[0].uid})
+    assert st.players[1].slots[0].partner is None and "P-020" in st.players[1].discard
+    assert st.action_player == 0
+
+
+def test_one_action_effect_not_during_battle():
+    g, _ = mk(book("M-001", "S-001"), book("M-001"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-020"
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    attack(g, 2)
+    submit(g, {"type": "pass", "player": 0})
+    assert code(g, {"type": "use_action_effect", "player": 1, "zone": "partner",
+                    "slot_uid": st.players[1].slots[0].uid}) == "battle.invalid"
+
+
+# ---------------------------------------------------------------- M-039 魔物效果防禦
+
+def test_m039_mamodo_defense():
+    # 《ガード》MPを1へらす→合計魔力6500で防御する
+    g, _ = mk(book("M-001", "S-001"), book("M-039"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 3
+    to_battle(g, 0)
+    pos1 = st.players[1].pos
+    battle_in(g, 2)
+    danny = st.players[1].slots[0]
+    events = submit(g, {"type": "declare_defense", "player": 1, "mode": "mamodo", "slot_uid": danny.uid})
+    assert st.players[1].mp == 2
+    pass_effects(g)
+    show = [e for e in g.events if e["type"] == "showdown"][-1]
+    assert show["defender_total"] == 6500 and show["winner"] == "defender"
+    assert st.players[1].pos == pos1
+
+
+def test_m039_mamodo_attack():
+    g, _ = mk(book("M-039"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 3
+    to_battle(g, 0)
+    pos1 = st.players[1].pos
+    submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": st.players[0].slots[0].uid})
+    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    no_defense_pass(g)
+    finish_damage(g)
+    assert st.players[1].pos == pos1 + 2
+
+
+def test_mamodo_defense_needs_registered_mamodo():
+    g, _ = mk(book("M-001", "S-001"), book("M-001"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 3
+    to_battle(g, 0)
+    battle_in(g, 2)
+    assert code(g, {"type": "declare_defense", "player": 1, "mode": "mamodo",
+                    "slot_uid": st.players[1].slots[0].uid}) == "defense.no_mamodo_defense"
+
+
+# ---------------------------------------------------------------- P-020 雙向 MP 保護
+
+def _p020(p1_book=("M-001",)):
+    g, _ = mk(book("M-001", "E-018"), book(*p1_book))
+    st = g.state
+    st.players[1].slots[0].partner = "P-020"
+    st.players[0].mp, st.players[1].mp = 6, 5
+    return g
+
+
+def test_p020_blocks_opponent_reduction_in_battle_phase():
+    # バトルフェイズ中、相手の効果で自分のＭＰがへることはない
+    g = _p020()
+    st = g.state
+    to_battle(g, 0)
+    events = use_event(g)
+    assert st.players[1].mp == 5 and events_of(events, "mp_reduction_prevented")
+
+
+def test_p020_blocks_own_gain_in_battle_phase():
+    # バトルフェイズ中、自分の効果で自分のＭＰがふえることはない
+    g = _p020()
+    st = g.state
+    st.players[1].book[3] = "E-032"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})                                  # 回合 2:玩家 1 的回合
+    submit(g, {"type": "flip_pages", "player": 1, "count": 1})                # 開始階段翻頁的 MP 照加
+    assert st.players[1].mp == 7
+    events = submit(g, {"type": "use_book_card", "player": 1, "page": 4})
+    assert st.players[1].mp == 7 - 2 and events_of(events, "mp_gain_prevented")
+
+
+def test_p020_does_not_block_opponent_gain():
+    g = _p020()
+    st = g.state
+    st.players[0].book[1] = "E-032"
+    to_battle(g, 0)
+    use_event(g)
+    assert st.players[0].mp == 6 - 2 + 5
+
+
+# ---------------------------------------------------------------- M-049 搭檔不會被對手的效果棄掉
+
+def test_m049_partner_not_discarded_by_opponent_effect():
+    # この魔物につけられたパートナーは、相手の効果では捨て札にならない
+    g, _ = mk(book("M-001", "E-030"), book("M-049"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-032"
+    to_battle(g, 0)
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "event.condition"
+    other = add_slot(g, 1, "M-001", partner="P-001")
+    use_event(g)                                                               # 只剩另一隻可選:自動選擇
+    assert st.players[1].slots[0].partner == "P-032" and other.partner is None
+
+
+def test_m049_partner_goes_with_mamodo():
+    from gash.engine.engine import _discard_slot
+    g, _ = mk(book("M-001"), book("M-049"))
+    st = g.state
+    kan = st.players[1].slots[0]
+    kan.partner = "P-032"
+    _discard_slot(g, [], 1, kan, reason="effect")
+    assert {"M-049", "P-032"} <= set(st.players[1].discard)
+
+
+# ---------------------------------------------------------------- M-045 / M-048
+
+def test_m045_discards_partner_from_opponent_open_pages():
+    # 自分のバトルフェイズに相手の魔本の今のページを見る。パートナーカードがあれば、1枚を選んで、捨て札にする
+    g, _ = mk(book("M-045"), book("M-001", "P-001", "P-002"))
+    st = g.state
+    st.players[0].mp = 3
+    to_battle(g, 0)
+    events = submit(g, ability(0, st.players[0].slots[0]))
+    assert events_of(events, "pages_peeked")
+    assert st.pending.kind == "pick_opponent_book_card" and {o["page"] for o in st.pending.options} == {2, 3}
+    choose(g, 3)
+    assert "P-002" in st.players[1].discard and 3 in st.players[1].consumed_pages and st.players[0].mp == 2
+
+
+def test_m045_without_partner_only_peeks():
+    g, _ = mk(book("M-045"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 3
+    to_battle(g, 0)
+    events = submit(g, ability(0, st.players[0].slots[0]))
+    assert events_of(events, "pages_peeked") and st.pending is None
+
+
+def test_m045_only_own_turn():
+    g, _ = mk(book("M-001"), book("M-045"))
+    st = g.state
+    st.players[1].mp = 3
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    assert code(g, ability(1, st.players[1].slots[0])) == "ability.timing"
+
+
+@pytest.mark.parametrize("spell, undefendable", [("S-091", True), ("S-001", False)])
+def test_m048_undefendable_at_10000(spell, undefendable):
+    # このターン中の次のバトルで、自分がこの魔物で合計魔力10000以上の攻撃をしたとき、相手は防御できない
+    g, _ = mk(book("M-048", spell), book("M-001", "S-001"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 10
+    to_battle(g, 0)
+    submit(g, ability(0, st.players[0].slots[0]))
+    submit(g, {"type": "pass", "player": 1})
+    battle_in(g, 2)
+    cmd = {"type": "declare_defense", "player": 1, "page": 2}
+    if undefendable:
+        assert code(g, cmd) == "defense.undefendable"
+    else:
+        submit(g, cmd)
+        assert st.battle.defense_spell == "S-001"
+
+
+# ---------------------------------------------------------------- ダニー:P-025 / S-072
+
+def test_p025_uses_giolc_from_any_page():
+    # このターン中に１回、自分の魔本の好きなページにある術カード「ジオルク」1枚を使うことができる
+    g, _ = mk(book("M-039"), book("M-001"))
+    st = g.state
+    danny = st.players[0].slots[0]
+    danny.partner = "P-025"
+    danny.injured = True
+    st.players[0].book[11] = "S-072"
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 12}) == "page.not_open"
+    submit(g, ability(0, danny, zone="partner"))
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, {"type": "use_book_card", "player": 0, "page": 12})
+    assert not danny.injured and st.players[0].mp == 3
+
+
+def test_s072_usable_without_injured_danny():
+    # 自分の「ダニー」を「健康状態」にする
+    g, _ = mk(book("M-039", "S-072"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    assert st.players[0].mp == 3
+
+
+# ---------------------------------------------------------------- P-031 / P-032
+
+def test_p031_blocks_opponent_umagon_effects_and_event():
+    # 相手は、相手の場の「ウマゴン」の「魔物の効果」を使えない。相手は、イベントカード「ウマゴン」を使えない
+    g, _ = mk(book("M-045", "E-014"), book("M-001"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-031"
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    assert code(g, ability(0, st.players[0].slots[0])) == "ability.mamodo_restricted"
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "event.restricted"
+
+
+def test_p031_not_removed_by_e036():
+    g, _ = mk(book("M-045", "E-036"), book("M-001"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-031"
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    use_event(g)
+    submit(g, {"type": "pass", "player": 1})
+    assert code(g, ability(0, st.players[0].slots[0])) == "ability.mamodo_restricted"
+
+
+def test_p032_opponent_cannot_use_partner_effects_next_turn():
+    # 次のターン中、相手はパートナーカードを使えない
+    g, _ = mk(book("M-012"), book("M-021", "P-011"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-032"
+    st.players[1].slots[0].partner = "P-008"
+    st.players[1].mp = 5
+    to_battle(g, 0)
+    submit(g, ability(0, st.players[0].slots[0], zone="partner"))
+    end_turn(g)                                                                # 回合 2(對手的回合)
+    haido = st.players[1].slots[0]
+    assert code(g, ability(1, haido, zone="partner")) == "ability.partner_restricted"
+    haido.partner = None
+    submit(g, {"type": "play_card", "player": 1, "page": 2})                  # 仍可放出搭檔卡
+    assert haido.partner == "P-011"
+    end_turn(g)
+    end_turn(g)                                                                # 回合 4(對手的回合):已失效
+    st.players[1].mp = 5
+    submit(g, ability(1, haido, zone="partner"))
+    assert "P-011" in st.players[1].discard
+
+
+# ---------------------------------------------------------------- 戰術
+
+def test_s087_fixed_totals():
+    # 攻撃に使ったとき、この術の合計魔力は8000になる。防御に使ったとき、この術の合計魔力は11000になる
+    g, _ = mk(book("M-045", "S-087"), book("M-045", "S-087"))
+    st = g.state
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    power_mod(g, 0, st.players[0].slots[0], 3000)
+    battle_in(g, 2)
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    pass_effects(g)
+    show = [e for e in g.events if e["type"] == "showdown"][-1]
+    assert (show["attacker_total"], show["defender_total"]) == (8000, 11000)
+    assert sum(i["amount"] for i in show["attacker_breakdown"]) == 8000
+
+
+@pytest.mark.parametrize("heads", [True, False])
+def test_s093_coin_reduces_mp(heads):
+    # コインを投げてオモテなら、相手のMP3をへらす
+    g, _ = mk(book("M-034", "S-093"), book("M-001"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp, st.players[1].mp = 5, 5
+    to_battle(g, 0)
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    if st.pending is not None:                                                 # M-034 的改正面詢問
+        choose(g, None)
+    assert st.players[1].mp == (2 if heads else 5)
+
+
+@pytest.mark.parametrize("heads", [True, False])
+def test_s094_coin_book_damage_outside_battle(heads):
+    # コインを投げてオモテなら、相手の魔本にダメージ(ダメージ1)
+    g, _ = mk(book("M-049", "S-094"), book("M-001"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    pos1 = st.players[1].pos
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    if heads:
+        assert st.pending.kind == "protect" and st.pending.info["damage"]["amount"] == 1
+        no_protect(g)
+    assert st.players[1].pos == pos1 + (2 if heads else 0) and st.pending is None
+
+
+def test_s094_damage_bonus_and_protect():
+    from gash.engine.effects.tree import AddOwnDamageBonus  # noqa: F401  M-033 的加成
+    g, _ = mk(book("M-049", "S-094"), book("M-001"))
+    st = g.state
+    g.rng = Rng(HEADS)
+    st.players[0].mp = 5
+    add_slot(g, 0, "M-033")
+    to_battle(g, 0)
+    submit(g, ability(0, st.players[0].slots[1]))
+    submit(g, {"type": "pass", "player": 1})
+    pos1 = st.players[1].pos
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    gash = st.players[1].slots[0]
+    choose(g, gash.uid)                                                        # 以魔物保護
+    assert gash.injured and st.players[1].pos == pos1
+
+
+@pytest.mark.parametrize("heads", [True, False])
+def test_s095_kanchome_no_damage_this_turn(heads):
+    # 魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、このターン中、自分の「キャンチョメ」はダメージを受けない
+    g, _ = mk(book("M-051", "S-058"), book("M-034", "S-095"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    battle_in(g, 2)
+    events = submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    if st.pending is not None and st.pending.kind == "coin_confirm":
+        choose(g, None)
+    assert [e["source"] for e in events if e["type"] == "coin_flipped"] == ["S-095"]   # 宣告時擲
+    pass_effects(g)
+    finish_damage(g)
+    kan = st.players[1].slots[0]
+    assert kan.injured is (not heads)
+
+
+def test_s095_not_applied_when_defense_negated():
+    g, _ = mk(book("M-051", "S-058"), book("M-034", "S-095"))
+    st = g.state
+    g.rng = Rng(HEADS)
+    st.players[0].mp = st.players[1].mp = 10
+    st.players[0].slots[0].partner = "P-017"
+    to_battle(g, 0)
+    battle_in(g, 2)
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    if st.pending is not None and st.pending.kind == "coin_confirm":
+        choose(g, None)
+    submit(g, ability(0, st.players[0].slots[0], zone="partner"))
+    pass_effects(g)
+    finish_damage(g)
+    assert st.players[1].slots[0].injured
+
+
+@pytest.mark.parametrize("heads", [True, False])
+def test_s060_coin_at_declaration_cannot_protect(heads):
+    # コインを投げてオモテなら、相手は、この術のダメージを「かばう」ことができない
+    g, _ = mk(book("M-001", "S-060"), book("M-001"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2})
+    events = submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
+    assert [e["source"] for e in events if e["type"] == "coin_flipped"] == ["S-060"]
+    add_slot(g, 1, "M-002")
+    no_defense_pass(g)
+    assert (st.pending is None or st.pending.kind != "protect") is heads
+
+
+def test_s092_plus_2000_when_attacking():
+    g, _ = mk(book("M-001", "S-092"), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    attack(g, 2)
+    pass_effects(g)
+    show = [e for e in g.events if e["type"] == "showdown"][-1]
+    assert show["attacker_total"] == 4000 + 2000 + 2000
+
+
+@pytest.mark.parametrize("spell, damage", [("S-059", 1), ("S-091", 4)])
+def test_batch4_vanilla_spells(spell, damage):
+    g, _ = mk(book("M-001", spell), book("M-001"))
+    st = g.state
+    st.players[0].mp = 10
+    to_battle(g, 0)
+    pos1 = st.players[1].pos
+    attack(g, 2)
+    pass_effects(g)
+    finish_damage(g)
+    assert st.players[1].pos == pos1 + 2 * damage
+
+
+# ---------------------------------------------------------------- NPC
+
+def test_npc_handles_batch4_decisions_and_commands():
+    import random
+    from gash import npc
+    from gash.npc.candidates import candidates
+    # M-034 的擲幣確認、M-032 的詢問:NPC 送出的選擇被引擎接受
+    g, _ = _m034()
+    submit(g, {"type": "use_book_card", "player": 0, "page": 2})
+    cmd, _ = npc.submit_ranked(g, 0, npc.decide(g, 0, "normal", random.Random(0)))
+    assert cmd["type"] == "choose" and g.state.pending is None
+    g = _m032()
+    use_event(g)
+    cmd, _ = npc.submit_ranked(g, 1, npc.decide(g, 1, "normal", random.Random(0)))
+    assert cmd["type"] == "choose" and g.state.pending is None
+    # 候選:1 行動棄卡、魔物效果防禦
+    g, uma = _umagon()
+    uma.stack.append("M-046")
+    assert {"type": "use_action_effect", "zone": "mamodo", "slot_uid": uma.uid} in candidates(g, 0)
+    g, _ = mk(book("M-001", "S-001"), book("M-039"))
+    g.state.players[0].mp, g.state.players[1].mp = 10, 3
+    to_battle(g, 0)
+    battle_in(g, 2)
+    danny = g.state.players[1].slots[0]
+    assert {"type": "declare_defense", "mode": "mamodo", "slot_uid": danny.uid} in candidates(g, 1)
+
+
+def test_m049_guard_lost_when_mamodo_effects_blocked():
+    # 「このカードが場にある→」也算使用效果:魔物的效果被禁止時,搭檔照樣會被棄掉
+    from gash.engine.state import DUR_TURN, NO_MAMODO_EFFECTS
+    from gash.engine.effects.primitives import add_restriction
+    g, _ = mk(book("M-001", "E-030"), book("M-049"))
+    st = g.state
+    st.players[1].slots[0].partner = "P-032"
+    to_battle(g, 0)
+    add_restriction(g, [], source="E-025", owner=0, target_player=1, flag=NO_MAMODO_EFFECTS, duration=DUR_TURN)
+    use_event(g)
+    assert st.players[1].slots[0].partner is None
+
+
+def test_p032_not_removed_by_e036():
+    # E-036 只移除「術を使えない」「かばうことができない」「魔物の効果を使えない」
+    g, _ = mk(book("M-012"), book("M-021", "E-036"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-032"
+    st.players[1].slots[0].partner = "P-008"
+    st.players[1].mp = 5
+    to_battle(g, 0)
+    submit(g, ability(0, st.players[0].slots[0], zone="partner"))
+    end_turn(g)
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    submit(g, {"type": "pass", "player": 0})
+    assert code(g, ability(1, st.players[1].slots[0], zone="partner")) == "ability.partner_restricted"

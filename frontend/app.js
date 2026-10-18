@@ -1598,6 +1598,25 @@ function slotButtons(p, slot) {
       onclick: () => send({ type: "declare_attack", player: p, mode: "mamodo", slot_uid: slot.uid }),
     });
   }
+  // 魔物效果防禦(M-039):防禦宣告時,防方可不用戰術卡、以這隻魔物防禦
+  if (slot.mamodo_defense && iControl(p) && !S.pending && S.battle && S.battle.step === "defense"
+      && p === 1 - S.battle.attacker) {
+    const spec = slot.mamodo_defense;
+    const blocked = S.battle.attack_undefendable ? t("ui.undefendable")
+      : S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null;
+    buttons.push({
+      label: t("ui.mamodo_defense", { power: spec.power }),
+      primary: true, disabled: !!blocked, reason: blocked,
+      onclick: () => send({ type: "declare_defense", player: p, mode: "mamodo", slot_uid: slot.uid }),
+    });
+  }
+  // 「1アクションを使って…捨て札にできる」(M-046):非戰鬥中、輪到自己行動時
+  if (slot.action_discard && canActNow(p)) {
+    buttons.push({
+      label: t("ui.action_discard"),
+      onclick: () => send({ type: "use_action_effect", player: p, zone: "mamodo", slot_uid: slot.uid }),
+    });
+  }
   return buttons;
 }
 
@@ -1628,6 +1647,12 @@ function partnerButtons(p, slot) {
     buttons.push({
       label, disabled: !usable.ok, reason: usable.reason,
       onclick: () => send({ type: "use_field_ability", player: p, zone: "partner", slot_uid: slot.uid }),
+    });
+  }
+  if (slot.partner_action_discard && canActNow(p)) {   // P-020:1 個行動棄掉
+    buttons.push({
+      label: t("ui.action_discard"),
+      onclick: () => send({ type: "use_action_effect", player: p, zone: "partner", slot_uid: slot.uid }),
     });
   }
   return buttons;
@@ -2182,7 +2207,8 @@ function choiceLabel(opt, results) {
     case "pay_reflip": return t("choice.pay_reflip");
     case "stop": return t("choice.stop");
     case "skip": return t("choice.skip");
-    case "jammer_use": return t("choice.jammer_use", { card: cname(opt.card) });
+    case "jammer_use": return t(opt.discard ? "choice.jammer_use.discard" : "choice.jammer_use", { card: cname(opt.card) });
+    case "set_heads": return t("choice.set_heads", { n: opt.coin + 1 });
     case "spell_discount_use": return t("choice.spell_discount_use");
     case "s043_fuse": return t("choice.s043_fuse");
     case "s043_split": return t("choice.s043_split");
@@ -2551,6 +2577,7 @@ function effectText(e) {
     ? `effect.restriction.${e.flag}` : `effect.${e.type}.${e.kind}`;
   if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
   if (e.used && DICT[`${key}.used`] !== undefined) key += ".used";          // E-010 借用的效果已使用
+  if (e.copy_card && DICT[`${key}.copy`] !== undefined) key += ".copy";    // M-035 魔力等於選定的魔物
   if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
   if (e.power_delta) changes.push(t("effect.piece.power", { n: signed(e.power_delta) }));
@@ -2559,12 +2586,15 @@ function effectText(e) {
   return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
     mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
     card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")),
-    attr: e.attr ? t(`attr.${e.attr}`) : "", page: e.page ?? "" });
+    attr: e.attr ? t(`attr.${e.attr}`) : "", page: e.page ?? "",
+    value: e.value ?? 0, copy: e.copy_card ? cname(e.copy_card) : "", turn: e.turn ?? "",
+    min_total: e.min_total ?? "" });
 }
 
 // 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
 function effectWhen(e) {
   if (e.type === "standby") return t(`effect.expires.${e.expires}`);
+  if (e.type === "static") return t("effect.duration.while_on_field");   // P-031 等場上的常駐禁止
   const later = e.created_turn === S.turn_no;
   if (e.duration === "until_end_next_turn" || e.duration === "next_turn") {
     return t(later ? `effect.duration.${e.duration}` : "effect.duration.turn");
@@ -2979,6 +3009,7 @@ function logLine(ev) {
         ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) })
         : t("log.restrictions_removed_none", P);
     case "mp_reduction_prevented": return t("log.mp_reduction_prevented", { ...P, source: cname(ev.source) || ev.source });
+    case "mp_gain_prevented": return t("log.mp_gain_prevented", { ...P, source: cname(ev.source) || ev.source });
     case "opp_mp_reduction_restricted": return t("log.opp_mp_reduction_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "mp_changed":
       return ev.delta >= 0 ? t("log.mp_changed_gain", { ...P, delta: ev.delta, mp: ev.mp })
@@ -3010,7 +3041,12 @@ function logLine(ev) {
         : t("log.battle_started_mamodo", { player: pname(ev.attacker), mamodo: cname(ev.mamodo) });
     case "card_returned_to_book": return t("log.card_returned_to_book", { ...P, card: cname(ev.card) });
     case "stack_detached": return t("log.stack_detached", { ...P, card: cname(ev.detached) });
-    case "defense_declared": return t("log.defense_declared", { ...P, spell: cname(ev.spell) });
+    case "coin_set": return t("log.coin_set", { ...P, card: cname(ev.card), n: ev.index + 1 });
+    case "action_effect_used": return t("log.action_effect_used", { ...P, card: cname(ev.card) });
+    case "discard_prevented": return t("log.discard_prevented", { ...P, card: cname(ev.card) });
+    case "defense_declared":   // 魔物效果防禦(M-039)沒有戰術
+      return ev.spell ? t("log.defense_declared", { ...P, spell: cname(ev.spell) })
+        : t("log.mamodo_defense_declared", { ...P, card: cname(ev.mamodo) });
     case "no_defense": return t("log.no_defense", P);
     case "battle_effects_step": return t("log.battle_effects_step");
     case "coin_flipped":

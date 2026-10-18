@@ -213,8 +213,8 @@ reg.event("E-027", effect=opponent_then_self(When(
 
 reg.event("E-028", when=mp_reduced_by_opponent, effect=GainMpReducedByOpponent())
 
-reg.event("E-030", when=HasOptions(OpponentPartneredMamodo()), effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+reg.event("E-030", when=HasOptions(OpponentPartneredMamodo(discard=True)), effect=Choose(
+    OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 

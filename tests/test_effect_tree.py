@@ -1345,7 +1345,7 @@ def test_data_registrations_reject_duplicates(monkeypatch):
     reg.mamodo_attack("T-960", mp_cost=1, power=5000, damage=2)
     assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2}
     reg.jammer("T-960", mp_cost=2)
-    assert reg.JAMMER["T-960"] == {"mp_cost": 2}
+    assert reg.JAMMER["T-960"] == {"mp_cost": 2, "discard_self": False, "on": "mamodo_effect"}
     for call in (lambda: reg.jammer("T-960", mp_cost=1),
                  lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
                  lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):
@@ -1522,7 +1522,7 @@ def test_set_power_zero_this_turn_gone_target_noop():
     g = game()
     x = give(g, 1, "M-004")
     run(g, tree.SetPowerZeroThisTurn(), choice=x.uid)
-    assert [(m.kind, m.target_slot) for m in g.state.modifiers] == [("power_zero", x.uid)]
+    assert [(m.kind, m.target_slot, m.data) for m in g.state.modifiers] == [("power_set", x.uid, {"value": 0})]
     g.state.players[1].slots.remove(x)
     assert run(g, tree.SetPowerZeroThisTurn(), choice=x.uid) == []
 

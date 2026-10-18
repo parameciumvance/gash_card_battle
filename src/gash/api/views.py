@@ -9,7 +9,8 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, event_cost, exhausted_spell_pages, reveals_open_pages,
+    _spell_any_page_standby, _spell_usable_by, attack_undefendable, event_cost, exhausted_spell_pages,
+    reveals_open_pages,
     side_breakdown, slot_power, spell_block, spell_cost,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
@@ -48,6 +49,10 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
         "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無戰術攻擊規格(M-027)
+        "mamodo_defense": reg.MAMODO_DEFENSE.get(slot.top),  # 魔物效果防禦規格(M-039)
+        # 「1アクションを使って…捨て札にできる」:疊放的上層(M-046)/ 搭檔(P-020)
+        "action_discard": len(slot.stack) > 1 and reg.ACTION_DISCARD.get(slot.top) == "top",
+        "partner_action_discard": reg.ACTION_DISCARD.get(slot.partner) == "partner",
     }
 
 
@@ -166,7 +171,7 @@ def snapshot(game: Game, viewer) -> dict:
             "attack_spell": b.attack_spell,
             "attack_slot": b.attack_slot,
             "attack_negated": b.attack_negated,
-            "attack_undefendable": b.attack_undefendable,
+            "attack_undefendable": attack_undefendable(game, b),
             "defense_spell": b.defense_spell,
             "defense_slot": b.defense_slot,
             "defense_negated": b.defense_negated,
@@ -206,6 +211,16 @@ def _effects_view(game: Game) -> list[dict]:
         if m.kind == "borrow_partner":   # E-010:借到的效果規格(時機等),前端據此判斷可否使用
             entry["ability"] = _ability_view(m.data.get("card"))
         out.append(entry)
+    # 場上的常駐禁止(P-031):不是持續效果,但影響對手可用的行動,一併列出
+    from ..engine.effects import registry as reg
+    for p, ps in enumerate(st.players):
+        for s in ps.slots:
+            spec = reg.BLOCK_OPPONENT_FAMILY.get(s.partner)
+            if spec is None:
+                continue
+            event = next((n for n, c in game.db.items() if c.type == "event" and c.name_ja == spec[1]), None)
+            out.append({"type": "static", "kind": "block_family", "source": s.partner, "owner": p,
+                        "target_player": 1 - p, "target_slot": None, "mamodo": spec[0], "card": event})
     return out
 
 
@@ -214,7 +229,11 @@ _PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_del
                        "used": bool,   # used:E-010 借用的效果本回合是否已使用
                        "attr": str,    # attr:P-029 可使用的戰術屬性(日文元素名)
                        "amount": int,  # amount:E-038 待命的 MP 增加量(持續效果另有同名欄位)
-                       "page": int}    # page:S-098 選定要重用的戰術頁(本回合已使用、已公開)
+                       "page": int,    # page:S-098 選定要重用的戰術頁(本回合已使用、已公開)
+                       "value": int,   # value:P-011「魔力を 0 にする」的值
+                       "copy_card": str,   # copy_card:M-035 魔力等於的對手魔物(使用時的卡)
+                       "turn": int,    # turn:M-047 離場的回合
+                       "min_total": int}   # min_total:M-048 不能防禦的合計魔力門檻
 
 
 def _public_data(data: dict) -> dict:
