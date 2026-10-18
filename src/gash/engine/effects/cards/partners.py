@@ -1,6 +1,6 @@
 """搭檔卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_TURN, NO_ATTACK_SPELL, PROTECT_ONLY
+from ...state import DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_PARTNER_EFFECTS, PROTECT_ONLY
 from .. import registry as reg
 from ..tree import (
     All, AllowAttrSpellsThisTurn, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
@@ -44,8 +44,8 @@ reg.activated("P-007", mode="discard", timing="nonbattle",
               effect=ScheduleNextSpellBonus(mamodo="フェイン", power_delta=4000))
 
 reg.activated("P-008", mode="discard", timing="nonbattle",
-              condition=HasOptions(OpponentPartneredMamodo()), effect=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+              condition=HasOptions(OpponentPartneredMamodo(discard=True)), effect=Choose(
+    OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -76,6 +76,8 @@ reg.trigger("P-019", "pages_turned", effect=ReduceOpponentMpPerPageTurnedBack(pe
 
 # ---------------------------------------------------------------- 第三彈
 
+reg.battle_phase_mp_lock("P-020")
+reg.action_discard("P-020", "partner")
 reg.activated("P-021", mode="discard", timing="nonbattle", effect=GuardOwnMpThisTurn())
 reg.activated("P-022", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
     OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
@@ -89,6 +91,7 @@ reg.activated("P-023", mode="discard", timing="nonbattle", effect=Sequence(steps
 )))
 
 reg.reveal_opponent_pages("P-024")
+reg.activated("P-025", mode="discard", timing="nonbattle", effect=ScheduleSpellFromAnyPage(spell="ジオルク"))
 reg.activated("P-026", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
     OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
     then=LockChosenOpponentMamodo(flag=PROTECT_ONLY),
@@ -104,6 +107,10 @@ reg.activated("P-028", mode="discard", timing="battle", effect=NegateNextDamageT
 reg.activated("P-029", mode="discard", timing="nonbattle",
               effect=AllowAttrSpellsThisTurn(mamodo="ザバス", attr="風"))
 reg.trigger("P-030", "book_card_used", effect=GainMpWhenOpponentUsesEvent(amount=2))
+reg.block_opponent_family("P-031", family="ウマゴン", event_name="ウマゴン")
+# 「次のターンのスタートフェイズまでスタンバイし、次のターン中ステイ」:下一回合中生效的限制
+reg.activated("P-032", mode="discard", timing="nonbattle",
+              effect=RestrictOpponent(flag=NO_PARTNER_EFFECTS, duration=DUR_NEXT_TURN))
 reg.activated("P-033", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
     OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
     then=LockChosenOpponentMamodo(flag=NO_ATTACK_SPELL),

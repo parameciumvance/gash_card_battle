@@ -84,7 +84,7 @@ def test_breakdown_names_negation_source():
 
 
 def test_breakdown_power_zero():
-    """對手以 P-011 使攻方魔物魔力視為 0:魔物部分加總為 0,調整項來源為 P-011。"""
+    """對手以 P-011 使攻方魔物魔力為 0:魔物部分加總為 0,「魔力設為某值」一項的來源為 P-011。"""
     g = game(turn=0)
     haido = give(g, 1, "M-021", partner="P-011")
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
@@ -95,7 +95,7 @@ def test_breakdown_power_zero():
     submit(g, {"type": "no_defense", "player": 1})
     ev = showdown_of(both_pass(g))
     att = ev["attacker_breakdown"]
-    zero = item(att, "power_zero")
+    zero = item(att, "power_set")
     assert zero["source"] == "P-011" and zero["amount"] == -4000
     assert ev["attacker_total"] == 2000 and total(att) == 2000           # 只剩戰術魔力
 
@@ -160,7 +160,7 @@ def test_snapshot_lists_active_effects_without_internal_data():
     assert standby["kind"] == "spell_bonus" and standby["source"] == "P-007" and standby["owner"] == 0
     assert standby["expires"] == "next_battle"
     modifier = next(e for e in effects[0] if e["type"] == "modifier")
-    assert modifier["kind"] == "power_zero" and modifier["source"] == "P-011" and modifier["owner"] == 1
+    assert modifier["kind"] == "power_set" and modifier["source"] == "P-011" and modifier["owner"] == 1
     assert modifier["target_player"] == 0 and modifier["target_slot"] == slot0(g, 0).uid
     assert modifier["duration"] == "turn"
     for e in effects[0]:
@@ -185,7 +185,7 @@ def test_effects_expire_from_the_list():
     submit(g, {"type": "flip_pages", "player": 0, "count": 0})
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner", "slot_uid": haido.uid})
-    assert [e["kind"] for e in snapshot(g, 0)["effects"]] == ["power_zero"]
+    assert [e["kind"] for e in snapshot(g, 0)["effects"]] == ["power_set"]
     submit(g, {"type": "pass", "player": 0})
     submit(g, {"type": "pass", "player": 1})                             # 回合結束:本回合的效果到期
     assert g.state.turn_no == 2

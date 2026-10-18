@@ -65,7 +65,7 @@ def test_superior_page_restriction():
 def test_pending_cards_rejected():
     from gash.engine.cards import pending_cards
     db = card_db()
-    assert "M-035" in pending_cards() and "M-001" not in pending_cards()
+    assert "S-088" in pending_cards() and "M-001" not in pending_cards()
     pages = list(load_deck(DATA_DIR / "decks/level1.json", db).pages)
     pages[5] = "E-029"                                              # 第三彈事件卡(尚未開放)
     with pytest.raises(DeckError) as e:

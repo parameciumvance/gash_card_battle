@@ -205,3 +205,69 @@ def test_first_player_log(page):
     start(page)
     assert page.evaluate("logLine({type: 'first_player_set', player: 0, reason: 'local'})") == \
         f"自由調查時間:{page.evaluate('pname(0)')} 先攻"
+
+
+# ---------------------------------------------------------------- 第 4 批(battle-ui「第 4 批的行動與選項」「第 4 批的記錄與作用中效果」)
+
+def test_action_discard_buttons(page):
+    p = start(page)
+    labels = page.evaluate("""(p) => {
+        const uid = S.players[p].slots[0].uid;
+        S = {...S, phase: 'battle', turn_player: p, action_player: p, battle: null, battle_in: null, pending: null,
+             players: S.players.map((x, i) => i !== p ? x : {...x, slots: x.slots.map((s, j) => j !== 0 ? s :
+               {...s, stack: ['M-045', 'M-046'], top: 'M-046', action_discard: true, partner: 'P-020',
+                partner_ability: null, partner_action_discard: true})})};
+        render();
+        return [zoomActions({kind: 'slot', p, uid}).buttons.map((b) => b.label),
+                zoomActions({kind: 'partner', p, uid}).buttons.map((b) => b.label)];
+    }""", p)
+    assert "以 1 個行動棄掉" in labels[0] and "以 1 個行動棄掉" in labels[1]
+    page.evaluate("(p) => zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons"
+                  ".find((b) => b.label === '以 1 個行動棄掉').onclick()", p)
+    assert sent(page)[-1] == {"type": "use_action_effect", "player": p, "zone": "mamodo",
+                              "slot_uid": page.evaluate("(p) => S.players[p].slots[0].uid", p)}
+
+
+def test_mamodo_defense_button(page):
+    p = start(page)
+    label = page.evaluate("""(p) => {
+        S = {...S, phase: 'battle', pending: null, battle_in: null,
+             battle: {attacker: 1 - p, step: 'defense', attack_undefendable: false},
+             players: S.players.map((x, i) => i !== p ? x : {...x, mp: 3, slots: x.slots.map((s, j) => j !== 0 ? s :
+               {...s, mamodo_defense: {mp_cost: 1, power: 6500}})})};
+        render();
+        return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons.map((b) => b.label);
+    }""", p)
+    assert "直接防禦(魔力6500)" in label
+
+
+def test_set_heads_and_jammer_labels(page):
+    start(page)
+    assert page.evaluate("choiceLabel({value: 'heads:1', label: 'set_heads', coin: 1})") == "把第 2 枚改成正面"
+    text = page.evaluate("choiceLabel({value: true, label: 'jammer_use', card: 'E-018', cost: 0, discard: true})")
+    assert "棄掉" in text and page.evaluate("cname('E-018')") in text
+
+
+def test_batch4_log_lines(page):
+    start(page)
+    name, card = page.evaluate("[pname(0), cname('M-034')]")
+    assert page.evaluate("logLine({type: 'coin_set', player: 0, card: 'M-034', index: 0})") == \
+        f"{name} 以《{card}》把第 1 枚硬幣改成正面"
+    assert "1 個行動" in page.evaluate("logLine({type: 'action_effect_used', player: 0, card: 'M-046'})")
+    assert "魔物效果防禦" in page.evaluate(
+        "logLine({type: 'defense_declared', player: 0, spell: null, mamodo: 'M-039', slot: 1})")
+    assert "不會因自己的效果增加" in page.evaluate("logLine({type: 'mp_gain_prevented', player: 0, source: 'E-032'})")
+
+
+def test_batch4_effect_texts(page):
+    start(page)
+    uid = page.evaluate("S.players[0].slots[0].uid")
+    text = page.evaluate(f"""effectText({{type: 'modifier', kind: 'power_set', source: 'M-035', owner: 0,
+        target_player: 0, target_slot: {uid}, copy_card: 'M-051', duration: 'turn'}})""")
+    assert page.evaluate("cname('M-051')") in text and "魔力等於" in text
+    assert "魔力為 0" in page.evaluate(f"""effectText({{type: 'modifier', kind: 'power_set', source: 'P-011',
+        owner: 1, target_player: 0, target_slot: {uid}, value: 0, duration: 'turn'}})""")
+    block = {"type": "static", "kind": "block_family", "source": "P-031", "owner": 1, "target_player": 0,
+             "target_slot": None, "mamodo": "ウマゴン", "card": "E-014"}
+    assert page.evaluate("cname('E-014')") in page.evaluate("(e) => effectText(e)", block)
+    assert page.evaluate("(e) => effectWhen(e)", block) == "在場上期間"

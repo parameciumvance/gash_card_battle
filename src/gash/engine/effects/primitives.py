@@ -12,6 +12,29 @@ from . import registry as reg
 
 # ---------------------------------------------------------------- modifier / standby
 
+def family(game, slot) -> str:
+    """場上魔物的家族名(戰術使用者、搭檔對應、家族限定效果的判定);視為另一魔物的卡依 reg.TREATED_AS(M-047)。"""
+    return reg.TREATED_AS.get(slot.top) or game.db[slot.top].related_mamodo
+
+
+def mamodo_name(game, slot) -> str:
+    """場上魔物的名稱(「」名稱比對、同名限制);視為另一魔物的卡依 reg.TREATED_AS。"""
+    return reg.TREATED_AS.get(slot.top) or game.db[slot.top].name_ja
+
+
+def can_stack_on(game, number, slot) -> bool:
+    """疊放魔物 number 可疊在 slot 上:卡號相符,或家族相符且 slot 頂層不是疊放型魔物(M-047)。"""
+    if slot.top in reg.STACK_ON.get(number, ()):
+        return True
+    fam = reg.STACK_ON_FAMILY.get(number)
+    return fam is not None and slot.top not in reg.STACK_ON and family(game, slot) == fam
+
+
+def stack_base(game, player, number):
+    """player 場上第一隻可疊放 number 的魔物;沒有時 None。"""
+    return next((s for s in game.state.players[player].slots if can_stack_on(game, number, s)), None)
+
+
 def add_modifier(game, batch, *, kind, source, owner, duration,
                  target_player=None, target_slot=None, amount=0, flag=None, data=None):
     m = Modifier(kind=kind, source=source, owner=owner, duration=duration,
@@ -99,10 +122,22 @@ def mark_opp_mp_reduced(game, player):
 
 
 def mp_guarded(game, player) -> bool:
-    """player 的 MP 本回合不會因對手的效果減少(P-021)。"""
+    """player 的 MP 不會因對手的效果減少:本回合的 P-021,或戰鬥階段中場上的 P-020。"""
     st = game.state
-    return any(m.kind == "mp_guard" and m.target_player == player and m.active(st.turn_no)
-               for m in st.modifiers)
+    return (any(m.kind == "mp_guard" and m.target_player == player and m.active(st.turn_no)
+                for m in st.modifiers)
+            or battle_phase_mp_lock(game, player))
+
+
+def battle_phase_mp_lock(game, player) -> bool:
+    """戰鬥階段中,player 場上有 P-020(搭檔效果未被禁止)。「このカードが場にある→」也算使用效果,
+    所以「パートナーの効果を使えない」時不生效。"""
+    from ..engine import restricted
+    from ..state import BATTLE, NO_PARTNER_EFFECTS
+    st = game.state
+    if st.phase != BATTLE or restricted(game, player, NO_PARTNER_EFFECTS):
+        return False
+    return any(s.partner in reg.BATTLE_PHASE_MP_LOCK for s in st.players[player].slots)
 
 
 def reduce_opponent_mp(game, batch, player, amount, source) -> int:
@@ -199,6 +234,12 @@ def discard_from_book(game, batch, owner, page, source):
     game.emit(batch, "card_discarded", player=owner, card=number, zone="book",
               page=page, reason=source)
     return number
+
+
+def partner_discard_guarded(game, player, slot) -> bool:
+    """player 的這隻魔物身上的搭檔不會被對手的效果棄掉(M-049;魔物的效果被禁止時不生效)。"""
+    from ..engine import mamodo_effect_block
+    return slot.top in reg.PARTNER_DISCARD_GUARD and not mamodo_effect_block(game, player, slot)
 
 
 def discard_partner(game, batch, player, slot, source):
@@ -321,10 +362,40 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
     _coin_confirm_chain(game, batch, data)
 
 
+def _set_heads_slot(game, player):
+    """player 場上可用的「把自己擲的硬幣改成正面」魔物槽(M-034;魔物の効果,受限制);沒有時 None。"""
+    from ..engine import mamodo_effect_block
+    return next((s for s in game.state.players[player].slots
+                 if s.top in reg.COIN_SET_HEADS and not mamodo_effect_block(game, player, s)), None)
+
+
+def _confirm_options(game, player, results):
+    """擲幣確認的選項:保留;M-012 可用時每枚可重擲;M-034 可用時每枚反面可改成正面。只有「保留」時回傳 None。"""
+    options = [{"value": None, "label": "keep"}]
+    if _reflip_slot(game, player, "self") is not None:
+        options += [{"value": i, "label": "reflip"} for i in range(len(results))]
+    if _set_heads_slot(game, player) is not None:
+        options += [{"value": f"heads:{i}", "label": "set_heads", "coin": i}
+                    for i, r in enumerate(results) if not r]
+    return options if len(options) > 1 else None
+
+
+def _ask_coin_confirm(game, batch, data) -> bool:
+    options = _confirm_options(game, data["flipper"], data["results"])
+    if options is None:
+        return False
+    player = data["flipper"]
+    game.state.pending = PendingChoice(
+        kind="coin_confirm", player=player, source=data["source"], options=options,
+        data=data, info=coin_info(data["results"]))
+    game.emit(batch, "choice_required", kind="coin_confirm", player=player,
+              results=["heads" if r else "tails" for r in data["results"]])
+    return True
+
+
 def _coin_confirm_chain(game, batch, data):
     player = data["flipper"]
     results = data["results"]
-    source = data["source"]
     opp = 1 - player
     redo = None if data.get("opp_redo_done") else _reflip_slot(game, opp, "opponent")
     if redo is not None:
@@ -335,14 +406,7 @@ def _coin_confirm_chain(game, batch, data):
         game.emit(batch, "choice_required", kind="opp_coin_redo", player=opp,
                   results=["heads" if r else "tails" for r in results])
         return
-    if _reflip_slot(game, player, "self") is not None:
-        game.state.pending = PendingChoice(
-            kind="coin_confirm", player=player, source=source,
-            options=[{"value": None, "label": "keep"}]
-            + [{"value": i, "label": "reflip"} for i in range(len(results))],
-            data=data, info=coin_info(results))
-        game.emit(batch, "choice_required", kind="coin_confirm", player=player,
-                  results=["heads" if r else "tails" for r in results])
+    if _ask_coin_confirm(game, batch, data):
         return
     reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
 
@@ -365,31 +429,30 @@ def _opp_coin_redo(game, batch, value, data):
 
 @reg.choice_resolver("coin_confirm")
 def _coin_confirm(game, batch, value, data):
-    from ..engine import IllegalCommand
+    from ..engine import IllegalCommand, _discard_slot
     player = data["flipper"]
     results = data["results"]
     if value is None:
         game.state.pending = None
         reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
         return
-    if not isinstance(value, int) or not 0 <= value < len(results):
-        raise IllegalCommand("choose.invalid", "無效的重擲選擇")
-    reflip = _reflip_slot(game, player, "self")
-    if reflip is None:
-        raise IllegalCommand("choose.invalid", "重擲的效果已不可使用")
-    _use_reflip(game, batch, player, reflip)
-    heads = game.rng.random() < 0.5
-    results[value] = heads
-    game.emit(batch, "coin_flipped", player=player,
-              result="heads" if heads else "tails", source=data["source"], reflip=True)
+    if value not in {o["value"] for o in (_confirm_options(game, player, results) or [])} or value is None:
+        raise IllegalCommand("choose.invalid", "無效的擲幣確認選擇")
+    if isinstance(value, str):   # M-034:棄掉自己,把指定的反面硬幣改成正面
+        index = int(value.split(":")[1])
+        slot = _set_heads_slot(game, player)
+        game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
+        _discard_slot(game, batch, player, slot, reason="cost")
+        results[index] = True
+        game.emit(batch, "coin_set", player=player, index=index, result="heads", card=slot.top,
+                  source=data["source"])
+    else:
+        _use_reflip(game, batch, player, _reflip_slot(game, player, "self"))
+        heads = game.rng.random() < 0.5
+        results[value] = heads
+        game.emit(batch, "coin_flipped", player=player,
+                  result="heads" if heads else "tails", source=data["source"], reflip=True)
     game.state.pending = None
-    if _reflip_slot(game, player, "self") is not None:
-        game.state.pending = PendingChoice(
-            kind="coin_confirm", player=player, source=data["source"],
-            options=[{"value": None, "label": "keep"}]
-            + [{"value": i, "label": "reflip"} for i in range(len(results))],
-            data=data, info=coin_info(results))
-        game.emit(batch, "choice_required", kind="coin_confirm", player=player,
-                  results=["heads" if r else "tails" for r in results])
+    if _ask_coin_confirm(game, batch, data):
         return
     reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)

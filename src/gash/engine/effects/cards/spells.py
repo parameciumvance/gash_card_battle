@@ -7,11 +7,11 @@ from ...state import (
 from .. import registry as reg
 from ..tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
-    AdjustDefenseDamage, All, Always, AnyOf, AttackBookDamage, BattleRemembered, Bound, Choose,
-    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookAndAllMamodo, DisableBookProtection,
+    AdjustDefenseDamage, All, Always, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
+    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableBookProtection,
     DiscardChosenPartner, DiscardFromOpponentBook, DiscardOwnMamodoByNumber, EffectOptions,
     FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
-    HeadsAtLeast, HealSlot, IncreaseThisSpellDamage, InjureOpponentMamodoInstead,
+    HeadsAtLeast, HealOwnFamily, HealSlot, IncreaseThisSpellDamage, InjureOpponentMamodoInstead,
     LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
     MarkInjuredMamodoDiscarded, NegateAttack, NegateAttackAtEffectsEnd, NextStartPhase,
     OpponentMamodo, OpponentOpenPageCards, OpponentOpenPagesLackSpell, OpponentPartneredMamodo,
@@ -26,7 +26,7 @@ from ..tree import (
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
 # S-001 等第一彈香草戰術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
-# 第三彈的香草戰術:S-065 S-071 S-080 S-085 S-096 S-099 S-102 S-105;S-063 為防禦獲勝時無效(資料驅動)。
+# 第三彈的香草戰術:S-059 S-065 S-071 S-080 S-085 S-091 S-096 S-099 S-102 S-105;S-063 為防禦獲勝時無效(資料驅動)。
 
 reg.spell_rider("S-003", counter=True)
 
@@ -119,7 +119,7 @@ reg.spell_rider("S-037", on_damage=Coin(
 reg.spell_rider("S-038", on_damage=GrantFullImmune())
 
 reg.spell_rider("S-039", on_damage=Choose(
-    OpponentPartneredMamodo(), bind="choice", prompt="pick_opponent_partner",
+    OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
     then=DiscardChosenPartner(),
 ))
 
@@ -203,6 +203,14 @@ reg.spell_rider("S-058", injure_instead=True)
 
 # ---------------------------------------------------------------- 第三彈
 
+reg.spell_rider("S-060", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=DisableBookProtection(),
+    ),
+))
+
 reg.spell_rider("S-061", counter=True, counter_damage_from_attack=True)
 
 # 「魔力勝負の勝敗にかかわらず、このバトル後」:宣告時排定,本場戰鬥結束時生效(攻擊被無效時不生效)
@@ -264,6 +272,8 @@ reg.spell_rider("S-070", on_declare=Choose(
     otherwise=InjureOpponentMamodoInstead(),
 ), on_win_owns_damage=True)
 
+# 「自分の『ダニー』を『健康状態』にする」:沒有負傷的ダニー也可使用(比照 E-040),只是沒有效果
+reg.spell_nonbattle("S-072", effect=HealOwnFamily(family="ダニー"))
 reg.spell_nonbattle("S-073", effect=RestrictOpponent(flag=NO_DEFENSE, duration=DUR_TURN))
 
 # 待命至下回合開始階段、下回合中持續:使用時就選好對手的魔物(比照 E-001)
@@ -333,6 +343,37 @@ reg.spell_rider("S-084", on_declare=When(
     then=Coin(
         count=1, on=HeadsAtLeast(1),
         then=MakeAttackUndefendable(),
+    ),
+))
+
+# 魔書中選得到 M-046、且場上有它的疊放對象(ウマゴン)才能使用(比照 S-048)
+reg.spell_nonbattle("S-086", when=CanStackFromBook("M-046"), effect=Choose(
+    OwnBookCopiesOf("M-046"), bind="page", prompt="pick_mamodo_in_own_book",
+    then=StackFromBookOnto(),
+))
+
+reg.spell_rider("S-087", fixed_total={"attack": 8000, "defense": 11000})
+reg.spell_rider("S-092", on_declare=When(
+    SideIs("attack"),
+    then=AddAttackSelfBonus(amount=2000),
+))
+
+reg.spell_nonbattle("S-093", effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=ReduceOpponentMp(amount=3),
+))
+
+reg.spell_nonbattle("S-094", effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=DamageOpponentBookOutsideBattle(),
+))
+
+# 宣告防禦時擲幣;正面時魔力勝負時(不論勝敗,防禦沒被無效)起本回合自己的キャンチョメ不受傷害
+reg.spell_rider("S-095", on_declare=When(
+    SideIs("defense"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=RememberInBattle(key="defender_no_damage_family", value="キャンチョメ"),
     ),
 ))
 

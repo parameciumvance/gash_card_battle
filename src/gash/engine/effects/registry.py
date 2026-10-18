@@ -57,6 +57,7 @@ class SpellRider:
     damage_regardless: bool = False       # 不論魔力勝負都造成攻擊的傷害(攻擊被無效時除外)(S-100)
     extra_cost: tuple | None = None       # 宣告時的追加費用 (step, max, power, damage):每 step 魔力 +power、傷害 +damage(S-067 / S-097)
     counter_damage_from_attack: bool = False  # 【反擊】傷害等於對手攻擊的傷害(S-061)
+    fixed_total: dict | None = None       # 合計魔力固定值 {"attack": n, "defense": n},不加其他加成(S-087)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
@@ -69,6 +70,15 @@ SPELL_NONBATTLE_CONDITION: dict[str, Callable] = {}
 
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
+
+# 依家族疊放(M-047「自分の『ガッシュ・ベル』に重ねる」): 卡號 -> 家族名;疊在該家族、非疊放型的魔物上
+STACK_ON_FAMILY: dict[str, str] = {}
+
+# 場上時視為另一個魔物(M-047「『ガッシュ・ベル』としてあつかう」): 卡號 -> 名稱(名稱與家族判定都用它)
+TREATED_AS: dict[str, str] = {}
+
+# 「1アクションを使って…捨て札にできる」(M-046 / P-020): 卡號 -> "top"(棄掉疊放的上層)/ "partner"(棄掉搭檔)
+ACTION_DISCARD: dict[str, str] = {}
 
 # 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾戰術)
 SPELL_ONLY_STACK: set[str] = set()
@@ -88,7 +98,8 @@ DAMAGE_IMMUNITY: dict[str, Callable] = {}
 # 戰術相容性擴充: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(True=可為其出此戰術)
 SPELL_COMPAT: dict[str, Callable] = {}
 
-# ジャマー(妨礙者):場上魔物卡號 -> {"mp_cost": int};對手用完魔物的啟動效果後立即詢問是否使其無效(M-026)
+# ジャマー(妨礙者):場上魔物卡號 -> {"mp_cost": int, "discard_self": bool, "on": "mamodo_effect" | "event"};
+# 對手完成對應的動作(使用魔物的啟動效果 M-026 / 使用事件卡 M-032)後立即詢問是否使其無效
 JAMMER: dict[str, dict] = {}
 
 # 戰術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
@@ -98,8 +109,23 @@ SPELL_USE_LIMIT: dict[str, Callable] = {}
 # 只在擲幣確認鏈(primitives.flip_coins)中詢問,不能主動宣告
 COIN_REFLIP: dict[str, str] = {}
 
+# 把自己擲的 1 枚硬幣改成正面(M-034,棄掉自己);只在擲幣確認鏈中詢問
+COIN_SET_HEADS: set[str] = set()
+
 # 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
+
+# 魔物效果防禦(M-039): 卡號 -> {"mp_cost": int, "power": int}
+MAMODO_DEFENSE: dict[str, dict] = {}
+
+# 此魔物身上的搭檔不會被對手的效果棄掉(M-049)
+PARTNER_DISCARD_GUARD: set[str] = set()
+
+# 此卡在場上時,對手不能使用指定家族魔物的「魔物の効果」與指定名稱的事件卡(P-031): 卡號 -> (家族, 事件卡名)
+BLOCK_OPPONENT_FAMILY: dict[str, tuple[str, str]] = {}
+
+# 此搭檔在場上時,戰鬥階段中持有者的 MP 不因對手的效果減少、不因自己的效果增加(P-020)
+BATTLE_PHASE_MP_LOCK: set[str] = set()
 
 # 「術を使えない」時仍可使用由這隻魔物使用的戰術(M-038)
 IGNORE_SPELL_BLOCK: set[str] = set()
@@ -298,12 +324,17 @@ def spell_compat(number: str, *, check=None):
 
 # ---------------------------------------------------------------- 純資料登記(不是效果)
 
-def stack_on(number: str, *, base, spell_only: bool = False, detach_keep_under: bool = False):
-    """number 為疊放魔物,可疊在 base(卡號組)上;spell_only=只能經卡片效果疊放;
-    detach_keep_under=單獨入墓時下層保留(發出 stack_detached)。"""
+def stack_on(number: str, *, base=(), family: str | None = None, spell_only: bool = False,
+             detach_keep_under: bool = False):
+    """number 為疊放魔物,可疊在 base(卡號組)或 family(家族名,非疊放型的該家族魔物)上;
+    spell_only=只能經卡片效果疊放;detach_keep_under=單獨入墓時下層保留(發出 stack_detached)。"""
     if number in STACK_ON:
         raise ValueError(f"{number} 的 stack_on 已登記")
+    if not base and not family:
+        raise ValueError(f"{number} 的 stack_on 須指定 base 或 family")
     STACK_ON[number] = set(base)
+    if family:
+        STACK_ON_FAMILY[number] = family
     if spell_only:
         SPELL_ONLY_STACK.add(number)
     if detach_keep_under:
@@ -317,12 +348,14 @@ def max_copies(number: str, n: int):
     MAX_COPIES[number] = n
 
 
-def jammer(number: str, *, mp_cost: int):
-    """ジャマー效果:對手用完「魔物的效果」(啟動型)後立即詢問是否支付 mp_cost 使其無效。
-    不能主動宣告(不登記為 activated)。"""
+def jammer(number: str, *, mp_cost: int = 0, discard_self: bool = False, on: str = "mamodo_effect"):
+    """ジャマー效果:對手完成 on 的動作(mamodo_effect:使用「魔物的效果」(啟動型)/ event:使用事件卡)後
+    立即詢問是否使用(支付 mp_cost;discard_self 時把這張卡棄掉)使其無效。不能主動宣告(不登記為 activated)。"""
+    if on not in ("mamodo_effect", "event"):
+        raise ValueError(f"{number} 的 jammer on 須為 mamodo_effect / event")
     if number in JAMMER:
         raise ValueError(f"{number} 的 jammer 已登記")
-    JAMMER[number] = {"mp_cost": mp_cost}
+    JAMMER[number] = {"mp_cost": mp_cost, "discard_self": discard_self, "on": on}
 
 
 def coin_reflip(number: str, *, coins: str):
@@ -333,6 +366,45 @@ def coin_reflip(number: str, *, coins: str):
     if number in COIN_REFLIP:
         raise ValueError(f"{number} 的 coin_reflip 已登記")
     COIN_REFLIP[number] = coins
+
+
+def coin_set_heads(number: str):
+    """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在確認鏈中詢問(M-034)。"""
+    COIN_SET_HEADS.add(number)
+
+
+def treated_as(number: str, name: str):
+    """此卡在場上時視為名為 name 的魔物(名稱、家族判定)(M-047)。"""
+    TREATED_AS[number] = name
+
+
+def action_discard(number: str, what: str):
+    """「1アクションを使って…捨て札にできる」:what="top" 棄掉疊放的上層、"partner" 棄掉搭檔。"""
+    if what not in ("top", "partner"):
+        raise ValueError(f"{number} 的 action_discard 須為 top / partner")
+    ACTION_DISCARD[number] = what
+
+
+def mamodo_defense(number: str, *, mp_cost: int, power: int):
+    """魔物效果防禦規格:支付 mp_cost,以合計魔力 power 防禦(M-039)。"""
+    if number in MAMODO_DEFENSE:
+        raise ValueError(f"{number} 的 mamodo_defense 已登記")
+    MAMODO_DEFENSE[number] = {"mp_cost": mp_cost, "power": power}
+
+
+def partner_discard_guard(number: str):
+    """此魔物身上的搭檔不會被對手的效果棄掉(M-049)。"""
+    PARTNER_DISCARD_GUARD.add(number)
+
+
+def block_opponent_family(number: str, *, family: str, event_name: str):
+    """此卡在場上時,對手不能使用 family 魔物的「魔物の効果」與名為 event_name 的事件卡(P-031)。"""
+    BLOCK_OPPONENT_FAMILY[number] = (family, event_name)
+
+
+def battle_phase_mp_lock(number: str):
+    """戰鬥階段中持有者的 MP 不因對手的效果減少、不因自己的效果增加(P-020)。"""
+    BATTLE_PHASE_MP_LOCK.add(number)
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
