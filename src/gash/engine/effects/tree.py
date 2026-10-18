@@ -206,6 +206,27 @@ class Bound:
 
 
 @dataclass(frozen=True)
+class OpponentOpenPagesLackSpell:
+    """對手目前翻開的頁中沒有戰術卡(S-104)。"""
+
+    def test(self, game, ctx) -> bool:
+        from ..cards import SPELL
+        opp = game.state.players[1 - ctx["player"]]
+        return not any(game.db[opp.card_at(p)].type == SPELL for p in opp.open_pages())
+
+
+@dataclass(frozen=True)
+class BattleRemembered:
+    """本場戰鬥宣告時記下的 battle.data[key] 等於 value(見 RememberInBattle)。"""
+    key: str = ""
+    value: Any = True
+
+    def test(self, game, ctx) -> bool:
+        battle = game.state.battle
+        return battle is not None and battle.data.get(self.key) == self.value
+
+
+@dataclass(frozen=True)
 class OwnMpAtMost:
     """自己 MP 不超過 n(M-002)。"""
     n: int = 0
@@ -279,6 +300,11 @@ def has_own_injured_mamodo(game, player) -> bool:
     return any(s.injured for s in game.state.players[player].slots)
 
 
+def mp_reduced_by_opponent(game, player) -> bool:
+    """本回合自己的 MP 被對手的效果減少過(E-028 / E-035)。"""
+    return game.state.players[player].mp_reduced_by_opponent > 0
+
+
 def has_two_or_more_mamodo(game, player) -> bool:
     return len(game.state.players[player].slots) >= 2
 
@@ -317,6 +343,21 @@ class All:
     def test(self, game, ctx) -> bool:
         """當 When 條件:每個條件都要有 test。"""
         return all(c.test(game, ctx) for c in self.conds)
+
+
+@dataclass(frozen=True)
+class AnyOf:
+    """任一條件成立(介面同 All)(E-034:可放出ティオ或可裝備大海恵)。"""
+    conds: tuple = ()
+
+    def __init__(self, *conds):
+        object.__setattr__(self, "conds", tuple(conds))
+
+    def __call__(self, *args) -> bool:
+        return any(c(*args) for c in self.conds)
+
+    def test(self, game, ctx) -> bool:
+        return any(c.test(game, ctx) for c in self.conds)
 
 
 # ================================================================ 選項規格 / 觸發時機
@@ -469,6 +510,54 @@ class OpponentOpenPageCards:
 
 
 @dataclass(frozen=True)
+class OrSkip:
+    """在 spec 的選項後加「不使用」(value None);spec 沒有選項時也沒有「不使用」。效果文「…まで」可不選。"""
+    spec: Any = None
+
+    def options(self, game, ctx) -> list[dict]:
+        opts = self.spec.options(game, ctx)
+        return opts + [{"value": None, "label": "skip"}] if opts else []
+
+    def validate(self, game, ctx, value) -> None:
+        if value is not None:
+            self.spec.validate(game, ctx, value)
+
+
+@dataclass(frozen=True)
+class UsedSpellPagesThisTurn:
+    """本回合自己已使用過的戰術頁(戰鬥或非戰鬥;卡片仍在魔書中),使用中的卡(ctx["source"])除外(S-098)。
+    選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..cards import SPELL
+        player = ctx["player"]
+        ps = game.state.players[player]
+        pages = sorted((set(p for p, n in ps.spell_page_uses.items() if n > 0) | set(ps.used_nonbattle_pages))
+                       - set(ps.consumed_pages))
+        return [page_option(player, p, ps.card_at(p)) for p in pages
+                if game.db[ps.card_at(p)].type == SPELL and ps.card_at(p) != ctx.get("source")]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇本回合已使用過的戰術")
+
+
+@dataclass(frozen=True)
+class OwnOtherMamodo:
+    """自己場上這隻(self_slot)以外的魔物(M-050「自分の他の魔物」)。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        player = ctx["player"]
+        return [slot_option(player, s) for s in game.state.players[player].slots if s.uid != ctx.get("self_slot")]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇自己的其他魔物")
+
+
+@dataclass(frozen=True)
 class DiscardedMamodoToReturn:
     """自己棄牌堆中的魔物卡,魔書有空頁時才可選(E-033)。選項值為棄牌索引;效果文不是「できる」,
     所以沒有「不使用」。"""
@@ -539,7 +628,9 @@ def _partner_slots(game, player, card) -> list:
 
 @dataclass(frozen=True)
 class AttachablePartnerPagesInOwnBook:
-    """自己魔書中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027)。選項值為頁碼。"""
+    """自己魔書中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027);name 指定時只列該名稱(E-034)。
+    選項值為頁碼。"""
+    name: str = ""
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
@@ -549,7 +640,8 @@ class AttachablePartnerPagesInOwnBook:
             if p in ps.consumed_pages:
                 continue
             card = game.db[ps.card_at(p)]
-            if card.type == PARTNER and _partner_slots(game, player, card):
+            if card.type == PARTNER and _partner_slots(game, player, card) and (not self.name
+                                                                              or card.name_ja == self.name):
                 out.append(page_option(player, p, card.number))
         return out
 
@@ -681,12 +773,15 @@ class DeployableMamodoInOwnBook:
             out.append(page_option(player, p, number))
         return out
 
+    name: str = ""   # 指定時只列名稱相同的魔物(E-034「ティオ」)
+
     def options(self, game, ctx) -> list[dict]:
-        return self._targets(game, ctx["player"])
+        targets = self._targets(game, ctx["player"])
+        return [t for t in targets if game.db[t["card"]].name_ja == self.name] if self.name else targets
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
-        if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
+        if value not in {t["value"] for t in self.options(game, ctx)}:
             raise IllegalCommand("choose.invalid", "須選擇魔書中可放出的魔物卡")
 
 
@@ -1383,8 +1478,9 @@ class DamageOpponentBookAndAllMamodo(Effect):
         items = []
         if amount > 0:
             items.append({"kind": "book", "player": opp, "amount": amount})
+        declared = battle.data.get("declared_targets")   # 宣告時選定的魔物(只對仍在場者)
         items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
-                  for s in list(game.state.players[opp].slots)]
+                  for s in list(game.state.players[opp].slots) if declared is None or s.uid in declared]
         _start_damage(game, rt.batch, items,
                       {"cause": "battle_attack", "source": battle.attack_spell,
                        "source_player": player, "amount": amount})
@@ -1417,6 +1513,8 @@ class ZeroBothPlayersMp(Effect):
                 rt.game.emit(rt.batch, "mp_reduction_prevented", player=p, source=ctx["source"])
                 continue
             if ps.mp:
+                if p != ctx["player"]:
+                    ps.mp_reduced_by_opponent += ps.mp   # E-028 / E-035:E-004 的歸零也算被對手減少
                 rt.game.emit(rt.batch, "mp_changed", player=p, delta=-ps.mp, mp=0,
                              reason=ctx["source"])
                 ps.mp = 0
@@ -1695,11 +1793,12 @@ class ScheduleNextSpellBonus(Effect):
     power_delta: int = 0
     cost_delta: int = 0
     optional: bool = False
+    expires: str = "next_battle"   # "turn":本回合任一場戰鬥中第一次使用(P-023「このターン中のバトルで」)
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="spell_bonus", source=ctx["source"], owner=ctx["player"],
                          data={"mamodo": self.mamodo, "power_delta": self.power_delta,
-                               "cost_delta": self.cost_delta, "expires": "next_battle",
+                               "cost_delta": self.cost_delta, "expires": self.expires,
                                **({"optional": True} if self.optional else {})})
         return True
 
@@ -2130,6 +2229,148 @@ class InjureOpponentMamodoInstead(Effect):
     def run(self, rt, ctx, path):
         from ..engine import _injure_instead_of_damage
         _injure_instead_of_damage(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class RememberInBattle(Effect):
+    """把宣告時確定的值存進本場戰鬥的 battle.data[key],供結算時讀取(on_declare 與 on_win 是
+    兩次獨立的執行,ctx 不共用)。ref 指定時存綁定的值,否則存 value。"""
+    key: str = ""
+    ref: Ref | None = None
+    value: Any = True
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data[self.key] = ctx[self.ref.name] if self.ref else self.value
+        return True
+
+
+@dataclass(frozen=True)
+class RememberOpponentMamodo(Effect):
+    """宣告時記下對手場上全部魔物(battle.data["declared_targets"],S-036 / S-101「相手の魔物すべてを選ぶ」)。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["declared_targets"] = [s.uid for s in rt.game.state.players[1 - ctx["player"]].slots]
+        return True
+
+
+@dataclass(frozen=True)
+class NegateAttackAtEffectsEnd(Effect):
+    """於「効果の使用」的最後(雙方都 pass、魔力勝負前)使攻擊無效(S-021);由 engine._resolve_showdown 執行,
+    防禦已被無效時不生效。"""
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["negate_at_effects_end"] = {"source": ctx["source"], "player": ctx["player"]}
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleAfterBattleRestriction(Effect):
+    """本場戰鬥結束時(攻擊未被無效)起,對手受 flag 限制(S-068「このバトルの終了後、このターン中、相手は術を
+    使えない」)。排定期間是帶分類的待命,P-034 / E-036 可移除。"""
+    flag: str = ""
+    duration: str = ""
+    restricts: tuple = ()
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="after_battle", source=ctx["source"], owner=ctx["player"],
+                         data={"expires": "battle", "action": "restrict", "flag": self.flag,
+                               "duration": self.duration, "restricts": list(self.restricts)})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleAfterBattleAttrPower(Effect):
+    """本場戰鬥結束時(攻擊未被無效)起,雙方屬性為 attr 的戰術魔力 +amount,至 duration;不重複(S-062)。"""
+    attr: str = ""
+    amount: int = 0
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="after_battle", source=ctx["source"], owner=ctx["player"],
+                         data={"expires": "battle", "action": "attr_power", "attr": self.attr,
+                               "amount": self.amount, "duration": self.duration})
+        return True
+
+
+@dataclass(frozen=True)
+class AddSelfPowerWhenAttacking(Effect):
+    """這隻魔物攻擊的戰鬥中魔力 +amount(M-052;只在 engine._attacking_with 成立時計入)。"""
+    amount: int = 0
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="power", source=ctx["source"], owner=player, duration=self.duration,
+                     target_player=player, target_slot=ctx["self_slot"], amount=self.amount,
+                     data={"when": "attacking"})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleSpellReuse(Effect):
+    """[待命] 使用時選定的那一頁(page 綁定)本回合可再用一次,費用 0,用了就消耗(S-098)。"""
+    page: Ref = Ref("reuse_page")
+
+    def run(self, rt, ctx, path):
+        page = ctx[self.page.name]
+        card = rt.game.state.players[ctx["player"]].card_at(page)
+        schedule_standby(rt.game, rt.batch, kind="spell_reuse", source=ctx["source"], owner=ctx["player"],
+                         data={"page": page, "card": card})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleSpellFromNextSpreads(Effect):
+    """[待命] 本回合下一場戰鬥中,可使用一次目前翻開頁之後 spreads 個對頁內的 mamodo 家族戰術(M-037)。"""
+    mamodo: str = ""
+    spreads: int = 2
+
+    def run(self, rt, ctx, path):
+        pos = rt.game.state.players[ctx["player"]].pos
+        pages = list(range(pos + 2, pos + 2 + 2 * self.spreads))
+        schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": self.mamodo, "pages": pages, "expires": "next_battle"})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleRedirectDamage(Effect):
+    """[待命] 本回合下一場戰鬥以 mamodo 家族的戰術攻擊時,傷害改給 target 綁定的對手魔物(P-022)。"""
+    mamodo: str = ""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="redirect_damage", source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": self.mamodo, "slot_uid": ctx[self.target.name], "expires": "next_battle"})
+        return True
+
+
+@dataclass(frozen=True)
+class ReduceOpponentMpByStartGain(Effect):
+    """對手 MP 減少「對手本回合開始階段增加的 MP × multiplier」(P-035)。"""
+    multiplier: int = 2
+
+    def run(self, rt, ctx, path):
+        gain = rt.game.state.players[1 - ctx["player"]].start_phase_mp_gain
+        reduce_opponent_mp(rt.game, rt.batch, ctx["player"], gain * self.multiplier, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class GainMpReducedByOpponent(Effect):
+    """自己 MP 增加本回合被對手的效果減少的總量(E-028)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        player = ctx["player"]
+        gain_mp(rt.game, rt.batch, player, rt.game.state.players[player].mp_reduced_by_opponent, ctx["source"])
         return True
 
 

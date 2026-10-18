@@ -32,8 +32,9 @@ class IllegalCommand(Exception):
 
 def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
              db: dict[str, CardDef] | None = None,
-             decks: tuple[list[str], list[str]] | None = None) -> Game:
-    """準備階段:雙方放出第 1 頁魔物、翻開第 2-3 頁(MP+2)、擲硬幣決定先攻。"""
+             decks: tuple[list[str], list[str]] | None = None, first_player: int | None = None) -> Game:
+    """準備階段:雙方放出第 1 頁魔物、翻開第 2-3 頁(MP+2)、擲硬幣決定先攻。
+    first_player 指定時不擲硬幣(自由調查時間固定玩家 1 先攻)。"""
     db = db or card_db()
     books = decks or (list(deck_pages), list(deck_pages))
     players = [PlayerState(book=list(b)) for b in books]
@@ -55,10 +56,14 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
         players[p].mp = 2
         game.emit(batch, "pages_flipped", player=p, count=1, pos=2, mp_gained=2)
 
-    first = game.rng.randint(0, 1)
+    if first_player is None:
+        first = game.rng.randint(0, 1)
+        game.emit(batch, "coin_flipped", player=first, result="first_player", source="setup")
+    else:
+        first = first_player
+        game.emit(batch, "first_player_set", player=first, reason="local")
     game.state.turn_player = first
     game.state.phase = START
-    game.emit(batch, "coin_flipped", player=first, result="first_player", source="setup")
     game.emit(batch, "turn_started", turn=1, player=first)
     return game
 
@@ -86,7 +91,8 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot) -> tuple[int, lis
                 break
     for m in st.modifiers:
         if (m.kind == "power" and m.active(st.turn_no)
-                and m.target_player == player and m.target_slot == slot.uid):
+                and m.target_player == player and m.target_slot == slot.uid
+                and (m.data.get("when") != "attacking" or _attacking_with(game, player, slot))):
             items.append(_item("modifier", m.source, m.amount))
         # E-023:所有裝有搭檔的魔物 +N
         if (m.kind == "power_partnered" and m.active(st.turn_no)
@@ -103,6 +109,12 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot) -> tuple[int, lis
     if raw < 0:  # S-033 等減值效果不使魔力低於 0
         items.append(_item("mamodo_floor", None, -raw))
     return max(0, raw), items
+
+
+def _attacking_with(game: Game, player: int, slot: MamodoSlot) -> bool:
+    """目前戰鬥是 player 以這隻魔物攻擊(M-052「この魔物で攻撃するバトル中」)。"""
+    b = game.state.battle
+    return b is not None and b.attacker == player and b.attack_slot == slot.uid
 
 
 def restricted(game: Game, player: int, flag: str) -> bool:
@@ -152,8 +164,9 @@ def spell_block(game: Game, player: int, slot: MamodoSlot | None, *, attack: boo
     for m in _restrictions(game, player):
         if m.flag in (NO_SPELLS, NO_EFFECTS_AND_SPELLS):
             return "spell.restricted"
-        if m.flag == NO_ATTACK_SPELL and attack:
-            return "spell.attack_restricted"
+        if m.flag == NO_ATTACK_SPELL and attack and (m.target_slot is None
+                                                      or (slot is not None and m.target_slot == slot.uid)):
+            return "spell.attack_restricted"   # P-033:target_slot 指定時只限那隻魔物
         if slot is not None and ((m.flag == MAMODO_LOCKED and m.target_slot == slot.uid)
                                  or (m.flag == ONLY_MAMODO and m.target_slot != slot.uid)):
             return "spell.mamodo_locked"
@@ -390,6 +403,7 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
         ps.pos += 2 * count
         gained = 2 * count
         ps.mp += gained
+        ps.start_phase_mp_gain = gained   # P-035
         game.emit(batch, "pages_flipped", player=player, count=count, pos=ps.pos, mp_gained=gained)
     # 開始階段效果解決(翻頁之後)
     for number, fn in list(reg.START_PHASE.items()):
@@ -606,7 +620,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         if card.ad == "D" and player == st.turn_player:
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在對手的回合使用")
         user = _nonbattle_spell_user(game, player, page, card, command.get("slot_uid"))
-        if page in st.players[player].used_nonbattle_pages:
+        reuse = page in st.players[player].used_nonbattle_pages
+        if reuse and _reuse_standby(game, player, page) is None:
             raise IllegalCommand("spell.used", "此非戰鬥戰術本回合已使用過")
         handler = reg.SPELL_NONBATTLE.get(number)
         if handler is None:
@@ -614,9 +629,11 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         condition = reg.SPELL_NONBATTLE_CONDITION.get(number)
         if condition and not condition(game, player):
             raise IllegalCommand("spell.condition", "不符合此戰術的使用條件(沒有可選的對象)")
-        cost = spell_cost(game, player, page, card, slot=user)
+        cost = 0 if reuse else spell_cost(game, player, page, card, slot=user)
         if st.players[player].mp < cost:
             raise IllegalCommand("spell.mp", "MP 不足")
+        if reuse:
+            _consume_reuse(game, batch, player, page)   # S-098:費用 0 再用一次
         st.players[player].used_nonbattle_pages.add(page)
         pay_mp(game, batch, player, cost, f"spell:{number}")
         game.emit(batch, "book_card_used", player=player, card=number, page=page, mamodo=user.top)
@@ -633,11 +650,39 @@ def _spell_any_page_standby(game: Game, player: int, page) -> Standby | None:
     ps = game.state.players[player]
     if not isinstance(page, int) or not 1 <= page <= BOOK_SIZE or page in ps.consumed_pages:
         return None
-    name = game.db[ps.card_at(page)].name_ja
+    card = game.db[ps.card_at(page)]
     for sb in game.state.standby:
-        if sb.kind == "spell_any_page" and sb.owner == player and sb.data.get("spell_name") == name:
+        if sb.kind != "spell_any_page" or sb.owner != player:
+            continue
+        if sb.data.get("spell_name") == card.name_ja:
+            return sb
+        # M-037:指定家族的戰術、指定頁範圍內
+        if (sb.data.get("mamodo") and card.type == SPELL and card.related_mamodo == sb.data["mamodo"]
+                and page in sb.data.get("pages", ())):
             return sb
     return None
+
+
+def _consume_any_page(game: Game, batch: list[dict], player: int, page: int) -> None:
+    sb = _spell_any_page_standby(game, player, page)
+    if sb is not None:
+        game.state.standby.remove(sb)
+        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+
+
+def _reuse_standby(game: Game, player: int, page: int) -> Standby | None:
+    """S-098 的重用待命:使用時選定的那一頁可再用一次(費用 0)。"""
+    return next((sb for sb in game.state.standby
+                 if sb.kind == "spell_reuse" and sb.owner == player and sb.data.get("page") == page), None)
+
+
+def _consume_reuse(game: Game, batch: list[dict], player: int, page: int) -> bool:
+    sb = _reuse_standby(game, player, page)
+    if sb is None:
+        return False
+    game.state.standby.remove(sb)
+    game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    return True
 
 
 def spell_use_limit(game: Game, player: int, card: CardDef) -> int:
@@ -655,7 +700,8 @@ def exhausted_spell_pages(game: Game, player: int) -> set[int]:
     """本回合已達可用次數、不能再用的戰術卡頁(依目前場面判斷)。"""
     ps = game.state.players[player]
     return {page for page, uses in ps.spell_page_uses.items()
-            if uses >= spell_use_limit(game, player, game.db[ps.card_at(page)])}
+            if uses >= spell_use_limit(game, player, game.db[ps.card_at(page)])
+            and _reuse_standby(game, player, page) is None}
 
 
 def _record_spell_use(ps, page: int) -> None:
@@ -714,7 +760,8 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
         raise IllegalCommand("spell.no_attack_icon", "此戰術沒有攻擊圖示")
     if not attack and not card.can_defend():
         raise IllegalCommand("spell.no_defense_icon", "此戰術沒有防禦圖示")
-    if st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card):
+    if (st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card)
+            and _reuse_standby(game, player, page) is None):
         raise IllegalCommand("spell.used", "此戰術卡本回合已使用過")
     if card.is_command_spell:
         slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
@@ -764,14 +811,82 @@ def _spell_discount_resolver(game: Game, batch: list[dict], value, data) -> None
         raise IllegalCommand("choose.invalid", "須選擇是否使用")
     decl = data["decl"]
     decl["discount"] = value is True
+    _proceed_declaration(game, batch, data["side"], decl)
     if data["side"] == "attack":
-        _open_battle_in(game, batch, decl)
         game.state.action_player = decl["player"]
+
+
+reg.CHOICE_RESOLVERS["spell_discount"] = _spell_discount_resolver
+
+
+def _proceed_declaration(game: Game, batch: list[dict], side: str, decl: dict) -> None:
+    """減費之後:追加費用(S-067 / S-097)的詢問,之後開始迎戰確認(攻擊)或完成防禦宣告。"""
+    if "extra" not in decl and _ask_extra_cost(game, batch, side, decl):
+        return
+    if side == "attack":
+        _open_battle_in(game, batch, decl)
     else:
         _finish_defense_declaration(game, batch, decl)
 
 
-reg.CHOICE_RESOLVERS["spell_discount"] = _spell_discount_resolver
+def _extra_cost_options(game: Game, player: int, card: CardDef, cost: int) -> list[int]:
+    rider = reg.SPELL_RIDERS.get(card.number)
+    if not rider or not rider.extra_cost:
+        return [0]
+    step, most = rider.extra_cost[0], rider.extra_cost[1]
+    mp = game.state.players[player].mp
+    return [v for v in range(0, most + 1, step) if cost + v <= mp]
+
+
+def _ask_extra_cost(game: Game, batch: list[dict], side: str, decl: dict) -> bool:
+    """宣告時詢問追加費用;只列付得起的量,只有 0 時不詢問。"""
+    player, card = decl["player"], game.db[decl["spell"]]
+    slot = game.state.slot_by_uid(player, decl["slot"])
+    cost = spell_cost(game, player, decl["page"], card, slot=slot, discount=decl.get("discount", False))
+    values = _extra_cost_options(game, player, card, cost)
+    if len(values) <= 1:
+        decl["extra"] = 0
+        return False
+    step, _, power, damage = reg.SPELL_RIDERS[card.number].extra_cost
+    options = [{"value": v, "label": "extra_cost", "amount": v, "power": power * v // step,
+                "damage": damage * v // step} for v in values]
+    game.state.pending = PendingChoice(kind="spell_extra_cost", player=player, source=card.number,
+                                       options=options, data={"side": side, "decl": decl})
+    game.emit(batch, "choice_required", kind="spell_extra_cost", player=player)
+    return True
+
+
+def _spell_extra_cost_resolver(game: Game, batch: list[dict], value, data) -> None:
+    if value not in {o["value"] for o in game.state.pending.options}:
+        raise IllegalCommand("choose.invalid", "無效的追加費用")
+    decl = data["decl"]
+    decl["extra"] = value
+    game.state.pending = None
+    _proceed_declaration(game, batch, data["side"], decl)
+    if data["side"] == "attack":
+        game.state.action_player = decl["player"]
+
+
+reg.CHOICE_RESOLVERS["spell_extra_cost"] = _spell_extra_cost_resolver
+
+
+def _affordable_extra(game: Game, player: int, cost: int, extra: int, card: CardDef) -> int:
+    """實際支付時的追加費用:宣告後 MP 可能已改變,取付得起的最大量。"""
+    if not extra:
+        return 0
+    return max(v for v in _extra_cost_options(game, player, card, cost) if v <= extra)
+
+
+def _extra_cost_data(side: str, number: str, extra: int) -> dict:
+    """追加費用的加成寫進 battle.data:戰術魔力明細與攻擊傷害加值。"""
+    rider = reg.SPELL_RIDERS.get(number)
+    if not extra or not rider or not rider.extra_cost:
+        return {}
+    step, _, power, damage = rider.extra_cost
+    data = {f"{side}_spell_power": [{"kind": "spell_bonus", "source": number, "amount": power * extra // step}]}
+    if side == "attack" and damage:
+        data["attack_damage_delta"] = damage * extra // step
+    return data
 
 
 def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSlot, dict]:
@@ -805,13 +920,13 @@ def _declare_attack(game: Game, batch: list[dict], player: int, command: dict) -
         game, player, command.get("page"), command.get("slot_uid"), attack=True)
     decl = {"player": player, "page": command["page"], "spell": number, "slot": slot.uid}
     if not _ask_spell_discount(game, batch, "attack", decl):
-        _open_battle_in(game, batch, decl)
+        _proceed_declaration(game, batch, "attack", decl)
 
 
 def _open_battle_in(game: Game, batch: list[dict], decl: dict) -> None:
     st = game.state
     st.battle_in = {"attacker": decl["player"], "page": decl["page"], "spell": decl["spell"],
-                    "slot": decl["slot"], "discount": decl["discount"]}
+                    "slot": decl["slot"], "discount": decl["discount"], "extra": decl.get("extra", 0)}
     game.emit(batch, "battle_in_check", attacker=decl["player"], spell=decl["spell"], slot=decl["slot"])
 
 
@@ -872,17 +987,18 @@ def _prepare_spell_attack(game: Game, batch: list[dict], bi: dict) -> AttackStar
     _, using_slot = _validate_spell_declaration(game, attacker, page, slot_uid, attack=True,
                                                 discount=discount)
     cost = spell_cost(game, attacker, page, card, slot=using_slot, discount=discount)
+    if (st.players[attacker].spell_page_uses.get(page, 0) >= spell_use_limit(game, attacker, card)
+            and _consume_reuse(game, batch, attacker, page)):
+        cost = 0                                         # S-098:已用過的戰術費用 0 再用一次
     if page not in st.players[attacker].open_pages():  # 經 P-015 類待命自任意頁使用
-        for sb in _consume_standby(game, "spell_any_page",
-                                   lambda s: s.owner == attacker
-                                   and s.data.get("spell_name") == card.name_ja):
-            game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+        _consume_any_page(game, batch, attacker, page)
+    extra = _affordable_extra(game, attacker, cost, bi.get("extra", 0), card)
     _record_spell_use(st.players[attacker], page)
-    pay_mp(game, batch, attacker, cost, f"spell:{number}")
+    pay_mp(game, batch, attacker, cost + extra, f"spell:{number}")
     slot = st.slot_by_uid(attacker, slot_uid)
     return AttackStart(
         battle={"attack_page": page, "attack_spell": number, "attack_slot": slot_uid},
-        data={}, started={"spell": number, "slot": slot_uid}, is_spell=True,
+        data=_extra_cost_data("attack", number, extra), started={"spell": number, "slot": slot_uid}, is_spell=True,
         mamodo_name=game.db[slot.top].related_mamodo if slot else None, discount=discount)
 
 
@@ -914,6 +1030,11 @@ def _apply_injure_instead(battle, sb):
     battle.data["injure_instead"] = True
 
 
+def _apply_redirect_damage(battle, sb):
+    battle.data["injure_instead"] = True
+    battle.data["injure_target"] = sb.data["slot_uid"]
+
+
 # 戰鬥開始時消耗的「下一場戰鬥」待命:(種類, 適用條件(待命, 攻擊), 套用)。依此順序消耗。
 # 「術」相關的待命(效果文寫「術」)只適用於戰術攻擊;限定魔物的待命要該家族的戰術。
 # 新增作用於下一場戰鬥的待命時在此加一列(見 game-engine/design.md「戰鬥開始與待命表」)。
@@ -931,6 +1052,9 @@ BATTLE_START_STANDBYS = (
     ("no_protect_book", lambda sb, a: True, _apply_no_protect_book),
     # S-057:下一張攻擊戰術獲勝改為負傷對手魔物
     ("injure_instead", lambda sb, a: a.is_spell, _apply_injure_instead),
+    # P-022:以指定家族的戰術攻擊時,傷害改給指定的對手魔物
+    ("redirect_damage", lambda sb, a: a.is_spell and sb.data.get("mamodo") == a.mamodo_name,
+     _apply_redirect_damage),
 )
 
 
@@ -949,10 +1073,41 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
         for sb in _consume_standby(game, kind, lambda s, applies=applies: s.owner == attacker and applies(s, a)):
             apply(battle, sb)
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 宣告時效果(擲硬幣等於宣告時確定)
-    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if a.is_spell else None
+    # 宣告時確定:改為傷害對手魔物的攻擊先選對象,之後才是宣告時效果(擲硬幣等)
+    if _ask_injure_target(game, batch):
+        return
+    _attack_declare_effects(game, batch)
+
+
+def _attack_declare_effects(game: Game, batch: list[dict]) -> None:
+    battle = game.state.battle
+    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if rider and rider.on_declare:
-        rider.on_declare(game, batch, attacker, "attack")
+        rider.on_declare(game, batch, battle.attacker, "attack")
+
+
+def _ask_injure_target(game: Game, batch: list[dict]) -> bool:
+    """S-058 / S-057 待命:攻擊宣告時由攻擊方選擇對手的魔物,存入 battle.data["injure_target"]
+    (game-engine「戰鬥流程五步驟」:對象於宣告時選擇)。建立決策時回傳 True,選擇後續行宣告時效果。"""
+    st = game.state
+    battle = st.battle
+    rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
+    if not ((rider and rider.injure_instead) or battle.data.get("injure_instead")):
+        return False
+    if "injure_target" in battle.data:   # P-022 已指定對象:仍在場就不詢問,已離場則照常打魔書
+        if st.slot_by_uid(battle.defender, battle.data["injure_target"]) is None:
+            battle.data.pop("injure_target")
+            battle.data.pop("injure_instead", None)
+        return False
+    targets = st.players[battle.defender].slots
+    if len(targets) <= 1:
+        battle.data["injure_target"] = targets[0].uid if targets else None
+        return False
+    st.pending = PendingChoice(
+        kind="injure_instead_target", player=battle.attacker, source=battle.attack_spell,
+        options=[slot_option(battle.defender, s) for s in targets], data={"declare": True})
+    game.emit(batch, "choice_required", kind="injure_instead_target", player=battle.attacker)
+    return True
 
 
 def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -> None:
@@ -976,7 +1131,7 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
                 game, player, command.get("page"), command.get("slot_uid"), attack=False)
             decl = {"player": player, "page": command["page"], "spell": number, "slot": slot.uid}
             if not _ask_spell_discount(game, batch, "defense", decl):
-                _finish_defense_declaration(game, batch, decl)
+                _proceed_declaration(game, batch, "defense", decl)
             return
         raise IllegalCommand("defense.invalid", "防禦方只能宣告防禦或不防禦")
 
@@ -1014,13 +1169,17 @@ def _finish_defense_declaration(game: Game, batch: list[dict], decl: dict) -> No
     slot = st.slot_by_uid(player, decl["slot"])
     card = game.db[number]
     cost = spell_cost(game, player, page, card, slot=slot, discount=discount)
+    if (st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card)
+            and _consume_reuse(game, batch, player, page)):
+        cost = 0                                         # S-098
     if page not in st.players[player].open_pages():
-        for sb in _consume_standby(game, "spell_any_page",
-                                   lambda s: s.owner == player
-                                   and s.data.get("spell_name") == card.name_ja):
-            game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+        _consume_any_page(game, batch, player, page)
+    extra = _affordable_extra(game, player, cost, decl.get("extra", 0), card)
     _record_spell_use(st.players[player], page)
-    pay_mp(game, batch, player, cost, f"spell:{number}")
+    pay_mp(game, batch, player, cost + extra, f"spell:{number}")
+    for k, v in _extra_cost_data("defense", number, extra).items():
+        battle.data.setdefault(k, [] if isinstance(v, list) else 0)
+        battle.data[k] = battle.data[k] + v
     battle.defense_page = page
     battle.defense_spell = number
     battle.defense_slot = slot.uid
@@ -1072,6 +1231,9 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     # 戰術的魔力(特殊為 0),加上戰術自身的加值與待命 / 效果的加成(S-016 / S-017 / S-040 / M-008 / P-007)
     spell_items = [_item("spell", spell, 0 if card.power_special else (card.power_bonus or 0))]
     spell_items += [dict(i) for i in battle.data.get(f"{side}_spell_power", [])]
+    st = game.state
+    spell_items += [_item("attr_power", m.source, m.amount) for m in st.modifiers   # S-062:雙方的屬性加成
+                    if m.kind == "attr_power" and m.active(st.turn_no) and m.data.get("attr") == card.attr_name]
     spell_pw = sum(i["amount"] for i in spell_items)
     if spell_pw < 0:  # 戰術的魔力加減不低於 0(M-008「0より小さくはならない」)
         spell_items.append(_item("spell_floor", None, -spell_pw))
@@ -1123,6 +1285,13 @@ def own_damage_bonus(game: Game, player: int) -> int:
 def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     st = game.state
     battle = st.battle
+    # S-021「このバトルの『効果の使用』の最後に、相手の攻撃を無効にする」:雙方 pass 之後、魔力勝負前;
+    # 防禦已被無效時一起失效
+    late = battle.data.pop("negate_at_effects_end", None)
+    if late and not battle.defense_negated and not battle.attack_negated:
+        battle.attack_negated = True
+        battle.data["attack_negated_by"] = late["source"]
+        game.emit(batch, "attack_negated", source=late["source"], player=late["player"])
     att, att_items = side_breakdown(game, battle, "attack")
     deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
@@ -1159,6 +1328,8 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     d_rider = reg.SPELL_RIDERS.get(battle.defense_spell) if battle.defense_spell else None
     if d_rider and d_rider.counter and not battle.defense_negated:
         amount = game.db[battle.defense_spell].damage or 0
+        if d_rider.counter_damage_from_attack:   # S-061:等於對手攻擊的傷害
+            amount = _attack_damage_amount(game, battle)
         if amount > 0:
             amount += own_damage_bonus(game, battle.defender)
         if amount > 0:
@@ -1192,24 +1363,20 @@ def finish_attack_without_damage(game: Game, batch: list[dict]) -> None:
 
 
 def _injure_instead_of_damage(game: Game, batch: list[dict]) -> None:
-    """獲勝時使對手 1 隻魔物負傷代替魔書傷害;攻方選擇目標,無目標則無效果。"""
+    """獲勝時對宣告時選定的對手魔物(battle.data["injure_target"])造成傷害代替魔書傷害;
+    沒有對象或對象已離場時沒有這份傷害。"""
     st = game.state
     battle = st.battle
-    targets = st.players[battle.defender].slots
     ctx = {"cause": "battle_attack", "source": battle.attack_spell,
            "source_player": battle.attacker}
-    if not targets:
+    target = st.slot_by_uid(battle.defender, battle.data.get("injure_target", -1)) \
+        if battle.data.get("injure_target") is not None else None
+    if target is None:
         _finish_battle_damage(game, batch, {**ctx, "dealt": False})
         return
-    if len(targets) == 1:
-        _start_damage(game, batch,
-                      [{"kind": "slot", "player": battle.defender,
-                        "slot_uid": targets[0].uid, "amount": 1}], ctx)
-        return
-    st.pending = PendingChoice(
-        kind="injure_instead_target", player=battle.attacker, source=battle.attack_spell,
-        options=[slot_option(battle.defender, s) for s in targets], data={"ctx": ctx})
-    game.emit(batch, "choice_required", kind="injure_instead_target", player=battle.attacker)
+    _start_damage(game, batch,
+                  [{"kind": "slot", "player": battle.defender,
+                    "slot_uid": target.uid, "amount": 1}], ctx)
 
 
 def _damage_order_option(index: int, item: dict) -> dict:
@@ -1221,15 +1388,15 @@ def _damage_order_option(index: int, item: dict) -> dict:
 
 
 def _injure_instead_resolver(game: Game, batch: list[dict], value, data) -> None:
+    """攻擊宣告時選擇的對手魔物:記下後續行宣告時效果。"""
     st = game.state
     battle = st.battle
     slot = st.slot_by_uid(battle.defender, value) if battle else None
     if slot is None:
         raise IllegalCommand("choose.invalid", "無效的負傷對象")
     st.pending = None
-    _start_damage(game, batch,
-                  [{"kind": "slot", "player": battle.defender,
-                    "slot_uid": slot.uid, "amount": 1}], data["ctx"])
+    battle.data["injure_target"] = slot.uid
+    _attack_declare_effects(game, batch)
 
 
 reg.CHOICE_RESOLVERS["injure_instead_target"] = _injure_instead_resolver
@@ -1332,6 +1499,12 @@ reg.CHOICE_RESOLVERS["jammer_negate"] = _jammer_resolver
 
 def _end_battle(game: Game, batch: list[dict]) -> None:
     st = game.state
+    # 「このバトルの終了後」「このバトル後」的效果(S-068 / S-062):戰鬥結束時生效,攻擊被無效時不生效
+    after = [sb for sb in st.standby if sb.kind == "after_battle"]
+    st.standby = [sb for sb in st.standby if sb.kind != "after_battle"]
+    if st.battle is not None and not st.battle.attack_negated:
+        for sb in after:
+            _apply_after_battle(game, batch, sb)
     st.modifiers = [m for m in st.modifiers if m.duration != DUR_BATTLE]
     st.standby = [s for s in st.standby if s.data.get("expires") != "battle"]   # 「このバトル中」的待命(P-006)
     st.battle = None
@@ -1343,6 +1516,23 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------- 傷害系統
+
+def _apply_after_battle(game: Game, batch: list[dict], sb: Standby) -> None:
+    from .effects.primitives import add_modifier, add_restriction
+    st = game.state
+    data = sb.data
+    game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    if data.get("action") == "restrict":
+        add_restriction(game, batch, source=sb.source, owner=sb.owner, target_player=1 - sb.owner,
+                        flag=data["flag"], duration=data["duration"])
+    elif data.get("action") == "attr_power":
+        # 「重複しない」:同屬性的加成已在生效時不再加
+        if any(m.kind == "attr_power" and m.data.get("attr") == data["attr"] and m.active(st.turn_no)
+               for m in st.modifiers):
+            return
+        add_modifier(game, batch, kind="attr_power", source=sb.source, owner=sb.owner,
+                     duration=data["duration"], amount=data["amount"], data={"attr": data["attr"]})
+
 
 def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> list[tuple[int, MamodoSlot]]:
     """可保護此項傷害的魔物 (持有者, 魔物)。魔書傷害:任何自己魔物;魔物傷害:其他魔物。
@@ -1377,6 +1567,19 @@ def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> lis
     return [(player, s) for s in st.players[player].slots if s.uid != item.get("slot_uid") and can_protect(s)]
 
 
+def _damage_info(game: Game, item: dict) -> dict:
+    """保護決策的公開脈絡:目前這份傷害(對象、受傷害的玩家、傷害值、魔物是否已負傷、魔書是否會耗盡)。"""
+    st = game.state
+    player = item["player"]
+    if item["kind"] == "book":
+        lethal = st.players[player].pos + 2 * item["amount"] > BOOK_SIZE
+        return {"kind": "book", "player": player, "amount": item["amount"], "slot": None,
+                "injured": False, "lethal": lethal}
+    slot = st.slot_by_uid(player, item.get("slot_uid"))
+    return {"kind": "slot", "player": player, "amount": item.get("amount", 1), "slot": item.get("slot_uid"),
+            "injured": bool(slot and slot.injured), "lethal": False}
+
+
 def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> bool:
     """有可保護的魔物時建立保護決策並回傳 True。"""
     protectors = _eligible_protectors(game, item, ctx)
@@ -1387,7 +1590,7 @@ def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> boo
         kind="protect", player=receiver, source=ctx.get("source"),
         options=[{"value": None, "label": "no_protect"}]
         + [slot_option(owner, s) for owner, s in protectors],
-        data={"ctx": ctx})
+        data={"ctx": ctx}, info={"damage": _damage_info(game, item)})
     game.emit(batch, "choice_required", kind="protect", player=receiver, item=dict(item))
     return True
 
@@ -1699,6 +1902,8 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.used_abilities.clear()
         p.used_nonbattle_pages.clear()
         p.used_event_this_turn = False
+        p.mp_reduced_by_opponent = 0
+        p.start_phase_mp_gain = 0
         p.discarded_this_turn.clear()
         p.page_effect_used = False
         p.page_back_effect_used = False

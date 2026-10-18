@@ -132,3 +132,76 @@ def test_revealed_opponent_pages_show_faces(page):
     assert faces.count() == 2
     faces.first.click()
     assert page.locator("#zoom-overlay").is_visible() and page.locator("#zoom-actions button").count() == 0
+
+
+def test_extra_cost_buttons(page):
+    # battle-ui「追加費用與效果選擇的選項文字」:S-067 的追加費用以行動欄按鈕呈現
+    p = start(page)
+    opts = [{"value": v, "label": "extra_cost", "amount": v, "power": v * 1000, "damage": v // 2} for v in (0, 2, 4)]
+    set_pending(page, {"kind": "spell_extra_cost", "player": p, "source": "S-067", "options": opts})
+    buttons = page.locator("#action-bar .choice-prompt .choice-options button")
+    assert buttons.all_text_contents() == ["不追加", "追加 2(魔力 +2000、傷害 +1)", "追加 4(魔力 +4000、傷害 +2)"]
+    buttons.nth(2).click()
+    assert sent(page) == [{"type": "choose", "player": p, "value": 4}]
+
+
+def test_any_page_spell_buttons_per_page(page):
+    # M-037:範圍內有多張可用的戰術時,每一頁各一個按鈕(標出頁碼),按下開該頁的放大檢視
+    p = start(page)
+    page.evaluate("""(p) => {
+        const users = [{slot_uid: S.players[p].slots[0].uid, cost: 2}];
+        S = {...S, phase: 'battle', turn_player: p, action_player: p, battle: null, battle_in: null,
+             players: S.players.map((x, i) => i !== p ? x : {...x, mp: 10, any_page_spells: [
+               {page: 5, card: 'S-065', cost: 2, users}, {page: 7, card: 'S-066', cost: 2, users}]})};
+        render();
+    }""", p)
+    buttons = page.locator("#action-bar button", has_text="從魔書使用")
+    assert buttons.count() == 2
+    assert "第 7 頁" in buttons.nth(1).text_content()
+    buttons.nth(1).click()
+    assert page.locator("#zoom-overlay").is_visible()
+    assert page.evaluate("ZOOM.ctx.kind === 'any_page' && ZOOM.ctx.page") == 7
+
+
+def test_s098_target_shown_in_log_and_effects(page):
+    start(page)
+    line = page.evaluate("logLine({type: 'standby_set', kind: 'spell_reuse', owner: 0, source: 'S-098', card: 'S-002', page: 4})")
+    assert page.evaluate("cname('S-002')") in line and "第 4 頁" in line
+    text = page.evaluate("effectText({type: 'standby', kind: 'spell_reuse', source: 'S-098', owner: 0, card: 'S-002', page: 4})")
+    assert page.evaluate("cname('S-002')") in text and "第 4 頁" in text
+
+
+def test_protect_prompt_shows_damage(page):
+    # battle-ui「保護決策顯示傷害」
+    p = start(page)
+    uid = page.evaluate("(p) => S.players[p].slots[0].uid", p)
+    top = page.evaluate("(p) => S.players[p].slots[0].top", p)
+    def prompt(info):
+        set_pending(page, {"kind": "protect", "player": p, "source": None, "info": {"damage": info},
+                           "options": [{"value": None, "label": "no_protect"}]})
+        return page.locator("#action-bar .choice-prompt").inner_text()
+    text = prompt({"kind": "book", "player": p, "amount": 3, "slot": None, "injured": False, "lethal": False})
+    assert "將受到 3 點傷害" in text and "耗盡" not in text
+    text = prompt({"kind": "book", "player": p, "amount": 3, "slot": None, "injured": False, "lethal": True})
+    assert "將受到 3 點傷害" in text and "耗盡" in text
+    text = prompt({"kind": "slot", "player": p, "amount": 1, "slot": uid, "injured": True, "lethal": False})
+    assert page.evaluate("(n) => cname(n)", top) in text and "棄牌區" in text
+
+
+def test_cheat_panel_shows_current_pages(page):
+    # battle-ui「金手指面板的目前頁提示」
+    start(page)
+    page.evaluate("openCheat()")
+    page.wait_for_function("CHEAT && CHEAT.players")
+    pos = page.evaluate("[S.players[0].pos, S.players[1].pos]")
+    summary = page.locator("#cheat-current").inner_text()
+    assert f"第 {pos[0]}、{pos[0] + 1} 頁" in summary and f"第 {pos[1]}、{pos[1] + 1} 頁" in summary
+    grid = page.locator("#cheat-book-grid")
+    assert grid.locator(".cheat-open").count() == 2
+    assert grid.locator(".cheat-gone").count() >= 1                           # 第 1 頁的魔物已放出
+
+
+def test_first_player_log(page):
+    start(page)
+    assert page.evaluate("logLine({type: 'first_player_set', player: 0, reason: 'local'})") == \
+        f"自由調查時間:{page.evaluate('pname(0)')} 先攻"

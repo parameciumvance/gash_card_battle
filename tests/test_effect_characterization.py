@@ -201,7 +201,8 @@ def test_s021_two_coin_branches(coins, negated):
     events = submit(g, {"type": "declare_defense", "player": dp, "page": 2})
     assert len([e for e in events if e["type"] == "coin_flipped"]) == 2
     assert pending(g) is None
-    assert g.state.battle.attack_negated is negated
+    # 宣告時擲幣;無效排定在「効果の使用」的最後(declare-time-resolution)
+    assert ("negate_at_effects_end" in g.state.battle.data) is negated and not g.state.battle.attack_negated
     assert g.rng.calls == 2
 
 
@@ -213,7 +214,7 @@ def test_s021_with_m012_reflip_changes_branch():
     assert pending(g) == ("coin_confirm", dp, [None, 0, 1])
     events = submit(g, {"type": "choose", "player": dp, "value": 1})
     assert kinds(events)[:2] == [("ability_used", None), ("coin_flipped", "heads")]
-    assert g.state.battle.attack_negated is True
+    assert "negate_at_effects_end" in g.state.battle.data
     assert g.rng.calls == 3
 
 

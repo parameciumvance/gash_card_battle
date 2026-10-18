@@ -134,6 +134,9 @@ class PlayerState:
     page_back_effect_limited: bool = False  # 本回合受 P-018「合計1回」限制
     # 用過「減少對手 MP」效果的回合(E-018 直前回合限制);只保留本回合與前一回合
     opp_mp_reduced_turns: set[int] = field(default_factory=set)
+    # 本回合被對手的效果實際減少的 MP 總量(E-028 / E-035)、本回合開始階段增加的 MP(P-035);回合結束歸零
+    mp_reduced_by_opponent: int = 0
+    start_phase_mp_gain: int = 0
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔書中的頁碼。"""

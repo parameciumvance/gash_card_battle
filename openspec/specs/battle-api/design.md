@@ -12,7 +12,7 @@
 以下欄位對所有視角相同,因為內容本來就是公開資訊:
 
 - `consecutive_passes`:非戰鬥中雙方連續 pass 的次數(引擎判斷結束戰鬥階段用的同一個值),供回合轉盤顯示「再 pass 就換人」;pass 是公開的行動結果。戰鬥效果步驟的 `effect_passes` 不送。
-- `pending.info`:決策的公開脈絡(目前是擲幣結果,見 `game-engine/design.md`「中途決策」)。`pending.data` 永遠不送。
+- `pending.info`:決策的公開脈絡(擲幣結果、保護決策的目前這份傷害,見 `game-engine/design.md`「中途決策」)。傷害本來就是公開的(攻擊、戰術、傷害值都已公開),所以保護決策的內容對所有視角相同。`pending.data` 永遠不送。
 - `battle.attacker_breakdown` / `defender_breakdown`:合計魔力的即時明細,內容是場上的卡、已宣告的戰術與已公開的效果。
 - `effects`:作用中的待命與持續效果(待命在前、持續效果在後,各自依建立順序)。
   - 待命與持續效果建立時都發過公開事件(`standby_set` / `modifier_added`),所以清單本身是公開資訊。
@@ -30,7 +30,7 @@
 
 - 對手翻開頁的卡片內容只在兩種情況出現:宣告中的攻防戰術頁(`in_use`),以及觀看者場上有 P-024(`engine.reveals_open_pages`,登記在 `reg.REVEAL_OPPONENT_PAGES`)。P-024 只對持有者公開,觀戰者與其他視角不變;持有者私有的 `users`、`condition_ok` 仍只給翻開頁的主人。
 - 翻開的事件卡附 `cost`(`engine.event_cost`:卡面費用加上對手場上 M-040 等的加成),與戰術卡的 `cost` 一樣是公開資訊;前端以它顯示與判斷 MP。
-- `_PUBLIC_EFFECT_DATA` 另含 `attr`(P-029)與 `amount`(E-038 待命)。
+- `_PUBLIC_EFFECT_DATA` 另含 `attr`(P-029)、`amount`(E-038 待命)與 `page`(S-098 選定要重用的戰術頁;本回合已用過、已公開)。待命資料帶 `card` / `page` 時,`standby_set` 事件也帶出(只有 S-098 的重用待命有),記錄據此寫出對象。
 
 `choice_required` 事件對非決策者仍去除 `options` / `item` / `results`;擲幣結果另有公開的 `coin_flipped` 事件與快照的 `pending.info`。
 

@@ -293,7 +293,9 @@ def _start_game(room: Room) -> None:
     default = _default_deck()
     deck0 = room.decks[0] or default
     deck1 = room.decks[1] or default
-    room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)))
+    # 自由調查時間(本機模式)固定玩家 1 先攻;其他模式擲硬幣
+    room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)),
+                         first_player=0 if room.mode == "local" else None)
     room.reset_deadline()
 
 

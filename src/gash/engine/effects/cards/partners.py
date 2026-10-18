@@ -4,13 +4,14 @@ from ...state import DUR_TURN, NO_ATTACK_SPELL, PROTECT_ONLY
 from .. import registry as reg
 from ..tree import (
     All, AllowAttrSpellsThisTurn, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
-    DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMpWhenOpponentUsesEvent,
-    GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage, LockChosenOpponentMamodo,
-    MakeNextAttackUndefendable, NegateNextDamageThisBattle, NegateOpponentSpell,
-    NoBattleDamageModifierFrom, OpponentMamodo, OpponentMamodoExcept, OpponentPartneredMamodo,
-    OwnAttackBy, OwnPageTurnBackEffectAvailable, OwnPageTurnEffectAvailable,
-    ProtectorsDiscardedThisTurn, ReduceOpponentMpPerPageTurnedBack, RemoveRestrictions,
-    RestrictOpponent, ScheduleNextSpellBonus, ScheduleSpellFromAnyPage, SetPowerZeroThisTurn,
+    DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMp,
+    GainMpWhenOpponentUsesEvent, GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage,
+    LockChosenOpponentMamodo, MakeNextAttackUndefendable, NegateNextDamageThisBattle,
+    NegateOpponentSpell, NoBattleDamageModifierFrom, OpponentMamodo, OpponentMamodoExcept,
+    OpponentPartneredMamodo, OwnAttackBy, OwnPageTurnBackEffectAvailable,
+    OwnPageTurnEffectAvailable, ProtectorsDiscardedThisTurn, ReduceOpponentMpByStartGain,
+    ReduceOpponentMpPerPageTurnedBack, RemoveRestrictions, RestrictOpponent, ScheduleNextSpellBonus,
+    ScheduleRedirectDamage, ScheduleSpellFromAnyPage, Sequence, SetPowerZeroThisTurn,
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
     TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
 )
@@ -76,6 +77,17 @@ reg.trigger("P-019", "pages_turned", effect=ReduceOpponentMpPerPageTurnedBack(pe
 # ---------------------------------------------------------------- 第三彈
 
 reg.activated("P-021", mode="discard", timing="nonbattle", effect=GuardOwnMpThisTurn())
+reg.activated("P-022", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=ScheduleRedirectDamage(mamodo="フリガロ"),
+))
+
+# 「このターン中のバトルで」(沒有「次の」):本回合任一場戰鬥中第一張エシュロス戰術
+reg.activated("P-023", mode="discard", timing="nonbattle", effect=Sequence(steps=(
+    GainMp(amount=2),
+    ScheduleNextSpellBonus(mamodo="エシュロス", power_delta=2000, expires="turn"),
+)))
+
 reg.reveal_opponent_pages("P-024")
 reg.activated("P-026", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
     OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
@@ -92,4 +104,10 @@ reg.activated("P-028", mode="discard", timing="battle", effect=NegateNextDamageT
 reg.activated("P-029", mode="discard", timing="nonbattle",
               effect=AllowAttrSpellsThisTurn(mamodo="ザバス", attr="風"))
 reg.trigger("P-030", "book_card_used", effect=GainMpWhenOpponentUsesEvent(amount=2))
+reg.activated("P-033", mode="discard", timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=NO_ATTACK_SPELL),
+))
+
 reg.activated("P-034", mode="discard", timing="nonbattle", effect=RemoveRestrictions(categories=("spells",)))
+reg.activated("P-035", mode="discard", timing="nonbattle", effect=ReduceOpponentMpByStartGain(multiplier=2))

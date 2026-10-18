@@ -1188,7 +1188,8 @@ def test_s021_coin_negate_two_flips():
     # 防方場上有 M-012 → 詢問是否重擲;保留原結果
     assert g.state.pending.kind == "coin_confirm"
     submit(g, {"type": "choose", "player": dp, "value": None})
-    assert g.state.battle.attack_negated is True  # 至少一次正面
+    # 至少一次正面:於「効果の使用」的最後才無效(declare-time-resolution)
+    assert "negate_at_effects_end" in g.state.battle.data and not g.state.battle.attack_negated
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     assert showdown_of(events)["winner"] == "defender"

@@ -3,18 +3,19 @@
 from ...state import DUR_BATTLE, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
-    AddOwnDamageBonus, AddPower, All, AlwaysImmune, AttachPartnerFromBookPage, AwaitBookReviewEnd,
-    Bound, CanUseSpellNamed, CanUseSpellsWithAttr, Choose, DetachedFromSelf,
-    DiscardChosenOpponentMamodo, DiscardChosenPartner, DiscardedCardsToReturn,
-    DiscardFromOpponentBook, GainMp, HasOptions, ImmuneToAttackDamage, ImmuneToSpellDamageAtMost,
-    IncreaseSelfDamage, NegateAttack, OpponentAttackDamageIs, OpponentBookCards,
-    OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
+    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune,
+    AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
+    Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
+    DiscardedCardsToReturn, DiscardFromOpponentBook, GainMp, HasOptions, ImmuneToAttackDamage,
+    ImmuneToSpellDamageAtMost, IncreaseSelfDamage, NegateAttack, OpponentAttackDamageIs,
+    OpponentBookCards, OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
-    PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway, ReduceOpponentMp, Ref,
-    RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
-    ScheduleSkipEndFlip, SelfHasNoPartner, SelfHasPartner, SelfInBattleAs, SelfInjured,
-    SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies, SwapBookPages, TurnPagesForward, When,
+    OwnOtherMamodo, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway, ReduceOpponentMp,
+    Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
+    ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
+    SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies,
+    SwapBookPages, TurnPagesForward, When,
 )
 
 # activated 的 mode / mp_cost / timing / own_turn / per_game / condition 由引擎檢查,effect 只描述效果本身。
@@ -153,6 +154,9 @@ reg.damage_immunity("M-031", check=ImmuneToSpellDamageAtMost(total=6000))
 # ---------------------------------------------------------------- 第三彈
 
 reg.activated("M-033", mode="discard", timing="nonbattle", effect=AddOwnDamageBonus(amount=1))
+reg.spell_compat("M-036", check=CanUseSpellsWithAttr("氷"))
+reg.activated("M-037", mode="mp", mp_cost=2, timing="nonbattle",
+              effect=ScheduleSpellFromNextSpreads(mamodo="エシュロス", spreads=2))
 reg.ignore_spell_block("M-038")
 reg.opponent_event_cost("M-040", 1)
 reg.activated("M-041", mode="mp", mp_cost=2, timing="nonbattle",
@@ -166,6 +170,15 @@ reg.activated("M-043", mode="mp", mp_cost=1, timing="battle", condition=Opponent
               effect=NegateAttack())
 reg.activated("M-044", mode="declare", timing="nonbattle", condition=OpponentMpAtLeast(8),
               effect=Sequence(steps=(ReduceOpponentMp(amount=3), GainMp(amount=3))))
+reg.activated("M-050", mode="declare", timing="nonbattle", condition=HasOptions(OwnOtherMamodo()), effect=Choose(
+    OwnOtherMamodo(), bind="slot", prompt="pick_own_mamodo",
+    then=AddPower(amount=2000, duration=DUR_TURN),
+))
+
 reg.damage_immunity("M-051", check=AlwaysImmune())
 reg.cannot_protect("M-051")
+reg.activated("M-052", mode="mp", mp_cost=1, timing="nonbattle", effect=Sequence(steps=(
+    AddSelfPowerWhenAttacking(amount=1000, duration=DUR_TURN),
+    IncreaseSelfDamage(amount=1, duration=DUR_TURN),
+)))
 reg.damage_immunity("M-053", check=ImmuneToAttackDamage(1))

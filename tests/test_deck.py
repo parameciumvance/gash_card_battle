@@ -67,7 +67,7 @@ def test_pending_cards_rejected():
     db = card_db()
     assert "M-035" in pending_cards() and "M-001" not in pending_cards()
     pages = list(load_deck(DATA_DIR / "decks/level1.json", db).pages)
-    pages[5] = "E-028"                                              # 第三彈事件卡(尚未開放)
+    pages[5] = "E-029"                                              # 第三彈事件卡(尚未開放)
     with pytest.raises(DeckError) as e:
         validate_deck(pages, db)
     assert e.value.code == "deck.card_pending"

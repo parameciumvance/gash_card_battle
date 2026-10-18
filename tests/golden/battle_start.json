@@ -16,6 +16,7 @@
      }
     ],
     "injure_instead": true,
+    "injure_target": 2,
     "no_protect_book": true
    },
    "defense_declared": false,
@@ -184,6 +185,7 @@
      }
     ],
     "injure_instead": true,
+    "injure_target": 2,
     "no_protect_book": true
    },
    "defense_declared": false,
@@ -315,6 +317,7 @@
      }
     ],
     "injure_instead": true,
+    "injure_target": 2,
     "no_protect_book": true
    },
    "defense_declared": false,
@@ -415,6 +418,7 @@
      }
     ],
     "injure_instead": true,
+    "injure_target": 2,
     "no_protect_book": true
    },
    "defense_declared": false,
@@ -514,6 +518,7 @@
      }
     ],
     "injure_instead": true,
+    "injure_target": 2,
     "no_protect_book": true
    },
    "defense_declared": false,
