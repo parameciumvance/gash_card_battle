@@ -9,7 +9,7 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, attack_undefendable, event_cost, exhausted_spell_pages,
+    _spell_any_page_standby, _spell_usable_by, attack_undefendable, event_cost, event_limit, exhausted_spell_pages,
     reveals_open_pages,
     side_breakdown, slot_power, spell_block, spell_cost,
 )
@@ -135,7 +135,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "slots": [_slot_view(game, p, s) for s in ps.slots],
         "discard": list(ps.discard),
         "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
-        "used_event_this_turn": ps.used_event_this_turn,
+        "events_exhausted": ps.events_used_this_turn >= event_limit(game, p),   # 本回合事件卡已達上限(E-029 可提高)
     }
     # 己方完整魔書只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):
@@ -233,7 +233,8 @@ _PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_del
                        "value": int,   # value:P-011「魔力を 0 にする」的值
                        "copy_card": str,   # copy_card:M-035 魔力等於的對手魔物(使用時的卡)
                        "turn": int,    # turn:M-047 離場的回合
-                       "min_total": int}   # min_total:M-048 不能防禦的合計魔力門檻
+                       "min_total": int,   # min_total:M-048 不能防禦的合計魔力門檻
+                       "count": int}   # count:E-042 結束階段要棄掉的魔物數
 
 
 def _public_data(data: dict) -> dict:

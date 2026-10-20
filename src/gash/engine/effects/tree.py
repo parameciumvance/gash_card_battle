@@ -1357,6 +1357,7 @@ class AttachPartnerFromDiscard(Effect):
     """
     spec: Any = field(default_factory=PartnerDiscardedThisTurn)
     index: Ref = Ref("choice")
+    until_turn_end: bool = False   # S-090「このターンが終わると捨て札になる」
 
     def run(self, rt, ctx, path):
         game = rt.game
@@ -1372,6 +1373,9 @@ class AttachPartnerFromDiscard(Effect):
         slot.partner = number
         game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                   zone="partner", from_discard=True)
+        if self.until_turn_end:   # 由引擎在回合結束時棄掉(仍裝在這隻魔物上才棄)
+            add_modifier(game, rt.batch, kind="discard_partner_at_turn_end", source=ctx["source"], owner=player,
+                         duration=DUR_TURN, target_player=player, target_slot=slot.uid, data={"card": number})
         if number in reg.ON_PLAY:
             reg.ON_PLAY[number](game, rt.batch, player, slot)
         return True
@@ -2087,6 +2091,128 @@ class ImmuneWhileEffective:
     def __call__(self, game, player, slot, ctx) -> bool:
         from ..engine import mamodo_effect_block
         return not mamodo_effect_block(game, player, slot)
+
+
+@dataclass(frozen=True)
+class ScheduleNextBattleStandby(Effect):
+    """[待命] 本回合下一場戰鬥:kind 由引擎查詢(S-088 spell_base_cost_zero、S-089 attack_power_from_mamodo)。"""
+    kind: str = ""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind=self.kind, source=ctx["source"], owner=ctx["player"],
+                         data={"expires": "next_battle"})
+        return True
+
+
+@dataclass(frozen=True)
+class RaiseEventLimitThisTurn(Effect):
+    """本回合自己的事件卡使用上限為 limit 張(含這張)(E-029)。"""
+    limit: int = 1
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="event_limit", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"], amount=self.limit)
+        return True
+
+
+@dataclass(frozen=True)
+class OpponentBookPagesAround:
+    """對手魔書中目前翻開的頁之後(side="after",最後一頁除外)或之前(side="before")、尚未離開的頁(E-037)。
+    選項值為頁碼。"""
+    side: str = "after"
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..state import BOOK_SIZE
+        opp = 1 - ctx["player"]
+        ps = game.state.players[opp]
+        if self.side == "after":
+            pages = range(ps.pos + 2, BOOK_SIZE)
+        else:
+            pages = range(1, min(ps.pos, BOOK_SIZE + 1))
+        return [page_option(opp, p, ps.card_at(p)) for p in pages if p not in ps.consumed_pages]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇對手魔書中可互換的頁")
+
+
+@dataclass(frozen=True)
+class SwapOpponentBookPages(Effect):
+    """互換對手魔書 a、b 兩頁的卡(E-037)。"""
+    a: Ref = Ref("later")
+    b: Ref = Ref("earlier")
+
+    def run(self, rt, ctx, path):
+        opp = 1 - ctx["player"]
+        ps = rt.game.state.players[opp]
+        a, b = ctx[self.a.name], ctx[self.b.name]
+        ps.book[a - 1], ps.book[b - 1] = ps.book[b - 1], ps.book[a - 1]
+        rt.game.emit(rt.batch, "opponent_pages_swapped", player=opp, viewer=ctx["player"], pages=[a, b],
+                     source=ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class TurnOwnPageLimitedThenGainMp(Effect):
+    """翻自己魔書 leaves 張,之後本回合「翻自己魔書」的效果合計只能 1 次(自己算 1 次,同 P-010);
+    有翻頁才 MP +amount(E-039「そうしたなら」)。"""
+    leaves: int = 1
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        player = ctx["player"]
+        turned = own_book_turn_effect(rt.game, rt.batch, player, self.leaves, ctx["source"])
+        rt.game.state.players[player].page_effect_limited = True
+        if turned:
+            gain_mp(rt.game, rt.batch, player, self.amount, ctx["source"], by=player)
+        return True
+
+
+@dataclass(frozen=True)
+class RestrictSelf(Effect):
+    """對自己設置限制旗標(E-039 不能攻擊)。"""
+    flag: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                        target_player=player, flag=self.flag, duration=self.duration)
+        return True
+
+
+def dealt_damage_this_turn(game, player) -> bool:
+    """本回合自己對對手或對手魔物造成過傷害(E-041 的使用條件)。"""
+    return game.state.players[player].dealt_damage_this_turn
+
+
+@dataclass(frozen=True)
+class ScheduleEndPhaseTurnOpponent(Effect):
+    """[待命] 本回合結束階段翻對手魔書 leaves 頁(E-041);由引擎的結束階段效果解決。"""
+    leaves: int = 1
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="end_phase_turn_opponent", source=ctx["source"],
+                         owner=ctx["player"], data={"leaves": self.leaves})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleEndPhaseDiscardExceptKept(Effect):
+    """[待命] 雙方各留下 keep / keep_opponent 綁定的魔物,其餘(使用時在場者)於本回合結束階段棄掉(E-042)。"""
+    keep: Ref = Ref("keep")
+    keep_opponent: Ref = Ref("keep_opponent")
+
+    def run(self, rt, ctx, path):
+        st = rt.game.state
+        player = ctx["player"]
+        kept = {(player, ctx.get(self.keep.name)), (1 - player, ctx.get(self.keep_opponent.name))}
+        slots = [[p, s.uid] for p in (player, 1 - player) for s in st.players[p].slots if (p, s.uid) not in kept]
+        schedule_standby(rt.game, rt.batch, kind="end_phase_discard", source=ctx["source"], owner=player,
+                         data={"slots": slots, "count": len(slots)})
+        return True
 
 
 @dataclass(frozen=True)

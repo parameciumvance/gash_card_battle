@@ -54,7 +54,7 @@ def test_e016_usable_without_spell_in_opponent_book():
     end_review(g, 0)
     assert g.state.players[1].discard == []
     assert g.state.players[0].mp == 10 - DB["E-016"].cost                   # 只付自己的費用,不因棄卡減少
-    assert g.state.players[0].used_event_this_turn                         # 使用照常成立
+    assert g.state.players[0].events_used_this_turn == 1                         # 使用照常成立
 
 
 def test_e017_not_disabled_and_usable_without_event_in_opponent_book():

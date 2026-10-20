@@ -38,6 +38,7 @@ NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其戰術與效果(E-024,target_slot)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
+NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與無戰術攻擊,E-039;不屬於可移除的分類)
 ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁戰術、效果與保護(E-043)
 PROTECT_ONLY = "protect_only"              # 只能以選定魔物(target_slot)保護(P-026)
 
@@ -123,7 +124,7 @@ class PlayerState:
     discard: list[str] = field(default_factory=list)
     consumed_pages: set[int] = field(default_factory=set)   # 已離開魔書的頁(1-based)
     spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各戰術卡頁已使用次數
-    used_event_this_turn: bool = False
+    events_used_this_turn: int = 0             # 本回合已使用的事件卡張數(上限見 engine.event_limit)
     used_abilities: set[str] = field(default_factory=set)   # 本回合已用啟動效果 key
     used_nonbattle_pages: set[int] = field(default_factory=set)  # 本回合已用的非戰鬥戰術所在頁(以頁計,同名的另一頁仍可用)
     used_per_game: set[str] = field(default_factory=set)    # 一場遊戲限一次
@@ -137,6 +138,8 @@ class PlayerState:
     # 本回合被對手的效果實際減少的 MP 總量(E-028 / E-035)、本回合開始階段增加的 MP(P-035);回合結束歸零
     mp_reduced_by_opponent: int = 0
     start_phase_mp_gain: int = 0
+    # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
+    dealt_damage_this_turn: bool = False
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔書中的頁碼。"""

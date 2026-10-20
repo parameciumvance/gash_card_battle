@@ -89,8 +89,10 @@ def test_join_with_illegal_deck_keeps_seat_free():
     assert res.status_code == 200
 
 
-def test_create_room_with_pending_card_rejected():
+def test_create_room_with_pending_card_rejected(monkeypatch):
+    from gash.engine import deck as deck_mod
+    monkeypatch.setattr(deck_mod, "pending_cards", lambda: frozenset({"E-029"}))   # 模擬尚未開放的卡
     pages = list(LEVEL1)
-    pages[5] = "E-029"                                              # 尚未開放的第三彈卡
+    pages[5] = "E-029"
     r = client.post("/api/rooms", json={"mode": "online", "deck": {"pages": pages}})
     assert r.status_code == 422 and "deck.card_pending" in r.text
