@@ -7,7 +7,6 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(聚焦預設關閉)
 from tests.test_npc_ui import open_npc_setup, start_npc
 from tests.test_spotlight_ui import open_page
 

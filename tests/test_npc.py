@@ -19,6 +19,8 @@ from gash.engine.state import BOOK_SIZE, GAME_OVER, Game
 from gash.npc.candidates import candidates
 from gash.npc.determinize import in_use_pages
 
+pytestmark = pytest.mark.slow   # NPC 自我對戰 / 動畫等待(test-speed)
+
 PRESETS = ("level1", "level2")
 
 

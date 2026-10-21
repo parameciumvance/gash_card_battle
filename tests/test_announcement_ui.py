@@ -4,7 +4,6 @@ Run: python -m pytest tests/test_announcement_ui.py -q
 """
 import json
 
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture
 from tests.test_timing_ui import start_as
 
 ANN = {"id": "m1", "message": {"zh-TW": "今晚 22:00 維護", "en": "Maintenance tonight"}, "until": None}

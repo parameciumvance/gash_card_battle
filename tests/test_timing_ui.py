@@ -3,7 +3,8 @@
 
 Run: python -m pytest tests/test_timing_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(聚焦預設關閉)
+import pytest
+
 from tests.test_spotlight_ui import open_page
 
 
@@ -114,6 +115,7 @@ def test_spectator_sees_indicators_but_no_glow(page):
     assert page.locator("#timing-track .current").count() == 1
 
 
+@pytest.mark.slow
 def test_turn_banner_every_turn(browser, server):  # noqa: F811
     context, page, errors = open_page(browser, server, prefs={"spotlight": "normal"})
     tp, me = start_as(page, "other")

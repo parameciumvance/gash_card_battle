@@ -4,7 +4,6 @@
 
 Run: python -m pytest tests/test_choice_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(聚焦預設關閉)
 
 PROMPT = "#action-bar .choice-prompt"
 

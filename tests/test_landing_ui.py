@@ -2,7 +2,6 @@
 
 Run: python -m pytest tests/test_landing_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(聚焦預設關閉)
 from tests.test_npc_ui import room_posts
 from tests.test_spotlight_ui import open_page
 

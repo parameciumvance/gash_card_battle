@@ -3,7 +3,6 @@
 
 Run: python -m pytest tests/test_auto_open_pick_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture
 from tests.test_timing_ui import start_as
 
 PUSH = """([kind, options]) => {
@@ -73,7 +72,6 @@ def test_plain_review_has_no_pick_hint(page):
 
 # ---------------------------------------------------------------- 演出播完才自動開啟;棄牌飛向棄牌區(動畫開啟)
 
-from tests.test_cheat_editor import server as _server  # noqa: E402,F401
 from tests.test_spotlight_ui import open_page  # noqa: E402
 
 

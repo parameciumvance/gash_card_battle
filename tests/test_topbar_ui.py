@@ -3,7 +3,6 @@
 
 Run: python -m pytest tests/test_topbar_ui.py -q
 """
-from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
 
 
 def test_phone_landing_topbar_buttons_fit_in_one_row(browser, server):  # noqa: F811

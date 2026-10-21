@@ -1,6 +1,6 @@
 """Nonbattle actions and card detail browser regressions (optional Playwright)."""
 import pytest
-from tests.test_cheat_editor import browser, page, server, pw  # shared isolated browser/server fixtures
+from tests.test_cheat_editor import pw  # noqa: F401
 
 
 def setup_spell(page, number="S-026", mamodo="M-001"):

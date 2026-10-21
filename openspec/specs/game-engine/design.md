@@ -73,6 +73,13 @@ negated                                                                ← 無�
 - `_end_phase` → `_resolve_end_phase_effects`:收集 M-047 的 `scheduled_detach`、E-041 的 `end_phase_turn_opponent`、E-042 的 `end_phase_discard`;2 個以上時建立決策 `end_phase_order`(回合玩家,選項值為收集順序的索引,每次重新收集),只剩 1 個直接解決;全部解決後才 `_continue_end_phase`(魔物消失處理 → 強制翻頁 → E-038 → S-090 的搭檔 → 時效到期)。E-038 在強制翻頁之後是既有的偏差(todo)。
 - 事件卡上限:`events_used_this_turn` 與 `event_limit`(持續效果 `event_limit` 可提高)。
 - 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與無戰術攻擊都檢查(`attack.restricted`);不在可移除的分類中。
+- E-038 的 MP 增加(`end_phase_mp` 待命)也在結束階段效果中解決(強制翻頁之前),與其他效果一起由回合玩家排序。
+
+## 直接攻擊 / 防禦的使用次數與ジャマー
+
+- 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
+- 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
+- M-026 對直接攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(直接攻擊:`_attack_declare_continue`;直接防禦:`_enter_effects_step`)。不採快照還原,因為直接攻擊本身就是開始戰鬥。
 
 ## 保護者
 

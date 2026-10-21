@@ -36,6 +36,7 @@
 - 每張非香草卡至少一個「依效果文」寫的行為測試,驗證可觀察的結果(MP、場面、事件、pending),不要只驗證內部欄位。
 - 涵蓋所有分支:擲幣正 / 反、可選效果的使用 / 不使用、多選項時由正確的玩家選擇、非法選擇被拒絕且保留 pending、使用條件不成立時被拒絕。
 - 確認測試真的走到目標路徑:錯誤碼要精確比對(例如 `ability.condition`,而不是接受 `priority.other` 等任一錯誤);斷言「沒有發生」時,要先確認不是停在其他決策(pending)上而空過。
+- 跑法(三層):只改引擎、卡片或 API 時跑 `python -m pytest tests -m "not slow and not browser" -q`(約 8 秒);改到前端時再加跑相關的瀏覽器測試檔(或 `-m "not slow"`);tasks 的「pytest 全過」、歸檔與提交前跑全套 `python -m pytest tests -q`。單項要數秒以上的新測試(自我對戰、動畫等待)標 `@pytest.mark.slow`;用到 `browser` fixture 的測試由 `tests/conftest.py` 自動標 `browser`。瀏覽器測試的伺服器整個測試期間共用,測試要各自建立自己的房間,不依賴伺服器的初始狀態。
 
 ### 寫法
 

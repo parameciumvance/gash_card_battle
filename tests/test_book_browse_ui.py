@@ -3,7 +3,6 @@
 
 Run: python -m pytest tests/test_book_browse_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
 
 
 def start_local(page):

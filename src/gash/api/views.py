@@ -36,8 +36,19 @@ def _ability_view(number: str | None) -> dict | None:
             "timing": spec.timing, "own_turn": spec.own_turn, "per_game": spec.per_game}
 
 
+def _used(ps, key: str, number, per_game: bool = False):
+    """效果的使用狀態(公開):"game" 一場限 1 次已用、"turn" 本回合已用、False 未用。"""
+    if number is None:
+        return False
+    if per_game and number in ps.used_per_game:
+        return "game"
+    return "turn" if f"{key}:{number}" in ps.used_abilities else False
+
+
 def _slot_view(game: Game, player: int, slot) -> dict:
     from ..engine.effects import registry as reg
+    ps = game.state.players[player]
+    top_spec, partner_spec = reg.ACTIVATED.get(slot.top), reg.ACTIVATED.get(slot.partner)
     return {
         "uid": slot.uid,
         "column": slot_columns(game.state.players[player].slots)[slot.uid],   # 場上欄位(公開)
@@ -53,6 +64,11 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         # 「1アクションを使って…捨て札にできる」:疊放的上層(M-046)/ 搭檔(P-020)
         "action_discard": len(slot.stack) > 1 and reg.ACTION_DISCARD.get(slot.top) == "top",
         "partner_action_discard": reg.ACTION_DISCARD.get(slot.partner) == "partner",
+        # 效果已使用(每回合 1 次 / 一場限 1 次):前端據此停用按鈕
+        "ability_used": _used(ps, "mamodo", slot.top, bool(top_spec and top_spec.per_game)),
+        "partner_ability_used": _used(ps, "partner", slot.partner, bool(partner_spec and partner_spec.per_game)),
+        "mamodo_attack_used": _used(ps, "mamodo_attack", slot.top),
+        "mamodo_defense_used": _used(ps, "mamodo_defense", slot.top),
     }
 
 

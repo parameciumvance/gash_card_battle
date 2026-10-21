@@ -4,7 +4,8 @@ Run: python -m pytest tests/test_npc_ui.py -q
 """
 import pytest
 
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
+pytestmark = pytest.mark.slow   # NPC 自我對戰 / 動畫等待(test-speed)
+
 
 NPC_WAIT_MS = 20000   # 伺服器端 NPC 送出前會稍候,等待要留足時間
 

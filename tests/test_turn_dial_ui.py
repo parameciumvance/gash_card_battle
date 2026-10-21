@@ -3,7 +3,6 @@
 
 Run: python -m pytest tests/test_turn_dial_ui.py -q
 """
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture
 from tests.test_timing_ui import send, start_as, zone_of
 
 

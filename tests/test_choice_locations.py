@@ -4,6 +4,8 @@
 """
 import random
 
+import pytest
+
 from gash import npc
 from gash.engine.awaiting import awaited_player
 from gash.engine.effects import tree
@@ -97,6 +99,7 @@ def _check_locations(g, found):
             assert o["zone"] == "discard" and player.discard[o["index"]] == o["card"], (pending.kind, o)
 
 
+@pytest.mark.slow
 def test_every_card_option_has_location_in_selfplay():
     """NPC 自我對戰中出現的每個卡片選項都帶正確的位置。"""
     found = set()

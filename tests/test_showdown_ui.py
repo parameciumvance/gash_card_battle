@@ -5,9 +5,10 @@ Run: python -m pytest tests/test_showdown_ui.py -q
 """
 import pytest
 
-from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixture
 from tests.test_spotlight_ui import open_page
 from tests.test_timing_ui import send, start_as
+
+pytestmark = pytest.mark.slow   # NPC 自我對戰 / 動畫等待(test-speed)
 
 # 演出出現時記下內容;結果出現時再記一次;移除時記下時間
 RECORD = """() => {

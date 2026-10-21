@@ -5,6 +5,8 @@
 
 import random
 
+import pytest
+
 from gash import npc
 from gash.api.views import snapshot
 from gash.engine.awaiting import awaited_player
@@ -27,6 +29,7 @@ def item(items, kind):
 
 # ================================================================ 魔力勝負明細
 
+@pytest.mark.slow
 def test_breakdown_sums_to_totals_in_self_play():
     """NPC 自我對戰(預組)的每一場魔力勝負:雙方明細加總等於合計。"""
     from tests.test_npc import play_out
