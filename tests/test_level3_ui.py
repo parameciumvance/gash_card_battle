@@ -295,3 +295,25 @@ def test_batch5_texts(page):
                          " owner: 0, target_player: 0, target_slot: null, duration: 'turn'})").endswith("不能攻擊")
     assert "2 隻" in page.evaluate("effectText({type: 'standby', kind: 'end_phase_discard', source: 'E-042',"
                                    " owner: 0, count: 2, expires: 'turn'})")
+
+
+# ---------------------------------------------------------------- 已使用的效果按鈕停用(battle-ui「已使用的效果按鈕停用」)
+
+def test_used_effect_buttons_disabled(page):
+    p = start(page)
+    result = page.evaluate("""(p) => {
+        S = {...S, phase: 'battle', turn_player: p, action_player: p, battle: null, battle_in: null, pending: null,
+             players: S.players.map((x, i) => i !== p ? x : {...x, mp: 10, slots: x.slots.map((s, j) => j !== 0 ? s :
+               {...s, ability: {mode: 'mp', mp_cost: 1, timing: 'nonbattle', own_turn: false, per_game: false},
+                ability_used: 'turn', mamodo_attack: {mp_cost: 1, power: 5000, damage: 2},
+                mamodo_attack_used: 'turn'})})};
+        render();
+        return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons
+          .map((b) => [b.disabled, b.reason]);
+    }""", p)
+    assert result == [[True, "本回合已使用"], [True, "本回合已使用"]]
+    reason = page.evaluate("""(p) => {
+        S.players[p].slots[0].ability_used = 'game';
+        return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons[0].reason;
+    }""", p)
+    assert reason == "一場遊戲限 1 次,已使用"
