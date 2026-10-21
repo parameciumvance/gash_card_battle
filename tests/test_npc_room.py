@@ -245,6 +245,7 @@ def test_single_driver_per_room():
     assert room.game.state.phase == GAME_OVER or awaited_player(room.game) == 0
 
 
+@pytest.mark.slow
 def test_same_seed_and_player_commands_give_same_game():
     runs = []
     for _ in range(2):

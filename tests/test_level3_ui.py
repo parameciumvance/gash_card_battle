@@ -5,7 +5,6 @@ Run: python -m pytest tests/test_level3_ui.py -q
 """
 import pytest
 
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture
 from tests.test_choice_ui import pick_in_zoom, sent, set_pending, start
 from tests.test_showdown_ui import ENERGY, GUARD, RECORD
 from tests.test_spotlight_ui import open_page
@@ -45,6 +44,7 @@ def anim_page(browser, server):  # noqa: F811
     assert not errors
 
 
+@pytest.mark.slow
 def test_opponent_mamodo_guards_own_book(anim_page):
     page = anim_page
     tp, _ = start_as(page, "all")

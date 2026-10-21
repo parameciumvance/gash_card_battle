@@ -8,7 +8,6 @@ import json
 
 import pytest
 
-from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
 
 POPUP = "#info-overlay:not(.hidden)"
 RELEASES = {

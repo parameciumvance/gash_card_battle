@@ -6,7 +6,6 @@ Run: python -m pytest tests/test_builder_card_info_ui.py -q
 """
 import pytest
 
-from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
 
 DESKTOP = {"width": 1280, "height": 900}
 PHONE = {"width": 390, "height": 844}

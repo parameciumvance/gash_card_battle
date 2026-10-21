@@ -4,7 +4,6 @@ Run: python -m pytest tests/test_resume_room_ui.py -q
 """
 import json
 
-from tests.test_cheat_editor import browser, page, server  # noqa: F401  共用 fixture
 from tests.test_timing_ui import start_as
 
 

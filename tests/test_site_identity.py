@@ -6,7 +6,6 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from gash.api.app import app
-from tests.test_cheat_editor import browser, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "Gash Card Battle Online"

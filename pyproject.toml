@@ -26,3 +26,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# 開發中跑 pytest -m "not slow";歸檔 / 提交前跑全套(AGENTS.md「測試」)
+markers = [
+  "slow: NPC 自我對戰與動畫等待類的瀏覽器測試(單項數秒以上),開發中可用 -m \"not slow\" 略過",
+  "browser: 用到 Chromium 的瀏覽器測試(tests/conftest.py 自動標記)",
+]

@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 import pytest
 from PIL import Image
 
-from tests.test_cheat_editor import browser, pw, server  # noqa: F401  共用 fixture(隔離的伺服器與瀏覽器)
+from tests.test_cheat_editor import pw  # noqa: F401
 from tests.test_spotlight_ui import SPOT, send, start_as
 
 
