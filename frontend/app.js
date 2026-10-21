@@ -1730,7 +1730,7 @@ function pageButtons(p, entry) {
     } else if (def.type === "event") {
       const ps = S.players[p];
       const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
-      const blocked = ps.used_event_this_turn ? t("ui.used")
+      const blocked = ps.events_exhausted ? t("ui.used")
         : entry.condition_ok === false ? t("ui.condition")
         : cost > ps.mp ? `MP < ${cost}`
         : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
@@ -2209,6 +2209,7 @@ function choiceLabel(opt, results) {
     case "skip": return t("choice.skip");
     case "jammer_use": return t(opt.discard ? "choice.jammer_use.discard" : "choice.jammer_use", { card: cname(opt.card) });
     case "set_heads": return t("choice.set_heads", { n: opt.coin + 1 });
+    case "end_phase_effect": return t("choice.end_phase_effect", { card: cname(opt.card) });
     case "spell_discount_use": return t("choice.spell_discount_use");
     case "s043_fuse": return t("choice.s043_fuse");
     case "s043_split": return t("choice.s043_split");
@@ -2588,7 +2589,7 @@ function effectText(e) {
     card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")),
     attr: e.attr ? t(`attr.${e.attr}`) : "", page: e.page ?? "",
     value: e.value ?? 0, copy: e.copy_card ? cname(e.copy_card) : "", turn: e.turn ?? "",
-    min_total: e.min_total ?? "" });
+    min_total: e.min_total ?? "", count: e.count ?? "" });
 }
 
 // 時效:「至下回合結束」「下一回合」依建立回合相對於目前回合換算
@@ -3044,6 +3045,7 @@ function logLine(ev) {
     case "coin_set": return t("log.coin_set", { ...P, card: cname(ev.card), n: ev.index + 1 });
     case "action_effect_used": return t("log.action_effect_used", { ...P, card: cname(ev.card) });
     case "discard_prevented": return t("log.discard_prevented", { ...P, card: cname(ev.card) });
+    case "opponent_pages_swapped": return t("log.opponent_pages_swapped", { ...P, a: ev.pages[0], b: ev.pages[1] });
     case "defense_declared":   // 魔物效果防禦(M-039)沒有戰術
       return ev.spell ? t("log.defense_declared", { ...P, spell: cname(ev.spell) })
         : t("log.mamodo_defense_declared", { ...P, card: cname(ev.mamodo) });

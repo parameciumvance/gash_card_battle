@@ -7,7 +7,7 @@ from ...state import (
 from .. import registry as reg
 from ..tree import (
     AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
-    AdjustDefenseDamage, All, Always, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
+    AdjustDefenseDamage, All, Always, AttachPartnerFromDiscard, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
     Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableBookProtection,
     DiscardChosenPartner, DiscardFromOpponentBook, DiscardOwnMamodoByNumber, EffectOptions,
     FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
@@ -15,7 +15,7 @@ from ..tree import (
     LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
     MarkInjuredMamodoDiscarded, NegateAttack, NegateAttackAtEffectsEnd, NextStartPhase,
     OpponentMamodo, OpponentOpenPageCards, OpponentOpenPagesLackSpell, OpponentPartneredMamodo,
-    OrSkip, OwnBookCopiesOf, OwnFieldHas, OwnInjuredMamodo, PeekOpponentOpenPages,
+    OrSkip, OwnBookCopiesOf, PlayablePartnerInDiscard, ScheduleNextBattleStandby, OwnFieldHas, OwnInjuredMamodo, PeekOpponentOpenPages,
     PlayMamodoFromBook, ReduceOpponentMp, Ref, RememberInBattle, RememberOpponentMamodo,
     RestrictBothPlayers, RestrictOpponent, RobnosTransformMode, ScheduleAfterBattleAttrPower,
     ScheduleAfterBattleRestriction, ScheduleInjureInsteadNextWin, ScheduleSpellReuse, Sequence,
@@ -353,6 +353,28 @@ reg.spell_nonbattle("S-086", when=CanStackFromBook("M-046"), effect=Choose(
 ))
 
 reg.spell_rider("S-087", fixed_total={"attack": 8000, "defense": 11000})
+
+# 擲出正面就生效,不詢問是否使用(比照 S-026,使用者確認);費用 0 在下一場戰鬥宣告戰術時自動套用
+reg.spell_nonbattle("S-088", effect=Coin(
+    count=2, on=HeadsAtLeast(2),
+    then=ScheduleNextBattleStandby(kind="spell_base_cost_zero"),
+))
+
+# 擲出正面就生效(比照 S-026);對象在攻擊宣告時選,魔力勝負時取其當下的魔力
+reg.spell_nonbattle("S-089", effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=ScheduleNextBattleStandby(kind="attack_power_from_mamodo"),
+))
+
+# 棄牌區有可放出的搭檔才能使用(選不到對象時不能使用);放出的搭檔回合結束時棄掉
+reg.spell_nonbattle("S-090", when=HasOptions(PlayablePartnerInDiscard()), effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=Choose(
+        PlayablePartnerInDiscard(), bind="choice", prompt="pick_partner_in_discard",
+        then=AttachPartnerFromDiscard(spec=PlayablePartnerInDiscard(), until_turn_end=True),
+    ),
+))
+
 reg.spell_rider("S-092", on_declare=When(
     SideIs("attack"),
     then=AddAttackSelfBonus(amount=2000),

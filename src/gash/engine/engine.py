@@ -15,7 +15,7 @@ from .effects.primitives import add_spell_power, can_stack_on, family, mamodo_na
 from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
-    NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT_BOOK,
+    NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT_BOOK,
     NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
     place_slot,
@@ -255,6 +255,13 @@ def remove_restrictions(game: Game, batch: list[dict], player: int, categories: 
     return sources
 
 
+def event_limit(game: Game, player: int) -> int:
+    """本回合可使用的事件卡張數:1,或效果提高後的張數(E-029:含自己 3 張)。"""
+    st = game.state
+    return max([1] + [m.amount for m in st.modifiers
+                      if m.kind == "event_limit" and m.target_player == player and m.active(st.turn_no)])
+
+
 def event_cost(game: Game, player: int, card: CardDef) -> int:
     """事件卡的費用:卡面費用 + 對手場上 M-040 等的加成。"""
     opp = game.state.players[1 - player]
@@ -298,6 +305,8 @@ def _base_spell_cost_by(game: Game, player: int, page: int, card: CardDef, mamod
     cost = card.cost or 0
     if page == BOOK_SIZE and ps.pos == BOOK_SIZE:
         cost = 0  # ADV:最後一頁的戰術本來費用為 0
+    if any(sb.kind == "spell_base_cost_zero" and sb.owner == player for sb in game.state.standby):
+        cost = 0  # S-088:本回合下一場戰鬥自己的戰術本来のコスト為 0
     for m in game.state.modifiers:
         if (m.kind == "spell_cost_zero" and m.target_player == player
                 and m.active(game.state.turn_no)
@@ -669,8 +678,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
     number = st.players[player].card_at(page) if any_page else _require_open_page(game, player, page)
     card = game.db[number]
     if card.type == EVENT:
-        if st.players[player].used_event_this_turn:
-            raise IllegalCommand("event.limit", "事件卡每回合只能使用 1 張")
+        if st.players[player].events_used_this_turn >= event_limit(game, player):
+            raise IllegalCommand("event.limit", "本回合已達事件卡的使用上限")
         if card.ad == "A" and player != st.turn_player:
             raise IllegalCommand("event.timing", "此事件卡只能在自己的回合使用")
         if card.ad == "D" and player == st.turn_player:
@@ -686,7 +695,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         cost = event_cost(game, player, card)
         if st.players[player].mp < cost:
             raise IllegalCommand("event.mp", "MP 不足")
-        st.players[player].used_event_this_turn = True
+        st.players[player].events_used_this_turn += 1
         pay_mp(game, batch, player, cost, f"event:{number}")
         game.emit(batch, "book_card_used", player=player, card=number, page=page)
         # ジャマー(M-032):對手可能在此事件卡結束後使其無效 → 先存解決前的快照(費用與使用次數已記)
@@ -995,6 +1004,8 @@ def _declare_attack(game: Game, batch: list[dict], player: int, command: dict) -
     st = game.state
     if player != st.turn_player:
         raise IllegalCommand("attack.not_turn_player", "只有回合玩家能攻擊")
+    if restricted(game, player, NO_ATTACK):
+        raise IllegalCommand("attack.restricted", "本回合不能攻擊")
     if command.get("mode") == "mamodo":
         slot, _spec = _validate_mamodo_attack(game, player, command.get("slot_uid"))
         st.battle_in = {"attacker": player, "mamodo_attack": True, "slot": slot.uid}
@@ -1166,9 +1177,45 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
 
 def _attack_declare_effects(game: Game, batch: list[dict]) -> None:
     battle = game.state.battle
+    if _ask_attack_power_from(game, batch):
+        return
     rider = reg.SPELL_RIDERS.get(battle.attack_spell) if battle.attack_spell else None
     if rider and rider.on_declare:
         rider.on_declare(game, batch, battle.attacker, "attack")
+
+
+def _ask_attack_power_from(game: Game, batch: list[dict]) -> bool:
+    """S-089 的待命:攻擊宣告時由攻擊方選擇自己場上攻擊魔物以外的 1 隻魔物,存入
+    battle.data["attack_power_from"];魔力勝負時加上它當下的魔力。只有 1 隻時自動,沒有時不生效。
+    建立決策時回傳 True,選擇後續行宣告時效果。"""
+    st = game.state
+    battle = st.battle
+    if "attack_power_from" in battle.data:
+        return False
+    sb = next((s for s in st.standby if s.kind == "attack_power_from_mamodo" and s.owner == battle.attacker), None)
+    if sb is None:
+        return False
+    others = [s for s in st.players[battle.attacker].slots if s.uid != battle.attack_slot]
+    battle.data["attack_power_from"] = {"source": sb.source, "slot": others[0].uid if len(others) == 1 else None}
+    if len(others) <= 1:
+        return False
+    st.pending = PendingChoice(kind="attack_power_from", player=battle.attacker, source=sb.source,
+                               options=[slot_option(battle.attacker, s) for s in others])
+    game.emit(batch, "choice_required", kind="attack_power_from", player=battle.attacker)
+    return True
+
+
+def _attack_power_from_resolver(game: Game, batch: list[dict], value, data) -> None:
+    st = game.state
+    battle = st.battle
+    if value not in {o["value"] for o in st.pending.options}:
+        raise IllegalCommand("choose.invalid", "須選擇攻擊魔物以外的自己魔物")
+    st.pending = None
+    battle.data["attack_power_from"]["slot"] = value
+    _attack_declare_effects(game, batch)
+
+
+reg.CHOICE_RESOLVERS["attack_power_from"] = _attack_power_from_resolver
 
 
 def _ask_injure_target(game: Game, batch: list[dict]) -> bool:
@@ -1335,6 +1382,7 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
         if battle.attack_spell is None:  # 無戰術攻擊:固定合計魔力
             total = battle.data.get("attack_fixed_power", 0)
             items = [_item("fixed", battle.data.get("attack_fixed_source"), total)]
+            total, items = _attack_power_from(game, battle, total, items)
             return _negate(total, items, negated, negated_by)
         player, slot_uid, spell = battle.attacker, battle.attack_slot, battle.attack_spell
     else:
@@ -1362,7 +1410,20 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     spell_pw = sum(i["amount"] for i in spell_items)
     if spell_pw < 0:  # 戰術的魔力加減不低於 0(M-008「0より小さくはならない」)
         spell_items.append(_item("spell_floor", None, -spell_pw))
-    return _negate(mamodo + max(0, spell_pw), items + spell_items, negated, negated_by)
+    total, items = mamodo + max(0, spell_pw), items + spell_items
+    if side == "attack":
+        total, items = _attack_power_from(game, battle, total, items)
+    return _negate(total, items, negated, negated_by)
+
+
+def _attack_power_from(game: Game, battle: BattleState, total: int, items: list[dict]) -> tuple[int, list[dict]]:
+    """S-089:攻擊的合計魔力加上宣告時選定的自己魔物當下的魔力(已離場則沒有)。"""
+    info = battle.data.get("attack_power_from")
+    slot = game.state.slot_by_uid(battle.attacker, info["slot"]) if info and info.get("slot") is not None else None
+    if slot is None:
+        return total, items
+    amount = slot_power(game, battle.attacker, slot)
+    return total + amount, items + [_item("mamodo_bonus", info["source"], amount)]
 
 
 def _negate(total: int, items: list[dict], negated: bool, source: str | None) -> tuple[int, list[dict]]:
@@ -1802,6 +1863,7 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
         ps = st.players[player]
         ps.pos += 2 * item["amount"]
         ctx["dealt"] = True
+        _note_damage_dealt(game, ctx, player)
         game.emit(batch, "damage_dealt", target="book", player=player,
                   amount=item["amount"], pos=min(ps.pos, BOOK_SIZE + 2))
         if ps.book_exhausted():
@@ -1832,6 +1894,7 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
         game.emit(batch, "damage_prevented", player=player, slot=slot.uid)
         return
     ctx["dealt"] = True
+    _note_damage_dealt(game, ctx, player)
     battle = st.battle
     # S-031 バオウ:因此戰術負傷的魔物直接入墓
     injure_to_discard = (battle is not None and battle.data.get("injure_to_discard")
@@ -1841,6 +1904,14 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
     else:
         slot.injured = True
         game.emit(batch, "mamodo_injured", player=player, slot=slot.uid, card=slot.top)
+
+
+def _note_damage_dealt(game: Game, ctx: dict, receiver: int) -> None:
+    """E-041「自分が相手か相手の魔物にダメージをあたえていれば」:傷害的來源玩家對對手(魔書或魔物,
+    含保護者)實際造成傷害時記錄;被免疫或無效擋下的不會走到這裡。"""
+    source = ctx.get("source_player")
+    if source in (0, 1) and source != receiver:
+        game.state.players[source].dealt_damage_this_turn = True
 
 
 def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, reason: str) -> None:
@@ -2017,20 +2088,75 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
 def _end_phase(game: Game, batch: list[dict]) -> None:
     st = game.state
     game.emit(batch, "phase_changed", phase="end", turn=st.turn_no)
-    _scheduled_detach(game, batch)
+    _resolve_end_phase_effects(game, batch)
+
+
+# ---------------------------------------------------------------- 結束階段的效果(規則頁「エンドフェイズ」1、効果の解決)
+# 結束階段要解決的效果:M-047 的定時離場、E-041 的翻對手魔書、E-042 的棄魔物。2 個以上時由回合玩家
+# 選擇下一個要解決的(「ターンプレイヤーが解決の順番を決めることができます」),都解決後才進行魔物消失處理
+# 與強制翻頁。E-038 的 MP 增加目前在強制翻頁之後(todo)。
+
+def _end_phase_effects(game: Game) -> list:
+    """本回合結束階段待解決的效果:[(種類, 來源卡, Modifier 或 Standby)],順序固定。"""
+    st = game.state
+    out = [("scheduled_detach", m.source, m) for m in st.modifiers
+           if m.kind == "scheduled_detach" and m.data.get("turn") == st.turn_no]
+    out += [(sb.kind, sb.source, sb) for sb in st.standby
+            if sb.kind in ("end_phase_turn_opponent", "end_phase_discard") and sb.owner == st.turn_player]
+    return out
+
+
+def _resolve_end_phase_effects(game: Game, batch: list[dict]) -> None:
+    st = game.state
+    while True:
+        if st.phase == GAME_OVER:
+            return
+        effects = _end_phase_effects(game)
+        if not effects:
+            break
+        if len(effects) == 1:
+            _resolve_end_phase_effect(game, batch, effects[0])
+            continue
+        options = [{"value": i, "label": "end_phase_effect", "card": src, "kind": kind}
+                   for i, (kind, src, _obj) in enumerate(effects)]
+        st.pending = PendingChoice(kind="end_phase_order", player=st.turn_player, options=options)
+        game.emit(batch, "choice_required", kind="end_phase_order", player=st.turn_player, options=options)
+        return
     _continue_end_phase(game, batch, stage=0)
 
 
-def _scheduled_detach(game: Game, batch: list[dict]) -> None:
-    """M-047:排定在本回合(回合玩家的回合)結束階段離場的疊放上層,只棄掉它、留下下層;
-    「捨て札にならない」的效果也不阻止。魔物已離場或上層已不是那張卡時不處理。"""
+def _end_phase_order_resolver(game: Game, batch: list[dict], value, data) -> None:
+    effects = _end_phase_effects(game)
+    if not isinstance(value, int) or not 0 <= value < len(effects):
+        raise IllegalCommand("choose.invalid", "須選擇要先解決的效果")
+    game.state.pending = None
+    _resolve_end_phase_effect(game, batch, effects[value])
+    _resolve_end_phase_effects(game, batch)
+
+
+reg.CHOICE_RESOLVERS["end_phase_order"] = _end_phase_order_resolver
+
+
+def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
+    from .effects.primitives import turn_pages
     st = game.state
-    due = [m for m in st.modifiers if m.kind == "scheduled_detach" and m.data.get("turn") == st.turn_no]
-    st.modifiers = [m for m in st.modifiers if m not in due]
-    for m in due:
-        slot = st.slot_by_uid(m.target_player, m.target_slot)
-        if slot is not None and len(slot.stack) > 1 and slot.top == m.source:
-            _detach_top(game, batch, m.target_player, slot, reason="scheduled")
+    kind, source, obj = effect
+    if kind == "scheduled_detach":
+        # M-047:只棄掉上層、留下下層;「捨て札にならない」的效果也不阻止。魔物已離場或上層已不是那張卡時不處理
+        st.modifiers.remove(obj)
+        slot = st.slot_by_uid(obj.target_player, obj.target_slot)
+        if slot is not None and len(slot.stack) > 1 and slot.top == obj.source:
+            _detach_top(game, batch, obj.target_player, slot, reason="scheduled")
+        return
+    st.standby.remove(obj)
+    game.emit(batch, "standby_resolved", card=source, kind=kind)
+    if kind == "end_phase_turn_opponent":   # E-041:效果的翻頁,不獲得 MP,翻完即敗
+        turn_pages(game, batch, 1 - obj.owner, obj.data.get("leaves", 1), source)
+    elif kind == "end_phase_discard":       # E-042:使用時選定的魔物(之後已離場的跳過)
+        for player, uid in obj.data.get("slots", []):
+            slot = st.slot_by_uid(player, uid)
+            if slot is not None:
+                _discard_slot(game, batch, player, slot, reason="effect")
 
 
 def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
@@ -2066,6 +2192,14 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     for sb in _consume_standby(game, "end_phase_mp", lambda s: s.owner == st.turn_player):
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
         gain_mp(game, batch, st.turn_player, sb.data.get("amount", 0), sb.source, by=sb.owner)
+    # S-090:「このターンが終わると捨て札になる」的搭檔(那時仍裝在那隻魔物上才棄掉)
+    for m in [m for m in st.modifiers if m.kind == "discard_partner_at_turn_end"]:
+        slot = st.slot_by_uid(m.target_player, m.target_slot)
+        if slot is not None and slot.partner == m.data.get("card"):
+            slot.partner = None
+            to_discard(st.players[m.target_player], m.data["card"])
+            game.emit(batch, "card_discarded", player=m.target_player, card=m.data["card"], zone="partner",
+                      reason="turn_end", slot=slot.uid)
     # 時效到期與回合收尾
     st.modifiers = [m for m in st.modifiers if not _expires_now(m, st.turn_no)]
     st.standby = [s for s in st.standby
@@ -2076,7 +2210,8 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.spell_page_uses.clear()
         p.used_abilities.clear()
         p.used_nonbattle_pages.clear()
-        p.used_event_this_turn = False
+        p.events_used_this_turn = 0
+        p.dealt_damage_this_turn = False
         p.mp_reduced_by_opponent = 0
         p.start_phase_mp_gain = 0
         p.discarded_this_turn.clear()

@@ -151,6 +151,17 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 常駐效果與「使えない」:新的常駐效果(M-047 免疫、M-049、P-020、P-031)在對應的「使えない」下不生效(官方規則書第 42 頁);既有常駐效果尚未逐張檢查(todo)。
 - 其他:`OpponentPartneredMamodo(discard=True)` 排除 M-049 保護的搭檔;`attack_undefendable` 統一判斷不能防禦(旗標或 M-048 的合計魔力門檻待命);戰鬥外的魔書傷害 `DamageOpponentBookOutsideBattle`(`cause="effect"`,可保護);S-095 以 `battle.data["defender_no_damage_family"]` 在魔力勝負時(防禦沒被無效)加 `no_damage`。
 
+### 第 5 批的機制
+
+- S-088:待命 `spell_base_cost_zero`(`next_battle`),`_base_spell_cost_by` 在擁有者有這個待命時把本来のコスト設為 0;不消耗,戰鬥結束時隨「このバトル中」的待命移除。
+- S-089:待命 `attack_power_from_mamodo`;攻擊宣告時(`_ask_injure_target` 之後、`on_declare` 之前)由引擎決策 `attack_power_from` 選對象,存 `battle.data["attack_power_from"]`,`side_breakdown` 攻擊方加 `mamodo_bonus`(當下的 `slot_power`)。S-087 的固定合計魔力不加。
+- S-090:`AttachPartnerFromDiscard(until_turn_end=True)` 加持續效果 `discard_partner_at_turn_end`,結束階段強制翻頁後、時效到期前,仍裝在那隻魔物上才棄掉。
+- 事件卡上限:`PlayerState.events_used_this_turn` 計數,`engine.event_limit` = 1 或 `event_limit` 持續效果的 `amount`(E-029)。快照欄位 `events_exhausted`。
+- E-037:`OpponentBookPagesAround("after" / "before")` 與 `SwapOpponentBookPages`(事件 `opponent_pages_swapped` 只帶頁碼)。
+- E-039:`TurnOwnPageLimitedThenGainMp`(P-010 的「合計1回」,有翻頁才加 MP)與自己的限制 `no_attack`(不在 `RESTRICTION_CATEGORIES`,所以移除不了)。
+- E-041:`PlayerState.dealt_damage_this_turn` 在 `_apply_damage_item` 實際造成傷害時記給 `ctx["source_player"]`(受方是對手時)。
+- E-042 / E-041 的結束階段待命 `end_phase_discard` / `end_phase_turn_opponent` 由結束階段效果的定序流程解決(見 game-engine design)。
+
 ## 行為決定與理由
 
 以下「相關規格」除非另外註明,皆指 `card-effects` › 需求「第二彈 68 種卡全數可用」下的情境。修改相關卡片前先看這裡;要改變 `Confirmed` 或 `Project Decision` 的決定,須先與專案負責人確認。
@@ -677,5 +688,24 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 **依據:**
 - 各卡日文效果文;官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf)第 42 頁;規則頁 https://w.atwiki.jp/zatchbell/pages/94.html
 - 2026-10-18 explore 與實作中專案負責人確認
+
+**確認狀態:** `Confirmed`
+
+### 第三彈第 5 批的效果文解讀
+
+**相關規格:** `card-effects` › 需求「擲幣後的下一場戰鬥待命(S-088 / S-089)」「棄牌區的搭檔暫時放出(S-090)」「事件卡的使用上限(E-029)」「互換對手魔書的卡(E-037)」「翻頁、不能攻擊與合計 1 次(E-039)」「造成過傷害才能使用的結束階段翻頁(E-041)」「雙方各留 1 隻魔物(E-042)」;`game-engine` › 需求「結束階段效果的解決順序」「不能攻擊的限制」
+
+**決定:**
+- S-088 / S-089 / S-090 屬於 S-026 類(擲幣後「オモテなら、次の効果を使える」且整張卡只有這個效果):擲出正面就生效,不詢問是否使用;S-088 的費用 0 自動套用,只限戰術。
+- S-089 攻擊宣告時選對象,魔力勝負時取當下的魔力;沒有其他魔物或對象離場時沒有加成;無戰術攻擊也適用。
+- S-090 需要棄牌區有可放出的搭檔;「このターンが終わると」為回合結束時。
+- E-029 含自己共 3 張,所以只能是本回合第一張事件卡。E-037 找不到可互換的一對時仍可使用(只檢視)。E-039 不能攻擊含無戰術攻擊、不能移除,沒翻頁就不加 MP。E-041 的「造成過傷害」含保護者受的傷害,被免疫或無效擋下的不算。E-042 使用時選定,結束階段在魔物消失處理前棄掉,之後才出場的魔物不受影響。
+- 結束階段有多個效果時由回合玩家選擇解決順序(規則頁「エンドフェイズ」)。
+
+**理由:** 依日文效果文與規則頁「エンドフェイズ」;S-026 類的處理依 AGENTS 規定先請使用者確認。
+
+**依據:**
+- 各卡日文效果文;規則頁 https://w.atwiki.jp/zatchbell/pages/94.html「エンドフェイズ」
+- 2026-10-20 explore 中專案負責人確認
 
 **確認狀態:** `Confirmed`

@@ -271,3 +271,27 @@ def test_batch4_effect_texts(page):
              "target_slot": None, "mamodo": "ウマゴン", "card": "E-014"}
     assert page.evaluate("cname('E-014')") in page.evaluate("(e) => effectText(e)", block)
     assert page.evaluate("(e) => effectWhen(e)", block) == "在場上期間"
+
+
+# ---------------------------------------------------------------- 第 5 批(battle-ui「結束階段效果順序的選擇」「第 5 批的記錄與作用中效果」)
+
+def test_end_phase_order_buttons(page):
+    p = start(page)
+    opts = [{"value": 0, "label": "end_phase_effect", "card": "E-041", "kind": "end_phase_turn_opponent"},
+            {"value": 1, "label": "end_phase_effect", "card": "E-042", "kind": "end_phase_discard"}]
+    set_pending(page, {"kind": "end_phase_order", "player": p, "source": None, "options": opts})
+    buttons = page.locator("#action-bar .choice-prompt .choice-options button")
+    names = page.evaluate("[cname('E-041'), cname('E-042')]")
+    assert buttons.all_text_contents() == [f"先解決《{names[0]}》", f"先解決《{names[1]}》"]
+    buttons.nth(1).click()
+    assert sent(page) == [{"type": "choose", "player": p, "value": 1}]
+
+
+def test_batch5_texts(page):
+    start(page)
+    assert "第 4 頁與第 10 頁" in page.evaluate(
+        "logLine({type: 'opponent_pages_swapped', player: 1, viewer: 0, pages: [4, 10], source: 'E-037'})")
+    assert page.evaluate("effectText({type: 'modifier', kind: 'restriction', flag: 'no_attack', source: 'E-039',"
+                         " owner: 0, target_player: 0, target_slot: null, duration: 'turn'})").endswith("不能攻擊")
+    assert "2 隻" in page.evaluate("effectText({type: 'standby', kind: 'end_phase_discard', source: 'E-042',"
+                                   " owner: 0, count: 2, expires: 'turn'})")

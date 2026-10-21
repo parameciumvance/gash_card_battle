@@ -67,6 +67,13 @@ negated                                                                ← 無�
 - 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
 - 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。「使えない」是事先作用的限制,`mamodo_effect_block` / `restricted(NO_PARTNER_EFFECTS)` 也用來讓常駐效果失效。
 
+## 結束階段的效果、事件卡上限與不能攻擊
+
+- 規則出處:規則頁「エンドフェイズ」:「１、効果の解決」(結束階段的常駐效果與待命,「複数の効果が重なっているときには、ターンプレイヤーが解決の順番を決めることができます」,之後是魔物消失處理)→「２、ページをめくる」。
+- `_end_phase` → `_resolve_end_phase_effects`:收集 M-047 的 `scheduled_detach`、E-041 的 `end_phase_turn_opponent`、E-042 的 `end_phase_discard`;2 個以上時建立決策 `end_phase_order`(回合玩家,選項值為收集順序的索引,每次重新收集),只剩 1 個直接解決;全部解決後才 `_continue_end_phase`(魔物消失處理 → 強制翻頁 → E-038 → S-090 的搭檔 → 時效到期)。E-038 在強制翻頁之後是既有的偏差(todo)。
+- 事件卡上限:`events_used_this_turn` 與 `event_limit`(持續效果 `event_limit` 可提高)。
+- 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與無戰術攻擊都檢查(`attack.restricted`);不在可移除的分類中。
+
 ## 保護者
 
 - `_eligible_protectors(game, item, ctx)` 回傳(持有者, 魔物)。一般是受方自己的其他魔物;傷害原因是對手的攻擊、對象是自己魔書時,另加 `protect_with_opponent` 持續效果指定、仍在場的對手魔物(P-027)。

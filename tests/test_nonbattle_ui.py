@@ -137,7 +137,7 @@ def test_battle_command_spells_and_events(page):
     }""")
     assert page.locator('#zoom-actions button').inner_text() == '使用'
     assert page.locator('#zoom-actions button').is_enabled()
-    page.evaluate("S.players[S.turn_player].used_event_this_turn=true; renderZoom()")
+    page.evaluate("S.players[S.turn_player].events_exhausted=true; renderZoom()")
     assert page.locator('#zoom-actions button').is_disabled()
 
 

@@ -199,12 +199,14 @@ def test_delete_key_removes_selected(builder):
 # ---------------------------------------------------------------- 尚未開放的卡(deck-builder「卡池不顯示尚未開放的卡」)
 
 def test_pending_cards_hidden_from_pool_and_products(builder):
-    assert "S-088" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
+    # 第三彈全部開放後尚未開放清單為空:以頁面的 PENDING 模擬一張尚未開放的卡
+    assert builder.evaluate("PENDING.size") == 0 and "E-029" in pool_numbers(builder)
+    builder.evaluate("PENDING = new Set(['E-029']); renderPoolFilters(); renderPool()")
+    assert "E-029" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
     _, _, product = selects(builder)
     options = product.locator("option").all_text_contents()
-    # 含已開放卡的產品照常列出(Spell Book 含第 1 批的 M-033;Dawn of the Ancients 第 4 批起含已開放的卡)。
-    # 第 4 批後已沒有「只含尚未開放卡」的產品;產品清單由已開放卡的 sets 產生(app.js openCards)。
-    assert "Dawn of the Ancients" in options and "Spell Book" in options
+    # 產品清單由已開放卡的 sets 產生(app.js openCards),含已開放卡的產品照常列出
+    assert "Spell Book" in options
     put(builder, {6: "E-029"})                                              # 匯入等方式放進魔書
     assert "E-029" in builder.locator("#builder-validation").text_content()
 

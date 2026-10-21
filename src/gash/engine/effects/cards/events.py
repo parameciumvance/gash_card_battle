@@ -1,25 +1,26 @@
 """事件卡(E-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import (
-    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
 )
 from .. import registry as reg
 from ..tree import (
-    AddPower, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
+    AddPower, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
     DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
     GainMpReducedByOpponent, HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot,
-    LockChosenOpponentMamodo, NextStartPhase, OpponentBookCards, OpponentMamodo,
+    LockChosenOpponentMamodo, NextStartPhase, OpponentBookCards, OpponentBookPagesAround, OpponentMamodo,
     OpponentPartneredMamodo, OrSkip, OwnEmptyBookPages, OwnHasPartner, OwnInjuredMamodo, OwnMamodo,
     OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlayablePartnerInDiscard,
-    PlayMamodoFromBook, ProtectAnyway, ReduceOpponentMpUnlessReducedLastTurn, Ref,
-    RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen,
-    ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseMp, ScheduleNoProtectBookNextBattle,
-    Sequence, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
+    PlayMamodoFromBook, ProtectAnyway, RaiseEventLimitThisTurn, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen, RestrictSelf,
+    ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseDiscardExceptKept, ScheduleEndPhaseMp,
+    ScheduleEndPhaseTurnOpponent, ScheduleNoProtectBookNextBattle, Sequence, SwapOpponentBookPages,
+    TurnOwnPageLimitedThenGainMp, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
     ZeroBothPlayersMp,
-    has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
+    dealt_damage_this_turn, has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
     mp_reduced_by_opponent, opponent_has_mamodo, opponent_then_self,
 )
 
@@ -212,6 +213,7 @@ reg.event("E-027", effect=opponent_then_self(When(
 # ---------------------------------------------------------------- 第三彈
 
 reg.event("E-028", when=mp_reduced_by_opponent, effect=GainMpReducedByOpponent())
+reg.event("E-029", effect=RaiseEventLimitThisTurn(limit=3))
 
 reg.event("E-030", when=HasOptions(OpponentPartneredMamodo(discard=True)), effect=Choose(
     OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
@@ -252,8 +254,39 @@ reg.event("E-034", when=AnyOf(HasOptions(DeployableMamodoInOwnBook(name="ティ�
 )))
 reg.event("E-035", when=mp_reduced_by_opponent, effect=TurnPagesForward(leaves=2, target="opponent"))
 reg.event("E-036", effect=RemoveRestrictions(categories=("spells", "protect", "mamodo_effects"), whose="both"))
+
+# 檢視對手魔書的效果不以對象為使用條件:找不到可互換的一對時只檢視
+reg.event("E-037", effect=Sequence(steps=(
+    RevealOpponentBook(),
+    When(
+        All(HasOptions(OpponentBookPagesAround("after")), HasOptions(OpponentBookPagesAround("before"))),
+        then=Choose(
+            OpponentBookPagesAround("after"), bind="later", prompt="pick_opponent_book_card", auto_single=False,
+            then=Choose(
+                OpponentBookPagesAround("before"), bind="earlier", prompt="pick_opponent_book_card",
+                auto_single=False,
+                then=SwapOpponentBookPages(),
+            ),
+        ),
+        otherwise=AwaitBookReviewEnd(),
+    ),
+)))
+
 reg.event("E-038", effect=ScheduleEndPhaseMp(amount=4))
+# 「この効果は取りのぞけない」:no_attack 不屬於可移除的限制分類
+reg.event("E-039", effect=Sequence(steps=(
+    TurnOwnPageLimitedThenGainMp(leaves=1, amount=3),
+    RestrictSelf(flag=NO_ATTACK, duration=DUR_TURN),
+)))
 reg.event("E-040", when=has_two_or_more_mamodo, effect=HealAllOwnMamodo())
+reg.event("E-041", when=dealt_damage_this_turn, effect=ScheduleEndPhaseTurnOpponent(leaves=1))
+
+# 自己先選自己留下的 1 隻,對手再選對手留下的 1 隻(只有 1 隻時自動);使用時選定,結束階段棄掉
+reg.event("E-042", effect=Sequence(steps=(
+    Choose(OwnMamodo(), bind="keep", prompt="pick_mamodo_to_keep"),
+    AsOpponent(then=Choose(OwnMamodo(), bind="keep_opponent", prompt="pick_mamodo_to_keep")),
+    ScheduleEndPhaseDiscardExceptKept(),
+)))
 
 # 「相手は、相手の魔物1体を選ぶ」:由對手選擇保留的魔物;對手沒有魔物時沒有效果
 reg.event("E-043", effect=AsOpponent(then=When(

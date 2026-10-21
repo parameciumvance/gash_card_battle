@@ -62,12 +62,14 @@ def test_superior_page_restriction():
     assert exc.value.code in ("deck.superior_page", "deck.last_page")
 
 
-def test_pending_cards_rejected():
+def test_pending_cards_rejected(monkeypatch):
+    from gash.engine import deck as deck_mod
     from gash.engine.cards import pending_cards
     db = card_db()
-    assert "S-088" in pending_cards() and "M-001" not in pending_cards()
+    assert pending_cards() == frozenset()                           # 第三彈全部開放後清單為空
+    monkeypatch.setattr(deck_mod, "pending_cards", lambda: frozenset({"E-029"}))   # 模擬尚未開放的卡
     pages = list(load_deck(DATA_DIR / "decks/level1.json", db).pages)
-    pages[5] = "E-029"                                              # 第三彈事件卡(尚未開放)
+    pages[5] = "E-029"
     with pytest.raises(DeckError) as e:
         validate_deck(pages, db)
     assert e.value.code == "deck.card_pending"
