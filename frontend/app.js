@@ -1582,7 +1582,7 @@ function slotButtons(p, slot) {
   const ab = slot.ability;
   if (ab && iControl(p)) {
     const label = ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
-    const usable = abilityUsableNow(p, ab);
+    const usable = abilityUsableNow(p, ab, slot.ability_used);
     buttons.push({
       label, disabled: !usable.ok, reason: usable.reason,
       onclick: () => send({ type: "use_field_ability", player: p, zone: "mamodo", slot_uid: slot.uid }),
@@ -1591,7 +1591,8 @@ function slotButtons(p, slot) {
   // 無戰術攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
   if (slot.mamodo_attack && iControl(p) && p === S.turn_player && canActNow(p)) {
     const spec = slot.mamodo_attack;
-    const blocked = S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null;
+    const blocked = usedReason(slot.mamodo_attack_used)
+      || (S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null);
     buttons.push({
       label: t("ui.mamodo_attack", { power: spec.power, dam: spec.damage }),
       primary: true, disabled: !!blocked, reason: blocked,
@@ -1603,7 +1604,8 @@ function slotButtons(p, slot) {
       && p === 1 - S.battle.attacker) {
     const spec = slot.mamodo_defense;
     const blocked = S.battle.attack_undefendable ? t("ui.undefendable")
-      : S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null;
+      : usedReason(slot.mamodo_defense_used)
+      || (S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null);
     buttons.push({
       label: t("ui.mamodo_defense", { power: spec.power }),
       primary: true, disabled: !!blocked, reason: blocked,
@@ -1643,7 +1645,7 @@ function partnerButtons(p, slot) {
   if (ab && iControl(p)) {
     const label = ab.mode === "discard" ? t("ui.ability_discard")
       : ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
-    const usable = abilityUsableNow(p, ab);
+    const usable = abilityUsableNow(p, ab, slot.partner_ability_used);
     buttons.push({
       label, disabled: !usable.ok, reason: usable.reason,
       onclick: () => send({ type: "use_field_ability", player: p, zone: "partner", slot_uid: slot.uid }),
@@ -1663,7 +1665,13 @@ function partnerEl(p, slot) {
   return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx }), ctx), ctx);
 }
 
-function abilityUsableNow(p, ab) {
+// 效果已使用(快照的 *_used:"turn" 本回合已用、"game" 一場限 1 次已用)時的停用原因;未使用回傳 null
+function usedReason(used) {
+  return used === "game" ? t("ui.ability.used_game") : used ? t("ui.ability.used_turn") : null;
+}
+
+function abilityUsableNow(p, ab, used) {
+  if (usedReason(used)) return { ok: false, reason: usedReason(used) };
   if (S.pending || S.phase !== "battle") return { ok: false };
   if (S.battle) {
     if (ab.timing === "nonbattle") return { ok: false };

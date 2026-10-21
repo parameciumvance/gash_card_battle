@@ -1832,7 +1832,7 @@ class ScheduleSkipEndFlip(Effect):
 
 @dataclass(frozen=True)
 class ScheduleEndPhaseMp(Effect):
-    """[待命] 本回合自己的結束階段 MP +amount(E-038);由引擎在結束階段的強制翻頁之後解決。"""
+    """[待命] 本回合自己的結束階段 MP +amount(E-038);由引擎的結束階段效果在強制翻頁之前解決。"""
     amount: int = 0
 
     def run(self, rt, ctx, path):

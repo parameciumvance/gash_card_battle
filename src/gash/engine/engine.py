@@ -995,6 +995,8 @@ def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSl
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"attack.{block}", "此魔物的效果目前不能使用")
+    if f"mamodo_attack:{slot.top}" in st.players[player].used_abilities:
+        raise IllegalCommand("attack.used", "此效果本回合已使用過")   # 「１つの効果は、１ターンに１回だけ」
     if st.players[player].mp < spec["mp_cost"]:
         raise IllegalCommand("attack.mp", "MP 不足")
     return slot, spec
@@ -1102,6 +1104,7 @@ def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackSta
     """無戰術攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
+    game.state.players[attacker].used_abilities.add(f"mamodo_attack:{slot.top}")
     pay_mp(game, batch, attacker, spec["mp_cost"], f"mamodo_attack:{slot.top}")
     return AttackStart(
         battle={"attack_page": None, "attack_spell": None, "attack_slot": slot_uid},
@@ -1169,6 +1172,13 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
         for sb in _consume_standby(game, kind, lambda s, applies=applies: s.owner == attacker and applies(s, a)):
             apply(battle, sb)
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    # 直接攻擊是「魔物の効果」:防方的ジャマー(M-026)可使攻擊無效,詢問結束後才續行宣告時效果
+    if bi.get("mamodo_attack") and _offer_battle_jammer(game, batch, "attack", 1 - attacker, a.started["mamodo"]):
+        return
+    _attack_declare_continue(game, batch)
+
+
+def _attack_declare_continue(game: Game, batch: list[dict]) -> None:
     # 宣告時確定:改為傷害對手魔物的攻擊先選對象,之後才是宣告時效果(擲硬幣等)
     if _ask_injure_target(game, batch):
         return
@@ -1310,14 +1320,20 @@ def _declare_mamodo_defense(game: Game, batch: list[dict], player: int, slot_uid
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"defense.{block}", "此魔物的效果目前不能使用")
+    if f"mamodo_defense:{slot.top}" in st.players[player].used_abilities:
+        raise IllegalCommand("defense.used", "此效果本回合已使用過")
     if st.players[player].mp < spec["mp_cost"]:
         raise IllegalCommand("defense.mp", "MP 不足")
+    st.players[player].used_abilities.add(f"mamodo_defense:{slot.top}")
     pay_mp(game, batch, player, spec["mp_cost"], f"mamodo_defense:{slot.top}")
     battle.defense_slot = slot.uid
     battle.defense_declared = True
     battle.data["defense_fixed_power"] = spec["power"]
     battle.data["defense_fixed_source"] = slot.top
     game.emit(batch, "defense_declared", player=player, spell=None, mamodo=slot.top, slot=slot.uid)
+    # 直接防禦是「魔物の効果」:攻方的ジャマー(M-026)可使防禦無效
+    if _offer_battle_jammer(game, batch, "defense", battle.attacker, slot.top):
+        return
     _enter_effects_step(game, batch)
 
 
@@ -1632,7 +1648,9 @@ def _offer_jammer_if_ready(game: Game, batch: list[dict]) -> None:
         return
     on = game.jammer.get("on", "mamodo_effect")
     if st.phase == GAME_OVER or _jammer_holder(game, game.jammer["player"], on) is None:
-        game.jammer = None
+        offer, game.jammer = game.jammer, None
+        if "battle_side" in offer and st.phase != GAME_OVER:
+            _battle_jammer_done(game, batch, offer["battle_side"])
         return
     player, negated = game.jammer["player"], game.jammer["negated"]
     number, _slot, spec = _jammer_holder(game, player, on)
@@ -1673,10 +1691,62 @@ def _discard_jammer_silently(state: GameState, player: int, slot_uid: int) -> No
         to_discard(ps, number)
 
 
+def _offer_battle_jammer(game: Game, batch: list[dict], side: str, player: int, negated: str,
+                         negate: bool = True) -> bool:
+    """直接攻擊 / 直接防禦(魔物の効果)後,player 有可用的ジャマー時詢問是否使該側無效(官方規則書第 42 頁:
+    「無効にする」包括取消戰鬥中使用的攻擊與防禦,所以不還原盤面,以攻擊 / 防禦無效處理)。
+    negate=False 為連鎖:使上一次的無效化失效。建立詢問時回傳 True,詢問結束後由 _battle_jammer_done 續行。"""
+    if _jammer_holder(game, player) is None:
+        return False
+    game.jammer = {"player": player, "negated": negated, "battle_side": side, "negate": negate}
+    _offer_jammer_if_ready(game, batch)
+    return True
+
+
+def _battle_jammer_done(game: Game, batch: list[dict], side: str) -> None:
+    """戰鬥中攻防的ジャマー詢問結束:續行直接攻擊的宣告時效果,或進入直接防禦後的效果步驟。"""
+    game.jammer = None
+    if game.state.battle is None or game.state.phase == GAME_OVER:
+        return
+    if side == "attack":
+        _attack_declare_continue(game, batch)
+    else:
+        _enter_effects_step(game, batch)
+
+
+def _battle_jammer_use(game: Game, batch: list[dict], offer: dict) -> None:
+    st = game.state
+    player, side = offer["player"], offer["battle_side"]
+    number, slot, spec = _jammer_holder(game, player)
+    st.players[player].used_abilities.add(f"mamodo:{number}")
+    pay_mp(game, batch, player, spec["mp_cost"], f"ability:{number}")
+    if spec["discard_self"]:
+        _discard_slot(game, batch, player, slot, reason="cost")
+    game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone="mamodo")
+    battle = st.battle
+    setattr(battle, f"{side}_negated", offer["negate"])
+    if offer["negate"]:
+        battle.data[f"{side}_negated_by"] = number
+    else:
+        battle.data.pop(f"{side}_negated_by", None)
+    game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
+    # 連鎖:無效化本身也是魔物的效果,被無效的一方可再以ジャマー使它失效
+    if not _offer_battle_jammer(game, batch, side, 1 - player, number, negate=not offer["negate"]):
+        _battle_jammer_done(game, batch, side)
+
+
 def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
     if value is not True and value is not None:
         raise IllegalCommand("choose.invalid", "須選擇是否使用")
     offer = game.jammer
+    if offer is not None and "battle_side" in offer:
+        if value is None:
+            _battle_jammer_done(game, batch, offer["battle_side"])
+        elif _jammer_holder(game, offer["player"]) is None:
+            raise IllegalCommand("choose.invalid", "目前無法使用此效果")
+        else:
+            _battle_jammer_use(game, batch, offer)
+        return
     if value is None or offer is None:
         game.jammer = None
         return
@@ -2092,9 +2162,9 @@ def _end_phase(game: Game, batch: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------- 結束階段的效果(規則頁「エンドフェイズ」1、効果の解決)
-# 結束階段要解決的效果:M-047 的定時離場、E-041 的翻對手魔書、E-042 的棄魔物。2 個以上時由回合玩家
-# 選擇下一個要解決的(「ターンプレイヤーが解決の順番を決めることができます」),都解決後才進行魔物消失處理
-# 與強制翻頁。E-038 的 MP 增加目前在強制翻頁之後(todo)。
+# 結束階段要解決的效果:M-047 的定時離場、E-038 的 MP 增加、E-041 的翻對手魔書、E-042 的棄魔物。
+# 2 個以上時由回合玩家選擇下一個要解決的(「ターンプレイヤーが解決の順番を決めることができます」),
+# 都解決後才進行魔物消失處理與強制翻頁。
 
 def _end_phase_effects(game: Game) -> list:
     """本回合結束階段待解決的效果:[(種類, 來源卡, Modifier 或 Standby)],順序固定。"""
@@ -2102,7 +2172,8 @@ def _end_phase_effects(game: Game) -> list:
     out = [("scheduled_detach", m.source, m) for m in st.modifiers
            if m.kind == "scheduled_detach" and m.data.get("turn") == st.turn_no]
     out += [(sb.kind, sb.source, sb) for sb in st.standby
-            if sb.kind in ("end_phase_turn_opponent", "end_phase_discard") and sb.owner == st.turn_player]
+            if sb.kind in ("end_phase_mp", "end_phase_turn_opponent", "end_phase_discard")
+            and sb.owner == st.turn_player]
     return out
 
 
@@ -2150,7 +2221,9 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
         return
     st.standby.remove(obj)
     game.emit(batch, "standby_resolved", card=source, kind=kind)
-    if kind == "end_phase_turn_opponent":   # E-041:效果的翻頁,不獲得 MP,翻完即敗
+    if kind == "end_phase_mp":              # E-038:結束階段 MP 增加(強制翻頁之前)
+        gain_mp(game, batch, obj.owner, obj.data.get("amount", 0), source, by=obj.owner)
+    elif kind == "end_phase_turn_opponent":   # E-041:效果的翻頁,不獲得 MP,翻完即敗
         turn_pages(game, batch, 1 - obj.owner, obj.data.get("leaves", 1), source)
     elif kind == "end_phase_discard":       # E-042:使用時選定的魔物(之後已離場的跳過)
         for player, uid in obj.data.get("slots", []):
@@ -2188,10 +2261,6 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         if ps.book_exhausted():
             _game_over(game, batch, winner=1 - st.turn_player, reason="book_out")
             return
-    # E-038 待命:本回合自己的結束階段 MP 增加(強制翻頁之後)
-    for sb in _consume_standby(game, "end_phase_mp", lambda s: s.owner == st.turn_player):
-        game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-        gain_mp(game, batch, st.turn_player, sb.data.get("amount", 0), sb.source, by=sb.owner)
     # S-090:「このターンが終わると捨て札になる」的搭檔(那時仍裝在那隻魔物上才棄掉)
     for m in [m for m in st.modifiers if m.kind == "discard_partner_at_turn_end"]:
         slot = st.slot_by_uid(m.target_player, m.target_slot)
