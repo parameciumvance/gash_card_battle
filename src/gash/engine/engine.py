@@ -11,7 +11,9 @@ import random
 
 from .cards import EVENT, MAMODO, PARTNER, SPELL, CardDef, card_db
 from .effects import registry as reg
-from .effects.primitives import add_spell_power, can_stack_on, family, mamodo_name, page_option, slot_option, stack_base
+from .effects.primitives import (
+    add_spell_power, can_stack_on, family, mamodo_name, page_option, run_on_play, slot_option, stack_base,
+)
 from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
@@ -49,8 +51,7 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
         place_slot(ps.slots, slot)
         ps.consumed_pages.add(1)
         game.emit(batch, "card_played", player=p, card=number, slot=slot.uid, zone="mamodo")
-        if number in reg.ON_PLAY:
-            reg.ON_PLAY[number](game, batch, p, slot)
+        run_on_play(game, batch, p, slot, number)
     for p in (0, 1):
         players[p].pos = 2
         players[p].mp = 2
@@ -88,6 +89,8 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot, _visited: frozens
     for number, fn in reg.STATIC_POWER.items():
         for s in st.players[player].slots:
             if s.top == number:
+                if card_effect_blocked(game, player, s, number):
+                    continue   # 這隻的效果被禁,看下一隻同名的
                 amount = fn(game, player, slot)
                 if amount:
                     items.append(_item("static", number, amount))
@@ -206,6 +209,14 @@ def mamodo_effect_block(game: Game, player: int, slot: MamodoSlot) -> str | None
     return None
 
 
+def card_effect_blocked(game: Game, player: int, slot: MamodoSlot, number: str) -> bool:
+    """「このカードが場にある→」的效果被「使えない」擋下(官方規則書第 42 頁):number 是 slot 的搭檔時看
+    「パートナーの効果を使えない」,否則看這隻魔物的「魔物の効果を使えない」。專用規則不經過這裡。"""
+    if number == slot.partner:
+        return restricted(game, player, NO_PARTNER_EFFECTS)
+    return mamodo_effect_block(game, player, slot) is not None
+
+
 def _opponent_family_blocks(game: Game, player: int) -> list[tuple[str, str]]:
     """對手場上(搭檔或魔物)有 P-031 類卡、且其效果沒被禁止時,player 被禁止的(家族, 事件卡名)。"""
     opp = 1 - player
@@ -265,15 +276,16 @@ def event_limit(game: Game, player: int) -> int:
 def event_cost(game: Game, player: int, card: CardDef) -> int:
     """事件卡的費用:卡面費用 + 對手場上 M-040 等的加成。"""
     opp = game.state.players[1 - player]
-    return (card.cost or 0) + sum(reg.OPPONENT_EVENT_COST.get(s.top, 0) for s in opp.slots)
+    return (card.cost or 0) + sum(reg.OPPONENT_EVENT_COST.get(s.top, 0) for s in opp.slots
+                                  if not card_effect_blocked(game, 1 - player, s, s.top))
 
 
 def reveals_open_pages(game: Game, viewer, player: int) -> bool:
     """viewer 看得到 player 翻開的頁(P-024 在 viewer 場上)。"""
     if viewer not in (0, 1) or viewer == player:
         return False
-    return any(s.top in reg.REVEAL_OPPONENT_PAGES or s.partner in reg.REVEAL_OPPONENT_PAGES
-               for s in game.state.players[viewer].slots)
+    return any(number in reg.REVEAL_OPPONENT_PAGES and not card_effect_blocked(game, viewer, s, number)
+               for s in game.state.players[viewer].slots for number in (s.top, s.partner) if number)
 
 
 def _full_immune(game: Game, player: int) -> bool:
@@ -468,7 +480,7 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
     # 開始階段效果解決(翻頁之後)
     for number, fn in list(reg.START_PHASE.items()):
         for slot in list(ps.slots):
-            if slot.top == number:
+            if slot.top == number and not card_effect_blocked(game, player, slot, number):
                 fn(game, batch, player, slot)
     for sb in [s for s in st.standby if s.kind == "start_phase" and s.created_turn < st.turn_no]:
         st.standby.remove(sb)
@@ -593,22 +605,19 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
             base_slot.stack.append(number)   # 疊放繼承前身的搭檔、效果與負傷狀態
             ps.consumed_pages.add(command["page"])
             game.emit(batch, "card_played", player=player, card=number, slot=base_slot.uid, zone="mamodo", stacked=True)
-            if number in reg.ON_PLAY:
-                reg.ON_PLAY[number](game, batch, player, base_slot)
+            run_on_play(game, batch, player, base_slot, number)
             return
         slot = MamodoSlot(uid=st.next_uid(), stack=[number])
         place_slot(ps.slots, slot)
         ps.consumed_pages.add(command["page"])
         game.emit(batch, "card_played", player=player, card=number, slot=slot.uid, zone="mamodo")
-        if number in reg.ON_PLAY:
-            reg.ON_PLAY[number](game, batch, player, slot)
+        run_on_play(game, batch, player, slot, number)
     elif card.type == PARTNER:
         target = target or partner_targets(game, player, card)[0]   # 未指定取第一隻可裝備的
         target.partner = number
         ps.consumed_pages.add(command["page"])
         game.emit(batch, "card_played", player=player, card=number, slot=target.uid, zone="partner")
-        if number in reg.ON_PLAY:
-            reg.ON_PLAY[number](game, batch, player, target)
+        run_on_play(game, batch, player, target, number)
 
 
 def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict, in_battle: bool) -> None:
@@ -815,7 +824,8 @@ def spell_use_limit(game: Game, player: int, card: CardDef) -> int:
     """戰術卡每張每回合可用次數:預設 1;場上有登記 SPELL_USE_LIMIT 的卡時取其最大值(M-024 二身一体)。"""
     limit = 1
     for number, fn in reg.SPELL_USE_LIMIT.items():
-        if any(s.top == number for s in game.state.players[player].slots):
+        if any(s.top == number and not card_effect_blocked(game, player, s, number)
+               for s in game.state.players[player].slots):
             value = fn(game, player, card)
             if value is not None:
                 limit = max(limit, value)
@@ -838,8 +848,11 @@ def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -
     """此戰術卡是否可由場上這隻魔物使用(家族相符或戰術相容性擴充,如 M-023/M-029)。"""
     if family(game, slot) == card.related_mamodo:
         return True
+    rule = reg.RULE_SPELL_COMPAT.get(slot.top)   # 專用規則(M-029)
+    if rule and rule(game, player, slot, card):
+        return True
     compat = reg.SPELL_COMPAT.get(slot.top)
-    if compat and compat(game, player, slot, card):
+    if compat and not card_effect_blocked(game, player, slot, slot.top) and compat(game, player, slot, card):
         return True
     st = game.state
     fam = family(game, slot)
@@ -1976,7 +1989,7 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
         return
     # 查詢型免疫(M-031:不受合計魔力 6000 以下戰術卡的傷害與負傷)
     immunity = reg.DAMAGE_IMMUNITY.get(slot.top)
-    if immunity and immunity(game, player, slot, ctx):
+    if immunity and not card_effect_blocked(game, player, slot, slot.top) and immunity(game, player, slot, ctx):
         game.emit(batch, "damage_prevented", player=player, slot=slot.uid, reason="immunity")
         return
     # 待命:無效 1 次傷害(P-006)
@@ -2035,7 +2048,7 @@ def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, 
     game.emit(batch, "mamodo_discarded", player=player, slot=slot.uid,
               cards=list(slot.stack), reason=reason)
     for number in slot.stack:
-        if number in reg.ON_DISCARD:
+        if number in reg.ON_DISCARD and not card_effect_blocked(game, player, slot, number):
             reg.ON_DISCARD[number](game, batch, player, slot)
 
 
@@ -2049,7 +2062,7 @@ def _detach_top(game: Game, batch: list[dict], player: int, slot: MamodoSlot, re
               slot=slot.uid)
     game.emit(batch, "stack_detached", player=player, slot=slot.uid,
               detached=top, remaining=slot.top)
-    if top in reg.ON_DISCARD:
+    if top in reg.ON_DISCARD and not card_effect_blocked(game, player, slot, top):
         reg.ON_DISCARD[top](game, batch, player, slot)
 
 
@@ -2375,8 +2388,7 @@ def _deploy_mamodo_from_page(game: Game, batch: list[dict], player: int, page: i
     place_slot(ps.slots, slot)
     ps.consumed_pages.add(page)
     game.emit(batch, "card_played", player=player, card=number, slot=slot.uid, zone="mamodo", forced=True)
-    if number in reg.ON_PLAY:
-        reg.ON_PLAY[number](game, batch, player, slot)
+    run_on_play(game, batch, player, slot, number)
 
 
 # ---------------------------------------------------------------- 勝敗

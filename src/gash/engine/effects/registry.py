@@ -86,6 +86,12 @@ SPELL_ONLY_STACK: set[str] = set()
 # 疊放頂層單獨入墓、下層保留(M-027);分離時發出 stack_detached 事件供觸發器使用
 DETACH_KEEP_UNDER: set[str] = set()
 
+# 專用規則(《》以外的文字,不是效果,不受「使えない」影響;game-engine「專用規則不是效果」)
+# 放出時的規則: 卡號 -> fn(game, batch, player, slot)(M-047 的定時離場)
+RULE_ON_PLAY: dict[str, Callable] = {}
+# 戰術相容的規則: 場上魔物卡號 -> fn(game, player, slot, spell_card) -> bool(M-029「この魔物で『ザケル』を使える」)
+RULE_SPELL_COMPAT: dict[str, Callable] = {}
+
 # 同名魔物同場上限(未註冊=1;M-024=2)
 MAX_COPIES: dict[str, int] = {}
 
@@ -323,6 +329,16 @@ def spell_compat(number: str, *, check=None):
 
 
 # ---------------------------------------------------------------- 純資料登記(不是效果)
+
+def rule_on_play(number: str, *, effect):
+    """放出時執行的專用規則(效果樹);與 on_play 不同,不受「使えない」影響。"""
+    _slot_hook(RULE_ON_PLAY, number, "rule_on_play", effect)
+
+
+def rule_spell_compat(number: str, *, check):
+    """戰術相容的專用規則 fn(game, player, slot, spell_card) -> bool;與 spell_compat 不同,不受「使えない」影響。"""
+    _value_hook(RULE_SPELL_COMPAT, number, "rule_spell_compat", check)
+
 
 def stack_on(number: str, *, base=(), family: str | None = None, spell_only: bool = False,
              detach_keep_under: bool = False):

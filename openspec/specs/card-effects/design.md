@@ -148,7 +148,8 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - ジャマー:`reg.jammer(on="mamodo_effect" | "event", discard_self=)`。事件卡使用前存快照,解決後 `_queue_jammer(on="event")`;無效化本身是魔物的效果,連鎖只看 `mamodo_effect` 的ジャマー(對手的 M-026)。`discard_self` 的費用在還原之後支付,不會被還原回場上。
 - 擲幣確認鏈:`_confirm_options` 合併 M-012 的 `reflip` 與 M-034 的 `set_heads`(值 `"heads:i"`,欄位 `coin`;不用 `index`,因為 NPC 與逾時代打以 `index` 當選項值)。
 - MP:`mp_guarded` 加入戰鬥階段的 P-020;`gain_mp(by=)` 標出造成增加的效果擁有者,`by == player` 且 P-020 生效時不增加(`mp_gain_prevented`)。
-- 常駐效果與「使えない」:新的常駐效果(M-047 免疫、M-049、P-020、P-031)在對應的「使えない」下不生效(官方規則書第 42 頁);既有常駐效果尚未逐張檢查(todo)。
+- 常駐效果與「使えない」:「このカードが場にある→」的效果在對應的「使えない」下不生效(官方規則書第 42 頁)。M-049、P-020、P-031 在各自的查詢中判斷;其餘常駐登記(`START_PHASE`、`STATIC_POWER`、`ON_PLAY`、`ON_DISCARD`、`TRIGGERS`、`SPELL_COMPAT`、`SPELL_USE_LIMIT`、`DAMAGE_IMMUNITY`、`OPPONENT_EVENT_COST`、`REVEAL_OPPONENT_PAGES`)由消費端呼叫 `engine.card_effect_blocked`(passive-cannot-use)。
+- 專用規則:《》以外的文字以 `reg.rule_on_play`(M-047 的定時離場)/ `reg.rule_spell_compat`(M-029 的ザケル)登記,不經 `card_effect_blocked`;其餘專用規則本來就是純資料登記(`stack_on`、`max_copies`、`cannot_protect`、`treated_as`、`action_discard`)。所有放上場的路徑都經 `primitives.run_on_play`(先規則、後效果)。
 - 其他:`OpponentPartneredMamodo(discard=True)` 排除 M-049 保護的搭檔;`attack_undefendable` 統一判斷不能防禦(旗標或 M-048 的合計魔力門檻待命);戰鬥外的魔書傷害 `DamageOpponentBookOutsideBattle`(`cause="effect"`,可保護);S-095 以 `battle.data["defender_no_damage_family"]` 在魔力勝負時(防禦沒被無效)加 `no_damage`。
 
 ### 第 5 批的機制
@@ -707,5 +708,25 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 **依據:**
 - 各卡日文效果文;規則頁 https://w.atwiki.jp/zatchbell/pages/94.html「エンドフェイズ」
 - 2026-10-20 explore 中專案負責人確認
+
+**確認狀態:** `Confirmed`
+
+### 常駐效果受「使えない」與專用規則
+
+**相關規格:** `card-effects` › 需求「既有常駐效果受『使えない』」;`game-engine` › 需求「專用規則不是效果」「常駐效果的『使えない』判斷時點」「『無効にする』與『使えない』」
+
+**決定:**
+- 魔物卡與搭檔卡《効果名》以外的文字是該卡的專用規則,不是效果,不受「使えない」與「無効にする」影響(M-007 / M-010 / M-047 的「重ねる」、M-024「2体までおける」、M-027 / M-046「〜を使わないと場に出せない」、M-027「下のカードを場に残す」、M-046 / P-020 的 1 行動丟棄、M-047 的定時離場與「としてあつかう」、M-029 的ザケル、M-051「かばうことができない」)。
+- 時點型常駐效果(出場時、捨て札時、事件觸發、開始階段)以該時點當下判斷,受限時不發動,事後不補發;持續型(魔力、免疫、戰術相容、使用次數、費用、公開頁)每次查詢時判斷。
+- 判斷對象是持有該卡的玩家:頂層魔物的效果看「魔物の効果を使えない」(含 E-024 / E-043 只限某隻的限制與 P-031 的家族),搭檔看「パートナーの効果を使えない」。
+- M-024:2 隻中任一隻的效果可用即生效,被個別限制的那隻仍算在 2 隻之內。
+- M-038 的效果文寫明「使えないときにも使える」,不受影響。
+- M-006 已產生的禁術限制不因之後受限或離場而解除(本次不處理)。
+
+**理由:** 官方規則書第 42 頁「『このカードが場にある→』効果を使えなくすることができます」;專用規則的區分與其餘解讀由專案負責人確認。
+
+**依據:**
+- 官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf)第 42 頁;各卡日文效果文
+- 2026-10-24 explore 中專案負責人確認
 
 **確認狀態:** `Confirmed`

@@ -20,7 +20,7 @@ from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
     discard_from_book, discard_option, discard_partner, flip_coins,
     family, heal_slot, mamodo_name, mark_opp_mp_reduced, mp_guarded, partner_discard_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
-    reduce_opponent_mp, return_to_book,
+    reduce_opponent_mp, return_to_book, run_on_play,
     schedule_standby, slot_option, stack_base, take_from_book,
     turn_pages,
 )
@@ -1376,8 +1376,7 @@ class AttachPartnerFromDiscard(Effect):
         if self.until_turn_end:   # 由引擎在回合結束時棄掉(仍裝在這隻魔物上才棄)
             add_modifier(game, rt.batch, kind="discard_partner_at_turn_end", source=ctx["source"], owner=player,
                          duration=DUR_TURN, target_player=player, target_slot=slot.uid, data={"card": number})
-        if number in reg.ON_PLAY:
-            reg.ON_PLAY[number](game, rt.batch, player, slot)
+        run_on_play(game, rt.batch, player, slot, number)
         return True
 
 
@@ -1675,8 +1674,7 @@ class DeployMamodoFromBook(Effect):
             place_slot(ps.slots, slot)
             game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
                       zone="mamodo")
-        if number in reg.ON_PLAY:
-            reg.ON_PLAY[number](game, rt.batch, player, slot)
+        run_on_play(game, rt.batch, player, slot, number)
         return True
 
 
@@ -2081,16 +2079,6 @@ class ScheduleUndefendableAtTotal(Effect):
                          owner=ctx["player"], data={"expires": "next_battle", "slot_uid": ctx["self_slot"],
                                                     "min_total": self.min_total})
         return True
-
-
-@dataclass(frozen=True)
-class ImmuneWhileEffective:
-    """傷害免疫:不受任何傷害,但「魔物の効果を使えない」時不生效(M-047《輝く体》,「このカードが場にある→」
-    依規則也算使用效果)。fn(game, player, slot, ctx) -> bool。"""
-
-    def __call__(self, game, player, slot, ctx) -> bool:
-        from ..engine import mamodo_effect_block
-        return not mamodo_effect_block(game, player, slot)
 
 
 @dataclass(frozen=True)

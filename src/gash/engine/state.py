@@ -248,8 +248,10 @@ class Game:
         return ev
 
     def _dispatch_triggers(self, batch: list[dict], ev: dict) -> None:
-        """[IN PLAY] 事件型觸發器:場上有註冊此事件型別的卡時執行其 handler。"""
+        """[IN PLAY] 事件型觸發器:場上有註冊此事件型別的卡時執行其 handler;
+        該卡的效果被「使えない」擋下時不執行(觸發當下判斷)。"""
         from .effects import registry as reg
+        from .engine import card_effect_blocked
         regs = reg.TRIGGERS.get(ev["type"])
         if not regs or self.state.phase == GAME_OVER:
             return
@@ -263,7 +265,7 @@ class Game:
                         if self.state.phase == GAME_OVER:
                             return
                         cards = [slot.top] + ([slot.partner] if slot.partner else [])
-                        if number in cards:
+                        if number in cards and not card_effect_blocked(self, owner, slot, number):
                             handler(self, batch, owner, slot, ev)
         finally:
             self._trigger_depth -= 1
