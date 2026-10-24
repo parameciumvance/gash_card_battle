@@ -271,8 +271,6 @@
   "release.kind.new": "新功能",
   "release.kind.fix": "修正",
   "release.kind.change": "调整",
-  "ui.play.no_mamodo": "对应的魔物不在场上",
-  "ui.play.partner_exists": "对应的魔物已装有搭档",
   "effect.any_mamodo": "魔物",
   "effect.piece.power": "魔力 {n}",
   "effect.piece.cost": "费用 {n}",

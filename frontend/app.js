@@ -964,17 +964,13 @@ function pickSpellUser(p, entry, cb) {
 }
 
 // 搭檔卡的裝備對象:對應(頂層魔物的對應魔物相同)且尚未裝搭檔的自己魔物
-function partnerTargets(p, def) {
-  const matching = S.players[p].slots.filter((s) => CARDS[s.top].related_mamodo === def.related_mamodo);
-  return { matching, free: matching.filter((s) => !s.partner) };
-}
-
-function pickPartnerTarget(p, def, cb) {
-  const { free } = partnerTargets(p, def);
-  if (free.length <= 1) { if (free.length) cb(free[0].uid); return; }
+// 搭檔卡的裝備對象:快照的 targets(引擎依家族判定,M-047 視為ガッシュ・ベル),UI 不自行比對對應
+function pickPartnerTarget(p, entry, cb) {
+  const free = entry.targets || [];
+  if (free.length <= 1) { if (free.length) cb(free[0]); return; }
   startLocalPick({
-    player: p, title: t("choice.title.pick_mamodo_for_partner"), source: def.number, onpick: cb,
-    options: new Map(free.map((s) => [s.uid, { selectable: true }])),
+    player: p, title: t("choice.title.pick_mamodo_for_partner"), source: entry.card, onpick: cb,
+    options: new Map(free.map((uid) => [uid, { selectable: true }])),
   });
 }
 
@@ -1725,14 +1721,12 @@ function pageButtons(p, entry) {
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
-      // 搭檔卡:對應且未裝搭檔的魔物為裝備對象,兩隻以上時由玩家選(魔物卡可能疊放,前端不判斷場上是否已滿)
-      const targets = def.type === "partner" ? partnerTargets(p, def) : null;
-      const blocked = !targets ? null
-        : !targets.matching.length ? t("ui.play.no_mamodo") : !targets.free.length ? t("ui.play.partner_exists") : null;
+      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選
+      const blocked = entry.play_block ? t(`error.play.${entry.play_block}`) : null;
       buttons.push({
         label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
         onclick: () => (def.type === "partner"
-          ? pickPartnerTarget(p, def, (uid) => send({ type: "play_card", player: p, page: entry.page, slot_uid: uid }))
+          ? pickPartnerTarget(p, entry, (uid) => send({ type: "play_card", player: p, page: entry.page, slot_uid: uid }))
           : send({ type: "play_card", player: p, page: entry.page })),
       });
     } else if (def.type === "event") {

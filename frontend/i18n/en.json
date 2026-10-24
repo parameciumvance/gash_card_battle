@@ -271,8 +271,6 @@
   "release.kind.new": "New",
   "release.kind.fix": "Fix",
   "release.kind.change": "Change",
-  "ui.play.no_mamodo": "The matching MAMODO is not in play",
-  "ui.play.partner_exists": "The matching MAMODO already has a Partner",
   "effect.any_mamodo": "MAMODO",
   "effect.piece.power": "Power {n}",
   "effect.piece.cost": "Cost {n}",

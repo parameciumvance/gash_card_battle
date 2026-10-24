@@ -264,14 +264,17 @@ def test_any_page_spell_while_browsing(page):
 # ---------------------------------------------------------------- 搭檔卡的裝備對象
 
 def _two_gash(page, first_partner=None):
-    """先攻方場上複製一隻賈修(只在前端),翻開的頁放 P-001(賈修的搭檔)。"""
+    """先攻方場上複製一隻賈修(只在前端),翻開的頁放 P-001(賈修的搭檔);快照的 targets 照著改。"""
     tp = start_local(page)
     pos = page.evaluate(f"S.players[{tp}].pos")
     set_book(page, tp, {pos: "P-001"})
     send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.players[{tp}].open_pages.some((e) => e.card === 'P-001')")
     page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
       slots: [{{...ps.slots[0], partner: {repr(first_partner) if first_partner else 'null'}}},
-              {{...ps.slots[0], uid: 900, partner: null, column: 1}}]}})}}; render()""")
+              {{...ps.slots[0], uid: 900, partner: null, column: 1}}],
+      open_pages: ps.open_pages.map((e) => e.page !== {pos} ? e : {{...e, play_block: null,
+        targets: {'[900]' if first_partner else '[ps.slots[0].uid, 900]'}}})}})}}; render()""")
     stub_send(page)
     return tp, pos
 
@@ -293,6 +296,54 @@ def test_partner_goes_to_free_mamodo_directly(page):
     page.locator("#zoom-actions button", has_text="放出").click()
     assert not dialog_open(page)
     assert sent(page) == [{"type": "play_card", "player": tp, "page": pos, "slot_uid": 900}]
+
+
+def test_partner_follows_snapshot_targets_with_m047(page):
+    # M-047 疊在賈修上:卡面 related_mamodo 是「金色のガッシュベル」,快照的 targets 仍含這隻
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "M-047", pos + 1: "P-001"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    send(page, {"type": "play_card", "player": tp, "page": pos})               # 疊在先攻方的賈修上
+    page.wait_for_function(f"S.players[{tp}].slots[0].top === 'M-047'")
+    send(page, {"type": "pass", "player": 1 - tp})
+    page.wait_for_function(f"S.action_player === {tp}")
+    pos += 1
+    uid = page.evaluate(f"S.players[{tp}].slots[0].uid")
+    open_page_zoom(page, tp, pos)
+    button = page.locator("#zoom-actions button", has_text="放出")
+    assert button.is_enabled()
+    button.click()
+    page.wait_for_function(f"S.players[{tp}].slots[0].partner === 'P-001'")
+    assert page.evaluate(f"S.players[{tp}].slots[0].uid") == uid
+
+
+# ---------------------------------------------------------------- 不能放出的魔物卡停用
+
+def test_spell_only_mamodo_play_disabled(page):
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "M-046"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.players[{tp}].open_pages.some((e) => e.card === 'M-046')")
+    open_page_zoom(page, tp, pos)
+    assert page.locator("#zoom-actions button", has_text="放出").is_disabled()
+    assert "此卡只能經由指定戰術卡疊放" in page.locator("#zoom-actions").inner_text()
+
+
+def test_field_full_play_disabled(page):
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos: "M-004"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.players[{tp}].open_pages.some((e) => e.card === 'M-004')")
+    open_page_zoom(page, tp, pos)
+    assert page.locator("#zoom-actions button", has_text="放出").is_enabled()
+    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps,
+      open_pages: ps.open_pages.map((e) => e.page === {pos} ? {{...e, play_block: 'field_full'}} : e)}})}}; render()""")
+    open_page_zoom(page, tp, pos)
+    assert page.locator("#zoom-actions button", has_text="放出").is_disabled()
+    assert "場上魔物已達 3 隻" in page.locator("#zoom-actions").inner_text()
 
 
 # ---------------------------------------------------------------- 不符合使用條件的卡停用

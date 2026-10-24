@@ -528,28 +528,74 @@ def _require_open_page(game: Game, player: int, page) -> str:
     return ps.card_at(page)
 
 
+PLAY_BLOCK_MESSAGES = {
+    "spell_only": "此卡只能經由指定戰術卡疊放",
+    "no_base": "場上沒有可疊放的變身前魔物",
+    "field_full": "場上魔物已達 3 隻",
+    "same_name": "同名的卡已達同場上限",
+    "no_mamodo": "對應魔物不在自己場上",
+    "partner_exists": "該魔物已裝有搭檔卡",
+    "not_field_card": "只能放出魔物或搭檔卡",
+}
+
+
+def partner_targets(game: Game, player: int, card) -> list[MamodoSlot]:
+    """搭檔卡可裝備的魔物:對應(家族依視為的名稱,M-047)且尚未裝搭檔。"""
+    return [s for s in game.state.players[player].slots
+            if family(game, s) == card.related_mamodo and s.partner is None]
+
+
+def play_block(game: Game, player: int, number: str) -> str | None:
+    """放出 number 被擋時回傳錯誤碼(不含 "play." 前綴),否則 None。只看卡片與場面,不含時機;
+    play_card 指令與快照共用(battle-api「魔書中卡片的放出可否」)。"""
+    ps = game.state.players[player]
+    card = game.db[number]
+    if card.type == MAMODO:
+        if number in reg.STACK_ON:
+            if number in reg.SPELL_ONLY_STACK:
+                return "spell_only"
+            return None if stack_base(game, player, number) is not None else "no_base"
+        if len(ps.slots) >= MAX_FIELD_MAMODO:
+            return "field_full"
+        if same_name_copies(game, player, card) >= reg.MAX_COPIES.get(number, 1):
+            return "same_name"
+        return None
+    if card.type == PARTNER:
+        if not any(family(game, s) == card.related_mamodo for s in ps.slots):
+            return "no_mamodo"
+        if not partner_targets(game, player, card):
+            return "partner_exists"
+        if same_name_in_play(game, player, card):
+            return "same_name"
+        return None
+    return "not_field_card"
+
+
 def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> None:
     st = game.state
     ps = st.players[player]
     number = _require_open_page(game, player, command.get("page"))
     card = game.db[number]
+    target = None
+    if card.type == PARTNER and command.get("slot_uid") is not None:   # 指定的裝備對象先驗證(兩隻對應魔物時由玩家選)
+        target = next((s for s in ps.slots if s.uid == command["slot_uid"]
+                       and family(game, s) == card.related_mamodo), None)
+        if target is None:
+            raise IllegalCommand("play.no_mamodo", PLAY_BLOCK_MESSAGES["no_mamodo"])
+        if target.partner is not None:
+            raise IllegalCommand("play.partner_exists", PLAY_BLOCK_MESSAGES["partner_exists"])
+    block = play_block(game, player, number)
+    if block:
+        raise IllegalCommand(f"play.{block}", PLAY_BLOCK_MESSAGES[block])
     if card.type == MAMODO:
         if number in reg.STACK_ON:
-            if number in reg.SPELL_ONLY_STACK:
-                raise IllegalCommand("play.spell_only", "此卡只能經由指定戰術卡疊放")
             base_slot = stack_base(game, player, number)
-            if base_slot is None:
-                raise IllegalCommand("play.no_base", "場上沒有可疊放的變身前魔物")
             base_slot.stack.append(number)   # 疊放繼承前身的搭檔、效果與負傷狀態
             ps.consumed_pages.add(command["page"])
             game.emit(batch, "card_played", player=player, card=number, slot=base_slot.uid, zone="mamodo", stacked=True)
             if number in reg.ON_PLAY:
                 reg.ON_PLAY[number](game, batch, player, base_slot)
             return
-        if len(ps.slots) >= MAX_FIELD_MAMODO:
-            raise IllegalCommand("play.field_full", "場上魔物已達 3 隻")
-        if same_name_copies(game, player, card) >= reg.MAX_COPIES.get(number, 1):
-            raise IllegalCommand("play.same_name", "同名魔物已達同場上限")
         slot = MamodoSlot(uid=st.next_uid(), stack=[number])
         place_slot(ps.slots, slot)
         ps.consumed_pages.add(command["page"])
@@ -557,26 +603,12 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
         if number in reg.ON_PLAY:
             reg.ON_PLAY[number](game, batch, player, slot)
     elif card.type == PARTNER:
-        # 裝備對象:對應的魔物中尚未裝搭檔者;可指定(兩隻對應魔物時由玩家選),未指定取第一隻
-        matching = [s for s in ps.slots if family(game, s) == card.related_mamodo]
-        slot_uid = command.get("slot_uid")
-        if slot_uid is not None:
-            target = next((s for s in matching if s.uid == slot_uid), None)
-        else:
-            target = next((s for s in matching if s.partner is None), matching[0] if matching else None)
-        if target is None:
-            raise IllegalCommand("play.no_mamodo", "對應魔物不在自己場上")
-        if target.partner is not None:
-            raise IllegalCommand("play.partner_exists", "該魔物已裝有搭檔卡")
-        if same_name_in_play(game, player, card):
-            raise IllegalCommand("play.same_name", "同名搭檔已在場上")
+        target = target or partner_targets(game, player, card)[0]   # 未指定取第一隻可裝備的
         target.partner = number
         ps.consumed_pages.add(command["page"])
         game.emit(batch, "card_played", player=player, card=number, slot=target.uid, zone="partner")
         if number in reg.ON_PLAY:
             reg.ON_PLAY[number](game, batch, player, target)
-    else:
-        raise IllegalCommand("play.not_field_card", "只能放出魔物或搭檔卡")
 
 
 def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict, in_battle: bool) -> None:

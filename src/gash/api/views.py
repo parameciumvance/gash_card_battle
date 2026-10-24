@@ -11,7 +11,7 @@ from __future__ import annotations
 from ..engine.engine import (
     _spell_any_page_standby, _spell_usable_by, attack_undefendable, event_cost, event_limit, exhausted_spell_pages,
     reveals_open_pages,
-    side_breakdown, slot_power, spell_block, spell_cost,
+    partner_targets, play_block, side_breakdown, slot_power, spell_block, spell_cost,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
 
@@ -135,6 +135,10 @@ def _player_view(game: Game, p: int, viewer) -> dict:
                     entry["users"] = _spell_users(game, p, page, card)
             elif card.type == "event":
                 entry["cost"] = event_cost(game, p, card)   # 含對手 M-040 的加成
+            elif can_see_player(viewer, p):   # 魔物 / 搭檔:放出可否(與 play_card 同一判斷)
+                entry["play_block"] = play_block(game, p, number)
+                if card.type == "partner":
+                    entry["targets"] = [s.uid for s in partner_targets(game, p, card)]
             if can_see_player(viewer, p) and (card.type == "event" or card.effect_icon == "nonbattle"):
                 entry["condition_ok"] = _condition_ok(game, p, card)
             if page in in_use:
