@@ -180,6 +180,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .partner-cell { height: var(--card-h); }  /* 搭檔欄與魔物欄同高 */
 /* 盤面卡片:只以卡名為主,數值/效果移到點卡放大檢視 */
 #board .card, .fx-guard.card { width: var(--card-w); height: var(--card-h); min-height: 0; overflow: hidden; }
+/* 卡片自成堆疊層:卡內徽章(疊放張數、數值、失效)的 z-index 只在卡內比較,不會浮到蓋住盤面的行動區上 */
+#board .card { isolation: isolate; }
 #board .card.small { width: var(--card-w); height: var(--card-h); }  /* 搭檔卡與魔物同尺寸 */
 #board .card img.art, .fx-guard.card img.art { height: var(--art-h); flex-shrink: 0; }
 #board .card.injured, .fx-guard.card.injured { width: var(--injured-w); height: var(--injured-h); }
@@ -329,6 +331,29 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; }
 .badge.injured-mark { background: #8a2f2f; color: #ffd9d9; }
 .badge.partner-mark { background: #2f8a49; color: #dcffe4; }
+/* 常駐效果失效中:卡圖左下(左上角是疊放張數) */
+.card .badge.blocked-mark { position: absolute; top: 58px; left: 3px; z-index: 2;
+  background: var(--on-page-red); color: #fff; font-weight: bold; }
+/* 與卡面不同的費用 / 魔力:對持有者有利為綠、不利為紅(卡面為淺底,用深色字);盤面另以徽章顯示(魔力在左下、費用蓋住卡圖的費用格;相同時為中性深色) */
+.card .val-good { color: var(--on-page-green); font-weight: bold; }
+.card .val-bad { color: var(--on-page-red); font-weight: bold; }
+.card .val-badge { position: absolute; z-index: 2; font-weight: bold; color: #fff; white-space: nowrap;
+  background: rgba(28, 36, 56, .85); }
+/* 魔力:左下角(卡名下方) */
+.card .val-badge.val-power { left: 3px; bottom: 2px; padding: 0 4px; border-radius: 6px; font-size: 9px; }
+/* 費用:蓋住卡圖右上角原本的費用格(原圖 465 寬中 x 380-432、y 30-78)。卡圖寬 = 卡寬 - 框線 4 - 內距 12,
+   位置以卡圖寬的比例換算,手機尺寸也對齊;四周各多 1px 完全蓋住 */
+.card .val-badge.val-cost {
+  --art-w: calc(var(--card-w) - 16px);
+  top: calc(6px + var(--art-w) * .0645 - 1px); right: calc(6px + var(--art-w) * .071 - 1px);
+  width: calc(var(--art-w) * .112 + 2px); height: calc(var(--art-w) * .103 + 2px);
+  display: flex; align-items: center; justify-content: center; border-radius: 2px;
+  font-size: calc(var(--art-w) * .09); background: #1c2a4a; border: 1px solid #f5d76e; color: #f5d76e; }
+.card .val-badge.val-good { background: var(--on-page-green); color: #fff; }
+.card .val-badge.val-bad { background: var(--on-page-red); color: #fff; }
+.card .val-badge.val-cost.val-good, .card .val-badge.val-cost.val-bad { border-color: #fff; }
+/* 放大檢視不顯示角落徽章(數值已在卡面上著色) */
+#zoom-card .card .val-badge { display: none; }
 
 .card.back {
   background: url("/static/back.jpg") center / cover no-repeat, #5b2323;
@@ -564,6 +589,10 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .zoom-stack { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 8px;
   background: #1c2438; border: 1px solid var(--panel-line); }
 .zoom-stack-title { font-size: 13px; color: var(--ink-dim); }
+/* 放大檢視的數值明細與失效中的效果(與疊放區同樣的深色底) */
+.zoom-details { display: flex; flex-direction: column; padding: 8px; border-radius: 8px;
+  background: #1c2438; border: 1px solid var(--panel-line); }
+.zoom-details .info-section:last-child { margin-bottom: 0; }
 .zoom-stack-cards { display: flex; gap: 8px; flex-wrap: wrap; }
 .zoom-stack-cards .card { width: 88px; height: 112px; min-height: 0; overflow: hidden; cursor: pointer; }
 .zoom-stack-cards .card img.art { height: 62px; }

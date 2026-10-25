@@ -217,8 +217,8 @@ def run_on_play(game, batch, player, slot, number):
     所有放上場的路徑都經過這裡。"""
     if number in reg.RULE_ON_PLAY:
         reg.RULE_ON_PLAY[number](game, batch, player, slot)
-    from ..engine import card_effect_blocked
-    if number in reg.ON_PLAY and not card_effect_blocked(game, player, slot, number):
+    from ..engine import note_effect_blocked
+    if number in reg.ON_PLAY and not note_effect_blocked(game, batch, player, slot, number, "play"):
         reg.ON_PLAY[number](game, batch, player, slot)
 
 

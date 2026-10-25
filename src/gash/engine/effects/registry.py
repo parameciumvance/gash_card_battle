@@ -328,6 +328,22 @@ def spell_compat(number: str, *, check=None):
     return _value_hook(SPELL_COMPAT, number, "spell_compat", check)
 
 
+# 常駐效果(「このカードが場にある→」,持續中或之後仍可能發動)所在的登記表;快照據此列出失效中的效果。
+# ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
+PASSIVE_TABLES = ("START_PHASE", "STATIC_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
+                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
+                  "BLOCK_OPPONENT_FAMILY")
+
+
+def has_passive(number: str | None) -> bool:
+    """number 有常駐效果(PASSIVE_TABLES 或事件型觸發器)。"""
+    if number is None:
+        return False
+    tables = globals()
+    return (any(number in tables[name] for name in PASSIVE_TABLES)
+            or any(n == number for regs in TRIGGERS.values() for n, _ in regs))
+
+
 # ---------------------------------------------------------------- 純資料登記(不是效果)
 
 def rule_on_play(number: str, *, effect):

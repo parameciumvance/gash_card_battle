@@ -29,8 +29,19 @@ const Anim = (() => {
     "passed", "no_defense", "damage_dealt", "protected", "mamodo_injured",
     "mamodo_discarded", "mamodo_healed", "card_discarded", "pages_turned", "mp_changed",
     "attack_negated", "defense_negated", "game_ended",
+    "damage_prevented", "damage_negated", "mp_reduction_prevented", "mp_gain_prevented", "effect_blocked",
   ]);
   const CARD_NO = /^[EMPS]-\d{3}$/;
+  // 效果來源卡所在的欄位(常駐效果、待命 / ステイ、戰鬥後的附加效果等);reason 只在是卡號時算(支付費用為 spell:… 等)
+  const SOURCE_FIELD = {
+    pages_turned: "source", mamodo_healed: "source", damage_prevented: "source", mp_reduction_prevented: "source",
+    mp_gain_prevented: "source", damage_negated: "card", effect_blocked: "card", mp_changed: "reason",
+    card_discarded: "reason",
+  };
+  function effectSource(ev) {
+    const src = SOURCE_FIELD[ev.type] ? ev[SOURCE_FIELD[ev.type]] : null;
+    return typeof src === "string" && CARD_NO.test(src) ? src : null;
+  }
   // MP 增減只在「效果造成」時列出(reason 為卡號);支付費用(spell:… 等)不列
   function mpByEffect(ev) { return typeof ev.reason === "string" && CARD_NO.test(ev.reason); }
 
@@ -105,10 +116,17 @@ const Anim = (() => {
       }
       if (!spot) continue;
       const card = CARD_EVENTS[ev.type] && others ? CARD_EVENTS[ev.type](ev) : null;
+      // 效果來源卡:與目前卡片格的卡不同時另起卡片格,不論行動者都展示;相同時併入
+      const source = !card && TEXT_EVENTS.has(ev.type) ? effectSource(ev) : null;
       if (card) {
         cur = { kind: "card", card, caption: logLine(ev), lines: [], pass: false, events: [ev] };
         steps.push(cur);
-      } else if (textWorthy(ev, others, me)) {
+      } else if (source && !(cur && cur.kind === "card" && cur.card === source)) {
+        const line = logLine(ev);
+        cur = { kind: "card", card: source, lines: line ? [line] : [], pass: false, events: [ev],
+                caption: t(ev.type === "effect_blocked" ? "ui.spot.effect_blocked" : "ui.spot.effect_source") };
+        steps.push(cur);
+      } else if (source || textWorthy(ev, others, me)) {
         const line = logLine(ev);
         if (!line) continue;
         if (!cur) {
@@ -712,5 +730,5 @@ const Anim = (() => {
   }
 
   // idle:目前排隊中的播放全部結束時完成(測試與需要等畫面追上的流程使用)
-  return { apply, idle: () => queue, overlaySettleMs };
+  return { apply, idle: () => queue, overlaySettleMs, timeline };   // timeline 供測試驗證聚焦格
 })();

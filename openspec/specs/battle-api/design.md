@@ -27,6 +27,13 @@
 - 翻開的事件卡與非戰鬥戰術的 `condition_ok`(使用條件是否成立)也只給持有者:條件可能依魔書未翻開的內容判斷(例如 S-048 看魔書有沒有 M-027)。
 - 翻開的魔物 / 搭檔頁的 `play_block`(不能放出的錯誤碼,可以時為 null)與搭檔頁的 `targets`(可裝備的魔物槽 uid)也只給持有者。兩者由引擎 `play_block` / `partner_targets` 算出,`play_card` 指令經同一函式判斷,快照與指令不會分歧;前端曾以卡面 `related_mamodo` 自行比對搭檔對應,M-047(視為ガッシュ・ベル)在場時誤判,魔物卡則完全沒判斷(M-046 可按、按下才被拒)。不含時機,時機仍由前端依行動權判斷。指定裝備對象的驗證(`no_mamodo` / `partner_exists`)在 `play_block` 之前,錯誤碼與先前相同。
 
+## 魔力 / 費用明細與常駐效果的失效(effect-visibility)
+
+- `power_breakdown`(魔物槽,所有視角)直接取引擎的 `power_breakdown`,與對決明細的魔物部分相同。`cost_breakdown` 跟著 `cost` 出現(可見範圍相同),由 `spell_cost_breakdown` / `event_cost_breakdown` 算出;`spell_cost` / `event_cost` 只取它們的數字,兩者不會分歧。費用項目:`card`(卡面)、`last_page`、`base_zero`(S-088 / P-005,有多個時寫最後一個)、`cost_bonus`(待命的費用加減,與魔力的 `spell_bonus` 區分)、`opponent_event`(M-040)、`cost_floor`。
+- `blocked_effects`(魔物槽,所有視角):頂層與搭檔中 `reg.has_passive` 且 `effect_block_sources` 不為空者;限制本身是公開資訊。`card_effect_blocked` 改由 `effect_block_sources` 判斷,`mamodo_effect_block` 與它共用 `_mamodo_effect_blocks`,錯誤碼與來源出自同一份判斷。
+- `effect_blocked` 事件只在一次性時點(`play` / `discard` / `start_phase` / `damage`)發出;觸發型常駐效果對每個同類事件都會被呼叫,發事件會洗版,改由 `blocked_effects` 呈現。傷害免疫先算 `immunity(...)`,只在「會免疫但被擋」時發出。
+- `damage_prevented.source`:免疫為該魔物、`no_damage` / `full_immune` / `guard_immune` 為 modifier 的來源;`no_target` 沒有。
+
 ## 翻開頁的公開例外與事件卡費用
 
 - 對手翻開頁的卡片內容只在兩種情況出現:宣告中的攻防戰術頁(`in_use`),以及觀看者場上有 P-024(`engine.reveals_open_pages`,登記在 `reg.REVEAL_OPPONENT_PAGES`)。P-024 只對持有者公開,觀戰者與其他視角不變;持有者私有的 `users`、`condition_ok` 仍只給翻開頁的主人。
