@@ -5,6 +5,9 @@
 
   "remoteUser": "dev",
 
+  // 關閉 VS Code 時不停止容器;重新開啟時接上運行中的容器
+  "shutdownAction": "none",
+
   "mounts": [
     "source=gash-card-battle_card-assets,target=/app/assets,type=volume,readonly",
     "source=gash-card-battle_claude-data,target=/home/dev/.claude,type=volume"
