@@ -3,7 +3,7 @@
 from ...state import DUR_BATTLE, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
-    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune, ImmuneWhileEffective,
+    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune,
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
     SetSelfPowerToChosenThisTurn,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
@@ -141,7 +141,7 @@ reg.trigger("M-028", "stack_detached", effect=When(
     then=TurnPagesForward(leaves=2, target="opponent"),
 ))
 
-reg.spell_compat("M-029", check=CanUseSpellNamed(mamodo="ガッシュ・ベル", name="ザケル"))
+reg.rule_spell_compat("M-029", check=CanUseSpellNamed(mamodo="ガッシュ・ベル", name="ザケル"))
 reg.activated("M-029", mode="mp", mp_cost=7, timing="nonbattle",
               condition=HasOptions(OpponentInjuredMamodo()), effect=Choose(
     OpponentInjuredMamodo(), bind="choice", prompt="pick_opponent_injured_mamodo",
@@ -198,8 +198,8 @@ reg.action_discard("M-046", "top")
 reg.mamodo_attack("M-046", mp_cost=1, power=7000, damage=2)
 reg.stack_on("M-047", family="ガッシュ・ベル")
 reg.treated_as("M-047", "ガッシュ・ベル")
-reg.on_play("M-047", effect=ScheduleDetachSelf())
-reg.damage_immunity("M-047", check=ImmuneWhileEffective())
+reg.rule_on_play("M-047", effect=ScheduleDetachSelf())
+reg.damage_immunity("M-047", check=AlwaysImmune())
 reg.activated("M-048", mode="declare", timing="nonbattle", effect=ScheduleUndefendableAtTotal(min_total=10000))
 reg.partner_discard_guard("M-049")
 reg.activated("M-050", mode="declare", timing="nonbattle", condition=HasOptions(OwnOtherMamodo()), effect=Choose(

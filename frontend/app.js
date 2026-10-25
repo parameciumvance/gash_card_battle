@@ -659,17 +659,19 @@ function cardEl(num, opts = {}) {
 
   const meta = document.createElement("div");
   meta.className = "cmeta";
-  const bits = [];
-  if (def.cost !== null && def.cost !== undefined) bits.push(t("ui.cost", { n: opts.cost !== undefined ? opts.cost : def.cost }));
+  const bits = [];   // 字串或 span(與卡面不同的費用 / 魔力依有利或不利著色)
+  const cost = valueChange(def.cost, opts.cost, true);
+  if (cost) bits.push(valueSpan(t("ui.cost", { n: cost.value }), cost.cls));
+  const power = def.power && valueChange(def.power.base, opts.power, false);
+  if (power) bits.push(valueSpan(t("ui.power", { n: power.value }), power.cls));
   if (def.power) {
-    if (def.power.base !== undefined) bits.push(t("ui.power", { n: opts.power !== undefined ? opts.power : def.power.base }));
     if (def.power.bonus !== undefined) bits.push(t("ui.power_bonus", { n: def.power.bonus }));
     if (def.power.special) bits.push(t("ui.power_special"));
   }
   if (def.damage) bits.push(t("ui.damage", { n: def.damage }));
   else if (def.damage_variable) bits.push(t("ui.damage", { n: "?" }));   // 卡面「ダメージ?」:傷害依效果決定
   if (def.ad) bits.push(def.ad);
-  meta.textContent = bits.join(t("ui.sep.meta"));
+  bits.forEach((b, i) => meta.append(...(i ? [t("ui.sep.meta"), b] : [b])));
   if (def.class === "intermediate" || def.class === "superior") {   // 中級 / 上級:限制可放的頁數
     const cls = document.createElement("span");
     cls.className = `cclass cclass-${def.class}`;
@@ -687,6 +689,15 @@ function cardEl(num, opts = {}) {
   numEl.className = "cnum";
   numEl.textContent = num;
   el.appendChild(numEl);
+
+  // 盤面卡片只留卡名:帶有目前數值的卡(場上魔物的魔力、翻開頁的費用)一律以角落徽章顯示,與卡面不同時著色
+  const shown = opts.cost !== undefined && cost ? cost : opts.power !== undefined && power ? power : null;
+  if (shown) {   // 費用:只寫數值,蓋在卡圖原本的費用格上;魔力:卡名下方(左下角)
+    const vb = document.createElement("span");
+    vb.className = `val-badge ${shown === cost ? "val-cost" : "val-power"}` + (shown.cls ? ` ${shown.cls}` : "");
+    vb.textContent = shown === cost ? String(cost.value) : t("ui.power", { n: power.value });
+    el.appendChild(vb);
+  }
 
   if (opts.badges) {
     for (const b of opts.badges) {
@@ -757,6 +768,23 @@ function cardBackEl(page, consumed = false) {
 // 放大檢視 = 卡片實例面板:完整資訊 + 該實例此刻可用的行動按鈕(統一操作入口)
 let ZOOM = null;  // {num, ctx};ctx 無值 = 純展示(卡池/記錄/檢閱等)
 
+// 卡面數值與目前數值:{value, cls};cls 為 val-good / val-bad(對持有者有利 / 不利)或 null。卡面沒有此數值時 null。
+// lowerIsGood:費用低於卡面為有利;魔力相反
+function valueChange(base, current, lowerIsGood) {
+  if (base === null || base === undefined) return null;
+  const value = current !== undefined && current !== null ? current : base;
+  if (value === base) return { value, cls: null };
+  return { value, cls: (value < base) === lowerIsGood ? "val-good" : "val-bad" };
+}
+
+function valueSpan(text, cls) {
+  if (!cls) return text;
+  const span = document.createElement("span");
+  span.className = cls;
+  span.textContent = text;
+  return span;
+}
+
 function zoom(num, ctx) {
   ZOOM = { num, ctx: ctx || null };
   renderZoom();
@@ -795,6 +823,39 @@ function zoomActions(ctx) {
   return { buttons: [] };
 }
 
+// 放大檢視的數值明細與失效中的效果:數值與卡面不同時列明細(格式同魔力勝負明細);沒有可列的內容時 null
+function zoomDetails(num, ctx) {
+  const ps = S && S.players[ctx.p];
+  if (!ps) return null;
+  const def = CARDS[num] || {};
+  const sections = [];
+  const breakdown = (title, items) => infoSection(title, items.map((i) => infoRow(
+    t(`breakdown.${i.kind}`, { card: i.source ? cname(i.source) : "" }), i.source ? [i.source] : [],
+    BREAKDOWN_BASE.has(i.kind) ? String(i.amount) : signed(i.amount), "info-amount")), "");
+  const slot = ctx.kind === "slot" || ctx.kind === "partner" ? ps.slots.find((x) => x.uid === ctx.uid) : null;
+  if (ctx.kind === "slot" && slot && slot.top === num && def.power && slot.power !== def.power.base
+      && slot.power_breakdown) {
+    sections.push(breakdown(t("ui.zoom.power_detail", { n: slot.power }), slot.power_breakdown));
+  }
+  const entry = ctx.kind === "page" ? ps.open_pages.find((e) => e.page === ctx.page)
+    : ctx.kind === "any_page" ? (ps.any_page_spells || []).find((e) => e.page === ctx.page) : null;
+  if (entry && entry.cost_breakdown && entry.cost !== def.cost) {
+    sections.push(breakdown(t("ui.zoom.cost_detail", { n: entry.cost }), entry.cost_breakdown));
+  }
+  const blocked = slot ? (slot.blocked_effects || []).filter((b) => b.card === num) : [];
+  if (blocked.length) {
+    sections.push(infoSection(t("ui.effect_blocked.title"), blocked.map((b) => infoRow(
+      t("ui.effect_blocked.item", { card: cname(b.card), by: b.by.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) }),
+      [b.card, ...b.by], "", "")), ""));
+  }
+  if (!sections.length) return null;
+  const box = document.createElement("div");
+  box.className = "zoom-details";
+  box.onclick = (ev) => ev.stopPropagation();
+  box.append(...sections);
+  return box;
+}
+
 function renderZoom() {
   if (!ZOOM) return;
   const overlay = document.getElementById("zoom-overlay");
@@ -812,6 +873,14 @@ function renderZoom() {
     if (ZOOM.ctx.kind === "page") {
       const entry = S.players[ZOOM.ctx.p].open_pages.find((e) => e.page === ZOOM.ctx.page);
       if (entry) opts.cost = entry.cost;
+    }
+    if (ZOOM.ctx.kind === "any_page") {
+      const entry = (S.players[ZOOM.ctx.p].any_page_spells || []).find((e) => e.page === ZOOM.ctx.page);
+      if (entry) opts.cost = entry.cost;
+    }
+    if (ZOOM.ctx.kind === "slot") {
+      const zs = S.players[ZOOM.ctx.p].slots.find((x) => x.uid === ZOOM.ctx.uid);
+      if (zs && zs.top === ZOOM.num) opts.power = zs.power;
     }
   }
 
@@ -842,6 +911,8 @@ function renderZoom() {
     box.append(head, row);
     actions.appendChild(box);
   }
+  const details = ZOOM.ctx && ZOOM.num ? zoomDetails(ZOOM.num, ZOOM.ctx) : null;
+  if (details) actions.appendChild(details);
   if (ZOOM.back) {
     const prev = ZOOM.back;
     buttons = [...buttons, { label: t("ui.back"), onclick: () => zoom(prev.num, prev.ctx), keepOpen: true }];
@@ -964,17 +1035,13 @@ function pickSpellUser(p, entry, cb) {
 }
 
 // 搭檔卡的裝備對象:對應(頂層魔物的對應魔物相同)且尚未裝搭檔的自己魔物
-function partnerTargets(p, def) {
-  const matching = S.players[p].slots.filter((s) => CARDS[s.top].related_mamodo === def.related_mamodo);
-  return { matching, free: matching.filter((s) => !s.partner) };
-}
-
-function pickPartnerTarget(p, def, cb) {
-  const { free } = partnerTargets(p, def);
-  if (free.length <= 1) { if (free.length) cb(free[0].uid); return; }
+// 搭檔卡的裝備對象:快照的 targets(引擎依家族判定,M-047 視為ガッシュ・ベル),UI 不自行比對對應
+function pickPartnerTarget(p, entry, cb) {
+  const free = entry.targets || [];
+  if (free.length <= 1) { if (free.length) cb(free[0]); return; }
   startLocalPick({
-    player: p, title: t("choice.title.pick_mamodo_for_partner"), source: def.number, onpick: cb,
-    options: new Map(free.map((s) => [s.uid, { selectable: true }])),
+    player: p, title: t("choice.title.pick_mamodo_for_partner"), source: entry.card, onpick: cb,
+    options: new Map(free.map((uid) => [uid, { selectable: true }])),
   });
 }
 
@@ -1627,6 +1694,7 @@ function slotEl(p, slot) {
   return markPickable(markUsable(cardEl(slot.top, {
     injured: slot.injured,
     power: slot.power,
+    badges: blockedBadges(slot, slot.top),
     zoomCtx: ctx,
   }), ctx), ctx);
 }
@@ -1662,7 +1730,14 @@ function partnerButtons(p, slot) {
 
 function partnerEl(p, slot) {
   const ctx = { kind: "partner", p, uid: slot.uid };
-  return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx }), ctx), ctx);
+  return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx,
+    badges: blockedBadges(slot, slot.partner) }), ctx), ctx);
+}
+
+// 常駐效果失效中(快照 blocked_effects):卡上的「失效」標記
+function blockedBadges(slot, num) {
+  return (slot.blocked_effects || []).some((b) => b.card === num)
+    ? [{ cls: "blocked-mark", text: t("ui.effect_blocked.badge") }] : [];
 }
 
 // 效果已使用(快照的 *_used:"turn" 本回合已用、"game" 一場限 1 次已用)時的停用原因;未使用回傳 null
@@ -1725,14 +1800,12 @@ function pageButtons(p, entry) {
 
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner") {
-      // 搭檔卡:對應且未裝搭檔的魔物為裝備對象,兩隻以上時由玩家選(魔物卡可能疊放,前端不判斷場上是否已滿)
-      const targets = def.type === "partner" ? partnerTargets(p, def) : null;
-      const blocked = !targets ? null
-        : !targets.matching.length ? t("ui.play.no_mamodo") : !targets.free.length ? t("ui.play.partner_exists") : null;
+      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選
+      const blocked = entry.play_block ? t(`error.play.${entry.play_block}`) : null;
       buttons.push({
         label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
         onclick: () => (def.type === "partner"
-          ? pickPartnerTarget(p, def, (uid) => send({ type: "play_card", player: p, page: entry.page, slot_uid: uid }))
+          ? pickPartnerTarget(p, entry, (uid) => send({ type: "play_card", player: p, page: entry.page, slot_uid: uid }))
           : send({ type: "play_card", player: p, page: entry.page })),
       });
     } else if (def.type === "event") {
@@ -2533,7 +2606,7 @@ function infoSection(title, rows, emptyText) {
   return sec;
 }
 
-const BREAKDOWN_BASE = new Set(["mamodo", "spell", "fixed"]);   // 基礎值不帶正負號
+const BREAKDOWN_BASE = new Set(["mamodo", "spell", "fixed", "card"]);   // 基礎值不帶正負號(card 為卡面費用)
 
 // 魔力勝負明細:ev 為 showdown 事件或快照的 battle(live=true 為即時明細)
 function showBreakdown(ev) {
@@ -3069,7 +3142,11 @@ function logLine(ev) {
     case "defense_negated": return t("log.defense_negated", { source: cname(ev.source) || ev.source || "" });
     case "damage_dealt": return t("log.damage_dealt.book", { ...P, amount: ev.amount });
     case "damage_prevented":
-      return ev.reason === "no_target" ? t("log.damage_no_target", P) : t("log.damage_prevented", P);
+      return ev.reason === "no_target" ? t("log.damage_no_target", P)
+        : ev.source ? t("log.damage_prevented_by", { ...P, card: cname(ev.source) }) : t("log.damage_prevented", P);
+    case "effect_blocked":   // 一次性時點的常駐效果被「使えない」擋下
+      return t("log.effect_blocked", { ...P, card: cname(ev.card),
+        by: (ev.by || []).map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) });
     case "damage_negated": return t("log.damage_negated", { card: cname(ev.card) });
     case "protected":   // P-027:保護者是對手的魔物時,寫出持有者與被保護的一方
       return ev.target_player !== undefined && ev.target_player !== ev.player

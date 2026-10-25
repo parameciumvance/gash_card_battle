@@ -207,9 +207,19 @@ def play_mamodo_from_book(game, batch, player, page):
     place_slot(ps.slots, slot)
     game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
               zone="mamodo", from_book=True)
-    if number in reg.ON_PLAY:
-        reg.ON_PLAY[number](game, batch, player, slot)
+    run_on_play(game, batch, player, slot, number)
     return slot
+
+
+def run_on_play(game, batch, player, slot, number):
+    """卡片放上場(放出、疊放、自魔書放出或裝備)後:先執行專用規則(RULE_ON_PLAY,M-047 的定時離場),
+    再執行「このカードが場に出たとき」的效果(ON_PLAY,放上場當下被「使えない」擋下時不執行、事後不補發)。
+    所有放上場的路徑都經過這裡。"""
+    if number in reg.RULE_ON_PLAY:
+        reg.RULE_ON_PLAY[number](game, batch, player, slot)
+    from ..engine import note_effect_blocked
+    if number in reg.ON_PLAY and not note_effect_blocked(game, batch, player, slot, number, "play"):
+        reg.ON_PLAY[number](game, batch, player, slot)
 
 
 def attach_partner_from_book(game, batch, player, page, slot):
@@ -220,8 +230,7 @@ def attach_partner_from_book(game, batch, player, page, slot):
     slot.partner = number
     game.emit(batch, "card_played", player=player, card=number, slot=slot.uid,
               zone="partner", from_book=True)
-    if number in reg.ON_PLAY:
-        reg.ON_PLAY[number](game, batch, player, slot)
+    run_on_play(game, batch, player, slot, number)
     return True
 
 

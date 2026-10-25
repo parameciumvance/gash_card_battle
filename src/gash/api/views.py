@@ -9,9 +9,9 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, attack_undefendable, event_cost, event_limit, exhausted_spell_pages,
-    reveals_open_pages,
-    side_breakdown, slot_power, spell_block, spell_cost,
+    _spell_any_page_standby, _spell_usable_by, attack_undefendable, effect_block_sources, event_cost_breakdown,
+    event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
+    side_breakdown, spell_block, spell_cost, spell_cost_breakdown,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
 
@@ -49,6 +49,7 @@ def _slot_view(game: Game, player: int, slot) -> dict:
     from ..engine.effects import registry as reg
     ps = game.state.players[player]
     top_spec, partner_spec = reg.ACTIVATED.get(slot.top), reg.ACTIVATED.get(slot.partner)
+    power, power_items = power_breakdown(game, player, slot)
     return {
         "uid": slot.uid,
         "column": slot_columns(game.state.players[player].slots)[slot.uid],   # 場上欄位(公開)
@@ -56,7 +57,11 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "top": slot.top,
         "injured": slot.injured,
         "partner": slot.partner,
-        "power": slot_power(game, player, slot),
+        "power": power,
+        "power_breakdown": power_items,   # 逐項加總等於 power(公開)
+        # 失效中的常駐效果:頂層與搭檔中被「使えない」擋下者與限制來源(限制是公開的)
+        "blocked_effects": [{"card": n, "by": by} for n in (slot.top, slot.partner)
+                            if reg.has_passive(n) and (by := effect_block_sources(game, player, slot, n))],
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
         "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無戰術攻擊規格(M-027)
@@ -114,7 +119,8 @@ def _any_page_spells(game: Game, p: int) -> list[dict]:
         if page in ps.open_pages() or not _spell_any_page_standby(game, p, page):
             continue
         card = game.db[ps.card_at(page)]
-        out.append({"page": page, "card": card.number, "cost": spell_cost(game, p, page, card),
+        cost, items = spell_cost_breakdown(game, p, page, card)
+        out.append({"page": page, "card": card.number, "cost": cost, "cost_breakdown": items,
                     "users": _spell_users(game, p, page, card)})
     return out
 
@@ -130,11 +136,15 @@ def _player_view(game: Game, p: int, viewer) -> dict:
             card = game.db[number]
             entry = {"page": page, "card": number}
             if card.type == "spell":
-                entry["cost"] = spell_cost(game, p, page, card)
+                entry["cost"], entry["cost_breakdown"] = spell_cost_breakdown(game, p, page, card)
                 if can_see_player(viewer, p):
                     entry["users"] = _spell_users(game, p, page, card)
             elif card.type == "event":
-                entry["cost"] = event_cost(game, p, card)   # 含對手 M-040 的加成
+                entry["cost"], entry["cost_breakdown"] = event_cost_breakdown(game, p, card)   # 含對手 M-040 的加成
+            elif can_see_player(viewer, p):   # 魔物 / 搭檔:放出可否(與 play_card 同一判斷)
+                entry["play_block"] = play_block(game, p, number)
+                if card.type == "partner":
+                    entry["targets"] = [s.uid for s in partner_targets(game, p, card)]
             if can_see_player(viewer, p) and (card.type == "event" or card.effect_icon == "nonbattle"):
                 entry["condition_ok"] = _condition_ok(game, p, card)
             if page in in_use:

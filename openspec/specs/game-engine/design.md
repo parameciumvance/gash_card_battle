@@ -66,6 +66,7 @@ negated                                                                ← 無�
 - `use_action_effect`:非戰鬥中的一般行動(戰鬥開始確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
 - 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
 - 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。「使えない」是事先作用的限制,`mamodo_effect_block` / `restricted(NO_PARTNER_EFFECTS)` 也用來讓常駐效果失效。
+- `card_effect_blocked(game, player, slot, number)`:常駐效果的共用判斷(搭檔看 `NO_PARTNER_EFFECTS`,魔物看 `mamodo_effect_block`),各常駐登記的消費端與 `_dispatch_triggers`、`run_on_play` 呼叫它;不在 registry 包裝,因為 `STATIC_POWER` 的 fn 收的是被加成的魔物,只有消費端知道來源魔物。專用規則另有 `RULE_ON_PLAY` / `RULE_SPELL_COMPAT`,不經過它。
 
 ## 結束階段的效果、事件卡上限與不能攻擊
 
