@@ -299,11 +299,14 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 volume。第三彈的 M-050 在 TTS 清單裡的 Drive 連結不是公開檔案(會轉到登入頁),目前抓不到,
 該卡以文字卡面顯示。
 
-**在 VPS 上用 dev container 開發**:`.devcontainer/devcontainer.json` 會把同一個 volume
-(`gash-card-battle_card-assets`,名稱前綴是 compose 專案目錄名)唯讀掛到 `/app/assets`,
-並設定 `GASH_ASSETS_DIR`,開發時直接讀正式站的卡圖。在其他沒有這個 volume 的機器上開
-dev container 時,Docker 會自動建一個空的同名 volume,畫面不會有卡圖;此時拿掉
-`mounts` 與 `containerEnv` 這兩項,改用 `frontend/assets/`。
+**在 VPS 上用 dev container 開發**:開發版與正式站的卡圖分開放(合計只有數十 MB)。
+dev container 不掛正式站的 volume,讀 repo 的 `frontend/assets/`,`download_images.py`
+抓到的新卡圖馬上看得到;正式站要補圖時,因為在同一台 VPS,不用 scp,直接在主機上從 repo
+目錄複製進 volume(在 `/opt/gash-card-battle` 目錄下):
+
+```bash
+docker compose cp <repo 路徑>/frontend/assets/cards/. app:/app/assets/cards/
+```
 
 dev container 以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo`),讓在容器裡產生的
 檔案與主機使用者同擁有者;套件裝在 `/opt/venv`。若主機使用者的 uid 不是 1000,VS Code 會在

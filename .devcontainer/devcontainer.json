@@ -9,14 +9,9 @@
   "shutdownAction": "none",
 
   "mounts": [
-    "source=gash-card-battle_card-assets,target=/app/assets,type=volume,readonly",
     "source=gash-card-battle_claude-data,target=/home/dev/.claude,type=volume"
   ],
   "runArgs": ["--memory=3g", "--memory-swap=3584m"],
-
-  "containerEnv": {
-    "GASH_ASSETS_DIR": "/app/assets"
-  },
 
   "postCreateCommand": "sudo chown -R dev:dev /home/dev/.claude && pip install -e \".[dev]\"",
 
