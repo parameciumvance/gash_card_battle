@@ -26,17 +26,17 @@ MAMODO = {"number": "M-048", "type": "mamodo", "name_ja": "ガッシュ・ベル
 def test_variable_damage_and_sets_from_tts(tmp_path):
     p = tmp_path / "cards_ja.csv"
     write_csv(p, [SPELL, MAMODO])
-    tts = {"M-048": {"image_url": "https://img/48", "sets": ["Zatch Bell and his Friends", "File 1"]}}
+    tts = {"M-048": {"sets": ["Zatch Bell and his Friends", "File 1"]}}
     cards = {c["number"]: c for c in convert(p, tts, {}, expected=None)}
     assert cards["S-061"]["damage"] is None and cards["S-061"]["damage_variable"] is True
     assert "damage_variable" not in cards["M-048"]
     assert cards["M-048"]["sets"] == ["Zatch Bell and his Friends", "File 1"]
-    assert cards["M-048"]["image_url"] == "https://img/48"
+    assert all("image_url" not in c for c in cards.values())       # 卡圖來源是資料夾,不是卡表的連結
 
 
 def test_old_sets_take_precedence(tmp_path):
     p = tmp_path / "cards_ja.csv"
     write_csv(p, [MAMODO])
-    tts = {"M-048": {"image_url": None, "sets": ["From TTS"]}}
+    tts = {"M-048": {"sets": ["From TTS"]}}
     cards = convert(p, tts, {"M-048": {"sets": ["Old"]}}, expected=None)
     assert cards[0]["sets"] == ["Old"]

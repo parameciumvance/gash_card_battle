@@ -267,6 +267,10 @@ docker compose up -d --remove-orphans
 (`/app/assets`),服務會從 `/app/assets/cards/{卡號}.webp` 讀圖。映像檔不含卡圖,也不含
 `tools/`,所以要在本機下載後再傳上去。卡圖含版權素材,請自行斟酌散布範圍。
 
+卡圖的來源是維護者的公開 Google Drive 資料夾
+(<https://drive.google.com/drive/folders/1cXx4gpa41HiycU4hIN74xbp1Aj3hiE-k>),
+檔名為 `{卡號}.webp`,收有 TTS 卡表中的全部卡圖(含尚未實作的系列)。補圖、換圖都在這個資料夾操作。
+
 1. **(本機)下載卡圖**:
 
    ```bash
@@ -296,8 +300,8 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 
 **新增卡片後補圖**(例如加入第三彈 M-032〜M-053、P-020〜P-035、S-059〜S-106、E-028〜E-043):
 重跑 `download_images.py` 只會下載缺少的卡,再用步驟 2 的「補圖」指令把新的 `.webp` 複製進
-volume。第三彈的 M-050 在 TTS 清單裡的 Drive 連結不是公開檔案(會轉到登入頁),目前抓不到,
-該卡以文字卡面顯示。
+volume。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面顯示。
+資料夾中的圖換了新版時,先刪掉本機對應的 `.webp` 再重跑,否則續抓會跳過。
 
 **在 VPS 上用 dev container 開發**:開發版與正式站的卡圖分開放(合計只有數十 MB)。
 dev container 不掛正式站的 volume,讀 repo 的 `frontend/assets/`,`download_images.py`
@@ -504,16 +508,16 @@ tools/
   scrape_ja_effects.py  atwiki 日文權威資料抓取 → data/cards_ja.csv
   build_cards_json.py   cards_ja.csv → cards.json 轉換
   build_card_texts.py   產生 cards.ja.json,並把 TTS 卡表的英文名稱寫入 cards.en.json
-  download_images.py    卡圖批次下載(Google Drive,支援續抓與失敗清單)
+  download_images.py    卡圖批次下載(維護者的 Google Drive 資料夾,支援續抓與失敗清單)
 ```
 
 ## 資料管線
 
 1. `python tools/scrape_ja_effects.py` 抓取 atwiki.jp 日文權威頁面,輸出 `data/cards_ja.csv`。
 2. `python tools/build_cards_json.py` 將 `data/cards_ja.csv` 轉換為 `data/cards.json`;
-   `image_url`/`sets` 沿用轉換前既有 `data/cards.json` 的舊值(新卡無舊值可沿用時為空)。
-3. `python tools/download_images.py` 批次下載卡圖,轉成 WebP 存至 `frontend/assets/cards/{卡號}.webp`;
-   已存在自動跳過,失敗清單寫入 `_failed.txt`,缺圖不影響遊戲。
+   `sets` 沿用轉換前既有 `data/cards.json` 的舊值(新卡取 TTS 卡表的 Sets 欄)。
+3. `python tools/download_images.py` 從卡圖資料夾(見「卡圖」)下載 `{卡號}.webp` 存至
+   `frontend/assets/cards/`;已存在自動跳過,資料夾中沒有的卡與失敗清單寫入 `_failed.txt`,缺圖不影響遊戲。
 
 ## 翻譯校對
 

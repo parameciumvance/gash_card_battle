@@ -5,9 +5,8 @@
 - `related_mamodo`:術/搭檔/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除
   括號後綴(如「（変身後）」)推導,使變身/形態卡與基礎家族名一致。
 - `effect_icon`:バトル/非バトル/ジャマー 轉為 battle/nonbattle/jammer,空字串為 None。
-- `image_url` 直接從 xlsx 的 A 欄 HYPERLINK/儲存格超連結讀取(不沿用轉換前的 cards.json);
-  xlsx 中沒有對應卡號的(如 S-042)為 None。
-- `sets` 沿用轉換前 `data/cards.json` 同卡號的舊值;無舊值(新卡如 S-042)則為 []。
+- `sets` 沿用轉換前 `data/cards.json` 同卡號的舊值;無舊值的新卡取 xlsx 的 Sets 欄,兩者都沒有則為 []。
+- 不含卡圖連結:卡圖來源是 `tools/download_images.py` 的資料夾。
 
 用法: python tools/build_cards_json.py
 """
@@ -84,42 +83,37 @@ def derive_effect_icon(row: dict) -> str | None:
     return EFFECT_ICON_MAP[icon]
 
 
-def parse_card_cell(cell) -> tuple[str | None, str]:
-    """回傳 (卡圖 URL, 卡號)。A 欄有兩種形態:
-    - HYPERLINK 公式(前幾列): =HYPERLINK("url","E-001")
-    - 純文字卡號 + 儲存格超連結物件(需非 read_only 模式才讀得到)
-    """
+def card_number(cell) -> str:
+    """A 欄的卡號:HYPERLINK 公式(=HYPERLINK("url","E-001"))取顯示文字,其他取儲存格值。"""
     value = str(cell.value or "")
     if value.startswith("=HYPERLINK"):
         quoted = re.findall(r'"([^"]*)"', value)
         if len(quoted) >= 2:
-            return quoted[0], quoted[-1]
+            return quoted[-1]
         raise ValueError(f"無法解析卡號欄: {value!r}")
-    url = cell.hyperlink.target if cell.hyperlink is not None else None
-    return url, value.strip()
+    return value.strip()
 
 
 def load_tts(xlsx_path: Path) -> dict[str, dict]:
-    """從 xlsx「The Table」工作表逐列讀取 卡號 → {image_url, sets},e/j 雙版本時 j 優先。
+    """從 xlsx「The Table」工作表逐列讀取 卡號 → {sets},e/j 雙版本時 j 優先。
     sets 為 Sets 欄以「, 」分隔的產品(新卡沒有舊值時使用)。"""
-    wb = openpyxl.load_workbook(xlsx_path)  # 非 read_only:才能讀儲存格超連結物件
+    wb = openpyxl.load_workbook(xlsx_path, read_only=True)
     ws = wb["The Table"]
     header = [c.value for c in next(ws.iter_rows(max_row=1))]
     sets_col = header.index("Sets")
     out: dict[str, dict] = {}
     versions: dict[str, str] = {}  # 基礎卡號 → 已入庫版本尾碼('' / 'e' / 'j')
     for cells in ws.iter_rows(min_row=2):
-        image_url, raw_number = parse_card_cell(cells[0])
+        raw_number = card_number(cells[0])
         m = re.fullmatch(r"([A-Z]+-\d+)([ej]?)", raw_number)
-        if not m or image_url is None:
+        if not m:
             continue
         number, suffix = m.group(1), m.group(2)
         if number in versions and not (suffix == "j" and versions[number] == "e"):
             continue
         versions[number] = suffix
         raw_sets = str(cells[sets_col].value or "")
-        out[number] = {"image_url": image_url,
-                       "sets": [x.strip() for x in raw_sets.split(", ") if x.strip()]}
+        out[number] = {"sets": [x.strip() for x in raw_sets.split(", ") if x.strip()]}
     return out
 
 
@@ -155,7 +149,6 @@ def convert(csv_path: Path, tts: dict[str, dict], old_cards: dict[str, dict],
                 "damage": None if row["damage"] == "?" else _int_or_none(row["damage"]),
                 # 沿用舊值;新卡取 TTS 卡表的 Sets 欄
                 "sets": old["sets"] if "sets" in old else info.get("sets", []),
-                "image_url": info.get("image_url"),
             }
         )
         if row["damage"] == "?":                 # 傷害依效果決定(卡面「ダメージ?」)
@@ -178,9 +171,7 @@ def main() -> None:
     from collections import Counter
 
     counts = Counter(c["type"] for c in cards)
-    no_image = [c["number"] for c in cards if c["image_url"] is None]
     print(f"已寫入 {OUT}: {len(cards)} 種 {dict(counts)}")
-    print(f"沒有卡圖連結: {no_image}")
 
 
 if __name__ == "__main__":

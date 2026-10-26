@@ -37,7 +37,6 @@ class CardDef:
     power_bonus: int | None     # 戰術的魔力加值
     power_special: bool         # 戰術魔力為 Special(不參與合計)
     damage: int | None
-    image_url: str | None
     damage_variable: bool = False   # 卡面「ダメージ?」:傷害依效果決定
 
     @property
@@ -70,7 +69,6 @@ def _to_def(raw: dict) -> CardDef:
         power_bonus=power.get("bonus"),
         power_special=bool(power.get("special")),
         damage=raw.get("damage"),
-        image_url=raw.get("image_url"),
         damage_variable=bool(raw.get("damage_variable")),
     )
 
