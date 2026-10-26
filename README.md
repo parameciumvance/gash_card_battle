@@ -401,6 +401,60 @@ docker compose exec app rm /app/assets/announcement.json
   每張非香草卡都要有依效果文寫的行為測試。
 - 效果的執行機制見 `openspec/specs/effect-tree/design.md`,卡片規則機制與效果文的解讀見 `openspec/specs/card-effects/design.md`。
 
+## 開發環境(VPS 上的 Dev Container)
+
+用 VS Code 的 Remote-SSH 連到 VPS,再用 Dev Containers 開 `.devcontainer/` 的容器開發。
+容器設定 `shutdownAction: none`:關掉 VS Code 時容器不會停,下次開啟會接上執行中的容器。
+映像檔已裝 tmux 與 Claude Code CLI,可以在容器內的 tmux 裡執行 Claude 和開發伺服器,關掉 VS Code 後用手機繼續開發。
+
+### 在容器內用 tmux 執行 Claude 與開發伺服器
+
+在 VS Code 的終端機(容器內)執行:
+
+```bash
+tmux new -s dev                      # 視窗 0:Claude
+claude --continue                    # 接續上次的對話;進去後輸入 /remote-control 讓手機的 Claude App 連線
+
+# Ctrl+b c 開新視窗(視窗 1):開發伺服器,要監聽 0.0.0.0 才能從容器外連進來
+uvicorn gash.api.app:app --host 0.0.0.0 --port 8001 --reload
+```
+
+tmux 常用按鍵:`Ctrl+b d` 離開(程式繼續執行)、`Ctrl+b c` 開新視窗、`Ctrl+b 0` / `Ctrl+b 1` 切換視窗。
+不要在主機的 tmux 裡再開容器內的 tmux,兩層的前綴鍵都是 `Ctrl+b`,會互相干擾。
+
+### 從手機或其他電腦接回 tmux
+
+SSH 進 VPS 後(容器外):
+
+```bash
+docker ps --filter label=devcontainer.local_folder        # 找出 dev container 的 ID
+docker exec -it -u dev <容器 ID> tmux attach -t dev
+```
+
+可以在 VPS 的 `~/.bashrc` 加別名,例如 `alias dev='docker exec -it -u dev <容器 ID> tmux attach -t dev'`。
+容器重建後 ID 會變,別名要跟著改。
+
+`claude remote-control` 或 `/remote-control` 是否還在執行,可以用 `pgrep -af "claude remote-control"` 確認(沒有輸出代表已結束);
+命令列版按 `Ctrl+C` 結束。
+
+### 用手機瀏覽器試玩開發版(Tailscale)
+
+容器沒有發布埠。不要用 Docker 的 `-p` 對外發布:Docker 發布的埠會繞過 ufw(見「VPS 部署」)。
+手機和 VPS 都在同一個 tailnet 時,在 VPS 主機上用 `tailscale serve` 轉送到容器,只有 tailnet 內的裝置連得到:
+
+```bash
+# VPS 主機(容器外):查容器 IP
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <容器 ID>
+
+sudo tailscale serve --bg --http 8001 http://<容器 IP>:8001
+```
+
+手機開 `http://<VPS 的 Tailscale 機器名或 100.x IP>:8001`。
+
+- 加 `--bg` 的設定會一直保留(VPS 重開機後也在),`tailscale serve status` 查看,`sudo tailscale serve --http 8001 off` 關閉。
+- 容器重建或重開後 IP 可能改變,連不上時先查容器 IP,有變就用新 IP 重跑一次 `tailscale serve`。
+- 容器內的開發伺服器要開著,並監聽 `0.0.0.0:8001`(見上)。
+
 ## 測試
 
 ```bash
