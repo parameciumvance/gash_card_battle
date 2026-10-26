@@ -435,11 +435,15 @@ SSH 進 VPS 後(容器外):
 
 ```bash
 docker ps --filter label=devcontainer.local_folder        # 找出 dev container 的 ID
-docker exec -it -u dev <容器 ID> tmux attach -t dev
+docker exec -it -u dev -e LANG=C.UTF-8 <容器 ID> tmux -u attach -t dev
 ```
 
-可以在 VPS 的 `~/.bashrc` 加別名,例如 `alias dev='docker exec -it -u dev <容器 ID> tmux attach -t dev'`。
+可以在 VPS 的 `~/.bashrc` 加別名,例如 `alias dev='docker exec -it -u dev -e LANG=C.UTF-8 <容器 ID> tmux -u attach -t dev'`。
 容器重建後 ID 會變,別名要跟著改。
+
+映像檔設定了 `LANG=C.UTF-8`;`-e LANG=C.UTF-8` 與 `tmux -u` 是給還沒重建的舊容器用的,少了它們中文會無法顯示與輸入。
+若 tmux server 是在沒有 UTF-8 locale 的環境下啟動的,加了 `-u` 仍可能異常,要 `tmux kill-server` 後在 UTF-8 環境下重開
+(會中斷 tmux 裡的程式)。
 
 `claude remote-control` 或 `/remote-control` 是否還在執行,可以用 `pgrep -af "claude remote-control"` 確認(沒有輸出代表已結束);
 命令列版按 `Ctrl+C` 結束。

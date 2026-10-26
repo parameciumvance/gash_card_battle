@@ -32,6 +32,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
 RUN python -m venv /opt/venv && chown -R $USERNAME:$USERNAME /opt/venv
 ENV PATH=/opt/venv/bin:$PATH
 
+# 預設 POSIX locale 下,從 Termius 等 SSH 終端機經 docker exec 進來的 tmux / bash 無法顯示與輸入中文
+ENV LANG=C.UTF-8
+
 USER $USERNAME
 
 CMD ["bash"]
