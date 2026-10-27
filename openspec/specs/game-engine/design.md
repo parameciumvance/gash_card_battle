@@ -17,6 +17,11 @@
 - `PendingChoice.data` 是私有的(續體、傷害佇列等內部資料),不送出;`PendingChoice.info` 是公開的決策脈絡,快照對所有視角附上。目前擲幣相關的詢問(M-012 `coin_confirm`、M-019 `opp_coin_redo`、E-011 `paid_reflip`)在 `info.results` 放目前各枚的結果(`primitives.coin_info`)。保護決策(`_protect_choice`)在 `info.damage` 放目前這一份傷害(`_damage_info`:`kind`、`player`、`amount`、魔物的 `slot` / `injured`、魔書的 `lethal`,判定同受傷時的判負條件 `pos + 2 × 傷害 > BOOK_SIZE`);多份傷害時只描述目前這一份。
 - **先攻**:`new_game(first_player=None)` 時擲硬幣並發出 `coin_flipped(source="setup")`;指定時(自由調查時間固定玩家 1,`api/app._start_game` 在本機模式傳 0)不擲,改發 `first_player_set(player, reason="local")`。
 
+## 戰鬥階段的行動權
+
+- 規則出處:atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html)「かわりばんこのルール」:「1つのバトルが終了し、非バトルに戻るとまずターンプレイヤーがアクションすることができます」;使用者已對照規則確認。
+- `_end_battle` 在戰鬥結束(非判負)時把行動權設為回合玩家並歸零連續 pass,不沿用戰鬥中最後行動者的輪替。
+
 ## 戰鬥開始與待命表
 
 - `_start_battle` 在戰鬥開始確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、使用魔物家族 `mamodo_name`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。

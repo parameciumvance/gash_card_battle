@@ -45,17 +45,13 @@
 - **WHEN** 轉換一張轉換前 `cards.json` 沒有的卡(如 M-048)
 - **THEN** 該卡 `sets` 為 xlsx 對應列 Sets 欄的各產品
 
-#### Scenario: image_url 直接從 xlsx 抽取
-- **WHEN** 轉換一張 xlsx 中存在對應列、A 欄有超連結的卡(如 M-001)
-- **THEN** 該卡沒有 `image_url` 欄位:xlsx 的卡圖超連結不再讀取(本情境名稱沿用;卡圖來源見「卡圖資產與備援」)
+#### Scenario: cards.json 不含卡圖連結
+- **WHEN** 轉換執行完成
+- **THEN** 每張卡都沒有 `image_url` 欄位,xlsx 的卡圖超連結不讀取(卡圖來源見「卡圖資產與備援」)
 
 #### Scenario: 卡號在 xlsx 中無對應列
 - **WHEN** 轉換一張不存在於 xlsx 的卡號
 - **THEN** 該卡 `sets` 依沿用舊值或空陣列的規則決定,轉換正常完成不中止
-
-#### Scenario: S-042 改直接讀取後找回卡圖連結
-- **WHEN** 轉換 S-042(xlsx 中為 `S-042e`/`S-042j` 兩列)
-- **THEN** 該卡沒有 `image_url` 欄位,其卡圖由「卡圖資產與備援」的資料夾提供(本情境名稱沿用)
 
 ### Requirement: 中文翻譯檔獨立
 中文文本 SHALL 存於獨立檔 `data/cards.zh-TW.json`,以卡號為 key,含:卡名中譯、卡名日文原名、效果名中譯、效果全文中譯、風味文中譯(可缺)。翻譯依據 SHALL 為 `data/cards_ja.csv`(權威來源試算表的抓取結果,見 `tools/scrape_ja_effects.py`):卡名日文原名 MUST 與該檔的 `name_ja` 一致;效果全文中譯 SHALL 依該檔的 `effect_ja` 翻譯(該欄位已排除身分尾行與收錄產品資訊)。修改翻譯 MUST NOT 影響 cards.json 的數值與邏輯。結構 SHALL 允許並列新增其他語言檔。
