@@ -2,7 +2,8 @@
 
 停點:對局結束、回合交替、又輪到 NPC 做非戰鬥的決定,或達到步數上限。
 `turn_end_value` 在停於「又輪到 NPC」時再延伸一層(pass / 攻擊)到回合結束,讓所有候選以同一基準評分。
-對手的回應規則刻意簡單(迎戰、擋得下就以最低費用防禦、魔書受傷時保護、戰鬥中 pass、其他走安全預設);
+對手的回應規則刻意簡單(迎戰、擋得下就以最低費用防禦、魔書受傷時保護、戰鬥中 pass、
+攻擊宣告被插入行動打斷時重新宣告、其他走安全預設);
 NPC 在模擬中遇到的中途決策,以各選項立即的評估挑選(不再往下模擬)。
 """
 
@@ -12,7 +13,8 @@ import copy
 import random
 
 from ..engine.awaiting import awaited_player, default_command
-from ..engine.engine import IllegalCommand, _side_total, attack_undefendable, slot_power, submit
+from ..engine.engine import (IllegalCommand, _side_total, attack_undefendable, interrupted_attack,
+                             slot_power, submit)
 from ..engine.state import BATTLE, BOOK_SIZE, GAME_OVER, STEP_DEFENSE, Game
 from .candidates import candidates, choice_value
 from .evaluate import evaluate
@@ -106,6 +108,12 @@ def respond(game: Game, who: int, npc: int) -> dict:
         if st.battle.step == STEP_DEFENSE:
             return _defend(game, who)
         return {"type": "pass"}
+    if st.battle_in is None and who != npc:
+        rec = interrupted_attack(game, who)
+        if rec is not None:          # 攻擊宣告被插入行動打斷:以同一頁、同一魔物重新宣告(不合法時由呼叫端改走安全預設)
+            if rec["mamodo_attack"]:
+                return {"type": "declare_attack", "mode": "mamodo", "slot_uid": rec["slot"]}
+            return {"type": "declare_attack", "page": rec["page"], "slot_uid": rec["slot"]}
     return default_command(game)
 
 

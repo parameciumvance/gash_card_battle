@@ -198,6 +198,8 @@ class GameState:
     action_player: int | None = None      # 戰鬥階段中目前可行動者
     consecutive_passes: int = 0
     battle_in: dict | None = None         # 戰鬥開始確認中 {page, slot, attacker}
+    # 被插入行動打斷的攻擊宣告 {attacker, page, mamodo_attack, slot, turn_no}(宣告時已公開;有效範圍見 engine.interrupted_attack)
+    interrupted_attack: dict | None = None
     battle: BattleState | None = None
     pending: PendingChoice | None = None
     modifiers: list[Modifier] = field(default_factory=list)

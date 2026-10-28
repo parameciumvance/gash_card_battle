@@ -1,6 +1,6 @@
 """隱藏資訊替換:NPC 取得盤面副本的唯一入口。
 
-NPC 看得到的:自己的一切、對手已離開魔書的頁、宣告中的戰術頁、事件記錄中公開或只給 NPC 看的頁
+NPC 看得到的:自己的一切、對手已離開魔書的頁、宣告中的戰術頁(含當回合被插入行動打斷的宣告)、事件記錄中公開或只給 NPC 看的頁
 (`book_card_used`、`book_revealed` / `pages_peeked` 的 viewer 為 NPC)。其餘對手魔書頁以抽樣替換,
 對局 RNG 換成 NPC 的隨機來源產生的新 RNG(不預知擲幣),事件記錄不帶進副本。
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import copy
 import random
 
-from ..engine.engine import reveals_open_pages
+from ..engine.engine import interrupted_attack, reveals_open_pages
 from ..engine.state import BOOK_SIZE, Game, GameState
 
 # 抽樣先驗:與對手場上魔物同家族的卡(其戰術、搭檔)較可能在對手魔書中
@@ -51,6 +51,9 @@ def known_opponent_pages(game: Game, npc: int) -> dict[int, str]:
     ps = game.state.players[opp]
     for page in in_use_pages(game, opp):
         known[page] = ps.card_at(page)
+    rec = interrupted_attack(game, opp)     # 被插入行動打斷的宣告:宣告時已公開,當回合仍翻開時記得
+    if rec is not None and not rec["mamodo_attack"]:
+        known[rec["page"]] = ps.card_at(rec["page"])
     if reveals_open_pages(game, npc, opp):   # P-024:對手翻開的頁對 NPC 公開
         for page in ps.open_pages():
             known[page] = ps.card_at(page)

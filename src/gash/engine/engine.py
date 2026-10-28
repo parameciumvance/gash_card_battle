@@ -1108,12 +1108,14 @@ def _declare_attack(game: Game, batch: list[dict], player: int, command: dict) -
         raise IllegalCommand("attack.restricted", "本回合不能攻擊")
     if command.get("mode") == "mamodo":
         slot, _spec = _validate_mamodo_attack(game, player, command.get("slot_uid"))
+        st.interrupted_attack = None
         st.battle_in = {"attacker": player, "mamodo_attack": True, "slot": slot.uid}
         game.emit(batch, "battle_in_check", attacker=player, spell=None,
                   mamodo=slot.top, slot=slot.uid)
         return
     number, slot = _validate_spell_declaration(
         game, player, command.get("page"), command.get("slot_uid"), attack=True)
+    st.interrupted_attack = None
     decl = {"player": player, "page": command["page"], "spell": number, "slot": slot.uid}
     if not _ask_spell_discount(game, batch, "attack", decl):
         _proceed_declaration(game, batch, "attack", decl)
@@ -1124,6 +1126,16 @@ def _open_battle_in(game: Game, batch: list[dict], decl: dict) -> None:
     st.battle_in = {"attacker": decl["player"], "page": decl["page"], "spell": decl["spell"],
                     "slot": decl["slot"], "discount": decl["discount"], "extra": decl.get("extra", 0)}
     game.emit(batch, "battle_in_check", attacker=decl["player"], spell=decl["spell"], slot=decl["slot"])
+
+
+def interrupted_attack(game: Game, player: int) -> dict | None:
+    """player 被插入行動打斷、仍可重新宣告的攻擊:同一回合,且戰術頁仍是 player 翻開的頁。"""
+    rec = game.state.interrupted_attack
+    if rec is None or rec["attacker"] != player or rec["turn_no"] != game.state.turn_no:
+        return None
+    if not rec["mamodo_attack"] and rec["page"] not in game.state.players[player].open_pages():
+        return None
+    return rec
 
 
 def _battle_in_response(game: Game, batch: list[dict], player: int, command: dict) -> None:
@@ -1138,6 +1150,9 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         return
     if ctype in ("play_card", "use_field_ability", "use_book_card", "use_action_effect"):
         st.battle_in = None
+        st.interrupted_attack = {"attacker": bi["attacker"], "page": bi.get("page"),
+                                 "mamodo_attack": bool(bi.get("mamodo_attack")), "slot": bi["slot"],
+                                 "turn_no": st.turn_no}
         game.emit(batch, "battle_in_voided", attacker=bi["attacker"])
         _do_action(game, batch, player, command)
         st.action_player = bi["attacker"]

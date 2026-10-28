@@ -357,3 +357,55 @@ def test_npc_values_p001_together_with_following_attack():
         assert try_submit(sim, 0, cmd)
         scores[name] = turn_end_value(sim, 0, start)
     assert scores["p001"] >= scores["pass"]
+
+
+# ---------------------------------------------------------------- 插入行動後攻擊方重新宣告(npc-interrupted-attack)
+
+def _robnos_attack():
+    """玩家 0 場上ガッシュ・ベル(先放)與ロブノス,以ロブノス的戰術 S-042 宣告攻擊;
+    NPC(玩家 1)翻開頁有 E-024,停在戰鬥開始確認。"""
+    from gash.engine.state import MamodoSlot
+    from tests.test_level2 import book, mk as mk2, to_battle
+    g, _ = mk2(book("M-001", "S-042", "S-042"), book("M-001", "E-024", "S-001"))
+    st = g.state
+    for p, tops in ((0, ("M-001", "M-024")), (1, ("M-001",))):
+        st.players[p].slots[:] = [MamodoSlot(uid=st.next_uid(), stack=[t]) for t in tops]
+    st.players[0].mp, st.players[1].mp = 10, 0                         # NPC 付不起防禦:這次攻擊會打到魔書
+    to_battle(g, 0)
+    gash, robnos = (s.uid for s in st.players[0].slots)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": robnos})
+    assert st.battle_in is not None
+    return g, gash, robnos
+
+
+def test_e024_locks_the_attacking_mamodo():
+    # 玩家回報:NPC 插入 E-024 時總是指定與攻擊無關的ガッシュ・ベル
+    g, _gash, robnos = _robnos_attack()
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    assert g.state.pending.kind == "pick_opponent_mamodo"
+    assert top_choice(g, 1) == {"type": "choose", "value": robnos, "player": 1}
+
+
+def test_interrupted_attack_page_stays_known_this_turn():
+    from gash.npc.determinize import known_opponent_pages
+    g, _gash, _robnos = _robnos_attack()
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    assert known_opponent_pages(g, 1).get(2) == "S-042"                # 宣告作廢後仍記得那一頁
+    moved = copy.deepcopy(g)
+    moved.state.players[0].pos += 2                                     # 那一頁不再翻開
+    assert 2 not in known_opponent_pages(moved, 1)
+    later = copy.deepcopy(g)
+    later.state.turn_no += 1                                            # 回合結束後
+    assert 2 not in known_opponent_pages(later, 1)
+
+
+def test_attacker_redeclares_after_harmless_cut_in():
+    # 插入的行動不影響這次攻擊(E-024 鎖ガッシュ・ベル):模擬中攻擊方以同一頁、同一魔物重新宣告
+    from gash.npc.settle import respond, try_submit
+    g, gash, robnos = _robnos_attack()
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    submit(g, {"type": "choose", "player": 1, "value": gash})
+    assert g.state.action_player == 0 and g.state.battle_in is None
+    cmd = respond(g, 0, 1)
+    assert cmd == {"type": "declare_attack", "page": 2, "slot_uid": robnos}
+    assert try_submit(g, 0, cmd) and g.state.battle_in is not None

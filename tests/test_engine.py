@@ -417,3 +417,45 @@ def test_seed_reproducibility():
     script_until_over(g2)
     assert g1.events == g2.events
     assert g1.state.winner == g2.state.winner
+
+
+# ---------------------------------------------------------------- 被插入行動打斷的攻擊宣告(npc-interrupted-attack)
+
+def _interrupted_robnos_attack():
+    """玩家 0 以ロブノス的戰術 S-042(第 2 頁)宣告攻擊,玩家 1 插入 E-024 並鎖ガッシュ・ベル。"""
+    from gash.engine.state import MamodoSlot
+    from tests.test_level2 import book, mk as mk2, to_battle
+    g, _ = mk2(book("M-001", "S-042", "S-042"), book("M-001", "E-024", "S-001"))
+    st = g.state
+    for p, tops in ((0, ("M-001", "M-024")), (1, ("M-001",))):
+        st.players[p].slots[:] = [MamodoSlot(uid=st.next_uid(), stack=[t]) for t in tops]
+    st.players[0].mp, st.players[1].mp = 10, 0                         # NPC 付不起防禦:這次攻擊會打到魔書
+    to_battle(g, 0)
+    gash, robnos = (s.uid for s in st.players[0].slots)
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": robnos})
+    submit(g, {"type": "use_book_card", "player": 1, "page": 2})
+    submit(g, {"type": "choose", "player": 1, "value": gash})
+    return g, robnos
+
+
+def test_interrupted_attack_recorded_and_valid_this_turn():
+    from gash.engine.engine import interrupted_attack
+    g, robnos = _interrupted_robnos_attack()
+    rec = interrupted_attack(g, 0)
+    assert rec is not None and rec["page"] == 2 and rec["slot"] == robnos and not rec["mamodo_attack"]
+    assert interrupted_attack(g, 1) is None                              # 只屬於攻擊方
+    g.state.players[0].pos += 2                                          # 那一頁不再翻開
+    assert interrupted_attack(g, 0) is None
+    g.state.players[0].pos -= 2
+    g.state.turn_no += 1                                                 # 換了回合
+    assert interrupted_attack(g, 0) is None
+
+
+def test_interrupted_attack_cleared_by_new_declaration_only():
+    from gash.engine.engine import interrupted_attack
+    g, robnos = _interrupted_robnos_attack()
+    with pytest.raises(IllegalCommand):                                  # 被拒絕的宣告不改變記錄
+        submit(g, {"type": "declare_attack", "player": 0, "page": 30, "slot_uid": robnos})
+    assert interrupted_attack(g, 0) is not None
+    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": robnos})
+    assert g.state.battle_in is not None and interrupted_attack(g, 0) is None
