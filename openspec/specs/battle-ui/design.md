@@ -249,7 +249,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **與規則的關係**:規則頁是依本遊戲實作寫給玩家讀的說明,權威仍是 `game-engine` 規格。
   - 規格或卡池改動時(新增機制、改變流程),要同步更新規則頁。
   - 測試檢查每種語言的內容都不出現卡池外的機制(石版、W / VS / S / H 魔物、MJ12、巴爾肯、飛行,依語言的稱呼,見 `tests/test_i18n_languages.py` 的 `ABSENT`)。卡池擴充到這些機制時,要從禁止清單移除並補上說明。
-  - 三種語言的內容檔段落 id、順序與 block 種類一致;改一種語言的段落結構時,其他語言要一起改。
+  - 繁中、英文、日文三種撰寫的內容檔段落 id、順序與 block 種類一致;改一種語言的段落結構時,其他語言要一起改。簡中 `rules.zh-CN.json` 由 `tools/build_zh_cn.py` 自繁中產生,改了繁中要重跑。
 - **連結**:`RULE_LINKS`(`app.js`)把時機指示的步驟與行動欄提示對應到段落 id;測試檢查每一步、每一條提示都有連結,且指到存在的段落。`openRules(sectionId)` 開啟覆蓋層並捲動到段落,目錄依內容區頂端的段落標示。
 - **卡面圖示**:
   - 卡圖是另外安裝的外部資源,repo 不放任何由卡圖衍生的圖檔。
@@ -282,11 +282,11 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 不就地重繪:每個已渲染的元件(行動記錄、對話框、聚焦展示、構築器)都要能重建才行,容易漏;重新載入一次就全部正確,接回路徑也有測試。
   - 語言只存在瀏覽器,伺服器不知道玩家的語言;同房玩家與觀戰者各自使用自己的語言。
 - **卡片文字**:全域 `TEXT` 是目前語言的卡片文字。`cname()` 對魔物以 `ui.card_with_attr` 加上效果名區分同名魔物(中、日「名稱《效果名》」,英「Name (Effect)」);放大檢視用 `cname()`,盤面小卡只顯示卡名(版面有限)。卡名下方的日文原名小字只在非日文時顯示。
-- **錯誤碼**:`api()` 失敗時,字典有 `error.<code>` 就用它,否則用伺服器的 `message`。字典裡的錯誤訊息是每個錯誤碼一條通用訊息,不帶伺服器訊息中的動態參數(卡號、頁數)。`tests/test_i18n_languages.py` 掃描伺服器程式中的錯誤碼(`IllegalCommand`、`DeckError`、`RoomError`、`_npc_http_error`、`"code": …`),要求三種字典都有;新增錯誤碼時要補三種語言的訊息。
+- **錯誤碼**:`api()` 失敗時,字典有 `error.<code>` 就用它,否則用伺服器的 `message`。字典裡的錯誤訊息是每個錯誤碼一條通用訊息,不帶伺服器訊息中的動態參數(卡號、頁數)。`tests/test_i18n_languages.py` 掃描伺服器程式中的錯誤碼(`IllegalCommand`、`DeckError`、`RoomError`、`_npc_http_error`、`"code": …`),要求四種語言的字典都有;新增錯誤碼時補繁中、英文、日文三種撰寫的訊息,再執行 `tools/build_zh_cn.py` 產生簡中。
 - **日文用語**:「バトルしていないとき」「バトル以外」統一為「非バトル」(介面字典與規則頁;卡片效果文不動),與「バトル中」對稱,也放得進回合轉盤的中心(使用者指定)。
 - **預組名稱**:`GET /api/decks` 回傳 `name_key` 時,前端以目前字典解析(`presetName()`),字典沒有才用伺服器的 `name`。
 - **標點與分隔**:清單分隔、卡片資訊分隔、頂欄分隔、括號與「玩家:標題」也走字典(`ui.sep.*`、`ui.paren`、`ui.choice_title`、`ui.you_suffix`),英文用半形與空白。
-- **用語**:中文一律稱「魔書」「戰術」「戰術卡」(專案負責人指定),畫面文字、卡片中譯、README、規格與設計文件、程式註解與伺服器訊息都相同;歸檔的 change 是歷史紀錄,保留當時的「魔本」「術」。「術語」「技術」等一般詞不受影響。日文採規則書用語(スタートフェイズ、ターンプレイヤー、魔書、戰術、パートナー、捨て札、負傷状態、かばう、スタンバイ、ステイ、ジャマー、表 / 裏);英文對齊卡圖與 TTS 卡表(START PHASE、turn player、Spell Book、SPELL、MAMODO、Partner、Event、Power、Injured、PROTECT、STANDBY、STAY、Discard Pile、heads / tails)。卡面圖示三種語言都用卡面上的稱呼:「攻(A)」「防(D)」(英文 A (Attack) / D (Defense))、BATTLE、NO BATTLE、CUT-IN。
+- **用語**:中文一律稱「魔書」「戰術」「戰術卡」(專案負責人指定),畫面文字、卡片中譯、README、規格與設計文件、程式註解與伺服器訊息都相同;歸檔的 change 是歷史紀錄,保留當時的「魔本」「術」。「術語」「技術」等一般詞不受影響。日文採規則書用語(スタートフェイズ、ターンプレイヤー、魔書、戰術、パートナー、捨て札、負傷状態、かばう、スタンバイ、ステイ、ジャマー、表 / 裏);英文對齊卡圖與 TTS 卡表(START PHASE、turn player、Spell Book、SPELL、MAMODO、Partner、Event、Power、Injured、PROTECT、STANDBY、STAY、Discard Pile、heads / tails)。卡面圖示各語言都用卡面上的稱呼:「攻(A)」「防(D)」(英文 A (Attack) / D (Defense))、BATTLE、NO BATTLE、CUT-IN。
   - 英文標籤較長,手機版時機指示用較短的英文標籤(No BATTLE、BATTLE:、Check)維持單行;頂欄按鈕不換行。
 - **簡體中文**:三個檔都由 `tools/build_zh_cn.py` 自繁中產生,不手動編輯(轉換規則見 `card-data/design.md`)。選單上繁中稱「繁體中文」、簡中稱「简体中文」:有兩種中文時必須區分。
 - **翻譯狀態**:日文與英文是初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。測試只保證條目、參數、段落與涵蓋一致,不檢查品質。

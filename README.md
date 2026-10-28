@@ -68,7 +68,8 @@ uvicorn gash.api.app:app --reload
 
 - **顯示名**:`GET /api/decks` 回傳 `name_key` 與 `name`;前端以 `name_key` 依目前語言查字典,
   字典沒有時用 `name`(伺服器依序以中文字典解析 `name_key` → 內嵌 `name` → `id`)。
-  要在地化就加 `name_key` 並在三種語言的 i18n 字典補條目;否則直接寫 `name` 即可。
+  要在地化就加 `name_key` 並在繁中、英文、日文的 i18n 字典補條目,再執行 `python tools/build_zh_cn.py`
+  產生簡中;否則直接寫 `name` 即可。
 - 檔案若無法通過構築驗證,啟動掃描時會被排除(記 log),不影響其他預組。
 - 請求端只以 `{preset: <id>}` 指定,伺服器用 id 查掃描到的白名單載入,絕不轉為任意檔案路徑。
 
