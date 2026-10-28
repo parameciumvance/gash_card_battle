@@ -109,6 +109,23 @@ def test_faceoff_tie_defense_success(faceoff_page):
     assert final["defense"]["win"] and final["attack"]["lose"]
 
 
+def test_faceoff_mamodo_defense(faceoff_page):
+    # 魔物效果防禦(M-039)沒有戰術:防禦方那組顯示防禦的魔物與「魔物效果防禦」,不是「不防禦」(玩家回報)
+    page = faceoff_page
+    tp, _ = start_as(page, "all")
+    page.evaluate(RECORD)
+    page.evaluate("""(tp) => Anim.apply([{type: 'showdown', attacker: tp, attacker_total: 7000, defender_total: 6500,
+        winner: 'attacker', attack_negated: false,
+        attacker_breakdown: [{kind: 'mamodo', source: 'M-046', amount: 7000}],
+        defender_breakdown: [{kind: 'fixed', source: 'M-039', amount: 6500}],
+        attack_mamodo: 'M-046', attack_spell: null, defense_mamodo: 'M-039', defense_spell: null}], S, render, tp)""", tp)
+    page.wait_for_function("window.__fo.length && window.__fo[0].gone", timeout=8000)
+    first = page.evaluate("window.__fo[0].first")
+    assert first["defense"]["cards"] == ["M-039"]
+    assert first["defense"]["empty"] == "魔物效果防禦"
+    assert first["attack"]["cards"] == ["M-046"] and first["attack"]["empty"] == "無戰術攻擊"
+
+
 def test_faceoff_click_skips(faceoff_page):
     page = faceoff_page
     page.evaluate("""() => new MutationObserver((_, obs) => {

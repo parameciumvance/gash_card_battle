@@ -267,6 +267,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 
 /* ---------------- 卡片 ---------------- */
 .card {
+  container-type: inline-size;   /* 角落徽章以 cqw 對齊卡圖(卡寬依場合不同) */
   width: 118px; min-height: 128px; border-radius: 8px; position: relative;
   background: #f5efdc; color: #24201a; padding: 6px; font-size: 11px;
   border: 2px solid #6b5b3e; cursor: pointer; flex-shrink: 0;
@@ -284,8 +285,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   font-size: 9.5px; color: #333; overflow: hidden; flex: 1;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
-.card .cnum {   /* 卡號標籤:有底色,蓋在卡圖右上也可讀(與頁位的頁碼同一種樣式) */
-  position: absolute; right: 4px; top: 4px; z-index: 2; font-size: 10px; line-height: 1.4;
+.card .cnum {   /* 卡號標籤:有底色,在卡片右下角的預留列(右上角是卡圖的費用格;與頁位的頁碼同一種樣式) */
+  position: absolute; right: 4px; bottom: 3px; z-index: 2; font-size: 10px; line-height: 1.4;
   color: #e6ecff; background: rgba(18,24,42,.8); padding: 0 4px; border-radius: 4px;
 }
 /* 中級 / 上級:併入資訊列,限制可放的頁數 */
@@ -339,12 +340,22 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .card .val-bad { color: var(--on-page-red); font-weight: bold; }
 .card .val-badge { position: absolute; z-index: 2; font-weight: bold; color: #fff; white-space: nowrap;
   background: rgba(28, 36, 56, .85); }
-/* 魔力:左下角(卡名下方) */
-.card .val-badge.val-power { left: 3px; bottom: 2px; padding: 0 4px; border-radius: 6px; font-size: 9px; }
-/* 費用:蓋住卡圖右上角原本的費用格(原圖 465 寬中 x 380-432、y 30-78)。卡圖寬 = 卡寬 - 框線 4 - 內距 12,
-   位置以卡圖寬的比例換算,手機尺寸也對齊;四周各多 1px 完全蓋住 */
+/* 魔力:左下角(卡名下方)。小卡面只寫數值;放大檢視寫成兩行「魔力」/ 數值 */
+.card .val-badge.val-power { left: 4px; bottom: 3px; padding: 0 4px; border-radius: 4px; font-size: 10px; line-height: 1.4; }
+.card .val-badge .val-label { display: none; }
+#zoom-card .card .val-badge.val-power { left: 8px; bottom: 6px; padding: 0 8px; font-size: 14px;
+  line-height: 1.4; text-align: center; }
+#zoom-card .card .val-badge .val-label, #zoom-card .card .val-badge .val-num { display: block; }
+/* 盤面以外的卡面在底部預留一列:左下魔力徽章、右下卡號,不蓋住效果文。盤面、卡背與固定尺寸的卡
+   (卡名下方本來就是空的)維持原本的內距;放大檢視的卡號在內容最底下,只為兩行魔力徽章預留 */
+.card { padding-bottom: 20px; }
+#board .card, .fx-guard.card, .fo-card .card, .zoom-stack-cards .card, .card.back { padding-bottom: 6px; }
+#zoom-card .card { padding-bottom: 34px; }
+#zoom-card .card.has-power { padding-bottom: 52px; }
+/* 費用:蓋住卡圖右上角原本的費用格(原圖 465 寬中 x 380-432、y 30-78)。卡片是查詢容器,
+   100cqw = 卡片內容寬 = 卡圖寬(各場合卡寬不同也對齊);四周各多 1px 完全蓋住 */
 .card .val-badge.val-cost {
-  --art-w: calc(var(--card-w) - 16px);
+  --art-w: 100cqw;
   top: calc(6px + var(--art-w) * .0645 - 1px); right: calc(6px + var(--art-w) * .071 - 1px);
   width: calc(var(--art-w) * .112 + 2px); height: calc(var(--art-w) * .103 + 2px);
   display: flex; align-items: center; justify-content: center; border-radius: 2px;
@@ -352,8 +363,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .card .val-badge.val-good { background: var(--on-page-green); color: #fff; }
 .card .val-badge.val-bad { background: var(--on-page-red); color: #fff; }
 .card .val-badge.val-cost.val-good, .card .val-badge.val-cost.val-bad { border-color: #fff; }
-/* 放大檢視不顯示角落徽章(數值已在卡面上著色) */
-#zoom-card .card .val-badge { display: none; }
 
 .card.back {
   background: url("/static/back.jpg") center / cover no-repeat, #5b2323;
@@ -384,11 +393,19 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   flex-wrap: wrap; padding: 8px 14px; font-size: 13px;
 }
 .stage-vs { color: #ff9d6c; font-weight: bold; font-size: 15px; }
-.stage-side { display: flex; gap: 8px; align-items: baseline; }
+.stage-side { display: flex; gap: 8px; align-items: center; }
 .stage-side .side-label { color: var(--ink); }
 .stage-side .side-total { font-size: 20px; font-weight: bold; color: var(--glow); }
 .stage-side.defense .side-total { color: var(--accent-blue); }
 .stage-hint { font-size: 12px; color: var(--ink-dim); flex-basis: 100%; text-align: center; }
+/* 舞台的攻防卡面:盤面卡的縮小版(沿用 #board .card 的固定尺寸規則,只換尺寸變數);攻方卡在左、防方卡在右 */
+.stage-cards { display: flex; gap: 4px; align-items: center; position: relative;
+  --card-w: 64px; --card-h: 86px; --art-h: 48px; }
+.stage-side.attack .stage-cards { order: -1; }
+.stage-card { cursor: pointer; }
+.stage-card .card .cname { font-size: 9px; }
+.stage-negated { position: absolute; inset: auto 0 40% 0; text-align: center; font-weight: bold; color: #fff;
+  background: rgba(176, 40, 40, .85); border-radius: 4px; padding: 1px 0; transform: rotate(-8deg); }
 
 #action-bar {
   padding: 10px 14px; display: flex; gap: 12px; align-items: center;
@@ -617,9 +634,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #zoom-card .card {
   width: 300px; min-height: 380px; font-size: 15px; cursor: default;
 }
-#zoom-card .card .cnum {
-  position: static; display: block; font-size: 14px; line-height: 1.5;
-  color: #403426; font-weight: normal; margin-top: 6px; background: none; padding: 0;
+#zoom-card .card .cnum {   /* 與其他卡面相同的深色底標籤,在最底下的右側,與左側的魔力徽章同一列、同字級 */
+  right: 8px; bottom: 6px; font-size: 14px; line-height: 1.4; font-weight: normal; padding: 0 6px;
 }
 #zoom-card { max-height: 75dvh; overflow-y: auto; }
 #zoom-card .card:hover { transform: none; box-shadow: none; }
@@ -1194,6 +1210,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
                    我方魔物 → 我方搭檔 → 我方魔書(對頁+MP) */
 @media (max-width: 700px) {
   :root { --card-w: 88px; --card-h: 112px; --art-h: 64px; --cell-w: 92px; --art-ratio: 72 / 64; }
+  .stage-cards { --card-w: 50px; --card-h: 70px; --art-h: 36px; }
 
   #topbar { gap: 8px; padding: 6px 8px; font-size: 12px; flex-wrap: wrap; }
   #topbar #title .wm-text { display: none; }   /* 手機只留徽章(仍可點回首頁) */

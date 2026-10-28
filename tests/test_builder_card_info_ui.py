@@ -110,8 +110,8 @@ def test_phone_layout_keeps_labels_apart(browser, server):  # noqa: F811
         pno, num, detail = (slot.locator(sel).first.bounding_box() for sel in (".pno", ".cnum", ".card-detail"))
         card = slot.locator(".card").bounding_box()
         assert not overlap(pno, num) and not overlap(num, detail) and not overlap(pno, detail)
-        assert num["x"] + num["width"] > card["x"] + card["width"] - 10      # 卡號在右上
-        assert num["y"] < card["y"] + 10
+        assert num["x"] + num["width"] > card["x"] + card["width"] - 10      # 卡號在右下(右上是費用格)
+        assert num["y"] + num["height"] > card["y"] + card["height"] - 10
     # 空的首頁仍顯示完整說明
     page.evaluate("B.deck.pages[0] = null; builderMutated()")
     assert "首頁" in page.locator('#book-grid .page-slot[data-page="0"] .pno').text_content()

@@ -113,7 +113,7 @@ def test_event_cost_from_snapshot(page):
         render();
         zoom('E-032', {kind: 'page', p, page: pg});
     }""", p)
-    assert "費用 3" in page.locator("#zoom-card .cmeta").text_content()
+    assert page.locator("#zoom-card .val-badge.val-cost").inner_text() == "3"
     use = page.locator("#zoom-actions button", has_text="使用")
     assert use.is_disabled() and "MP < 3" in page.locator("#zoom-actions").inner_text()
 

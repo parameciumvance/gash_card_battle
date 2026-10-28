@@ -45,7 +45,7 @@ def test_power_above_card_is_green_with_breakdown(page):
     badge = slot_card(page, uid).locator(".val-badge")
     assert badge.count() == 1 and "val-good" in badge.get_attribute("class") and "5000" in badge.inner_text()
     zoom_slot(page, tp, uid)
-    assert page.locator("#zoom-card .cmeta .val-good").count() == 1
+    assert page.locator("#zoom-card .val-badge.val-power.val-good").count() == 1
     details = page.locator("#zoom-actions .zoom-details").inner_text()
     assert "常駐效果" in details and "+1000" in details and "4000" in details
 
@@ -59,7 +59,7 @@ def test_equal_values_show_neutral_badge(page):
     assert badge.count() == 1 and str(power) in badge.inner_text()
     assert not {"val-good", "val-bad"} & set(badge.get_attribute("class").split())
     zoom_slot(page, tp, uid)
-    assert page.locator("#zoom-card .cmeta .val-good, #zoom-card .cmeta .val-bad").count() == 0
+    assert page.locator("#zoom-card .val-badge.val-good, #zoom-card .val-badge.val-bad").count() == 0
     assert page.locator("#zoom-actions .zoom-details").count() == 0
 
 
@@ -77,7 +77,7 @@ def test_event_cost_above_card_is_red_with_breakdown(page):
     for cls in page.locator(f'[data-page="{pos + 1}"][data-card] .val-badge').evaluate_all("els => els.map((e) => e.className)"):
         assert not {"val-good", "val-bad"} & set(cls.split())
     open_page_zoom(page, tp, pos)
-    assert page.locator("#zoom-card .cmeta .val-bad").count() == 1
+    assert page.locator("#zoom-card .val-badge.val-cost.val-bad").count() == 1
     details = page.locator("#zoom-actions .zoom-details").inner_text()
     assert "+1" in details and page.evaluate("cname('M-040')") in details
 

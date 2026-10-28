@@ -659,15 +659,13 @@ function cardEl(num, opts = {}) {
 
   const meta = document.createElement("div");
   meta.className = "cmeta";
-  const bits = [];   // 字串或 span(與卡面不同的費用 / 魔力依有利或不利著色)
+  const bits = [];   // 魔力與費用只以徽章呈現(見下),資訊列不重複
   const cost = valueChange(def.cost, opts.cost, true);
-  if (cost) bits.push(valueSpan(t("ui.cost", { n: cost.value }), cost.cls));
   const power = def.power && valueChange(def.power.base, opts.power, false);
-  if (power) bits.push(valueSpan(t("ui.power", { n: power.value }), power.cls));
-  if (def.power) {
-    if (def.power.bonus !== undefined) bits.push(t("ui.power_bonus", { n: def.power.bonus }));
-    if (def.power.special) bits.push(t("ui.power_special"));
-  }
+  // 魔力徽章的數值:魔物(與固定魔力的戰術)為魔力,戰術為魔力加值「+N」或「特殊」
+  const powerText = power ? String(power.value)
+    : def.power && def.power.bonus !== undefined ? `+${def.power.bonus}`
+    : def.power && def.power.special ? t("ui.power_special") : null;
   if (def.damage) bits.push(t("ui.damage", { n: def.damage }));
   else if (def.damage_variable) bits.push(t("ui.damage", { n: "?" }));   // 卡面「ダメージ?」:傷害依效果決定
   if (def.ad) bits.push(def.ad);
@@ -685,19 +683,31 @@ function cardEl(num, opts = {}) {
   eff.textContent = z.effect || "";
   el.appendChild(eff);
 
+  // 魔力與費用一律以角落徽章呈現(所有卡面;缺卡圖時也是);傳入目前數值時與卡面不同依有利 / 不利著色
+  if (cost) {    // 費用:只寫數值,蓋在卡圖原本的費用格上
+    const vb = document.createElement("span");
+    vb.className = "val-badge val-cost" + (cost.cls ? ` ${cost.cls}` : "");
+    vb.textContent = String(cost.value);
+    el.appendChild(vb);
+  }
+  if (powerText) {   // 魔力:卡名下方(左下角);標籤只在放大檢視顯示(兩行),小卡面只寫數值
+    const vb = document.createElement("span");
+    vb.className = "val-badge val-power" + (power && power.cls ? ` ${power.cls}` : "");
+    const label = document.createElement("span");
+    label.className = "val-label";
+    label.textContent = t("ui.power_label");
+    const num = document.createElement("span");
+    num.className = "val-num";
+    num.textContent = powerText;
+    vb.append(label, num);
+    el.appendChild(vb);
+    el.classList.add("has-power");   // 放大檢視為兩行徽章預留底部空間
+  }
+
   const numEl = document.createElement("div");
   numEl.className = "cnum";
   numEl.textContent = num;
-  el.appendChild(numEl);
-
-  // 盤面卡片只留卡名:帶有目前數值的卡(場上魔物的魔力、翻開頁的費用)一律以角落徽章顯示,與卡面不同時著色
-  const shown = opts.cost !== undefined && cost ? cost : opts.power !== undefined && power ? power : null;
-  if (shown) {   // 費用:只寫數值,蓋在卡圖原本的費用格上;魔力:卡名下方(左下角)
-    const vb = document.createElement("span");
-    vb.className = `val-badge ${shown === cost ? "val-cost" : "val-power"}` + (shown.cls ? ` ${shown.cls}` : "");
-    vb.textContent = shown === cost ? String(cost.value) : t("ui.power", { n: power.value });
-    el.appendChild(vb);
-  }
+  el.appendChild(numEl);   // 卡號放在徽章之後:放大檢視以它為詳情內容的最後一項
 
   if (opts.badges) {
     for (const b of opts.badges) {
@@ -775,14 +785,6 @@ function valueChange(base, current, lowerIsGood) {
   const value = current !== undefined && current !== null ? current : base;
   if (value === base) return { value, cls: null };
   return { value, cls: (value < base) === lowerIsGood ? "val-good" : "val-bad" };
-}
-
-function valueSpan(text, cls) {
-  if (!cls) return text;
-  const span = document.createElement("span");
-  span.className = cls;
-  span.textContent = text;
-  return span;
 }
 
 function zoom(num, ctx) {
@@ -1866,6 +1868,38 @@ function openPageEl(p, entry) {
 }
 
 // 以攻擊魔物槽 uid 取其卡名(無戰術攻擊顯示用)
+// 無戰術攻擊時代替戰術呈現的固定魔力來源卡(魔力明細中 kind 為 fixed 的來源;與魔物本身相同時不另列)。
+// 對決舞台與魔力對決對峙演出共用
+function fixedPowerSource(breakdown, mamodo) {
+  const fixed = (breakdown || []).find((i) => i.kind === "fixed");
+  return fixed && fixed.source && fixed.source !== mamodo ? fixed.source : null;
+}
+
+// 對決舞台一方的縮小卡面:魔物+戰術(無戰術攻擊為固定魔力來源卡),點擊開純展示放大檢視;被無效時加標記
+function stageCards(player, slotUid, spell, breakdown, negated) {
+  const box = document.createElement("div");
+  box.className = "stage-cards";
+  const slot = S.players[player].slots.find((s) => s.uid === slotUid);
+  const mamodo = slot ? slot.top : null;
+  if (!spell) spell = fixedPowerSource(breakdown, mamodo);
+  for (const num of [mamodo, spell]) {
+    if (!num) continue;
+    const cell = document.createElement("div");
+    cell.className = "stage-card";
+    cell.dataset.card = num;
+    cell.appendChild(cardEl(num));
+    cell.onclick = (ev) => { ev.stopPropagation(); zoom(num); };
+    box.appendChild(cell);
+  }
+  if (negated) {
+    const mark = document.createElement("span");
+    mark.className = "stage-negated";
+    mark.textContent = t("anim.showdown.negated");
+    box.appendChild(mark);
+  }
+  return box;
+}
+
 function attackerName(player, slotUid) {
   const slot = S.players[player].slots.find((s) => s.uid === slotUid);
   return slot ? cname(slot.top) : "";
@@ -1981,6 +2015,10 @@ function renderBattleStage() {
       ? t("ui.battle_in_hint", { player: pname(bi.attacker), spell: cname(bi.spell) })
       : t("ui.battle_in_hint_mamodo", { player: pname(bi.attacker),
           mamodo: attackerName(bi.attacker, bi.slot) });
+    const att = document.createElement("div");
+    att.className = "stage-side attack";
+    att.appendChild(stageCards(bi.attacker, bi.slot, bi.spell || null, null, false));
+    content.appendChild(att);
     content.appendChild(mkLabel("stage-hint", label, bi.spell ? [bi.spell] : []));
     return;
   }
@@ -1992,6 +2030,7 @@ function renderBattleStage() {
         mamodo: attackerName(b.attacker, b.attack_slot) });
   const att = document.createElement("div");
   att.className = "stage-side attack";
+  att.appendChild(stageCards(b.attacker, b.attack_slot, b.attack_spell, b.attacker_breakdown, b.attack_negated));
   att.appendChild(mkLabel("side-label",
     attackLabel +
     (b.attack_negated ? `(${t("ui.negated")})` : "") +
@@ -2008,18 +2047,24 @@ function renderBattleStage() {
   mid.textContent = t("ui.battle");
   const def = document.createElement("div");
   def.className = "stage-side defense";
+  // 防禦方:宣告前「等待防禦宣告」、不防禦時「不防禦」;魔物效果防禦(M-039)沒有戰術,以魔物名呈現
+  const defender = 1 - b.attacker;
+  const negatedNote = b.defense_negated ? `(${t("ui.negated")})` : "";
   def.appendChild(b.defense_spell
     ? mkLabel("side-label",
-        t("ui.battle_defense", { player: pname(1 - b.attacker), spell: cname(b.defense_spell) }) +
-        (b.defense_negated ? `(${t("ui.negated")})` : ""),
+        t("ui.battle_defense", { player: pname(defender), spell: cname(b.defense_spell) }) + negatedNote,
         [b.defense_spell])
-    : mkLabel("side-label", t("ui.battle_no_defense_yet")));
+    : b.defense_slot
+      ? mkLabel("side-label", t("ui.battle_defense_mamodo", { player: pname(defender),
+          mamodo: attackerName(defender, b.defense_slot) }) + negatedNote)
+      : mkLabel("side-label", t(b.step === "defense" ? "ui.battle_no_defense_yet" : "anim.showdown.no_defense")));
   const defTotal = document.createElement("span");
   defTotal.className = "side-total";
   defTotal.id = "stage-def-total";
   defTotal.textContent = b.defender_total;
   defTotal.onclick = () => showBreakdown({ ...b, live: true });
   def.appendChild(defTotal);
+  if (b.defense_slot) def.appendChild(stageCards(defender, b.defense_slot, b.defense_spell, null, b.defense_negated));
   content.appendChild(att);
   content.appendChild(mid);
   content.appendChild(def);

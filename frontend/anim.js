@@ -513,13 +513,10 @@ const Anim = (() => {
     };
     const mamodo = attack ? ev.attack_mamodo : ev.defense_mamodo;
     let spell = attack ? ev.attack_spell : ev.defense_spell;
-    if (attack && !spell) {                         // 無戰術攻擊:固定魔力的來源卡
-      const fixed = (ev.attacker_breakdown || []).find((i) => i.kind === "fixed");
-      spell = fixed && fixed.source && fixed.source !== mamodo ? fixed.source : null;
-    }
-    if (attack || spell) {
+    if (attack && !spell) spell = fixedPowerSource(ev.attacker_breakdown, mamodo);   // 無戰術攻擊:固定魔力的來源卡
+    if (attack || spell || mamodo) {                // 魔物效果防禦(M-039)沒有戰術,但有防禦的魔物
       slot(mamodo, null);
-      slot(spell, "anim.showdown.no_spell");
+      slot(spell, attack ? "anim.showdown.no_spell" : "anim.showdown.mamodo_defense");
     } else {
       slot(null, "anim.showdown.no_defense");      // 不防禦:沒有特定的魔物,只放「不防禦」
     }
