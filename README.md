@@ -41,7 +41,7 @@ uvicorn gash.api.app:app --reload
 ## 牌組構築
 
 魔書構築是**排版**:頁位=出牌時機、對頁=同時翻開的手牌、最後一頁的戰術費用為 0。
-構築器以 16 個對頁呈現魔書,左側卡池(可依類型/對應魔物/收錄產品篩選,如 Level 1、The Best Booster 1):
+構築器以 16 個對頁呈現魔書,左側卡池(可依類型/對應魔物/收錄產品篩選,如 LEVEL:1、魔本ファイル第1弾):
 
 - 點卡池的卡 → 放入選中頁位(或下一空頁);點頁位選中,再點另一頁位=移動/互換(也可拖拉);
   點選中的有卡頁位=移除。
@@ -72,8 +72,8 @@ uvicorn gash.api.app:app --reload
 - 檔案若無法通過構築驗證,啟動掃描時會被排除(記 log),不影響其他預組。
 - 請求端只以 `{preset: <id>}` 指定,伺服器用 id 查掃描到的白名單載入,絕不轉為任意檔案路徑。
 
-構築器左側卡池的「產品」篩選(如 Level 2)是依 `cards.json` 每張卡的 `sets` 欄自動產生的,
-與預組無關 — 只要卡在卡池裡就能手動構築,新增預組只是多一個「開局即可選的完整 32 頁」捷徑。
+構築器卡池的「產品」篩選依 `cards.json` 每張卡的 `sets`(產品代號)比對,網格的分排與顯示哪些產品由
+`frontend/pool-filters.json` 決定,產品圖放在 `frontend/products/<代號>.webp`;篩選與預組無關 — 只要卡在卡池裡就能手動構築,新增預組只是多一個「開局即可選的完整 32 頁」捷徑。
 
 線上模式規則與資訊視角:
 - 自己永遠顯示在畫面下方;**對手翻開頁只顯示卡背與頁碼**(依原規則,使用時才展示;
@@ -519,7 +519,7 @@ tools/
 
 1. `python tools/scrape_ja_effects.py` 抓取 atwiki.jp 日文權威頁面,輸出 `data/cards_ja.csv`。
 2. `python tools/build_cards_json.py` 將 `data/cards_ja.csv` 轉換為 `data/cards.json`;
-   `sets` 沿用轉換前既有 `data/cards.json` 的舊值(新卡取 TTS 卡表的 Sets 欄)。
+   `sets` 由 `sets_ja` 取產品名轉為產品代號(對照表 `PRODUCTS`,遇到未登記的產品名會中止,要先登記代號)。
 3. `python tools/download_images.py` 從卡圖資料夾(見「卡圖」)下載 `{卡號}.webp` 存至
    `frontend/assets/cards/`;已存在自動跳過,資料夾中沒有的卡與失敗清單寫入 `_failed.txt`,缺圖不影響遊戲。
 

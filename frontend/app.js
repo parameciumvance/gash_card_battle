@@ -1107,7 +1107,7 @@ function closeCheat() {
 function openCheat() {
   if (!canCheat() || CHEAT) return;
   CHEAT = { session: SESSION, generation: ++cheatGeneration, players: null,
-    active: 0, selected: [null, null], ftype: "", fmamodo: "", fproduct: "", busy: false, applied: false };
+    active: 0, selected: [null, null], ...newPoolFilters(), busy: false, applied: false };
   showCheatError("");
   document.getElementById("cheat-panel").showModal();
   renderCheatFields();
@@ -2807,6 +2807,16 @@ const RULE_ICONS = ["cost", "attack", "defense", "nobattle", "battle", "cutin", 
 const ICON_FALLBACK = { cost: "1", attack: "A", defense: "D", nobattle: "NO BATTLE", battle: "BATTLE",
                         cutin: "CUT-IN", power: "Power", damage: "1→" };   // 缺圖時的文字標籤
 
+// 以百分比裁出卡圖上的 [x, y, w, h] 範圍(規則頁圖示、卡池篩選的類型徽章與魔物圖示共用)
+function artCrop(card, [x, y, w, h], cls = "icon-crop") {
+  const crop = el("span", cls);
+  crop.style.backgroundImage = `url(${artUrl(card)})`;
+  crop.style.aspectRatio = `${w} / ${h}`;
+  crop.style.backgroundSize = `${(ART_W / w) * 100}% auto`;
+  crop.style.backgroundPosition = `${(x / (ART_W - w)) * 100}% ${(y / (ART_H - h)) * 100}%`;
+  return crop;
+}
+
 // 卡圖是另外安裝的外部資源:逐張探測,載入失敗時改以文字呈現
 const artProbe = {};
 function probeArt(num) {
@@ -2883,12 +2893,7 @@ function renderRuleIcons(body) {
         rulesMissingNote(body);
         return;
       }
-      const crop = el("span", "icon-crop");   // 以百分比裁出卡圖上的單一圖示
-      crop.style.backgroundImage = `url(${artUrl(card)})`;
-      crop.style.aspectRatio = `${w} / ${h}`;
-      crop.style.backgroundSize = `${(ART_W / w) * 100}% auto`;
-      crop.style.backgroundPosition = `${(x / (ART_W - w)) * 100}% ${(y / (ART_H - h)) * 100}%`;
-      slot.replaceChildren(crop);
+      slot.replaceChildren(artCrop(card, [x, y, w, h]));
     });
   }
   return wrap;
@@ -3217,14 +3222,14 @@ setInterval(() => {
 
 // ---------------------------------------------------------------- 牌組構築器
 
-let B = null;  // {deck:{id,name,pages[32]}, selected: 頁index|null, ftype, fmamodo, fproduct}
+let B = null;  // {deck:{id,name,pages[32]}, selected: 頁index|null, 篩選(newPoolFilters)}
 
 function showBuilder() {
   const draft = DeckStore.loadDraft();
   const deck = draft && Array.isArray(draft.pages) && draft.pages.length === 32
     ? draft
     : { id: null, name: t("builder.new"), pages: Array(32).fill(null) };
-  B = { deck, selected: null, ftype: "", fmamodo: "", fproduct: "" };
+  B = { deck, selected: null, ...newPoolFilters() };
   show("builder");
   renderBuilderAll();
 }
@@ -3396,72 +3401,234 @@ function renderPoolFilters() {
   renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool);
 }
 
+// 卡池圖示篩選(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」):類型徽章平鋪(多選),魔物、產品各一顆按鈕展開圖示網格(單選)。
+// ftypes 為集合,空集合不篩選;fmamodo / fproduct 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
+const POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"] };
+const MAMODO_ART = [26, 24, 412, 388];   // 魔物卡的插圖區(卡名列以上),所有魔物卡共用
+let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/pool-filters.json:產品分排、魔物順序與合併
+
+function newPoolFilters() {
+  return { ftypes: new Set(), fmamodo: null, fproduct: null, fopen: null };
+}
+
+// 卡圖裁切的圖示(探測結果有快取,重繪不閃爍)。fallback 為文字時先放文字,卡圖可載入才換成裁切;
+// 沒有 fallback 時卡圖無法載入就移除圖示,只留旁邊的文字
+function artIcon(card, box, fallback, cls) {
+  const holder = el("span", "filter-icon " + cls, fallback || "");
+  if (!card) { if (!fallback) holder.remove(); return holder; }
+  probeArt(card).then((ok) => {
+    if (ok) holder.replaceChildren(artCrop(card, box, "filter-crop"));
+    else if (!fallback) holder.remove();
+  });
+  return holder;
+}
+
+function productIcon(code) {
+  const holder = el("span", "filter-icon product-icon");
+  const img = new Image();
+  img.alt = "";
+  img.onerror = () => holder.remove();   // 缺圖:只留產品名稱
+  img.src = `/static/products/${code}.webp`;
+  holder.appendChild(img);
+  return holder;
+}
+
+// 魔物篩選用的家族:設定檔 mamodo_merge 列出的家族併入目標家族(如金色のガッシュベル → ガッシュ・ベル)
+function filterFamily(fam) {
+  return (FILTER_CFG.mamodo_merge || {})[fam] || fam;
+}
+
+// 魔物名稱去掉括號註記(「ロブノス(分身体)」→「ロブノス」)
+function familyLabel(name) {
+  return name.replace(/\s*[（(][^（()）]*[）)]\s*$/, "");
+}
+
+// 魔物網格的項目:有開放卡片的家族,依設定檔順序,沒列出的依代表卡卡號接在最後;另加「無」(指令戰術)
+function mamodoFilterItems() {
+  const reps = {};   // 家族 → 代表卡(卡號最小的魔物卡;沒有開放的魔物卡時為 null,只顯示名稱)
+  for (const c of openCards()) {
+    const fam = filterFamily(c.related_mamodo);
+    if (!fam || fam === COMMAND_MAMODO) continue;
+    if (!(fam in reps)) reps[fam] = null;
+    if (c.type === "mamodo" && (!reps[fam] || c.number < reps[fam])) reps[fam] = c.number;
+  }
+  const order = FILTER_CFG.mamodo || [];
+  const rank = (fam) => (order.includes(fam) ? order.indexOf(fam) : order.length);
+  const fams = Object.keys(reps).sort((x, y) => rank(x) - rank(y)
+    || (reps[x] || "~").localeCompare(reps[y] || "~"));
+  return fams.map((fam) => ({ key: fam, card: reps[fam],
+    label: familyLabel(reps[fam] && TEXT[reps[fam]] ? TEXT[reps[fam]].name : fam) }));
+}
+
+// 產品網格的各排:依設定檔,只列有開放卡片的產品(再收錄產品不在設定檔中,不列出)
+function productFilterRows() {
+  const present = new Set(openCards().flatMap((c) => c.sets || []));
+  return (FILTER_CFG.products || []).map((row) => row.filter((code) => present.has(code)))
+    .filter((row) => row.length);
+}
+
+// 只勾「事件」時魔物篩選停用(事件沒有對應魔物),保留選取
+function mamodoFilterPaused(filters) {
+  return filters.ftypes.size === 1 && filters.ftypes.has("event");
+}
+
+function poolCardMatches(def, filters) {
+  if (filters.ftypes.size && !filters.ftypes.has(def.type)) return false;
+  if (filters.fmamodo && !mamodoFilterPaused(filters)
+      && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
+  if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) return false;
+  return true;
+}
+
 function renderCardPoolFilters(holder, filters, onChange) {
-  holder.innerHTML = "";
-  const typeSel = document.createElement("select");
-  typeSel.innerHTML = `<option value="">${t("builder.filter.type")}:${t("builder.filter.all")}</option>`;
-  for (const ty of ["mamodo", "partner", "spell", "event"]) {
-    typeSel.innerHTML += `<option value="${ty}">${t("builder.type." + ty)}</option>`;
-  }
-  typeSel.setAttribute("aria-label", t("builder.filter.type"));
-  typeSel.value = filters.ftype;
-  typeSel.onchange = () => {
-    filters.ftype = typeSel.value;
-    mamodoSel.disabled = filters.ftype === "event";   // 事件沒有對應魔物:暫停對應魔物篩選(保留選擇)
-    onChange();
+  holder.replaceChildren();
+  holder.classList.add("pool-filters");
+  const bar = el("div", "filter-bar");
+
+  const typeButtons = POOL_TYPES.map((ty) => {
+    const [card, mark] = TYPE_BADGES[ty];
+    const btn = el("button", "filter-type");
+    btn.type = "button";
+    btn.dataset.type = ty;
+    btn.title = btn.ariaLabel = t("builder.type." + ty);
+    btn.append(artIcon(card, ART_BOXES.type.slice(1), mark, "type-icon"),   // 各類型卡的徽章與 M-001 同位置
+      el("span", "filter-label", t("builder.type." + ty)));
+    btn.onclick = () => {
+      if (filters.ftypes.has(ty)) filters.ftypes.delete(ty); else filters.ftypes.add(ty);
+      sync(); onChange();
+    };
+    bar.appendChild(btn);
+    return btn;
+  });
+
+  const mamodoItems = mamodoFilterItems();
+  const productRows = productFilterRows();
+  const groups = {
+    mamodo: { key: "fmamodo", label: t("builder.filter.mamodo"),
+      items: [{ key: MAMODO_NONE, label: t("builder.filter.none"), title: t("builder.filter.none_title") },
+        ...mamodoItems] },
+    product: { key: "fproduct", label: t("builder.filter.product"),
+      items: productRows.flat().map((code) => ({ key: code, label: t("product." + code) })) },
   };
-  holder.appendChild(typeSel);
+  // 圖示 + 文字;「無」只有文字
+  const itemFace = (group, item) => {
+    const face = [];
+    if (group === "product") face.push(productIcon(item.key));
+    else if (item.key !== MAMODO_NONE) face.push(artIcon(item.card, MAMODO_ART, null, "mamodo-icon"));
+    face.push(el("span", "filter-caption", item.label));
+    return face;
+  };
+  const choose = (group, key) => {
+    filters[groups[group].key] = key;
+    filters.fopen = null;
+    sync(); onChange();
+    menus[group].btn.focus();
+  };
 
-  const mamodoSel = document.createElement("select");
-  const names = [...new Set(openCards()
-    .map((c) => c.related_mamodo).filter((m) => m && m !== COMMAND_MAMODO))].sort();
-  mamodoSel.innerHTML = `<option value="">${t("builder.filter.mamodo")}:${t("builder.filter.all")}</option>`
-    + `<option value="${MAMODO_NONE}">${t("builder.filter.mamodo")}:${t("builder.filter.none")}</option>`;
-  for (const name of names) {
-    const numAny = openCards().find(
-      (c) => c.type === "mamodo" && c.related_mamodo === name);
-    const label = numAny && TEXT[numAny.number] ? TEXT[numAny.number].name : name;
-    mamodoSel.innerHTML += `<option value="${name}">${label}</option>`;
-  }
-  mamodoSel.setAttribute("aria-label", t("builder.filter.mamodo"));
-  mamodoSel.value = filters.fmamodo;
-  mamodoSel.disabled = filters.ftype === "event";
-  mamodoSel.onchange = () => { filters.fmamodo = mamodoSel.value; onChange(); };
-  holder.appendChild(mamodoSel);
+  const menus = {};
+  for (const group of ["mamodo", "product"]) {
+    const g = groups[group];
+    const btn = el("button", "filter-menu");
+    btn.type = "button";
+    btn.dataset.group = group;
+    btn.setAttribute("aria-haspopup", "true");
+    btn.append(el("span", "filter-menu-label", g.label), el("span", "filter-summary"));
+    btn.onclick = () => { filters.fopen = filters.fopen === group ? null : group; sync(); };
+    bar.appendChild(btn);
 
-  // 產品(彈數)篩選:同一張卡可屬多個產品
-  const productSel = document.createElement("select");
-  const products = [...new Set(openCards().flatMap((c) => c.sets || []))].sort();
-  productSel.innerHTML = `<option value="">${t("builder.filter.product")}:${t("builder.filter.all")}</option>`;
-  for (const tag of products) {
-    productSel.innerHTML += `<option value="${tag}">${tag}</option>`;
+    const panel = el("div", "filter-panel hidden");
+    panel.dataset.group = group;
+    panel.setAttribute("role", "group");
+    panel.ariaLabel = g.label;
+    const allBtn = el("button", "filter-tile filter-all", t("builder.filter.all"));
+    allBtn.type = "button";
+    allBtn.onclick = () => choose(group, null);
+    panel.appendChild(allBtn);
+    const tiles = {};
+    const tileFor = (item) => {
+      const tile = el("button", "filter-tile");
+      tile.type = "button";
+      tile.dataset.key = item.key;
+      tile.title = tile.ariaLabel = item.title || item.label;
+      tile.append(...itemFace(group, item));
+      tile.onclick = () => choose(group, item.key);
+      tiles[item.key] = tile;
+      return tile;
+    };
+    if (group === "product") {
+      for (const row of productRows) {
+        const line = el("div", "filter-row");
+        for (const code of row) line.appendChild(tileFor(g.items.find((it) => it.key === code)));
+        panel.appendChild(line);
+      }
+    } else {
+      const grid = el("div", "filter-grid");
+      for (const item of g.items) grid.appendChild(tileFor(item));
+      panel.appendChild(grid);
+    }
+    menus[group] = { btn, panel, tiles, allBtn };
   }
-  productSel.setAttribute("aria-label", t("builder.filter.product"));
-  productSel.value = filters.fproduct;
-  productSel.onchange = () => { filters.fproduct = productSel.value; onChange(); };
-  holder.appendChild(productSel);
+  holder.append(bar, menus.mamodo.panel, menus.product.panel);
+
+  function sync() {
+    for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
+    const paused = mamodoFilterPaused(filters);
+    if (paused && filters.fopen === "mamodo") filters.fopen = null;
+    for (const group of ["mamodo", "product"]) {
+      const { btn, panel, tiles, allBtn } = menus[group];
+      const g = groups[group];
+      const current = filters[g.key];
+      const open = filters.fopen === group;
+      btn.disabled = group === "mamodo" && paused;
+      btn.setAttribute("aria-expanded", String(open));
+      panel.classList.toggle("hidden", !open);
+      allBtn.setAttribute("aria-pressed", String(!current));
+      for (const [key, tile] of Object.entries(tiles)) tile.setAttribute("aria-pressed", String(current === key));
+      // 按鈕摘要:未選取為「全部」,否則為選取項目的圖示與名稱
+      const summary = btn.querySelector(".filter-summary");
+      const picked = g.items.find((item) => item.key === current);
+      summary.replaceChildren(...(picked ? itemFace(group, picked) : [t("builder.filter.all")]));
+      btn.ariaLabel = `${g.label}: ${picked ? picked.label : t("builder.filter.all")}`;
+    }
+  }
+  sync();
+
+  // 點網格外或 Esc 收起(每個 holder 只掛一組監聽)
+  document.removeEventListener("pointerdown", holder._closeFilters, true);
+  holder._closeFilters = (ev) => {
+    if (filters.fopen && !holder.contains(ev.target)) { filters.fopen = null; sync(); }
+  };
+  document.addEventListener("pointerdown", holder._closeFilters, true);
+  holder.onkeydown = (ev) => {
+    if (ev.key !== "Escape" || !filters.fopen) return;
+    ev.preventDefault();
+    ev.stopPropagation();   // 金手指是 dialog:Esc 只收起網格,不關閉視窗
+    const btn = menus[filters.fopen].btn;
+    filters.fopen = null;
+    sync();
+    btn.focus();
+  };
 }
 
 function renderPool() {
   renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true });
 }
 
-// 對應魔物篩選:「無」只留指令戰術;類型為事件時暫停(事件沒有對應魔物)
-const MAMODO_NONE = "__none__";
-function matchesMamodoFilter(def, filters) {
-  if (!filters.fmamodo || filters.ftype === "event") return true;
-  if (filters.fmamodo === MAMODO_NONE) return isCommandSpell(def);
-  return def.related_mamodo === filters.fmamodo;
+// 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件,同類型依卡號
+function comparePoolCards(a, b) {
+  return POOL_TYPES.indexOf(CARDS[a].type) - POOL_TYPES.indexOf(CARDS[b].type) || a.localeCompare(b);
 }
+
+// 魔物篩選的「無」:只留指令戰術
+const MAMODO_NONE = "__none__";
 
 function renderCardPool(grid, filters, onPick, opts = {}) {
   grid.innerHTML = "";
-  const numbers = openCards().map((c) => c.number).sort();
+  const numbers = openCards().map((c) => c.number).sort(comparePoolCards);
   for (const num of numbers) {
     const def = CARDS[num];
-    if (filters.ftype && def.type !== filters.ftype) continue;
-    if (!matchesMamodoFilter(def, filters)) continue;
-    if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) continue;
+    if (!poolCardMatches(def, filters)) continue;
     const el = cardEl(num, { small: true, detail: opts.detail });
     el.onclick = () => onPick(num);
     el.setAttribute("role", "button");
@@ -3951,6 +4118,8 @@ async function boot() {
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
     fetch("/data/pending_cards.json").then((r) => r.json())
       .then((d) => { PENDING = new Set(d.cards || []); }).catch(() => {}),
+    fetch("/static/pool-filters.json").then((r) => r.json())
+      .then((d) => { FILTER_CFG = d; }).catch(() => {}),
   ]);
   PRESETS = presets && presets.length ? presets : [{ id: DEFAULT_PRESET, name: DEFAULT_PRESET }];
   applyMotionClass();

@@ -69,7 +69,7 @@
 - 選項 `detail`:在卡號下方的卡圖右側加「詳情」按鈕,`stopPropagation` 後以 `zoom(num)` 開純展示檢視,不觸發放卡、選取。牌組編輯器的卡池與頁位使用;金手指視窗是 top layer 的 `<dialog>`,放大檢視蓋不上去,所以不用。
 - 放大檢視疊放中的魔物(`stack` ≥ 2)時,`renderZoom` 在行動區上方加 `.zoom-stack`,列出疊在下方的卡(由上而下);點小卡以 `ZOOM = {num, ctx: null, back}` 改為純展示,`back` 存在時加「返回」按鈕(`keepOpen`,不關閉檢視)回到原魔物。疊放是公開資訊,雙方都可看。
 - 頁位 `bookPageSlotEl` 的移除:只有牌組編輯器傳入 `actions.remove`。選中的有卡頁位顯示 `.slot-remove`「移除」按鈕,Delete / Backspace 同效;再點已選中的頁只取消選取,不移除(避免連點誤刪)。金手指不傳 `remove`,魔書不能有空頁。
-- 篩選列 `renderCardPoolFilters`、卡池 `renderCardPool`、頁位 `bookPageSlotEl` 由牌組編輯器與金手指共用,差異以參數(`detail`)傳入,不在函式內判斷呼叫端。對應魔物篩選:「無」(`__none__`)只留指令戰術;類型為事件時停用且不套用,但保留選擇(`matchesMamodoFilter`)。
+- 篩選列 `renderCardPoolFilters`、卡池 `renderCardPool`、頁位 `bookPageSlotEl` 由牌組編輯器與金手指共用,差異以參數(`detail`)傳入,不在函式內判斷呼叫端。篩選的設計(類型多選、魔物與產品單選、彈出網格、事件規則)見 `deck-builder/design.md`;金手指是 `<dialog>`,篩選網格的 Esc 只收起網格(`stopPropagation`),不關閉視窗。
 
 ## 借用效果入口(E-010)
 

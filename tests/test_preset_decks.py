@@ -92,3 +92,13 @@ def test_custom_pages_still_validated():
     res = client.post("/api/rooms", json={"mode": "online",
                       "deck": {"pages": ["NOPE"] * 32}})
     assert res.status_code == 422
+
+
+def test_level3_starter_presets():
+    # 第三系列構築済み魔本:依 atwiki 魔本頁頁序,通過構築驗證(未通過的檔不會出現在清單)
+    _rescan()
+    decks = {d["id"]: d for d in client.get("/api/decks").json()["decks"]}
+    for deck_id, first, last in (("gash-nakama", "M-048", "S-091"), ("zeon", "M-051", "S-101")):
+        assert decks[deck_id]["name_key"] == f"deck.{deck_id}"
+        pages = json.loads((appmod.DECKS_DIR / f"{deck_id}.json").read_text(encoding="utf-8"))["pages"]
+        assert len(pages) == 32 and pages[0] == first and pages[-1] == last

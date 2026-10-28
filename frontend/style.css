@@ -557,7 +557,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   gap: 8px; align-content: start;
 }
 #cheat-filters { position: sticky; top: 0; z-index: 3; padding-bottom: 8px; background: var(--panel); }
-#cheat-filters select { max-width: 100%; }
 #cheat-pool-grid .card { width: 120px; cursor: pointer; }
 #cheat-pool-grid .card:hover, #cheat-pool-grid .card:focus-visible { outline: 2px solid var(--glow); }
 #cheat-book-grid .page-slot .card { width: 96px; }
@@ -1080,11 +1079,50 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   width: 46%; display: flex; flex-direction: column; min-width: 0;
   border-right: 1px solid var(--page-line); background: var(--page-deep);
 }
-#pool-filters { display: flex; gap: 6px; padding: 8px; flex-wrap: wrap; }
-#pool-filters select {
-  padding: 4px 8px; border-radius: 6px; font-size: 12px;
-  border: 1px solid var(--btn-line); background: #1c2333; color: var(--ink);
+/* 卡池圖示篩選(構築器與金手指共用):一行篩選列 + 展開的圖示網格 */
+#pool-filters { position: relative; padding: 8px; }
+:is(#pool-filters, #cheat-filters) { display: block; }
+.pool-filters .filter-bar { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+:is(#pool-filters, #cheat-filters) button {
+  font: inherit; font-size: 12px; color: var(--ink); background: #1c2333; cursor: pointer;
+  border: 1px solid var(--btn-line); border-radius: 6px; padding: 2px; min-height: 0;
 }
+:is(#pool-filters, #cheat-filters) button[aria-pressed="true"] {
+  border-color: var(--glow); box-shadow: 0 0 0 1px var(--glow), 0 0 8px rgba(255, 209, 102, .5);
+}
+:is(#pool-filters, #cheat-filters) button:disabled { opacity: .4; cursor: not-allowed; }
+:is(#pool-filters, #cheat-filters) button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+.pool-filters .filter-type { flex: none; display: flex; align-items: center; gap: 3px; height: 38px;
+  padding: 2px 8px 2px 2px; border-radius: 19px; }
+.pool-filters .filter-type:not([aria-pressed="true"]) { opacity: .6; }
+.pool-filters .filter-icon { display: flex; align-items: center; justify-content: center; overflow: hidden;
+  font-size: 11px; line-height: 1.1; text-align: center; }
+.pool-filters .filter-crop { display: block; width: 100%; background-repeat: no-repeat; }
+.pool-filters .type-icon { flex: none; width: 32px; height: 32px; border-radius: 50%;
+  font-size: 16px; font-weight: bold; }
+.pool-filters .filter-menu { flex: none; display: flex; align-items: center; gap: 4px; height: 38px;
+  padding: 2px 8px; white-space: nowrap; }
+.pool-filters .filter-menu::after { content: "\25BE"; color: var(--ink-dim); }
+.pool-filters .filter-menu-label { color: var(--ink-dim); }
+.pool-filters .filter-summary { display: flex; align-items: center; gap: 3px; }
+.pool-filters .filter-summary .mamodo-icon { width: 28px; border-radius: 4px; }
+.pool-filters .filter-summary .product-icon { width: 20px; height: 30px; }
+.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+.pool-filters .filter-panel {
+  position: absolute; left: 8px; right: 8px; top: calc(100% - 2px); z-index: 20;
+  max-height: min(60vh, 420px); overflow-y: auto; padding: 8px;
+  background: var(--panel); border: 1px solid var(--panel-line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
+}
+.pool-filters .filter-all { padding: 4px 12px; margin-bottom: 8px; }
+.pool-filters .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
+.pool-filters .filter-grid .filter-tile { display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
+.pool-filters .mamodo-icon { width: 100%; aspect-ratio: 412 / 388; border-radius: 4px; }
+.pool-filters .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.pool-filters .filter-row .filter-tile { width: 104px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pool-filters .product-icon { width: 96px; height: 96px; }
+.pool-filters .product-icon img { width: 100%; height: 100%; object-fit: contain; }
+.pool-filters .filter-caption { font-size: 11px; line-height: 1.2; padding: 2px; }
 #pool-grid {
   flex: 1; overflow-y: auto; padding: 8px;
   display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
@@ -1235,6 +1273,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   .page-slot .card { width: 72px; min-height: 84px; }
   #pool-grid { justify-content: center; }
   #pool-grid .card { width: 106px; }
+  .pool-filters .filter-bar { gap: 4px; }
+  .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
+    padding: 1px; border-radius: 8px; }
+  .pool-filters .type-icon { width: 26px; height: 26px; }
+  .pool-filters .filter-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-menu { flex-direction: column; justify-content: center; height: 44px; padding: 1px 4px; gap: 0; }
+  .pool-filters .filter-menu::after { display: none; }
+  .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
+  .pool-filters .filter-summary .mamodo-icon { width: 22px; }
+  .pool-filters .filter-summary .filter-caption { max-width: 3.5em; font-size: 11px; }
   #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
 }
 

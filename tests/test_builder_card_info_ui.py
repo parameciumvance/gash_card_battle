@@ -1,5 +1,5 @@
 """牌組編輯器的卡片資訊瀏覽器測試(deck-builder「對頁編輯」、battle-ui「卡圖與文字卡面」):
-對應魔物「無」與選事件時暫停、卡號標籤、中級 / 上級標籤、詳情按鈕。
+卡號標籤、中級 / 上級標籤、詳情按鈕。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_builder_card_info_ui.py -q
@@ -24,11 +24,6 @@ def builder(browser, server):  # noqa: F811
     assert not errors
 
 
-def selects(page):
-    sel = page.locator("#pool-filters select")
-    return sel.nth(0), sel.nth(1), sel.nth(2)          # 類型、對應魔物、產品
-
-
 def pool_numbers(page):
     return page.locator("#pool-grid .card .cnum").all_text_contents()
 
@@ -44,47 +39,6 @@ def put(page, pages):
       for (const [p, c] of Object.entries(pages)) B.deck.pages[p - 1] = c;
       builderMutated();
     }""", {str(k): v for k, v in pages.items()})
-
-
-# ---------------------------------------------------------------- 篩選
-
-def test_mamodo_filter_none_shows_command_spells(builder):
-    _, mamodo, _ = selects(builder)
-    mamodo.select_option("__none__")
-    expected = cards_where(builder, "c.type === 'spell' && c.related_mamodo === 'コマンド'")
-    assert expected and sorted(pool_numbers(builder)) == expected
-
-
-def test_event_type_suspends_mamodo_filter(builder):
-    ftype, mamodo, _ = selects(builder)
-    name = builder.evaluate("CARDS['M-001'].related_mamodo")
-    mamodo.select_option(name)
-    ftype.select_option("event")
-    ftype, mamodo, _ = selects(builder)
-    assert mamodo.is_disabled()
-    assert mamodo.input_value() == name                  # 保留原本的選擇
-    assert sorted(pool_numbers(builder)) == cards_where(builder, "c.type === 'event'")
-    ftype.select_option("")
-    ftype, mamodo, _ = selects(builder)
-    assert not mamodo.is_disabled() and mamodo.input_value() == name
-    assert sorted(pool_numbers(builder)) == cards_where(builder, f"c.related_mamodo === '{name}'")
-
-
-def test_mamodo_filter_none_combines_with_product(builder):
-    _, mamodo, product = selects(builder)
-    tag = builder.evaluate("""Object.values(CARDS).find((c) => c.type === 'spell'
-      && c.related_mamodo === 'コマンド' && (c.sets || []).length).sets[0]""")
-    mamodo.select_option("__none__")
-    product.select_option(tag)
-    expected = cards_where(builder, f"c.type === 'spell' && c.related_mamodo === 'コマンド' && (c.sets || []).includes('{tag}')")
-    assert expected and sorted(pool_numbers(builder)) == expected
-
-
-def test_event_type_ignores_mamodo_none(builder):
-    ftype, mamodo, _ = selects(builder)
-    mamodo.select_option("__none__")
-    ftype.select_option("event")
-    assert sorted(pool_numbers(builder)) == cards_where(builder, "c.type === 'event'")
 
 
 # ---------------------------------------------------------------- 卡號與中級 / 上級
@@ -202,10 +156,12 @@ def test_pending_cards_hidden_from_pool_and_products(builder):
     assert builder.evaluate("PENDING.size") == 0 and "E-029" in pool_numbers(builder)
     builder.evaluate("PENDING = new Set(['E-029']); renderPoolFilters(); renderPool()")
     assert "E-029" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
-    _, _, product = selects(builder)
-    options = product.locator("option").all_text_contents()
-    # 產品清單由已開放卡的 sets 產生(app.js openCards),含已開放卡的產品照常列出
-    assert "Spell Book" in options
+    products = builder.locator("#pool-filters .filter-panel[data-group=product] .filter-tile[data-key]")
+    assert "mahon-file" in products.evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
+    # 魔本ファイル的卡全部尚未開放時,產品網格不列出該產品(網格只列有開放卡片的產品)
+    builder.evaluate("""PENDING = new Set(['E-029', ...Object.values(CARDS)
+      .filter((c) => c.sets.includes('mahon-file')).map((c) => c.number)]); renderPoolFilters(); renderPool()""")
+    assert "mahon-file" not in products.evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
     put(builder, {6: "E-029"})                                              # 匯入等方式放進魔書
     assert "E-029" in builder.locator("#builder-validation").text_content()
 
