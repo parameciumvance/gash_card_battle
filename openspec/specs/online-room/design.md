@@ -101,3 +101,8 @@ _drive_npc(room):
 **依據:** 專案負責人於規劃 NPC 對戰時採納。
 
 **確認狀態:** `Project Decision`
+
+## 牌桌的房間
+
+牌桌(`game-tables`)底下的每一局是一間普通的線上房,只多 `Room.table`(桌號):加入端點看到它就回 409 `room.table_only`,牌桌的房間只能經牌桌入座。再戰或換人時牌桌建立新房間,經舊房間的 WebSocket 送 `table_moved`(見 `game-tables/design.md`);房間本身的計時、逾時代打、重連、觀戰都沿用。
+

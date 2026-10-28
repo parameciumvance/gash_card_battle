@@ -10,7 +10,7 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 |---|---|
 | 遊戲核心 | `game-engine`、`card-effects`、`effect-tree` |
 | 卡片資料 | `card-data` |
-| 對戰服務 | `online-room`、`battle-api`、`local-test-mode`、`npc-opponent` |
+| 對戰服務 | `online-room`、`game-tables`、`battle-api`、`local-test-mode`、`npc-opponent` |
 | 前端 | `battle-ui`、`deck-builder` |
 | 部署 | `docker-deployment` |
 
@@ -25,10 +25,11 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 | `effect-tree` | 卡片效果的執行機制:節點、直譯器、續體、登記入口 | Documented | Documented | 每條需求都有對應測試(`tests/test_effect_tree.py`,擲幣確認鏈另見 `tests/test_effect_characterization.py`) |
 | `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔書資料 | Partial | Partial | 初評;design 整理了卡片文字檔、第三彈資料(含尚未開放清單 `data/pending_cards.json`、收錄產品與預組)與卡圖(來源與格式) |
 | `online-room` | 房號約戰、token 身分、回合計時與逾時代打、斷線重連、觀戰、NPC 房與 NPC 座位的驅動、對戰中人數 | Partial | Partial | 初評;design 只整理了等待者、NPC 座位與對戰中人數 |
+| `game-tables` | 固定 5 張牌桌:列表、入座與衝突處理、等待中離開與斷線寬限、結束後再戰 / 離開(每局一間線上房) | Documented | Documented | 測試在 `tests/test_tables.py`、`tests/test_tables_ui.py`;房間本身見 `online-room` |
 | `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Partial | 初評;design 只整理了快照的公開 / 私有界線 |
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |
 | `npc-opponent` | NPC 對手的決策:資訊可見範圍、只送出引擎接受的指令、難度與基本判斷、可重現 | Documented | Documented | 測試在 `tests/test_npc.py`;NPC 房與驅動見 `online-room` |
-| `battle-ui` | 對戰畫面:首頁(含對戰中人數)與設定頁、盤面(含場上魔書翻閱)、回合與時機指示、操作與決策、行動記錄、動畫與聚焦展示、音效、演出設定、規則頁、意見回報、更新內容(release note)、維護公告、語言選擇(繁中、簡中、英、日)與 i18n | Partial | Partial | 初評;design 只整理了首頁與設定頁、更新內容、維護公告、事件動畫、聚焦展示、音效、回合和時機指示、規則頁、意見回報與語言 |
+| `battle-ui` | 對戰畫面:首頁(含對戰中人數)、設定頁與牌桌頁、盤面(含場上魔書翻閱)、回合與時機指示、操作與決策、行動記錄、動畫與聚焦展示、音效、演出設定、規則頁、意見回報、更新內容(release note)、維護公告、語言選擇(繁中、簡中、英、日)與 i18n | Partial | Partial | 初評;design 只整理了首頁與設定頁、更新內容、維護公告、事件動畫、聚焦展示、音效、回合和時機指示、規則頁、意見回報與語言 |
 | `deck-builder` | 魔書構築:對頁編輯、卡池圖示篩選、合法性提示、瀏覽器儲存、文字碼 | Partial | Partial | 初評;design 只整理了卡池篩選(與金手指共用) |
 | `docker-deployment` | VPS 容器部署:映像檔、Cloudflare Tunnel 對外、CI 分流(含發布前的更新內容檢查與 GitHub Release)、自動更新 | Partial | Partial | 初評;design 整理了架構、映像檔、發布與更新、對外服務 |
 
@@ -87,4 +88,5 @@ atwiki ──抓取──▶ card-data(cards_ja.csv → cards.json)──▶ gam
 | 修改遊戲規則或流程 | `game-engine` |
 | 修改對戰畫面 | `battle-ui` → `battle-api` → `online-room` |
 | 修改 NPC | `npc-opponent` 的 spec 與 design → `online-room/design.md`「NPC 座位」 |
+| 修改牌桌或比賽相關 | `game-tables` 的 spec 與 design → `online-room` |
 | 部署 | `docker-deployment` |

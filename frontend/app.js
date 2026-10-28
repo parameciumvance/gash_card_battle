@@ -220,6 +220,7 @@ async function api(path, opts = {}) {
       : body.detail && body.detail.message ? body.detail.message : JSON.stringify(body);
     const err = new Error(msg);
     err.code = code;
+    err.detail = body.detail || null;
     throw err;
   }
   return body;
@@ -345,6 +346,8 @@ function openWS() {
       fetchMissedEvents();
     } else if (body.type === "update") {
       applyPayload(body);
+    } else if (body.type === "table_moved") {
+      moveToTableRoom(body);    // 牌桌再戰 / 換人:改連同一桌的新房間
     }
   };
   ws.onclose = () => {
@@ -373,12 +376,13 @@ function setConn(ok) {
 
 function show(sectionId) {
   if (sectionId !== "layout") closeCheat();
-  for (const id of ["landing", "setup", "waiting", "layout", "builder"]) {
+  for (const id of ["landing", "setup", "tables", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
   if (sectionId === "landing") { maybeShowRelease(); refreshResumeRooms(); }
   else if (INFO && INFO.kind.startsWith("release")) closeInfo();   // 更新內容只在首頁顯示
   syncOnline();   // 對戰中人數:進入首頁時抓取,離開時停止
+  syncTables();   // 牌桌列表:在牌桌頁時每 5 秒更新
 }
 
 // ---------------------------------------------------------------- 牌組選單與 payload
@@ -486,6 +490,14 @@ function showWaiting(body) {
   const specUrl = `${location.origin}${body.spectate_url || R.spectate_url || ""}`;
   document.getElementById("share-join").value = joinUrl;
   document.getElementById("share-spec").value = specUrl;
+  const table = SESSION.table;                          // 牌桌房:不能用房號加入;可離開空出桌子
+  document.getElementById("share-join-row").classList.toggle("hidden", !!table);
+  document.getElementById("waiting-code").classList.toggle("hidden", !!table);
+  if (table) document.getElementById("waiting-title").textContent = t("ui.tables.waiting", { n: table });
+  const leave = document.getElementById("waiting-leave");
+  leave.classList.toggle("hidden", !table);
+  leave.textContent = t("ui.tables.leave");
+  leave.onclick = leaveTableWaiting;
 }
 
 async function joinRoom(code) {
@@ -2112,6 +2124,7 @@ function renderActionBar() {
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
+  if (S && S.phase === "game_over" && tableChoiceShown()) bar.appendChild(tableChoiceEl());
   if (!S || S.phase === "game_over") return;
   const timing = currentTiming();
   const awaited = awaitedPlayer();
@@ -3850,6 +3863,7 @@ const SETUP_FIELDS = {
   "deck-npc": ["npc", "deck"], "deck-npc-opp": ["npc", "opp"], "npc-level": ["npc", "level"],
   "deck-friend": ["friend", "deck"], "timer-select": ["friend", "timer"],
   "deck-local-0": ["local", "deck0"], "deck-local-1": ["local", "deck1"],
+  "deck-tables": ["tables", "deck"], "timer-tables": ["tables", "timer"],
 };
 
 function loadSetup() {
@@ -3920,6 +3934,260 @@ function submitFriend() {
   if (code) joinRoom(code);
 }
 
+// ---------------------------------------------------------------- 牌桌(game-tables)
+
+// 牌桌頁:列表每 5 秒更新(只在牌桌頁且頁面可見時);暱稱、牌組、開桌計時記在瀏覽器
+const TABLES_REFRESH_MS = 5000;
+const TABLE_TIMERS = [30, 60, 120];
+let tablesTimer = null;
+let tablesSeq = 0;
+let TABLE_LIST = [];
+let tableConfirm = null;     // 入座衝突時等待確認的桌號
+
+function openTables() {
+  hideTableConfirm();
+  show("tables");
+}
+
+function renderTablesForm() {
+  document.getElementById("tables-title").textContent = t("ui.landing.tables");
+  document.getElementById("tables-back").textContent = t("ui.setup.back");
+  document.getElementById("tables-back").onclick = () => show("landing");
+  document.getElementById("name-tables-label").textContent = t("ui.name.self");
+  document.getElementById("name-tables").placeholder = t("ui.name.placeholder");
+  document.getElementById("deck-tables-label").textContent = t("ui.deck.select");
+  document.getElementById("timer-tables-label").textContent = t("ui.tables.timer");
+  const sel = document.getElementById("timer-tables");
+  sel.innerHTML = "";
+  for (const n of TABLE_TIMERS) {
+    const opt = document.createElement("option");
+    opt.value = String(n);
+    opt.textContent = t("ui.timer.n", { n });
+    sel.appendChild(opt);
+  }
+  sel.value = "60";
+  document.getElementById("tables-confirm-join").textContent = t("ui.tables.join");
+  document.getElementById("tables-confirm-cancel").textContent = t("ui.cancel");
+  renderTablesGrid();
+}
+
+async function refreshTables() {
+  const seq = ++tablesSeq;
+  try {
+    const body = await api("/api/tables");
+    if (seq !== tablesSeq) return;
+    TABLE_LIST = body.tables;
+  } catch (_) { return; }   // 失敗:維持上一次的列表
+  renderTablesGrid();
+}
+
+function syncTables() {
+  clearInterval(tablesTimer);
+  tablesTimer = null;
+  const onTables = !document.getElementById("tables").classList.contains("hidden");
+  if (!onTables || document.visibilityState === "hidden") return;
+  refreshTables();
+  tablesTimer = setInterval(refreshTables, TABLES_REFRESH_MS);
+}
+
+document.addEventListener("visibilitychange", syncTables);
+
+function tableName(name, seat) {
+  return name || t("ui.player", { n: seat + 1 });
+}
+
+function clockText(seconds) {
+  const s = Math.max(0, seconds | 0);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function renderTablesGrid() {
+  const grid = document.getElementById("tables-grid");
+  grid.replaceChildren(...TABLE_LIST.map((tb) => {
+    // 俯視的牌桌:上下兩個座位夾著橢圓桌面;桌面寫桌號、狀態與計時
+    const card = document.createElement("div");
+    card.className = `table-card ${tb.state}`;
+    card.dataset.table = tb.number;
+    card.dataset.state = tb.state;
+    const seat = (index) => {
+      const el = document.createElement("div");
+      const name = tb.names[index];
+      const taken = tb.state !== "empty" && (index === 0 || tb.state !== "waiting");
+      el.className = `table-seat ${index ? "bottom" : "top"} ${taken ? "taken" : "free"}`;
+      el.textContent = taken ? tableName(name, index) : t("ui.tables.free_seat");
+      return el;
+    };
+    const felt = document.createElement("div");
+    felt.className = "table-felt";
+    const head = document.createElement("h3");
+    head.textContent = t("ui.tables.number", { n: tb.number });
+    const state = document.createElement("p");
+    state.className = "table-state";
+    state.textContent = t(`ui.tables.state.${tb.state}`);
+    felt.append(head, state);
+    const info = [];
+    if (tb.timer_seconds) info.push(t("ui.tables.timer_short", { n: tb.timer_seconds }));   // 桌面空間小:短寫
+    if (tb.state === "waiting") info.push(t("ui.tables.waited", { time: clockText(tb.waiting_seconds) }));
+    if (info.length) {
+      const meta = document.createElement("p");
+      meta.className = "table-info";
+      meta.textContent = info.join(t("ui.sep.dot"));
+      felt.appendChild(meta);
+    }
+    const btn = document.createElement("button");
+    if (tb.state === "empty") {
+      btn.className = "primary";
+      btn.textContent = t("ui.tables.sit");
+      btn.onclick = () => sitTable(tb.number, "empty");
+    } else if (tb.state === "waiting") {
+      btn.className = "primary";
+      btn.textContent = t("ui.tables.join");
+      btn.onclick = () => sitTable(tb.number, "waiting");
+    } else {
+      btn.textContent = t("ui.tables.spectate");
+      btn.onclick = () => spectateTable(tb);
+    }
+    card.append(seat(0), felt, seat(1), btn);
+    return card;
+  }));
+}
+
+function spectateTable(tb) {
+  const params = new URLSearchParams(tb.spectate_url.split("?")[1] || "");
+  enterSpectate(params.get("spectate"), params.get("token"));
+}
+
+async function sitTable(number, expect) {
+  hideTableConfirm();
+  const payload = { name: saveNick(document.getElementById("name-tables").value),
+                    deck: deckPayload("deck-tables"), expect };
+  if (expect === "empty") payload.timer_seconds = Number(document.getElementById("timer-tables").value);
+  try {
+    const body = await api(`/api/tables/${number}/sit`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    enterTableRoom(body, number, expect === "empty" ? 0 : 1);
+  } catch (err) {
+    if (err.code === "table.taken" && err.detail) {
+      showTableConfirm(number, err.detail);            // 剛有人開桌:顯示實際設定,確認才對戰
+    } else {
+      toast(t("ui.error", { msg: err.message }));
+    }
+    refreshTables();
+  }
+}
+
+function showTableConfirm(number, detail) {
+  tableConfirm = number;
+  const box = document.getElementById("tables-confirm");
+  document.getElementById("tables-confirm-text").textContent = t("ui.tables.taken", {
+    n: number, host: tableName(detail.host, 0), timer: t("ui.timer.n", { n: detail.timer_seconds }) });
+  document.getElementById("tables-confirm-join").onclick = () => sitTable(number, "waiting");
+  document.getElementById("tables-confirm-cancel").onclick = hideTableConfirm;
+  box.classList.remove("hidden");
+}
+
+function hideTableConfirm() {
+  tableConfirm = null;
+  document.getElementById("tables-confirm").classList.add("hidden");
+}
+
+function enterTableRoom(body, number, viewer) {
+  SESSION = { code: body.code, mode: "online", viewer, tokens: { me: body.player_token }, table: number };
+  saveSession();
+  history.replaceState(null, "", `/?room=${body.code}`);
+  R = body.room;
+  if (viewer === 0) {
+    showWaiting(body);
+  } else {
+    resetLog();
+    applyPayload(body);
+    show("layout");
+  }
+  openWS();
+}
+
+async function leaveTableWaiting() {
+  const { table, tokens } = SESSION;
+  try {
+    await api(`/api/tables/${table}/leave`, { method: "POST", headers: { "X-Player-Token": tokens.me } });
+  } catch (_) { /* 已被空出:照樣離開 */ }
+  try { localStorage.removeItem(`gash-room-${SESSION.code}`); } catch (_) { /* 忽略 */ }
+  leaveRoom();
+  openTables();
+}
+
+// 牌桌對局結束後:對局雙方選擇再戰 / 離開
+function tableChoiceShown() {
+  return !!(R && R.table && SESSION && SESSION.table && (SESSION.viewer === 0 || SESSION.viewer === 1));
+}
+
+function tableChoiceEl() {
+  const box = document.createElement("div");
+  box.className = "table-choice";
+  const me = SESSION.viewer;
+  const choices = R.table.choices || {};
+  const mine = choices[String(me)];
+  const opp = choices[String(1 - me)];
+  const status = document.createElement("span");
+  status.className = "table-choice-status";
+  const parts = [t("ui.tables.opp_status", { status: t(`ui.tables.choice.${opp || "pending"}`) })];
+  if (R.table.choice_seconds_left !== null && R.table.choice_seconds_left !== undefined) {
+    parts.push(t("ui.tables.seconds_left", { n: R.table.choice_seconds_left }));
+  }
+  status.textContent = parts.join(t("ui.sep.bar"));
+  box.appendChild(status);
+  if (mine === "rematch") {
+    const wait = document.createElement("span");
+    wait.className = "table-choice-wait";
+    wait.textContent = t("ui.tables.rematch_waiting");
+    box.appendChild(wait);
+  }
+  for (const choice of ["rematch", "leave"]) {
+    if (mine === "rematch" && choice === "rematch") continue;
+    const btn = document.createElement("button");
+    btn.dataset.choice = choice;
+    btn.className = choice === "rematch" ? "primary" : "";
+    btn.textContent = t(`ui.tables.${choice}`);
+    btn.onclick = () => chooseTable(choice);
+    box.appendChild(btn);
+  }
+  return box;
+}
+
+async function chooseTable(choice) {
+  const { table, tokens, code } = SESSION;
+  try {
+    await api(`/api/tables/${table}/choice`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": tokens.me },
+      body: JSON.stringify({ choice }),
+    });
+  } catch (err) {
+    toast(t("ui.error", { msg: err.message }));
+    return;
+  }
+  if (choice === "leave") {
+    try { localStorage.removeItem(`gash-room-${code}`); } catch (_) { /* 忽略 */ }
+    leaveRoom();
+    openTables();
+  }
+}
+
+// 伺服器在同一桌開了新房間(雙方再戰,或對方離開後自己成為開桌者):改連新房間
+function moveToTableRoom(msg) {
+  wsWanted = false;
+  if (ws) ws.close();
+  if (SESSION.viewer === "spectator") {
+    enterSpectate(msg.code, msg.spectator_token);
+    return;
+  }
+  try { localStorage.removeItem(`gash-room-${SESSION.code}`); } catch (_) { /* 忽略 */ }
+  SESSION = { code: msg.code, mode: "online", viewer: msg.seat, tokens: { me: msg.token }, table: msg.table };
+  saveSession();
+  history.replaceState(null, "", `/?room=${msg.code}`);
+  resumeRoom(msg.code);
+}
+
 // ---------------------------------------------------------------- 對戰中人數(首頁)
 
 // 只在首頁且頁面可見時更新:進入首頁、回到頁面時立即抓取,之後每 30 秒一次
@@ -3959,6 +4227,7 @@ function renderLanding() {
   document.getElementById("landing-title").setAttribute("aria-label", t("app.title"));
   const entries = {
     npc: () => openSetup("npc"),
+    tables: () => openTables(),
     friend: () => openSetup("friend"),
     local: () => openSetup("local"),
     builder: () => {
@@ -4027,7 +4296,7 @@ function renderLanding() {
   for (const id of ["name-local-0", "name-local-1", "name-npc", "name-friend"]) {
     document.getElementById(id).placeholder = t("ui.name.placeholder");
   }
-  for (const id of ["name-npc", "name-friend"]) {
+  for (const id of ["name-npc", "name-friend", "name-tables"]) {
     document.getElementById(id).value = loadNick();
   }
 
@@ -4037,9 +4306,10 @@ function renderLanding() {
   document.getElementById("deck-friend-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-opp-label").textContent = t("ui.deck.npc");
-  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-friend"]) {
+  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-friend", "deck-tables"]) {
     deckOptions(document.getElementById(id));
   }
+  renderTablesForm();
   const npcDeck = document.getElementById("deck-npc-opp");
   const random = document.createElement("option");      // 缺省:隨機
   random.value = NPC_RANDOM_DECK;

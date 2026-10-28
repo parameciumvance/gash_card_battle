@@ -29,6 +29,9 @@ from ..npc import decide, submit_ranked
 from ..paths import frontend_dir, resolve_assets
 from ..version import app_version
 from .rooms import NpcSeat, Room, RoomError, RoomStore
+from . import tables as tables_mod
+from .tables import (ENDED, EMPTY, LEAVE, PLAYING, REMATCH, TABLE_TIMERS, TABLES, WAITING,
+                     connected_seats)
 from .views import filter_events, snapshot
 
 # Python 3.12 的 .webp 只在非嚴格對照表,python:3.12-slim 又沒有 /etc/mime.types,
@@ -96,6 +99,17 @@ class JoinBody(BaseModel):
     name: str | None = None           # 加入者暱稱
 
 
+class SitBody(BaseModel):
+    name: str | None = None
+    deck: dict | None = None
+    expect: str = "empty"             # 入座者以為的牌桌狀態:empty / waiting
+    timer_seconds: int | None = None  # 開空桌時的計時(30 / 60 / 120)
+
+
+class ChoiceBody(BaseModel):
+    choice: str                       # rematch / leave
+
+
 class CommandBody(BaseModel):
     command: dict
 
@@ -147,7 +161,14 @@ def _room_meta(room: Room, viewer) -> dict:
         "names": [room.names[0], room.names[1]],   # 公開:雙方暱稱(None=用預設)
         "awaited_player": awaited_player(room.game) if room.game else None,
         "npc": _npc_meta(room),
+        "table": _table_meta(room),
     }
+
+
+def _table_meta(room: Room) -> dict | None:
+    """牌桌的房間:桌號、雙方的選擇與選擇剩餘秒數(結束後)。"""
+    table = TABLES.table_of_room(room.code) if room.table else None
+    return TABLES.meta(table, store) if table else None
 
 
 def _npc_meta(room: Room) -> dict | None:
@@ -447,6 +468,9 @@ async def create_room(body: CreateRoom):
 @app.post("/api/rooms/{code}/join")
 async def join_room(code: str, body: JoinBody | None = None):
     deck1 = _resolve_deck(body.deck if body else None)  # 非法牌組在佔位前就被拒
+    existing = store.rooms.get(code.upper())
+    if existing is not None and existing.table:
+        raise HTTPException(409, detail={"code": "room.table_only", "message": "牌桌的房間須經牌桌入座"})
     try:
         room, token1 = store.join(code, name=_clean_name(body.name if body else None))
     except RoomError as exc:
@@ -587,6 +611,198 @@ async def room_ws(ws: WebSocket, code: str, token: str = ""):
             pass
 
 
+# ---------------------------------------------------------------- 牌桌(game-tables)
+
+def _table_or_404(number: int):
+    table = TABLES.get(number)
+    if table is None:
+        raise HTTPException(404, detail={"code": "table.not_found", "message": "牌桌不存在"})
+    return table
+
+
+def _table_error(status: int, code: str, message: str, **extra) -> HTTPException:
+    return HTTPException(status, detail={"code": code, "message": message, **extra})
+
+
+@app.get("/api/tables")
+async def list_tables():
+    """牌桌列表(牌桌頁每 5 秒查詢);不含玩家 token。"""
+    now = time.time()
+    return {"tables": [TABLES.view(t, store, now) for t in TABLES.tables]}
+
+
+def _new_table_room(number: int, timer: int, names: list, decks: list) -> tuple[Room, list[str]]:
+    """在牌桌上建立線上房;names / decks 有兩位時直接開局。回傳房間與各座位的 token。"""
+    room, token0 = store.create("online", timer, None, names=[names[0], None])
+    room.table = number
+    room.decks = [decks[0], None]
+    tokens = [token0]
+    if len(names) > 1:
+        room, token1 = store.join(room.code, name=names[1])
+        room.decks[1] = decks[1]
+        tokens.append(token1)
+        _start_game(room)
+    return room, tokens
+
+
+@app.post("/api/tables/{number}/sit")
+async def sit_table(number: int, body: SitBody):
+    table = _table_or_404(number)
+    if body.expect not in (EMPTY, WAITING):
+        raise _table_error(422, "table.bad_expect", "expect 須為 empty 或 waiting")
+    if body.expect == EMPTY and body.timer_seconds not in TABLE_TIMERS:
+        raise _table_error(422, "table.bad_timer", f"牌桌計時須為 {TABLE_TIMERS}")
+    deck = _resolve_deck(body.deck)          # 非法牌組在改變牌桌前就被拒
+    name = _clean_name(body.name)
+    # 以下到開局為止都不 await:同一桌的請求依到達順序處理
+    state = TABLES.state(table, store)
+    if state in (PLAYING, ENDED):
+        raise _table_error(409, "table.busy", "這桌正在對戰")
+    if body.expect == EMPTY:
+        if state == WAITING:
+            room = TABLES.room_of(table, store)
+            raise _table_error(409, "table.taken", "這桌剛有人開桌",
+                               host=room.names[0], timer_seconds=room.timer_seconds)
+        room, tokens = _new_table_room(number, body.timer_seconds, [name], [deck])
+        table.clear(room.code, time.time())
+        return {"code": room.code, "player_token": tokens[0], "table": number,
+                "spectate_url": f"/?spectate={room.code}&token={room.spectator_token}",
+                **_state_payload(room, 0)}
+    if state == EMPTY:
+        raise _table_error(409, "table.empty", "開桌者已離開")
+    room = TABLES.room_of(table, store)
+    try:
+        room, token1 = store.join(room.code, name=name)
+    except RoomError:
+        raise _table_error(409, "table.busy", "這桌正在對戰")
+    room.decks[1] = deck
+    _start_game(room)
+    table.absent_since = {}
+    await _broadcast(room, room.game.events)
+    return {"code": room.code, "player_token": token1, "table": number,
+            "events": filter_events(room.game.events, 1), **_state_payload(room, 1)}
+
+
+@app.post("/api/tables/{number}/leave")
+async def leave_table(number: int, x_player_token: str | None = Header(default=None)):
+    """等待中的開桌者離開:立即空出牌桌(房間一併刪除,不再接受加入)。結束後離開同「離開」選擇。"""
+    table = _table_or_404(number)
+    room = TABLES.room_of(table, store)
+    if room is None:
+        return {"ok": True}
+    try:
+        viewer = room.viewer_of(x_player_token or "")
+    except RoomError as exc:
+        raise _http_error(exc)
+    state = TABLES.state(table, store)
+    if state == WAITING and viewer == 0:
+        _free_table(table, room)
+        return {"ok": True}
+    if state == ENDED and viewer in (0, 1):
+        table.choices[viewer] = LEAVE
+        await _settle_table(table, room, time.time())
+        return {"ok": True}
+    raise _table_error(409, "table.busy", "這桌正在對戰")
+
+
+@app.post("/api/tables/{number}/choice")
+async def choose_table(number: int, body: ChoiceBody, x_player_token: str | None = Header(default=None)):
+    """對局結束後的再戰 / 離開。"""
+    table = _table_or_404(number)
+    room = TABLES.room_of(table, store)
+    if room is None or TABLES.state(table, store) != ENDED:
+        raise _table_error(409, "table.not_ended", "對局尚未結束")
+    try:
+        viewer = room.viewer_of(x_player_token or "")
+    except RoomError as exc:
+        raise _http_error(exc)
+    if viewer not in (0, 1):
+        raise _table_error(403, "table.not_player", "只有對局雙方可以選擇")
+    if body.choice not in (REMATCH, LEAVE):
+        raise _table_error(422, "table.bad_choice", "choice 須為 rematch 或 leave")
+    now = time.time()
+    if table.ended_at is None:
+        table.ended_at = now
+    table.choices[viewer] = body.choice
+    await _settle_table(table, room, now)
+    return {"ok": True}
+
+
+def _free_table(table, room: Room) -> None:
+    store.rooms.pop(room.code, None)
+    table.clear()
+
+
+async def _settle_table(table, room: Room, now: float, notify: bool = True) -> None:
+    """雙方都已決定時:都再戰 → 同桌新房開局;一方再戰 → 他成為新房的開桌者;都離開 → 空桌。
+    還有一方未決定時,只把目前的選擇推送給房間的連線。"""
+    if len(table.choices) < 2:
+        if notify:
+            await _broadcast(room, [])
+        return
+    stay = [seat for seat in (0, 1) if table.choices.get(seat) == REMATCH]
+    moves: dict = {}                        # 舊座位 → (新 token, 新座位);觀戰者以 "spectator"
+    if len(stay) == 2:
+        new, tokens = _new_table_room(table.number, room.timer_seconds, list(room.names), list(room.decks))
+        moves = {0: (tokens[0], 0), 1: (tokens[1], 1), "spectator": (new.spectator_token, None)}
+        table.clear(new.code, now)
+    elif len(stay) == 1:
+        seat = stay[0]
+        new, tokens = _new_table_room(table.number, room.timer_seconds, [room.names[seat]], [room.decks[seat]])
+        moves = {seat: (tokens[0], 0)}        # 留下的人成為新房的開桌者(座位 0)
+        table.clear(new.code, now)
+    else:
+        table.clear()
+        new = None
+    if notify and new is not None:
+        for ws, viewer in list(room.sockets):
+            if viewer not in moves:
+                continue
+            token, seat = moves[viewer]
+            msg = {"type": "table_moved", "table": table.number, "code": new.code}
+            if viewer == "spectator":
+                msg["spectator_token"] = token
+            else:
+                msg.update(token=token, seat=seat, started=new.game is not None)
+            try:
+                await ws.send_json(msg)
+            except Exception:
+                pass
+
+
+async def check_tables(now: float | None = None, notify: bool = True) -> None:
+    """計時迴圈呼叫:等待中開桌者斷線超過寬限 → 空桌;結束後斷線超過寬限或超過選擇期限 → 視為離開。"""
+    now = now if now is not None else time.time()
+    for table in TABLES.tables:
+        room = TABLES.room_of(table, store)
+        if room is None:
+            continue
+        state = TABLES.state(table, store)
+        seats = connected_seats(room)
+        if state == WAITING:
+            if 0 in seats:
+                table.absent_since.pop(0, None)
+            elif now - table.absent_since.setdefault(0, now) >= tables_mod.GRACE_SECONDS:
+                _free_table(table, room)
+        elif state == ENDED:
+            if table.ended_at is None:
+                table.ended_at = now
+            changed = False
+            for seat in (0, 1):
+                if seat in table.choices:
+                    continue
+                if seat in seats:
+                    table.absent_since.pop(seat, None)
+                    gone = False
+                else:
+                    gone = now - table.absent_since.setdefault(seat, now) >= tables_mod.GRACE_SECONDS
+                if gone or now - table.ended_at >= tables_mod.CHOICE_SECONDS:
+                    table.choices[seat] = LEAVE
+                    changed = True
+            if changed:
+                await _settle_table(table, room, now, notify=notify)
+
+
 # ---------------------------------------------------------------- 逾時代打
 
 async def _fire_due_timeouts(now: float | None = None) -> None:
@@ -624,6 +840,10 @@ async def _timeout_loop() -> None:
             pass
         for room in list(store.rooms.values()):
             _kick_npc(room)     # 保險:輪到 NPC 卻沒有執行中的驅動時恢復
+        try:
+            await check_tables()
+        except Exception:
+            _log.exception("牌桌檢查失敗")
 
 
 # ---------------------------------------------------------------- NPC 驅動

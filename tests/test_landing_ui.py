@@ -6,7 +6,7 @@ Run: python -m pytest tests/test_landing_ui.py -q
 from tests.test_npc_ui import room_posts
 from tests.test_spotlight_ui import open_page
 
-ENTRIES = ["entry-npc", "entry-friend", "entry-builder", "entry-local", "entry-rules", "entry-feedback"]
+ENTRIES = ["entry-npc", "entry-tables", "entry-friend", "entry-builder", "entry-local", "entry-rules", "entry-feedback"]
 
 
 def visible_panel(page):

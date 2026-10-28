@@ -56,6 +56,7 @@ class Room:
     deadline: float | None = None                 # 逾時時刻(epoch 秒)
     last_activity: float = field(default_factory=time.time)
     npc: NpcSeat | None = None                    # NPC 房的 NPC 座位
+    table: int | None = None                      # 牌桌的房間:桌號(不能用房號加入,見 tables.py)
 
     def viewer_of(self, token: str):
         """token → viewer(0/1/"spectator");本機模式玩家 token 仍對映到各自 index。"""

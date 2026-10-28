@@ -34,6 +34,7 @@
     <div id="landing-resume" class="hidden"><h2 class="resume-title"></h2><div class="resume-list"></div></div>
     <div id="landing-cards">
       <button class="entry" id="entry-npc"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-tables"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-friend"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-builder"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-local"><span class="entry-title"></span><span class="entry-desc"></span></button>
@@ -97,6 +98,28 @@
     </div>
   </section>
 
+  <!-- 牌桌(game-tables):固定編號的牌桌,入座即對戰 -->
+  <section id="tables" class="hidden">
+    <div id="tables-head">
+      <button id="tables-back"></button>
+      <h2 id="tables-title"></h2>
+    </div>
+    <div id="tables-form">
+      <label class="deck-label" id="name-tables-label" for="name-tables"></label>
+      <input id="name-tables" class="name-input" maxlength="16">
+      <label class="deck-label" id="deck-tables-label" for="deck-tables"></label>
+      <select id="deck-tables" class="deck-select"></select>
+      <label class="deck-label" id="timer-tables-label" for="timer-tables"></label>
+      <select id="timer-tables"></select>
+    </div>
+    <div id="tables-confirm" class="hidden" role="alertdialog">
+      <p id="tables-confirm-text"></p>
+      <button class="primary" id="tables-confirm-join"></button>
+      <button id="tables-confirm-cancel"></button>
+    </div>
+    <div id="tables-grid"></div>
+  </section>
+
   <!-- 牌組構築器 -->
   <section id="builder" class="hidden">
     <div id="builder-head">
@@ -134,10 +157,11 @@
   <section id="waiting" class="hidden">
     <h2 id="waiting-title"></h2>
     <div id="waiting-code" class="room-code"></div>
-    <div class="share-row"><span id="share-join-label"></span>
+    <div class="share-row" id="share-join-row"><span id="share-join-label"></span>
       <input id="share-join" readonly><button data-copy="share-join"></button></div>
     <div class="share-row"><span id="share-spec-label"></span>
       <input id="share-spec" readonly><button data-copy="share-spec"></button></div>
+    <button id="waiting-leave" class="hidden"></button>
   </section>
 
   <main id="layout" class="hidden">
