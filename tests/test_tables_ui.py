@@ -186,3 +186,56 @@ def test_opponent_leaves_and_i_host(browser, server):
         a.click("#waiting-leave")
     finally:
         ca.close(); cb.close()
+
+
+# ---------------------------------------------------------------- 賽季(battle-ui「牌桌頁的賽季」)
+
+def test_table_season_shown_and_mismatched_deck_cannot_join(browser, server):
+    n = free_table(server)
+    host = api(server, f"/api/tables/{n}/sit", {"name": "小明", "expect": "empty", "timer_seconds": 60, "season": 1})
+    context, page = open_page(browser, server, "我")
+    try:
+        to_tables(page)
+        assert "第1季" in card(page, n).inner_text()
+        page.select_option("#deck-tables", "preset:zeon")                     # 牌桌頁的牌組選單不依賽季禁用
+        button = card(page, n).locator("button")
+        assert button.is_disabled()
+        assert card(page, n).locator(".table-note").inner_text() == "所選魔書不能用於第 1 賽季"
+        page.select_option("#deck-tables", "preset:level1")
+        assert not button.is_disabled() and card(page, n).locator(".table-note").count() == 0
+    finally:
+        api(server, f"/api/tables/{n}/leave", {}, host["player_token"])
+        context.close()
+
+
+def test_open_table_season_limits_sit_and_is_sent(browser, server):
+    n = free_table(server)
+    context, page = open_page(browser, server, "我")
+    try:
+        to_tables(page)
+        page.select_option("#season-tables", "1")
+        page.select_option("#deck-tables", "preset:level2")
+        assert card(page, n).locator("button").is_disabled()
+        page.select_option("#deck-tables", "preset:level1")
+        card(page, n).locator("button").click()
+        page.wait_for_selector("#waiting:not(.hidden)")
+        assert tables(server)[n - 1]["season"] == 1
+        page.click("#waiting-leave")
+        page.wait_for_selector("#tables:not(.hidden)")
+    finally:
+        context.close()
+
+
+def test_conflict_confirm_shows_season(browser, server):
+    n = free_table(server)
+    context, page = open_page(browser, server, "我")
+    try:
+        to_tables(page)
+        host = api(server, f"/api/tables/{n}/sit", {"name": "小明", "expect": "empty", "timer_seconds": 60, "season": 2})
+        card(page, n).locator("button").click()
+        page.wait_for_selector("#tables-confirm:not(.hidden)")
+        assert "第 2 賽季" in page.locator("#tables-confirm-text").inner_text()
+        page.click("#tables-confirm-cancel")
+        api(server, f"/api/tables/{n}/leave", {}, host["player_token"])
+    finally:
+        context.close()

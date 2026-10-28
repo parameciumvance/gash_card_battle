@@ -72,10 +72,11 @@ class TableStore:
         state = self.state(table, rooms)
         room = self.room_of(table, rooms)
         out = {"number": table.number, "state": state, "names": [None, None], "timer_seconds": None,
-               "waiting_seconds": None, "spectate_url": None}
+               "season": None, "waiting_seconds": None, "spectate_url": None}
         if room is not None:
             out["names"] = list(room.names)
             out["timer_seconds"] = room.timer_seconds
+            out["season"] = room.season
         if state == WAITING and table.waiting_since is not None:
             out["waiting_seconds"] = max(0, int(now - table.waiting_since))
         if state in (PLAYING, ENDED):

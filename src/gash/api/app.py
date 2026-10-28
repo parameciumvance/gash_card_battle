@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
+from ..engine.seasons import deck_season, default_season, selectable_seasons
 from ..engine.engine import IllegalCommand, new_game, submit
 from ..engine.state import BOOK_SIZE, GAME_OVER
 from ..npc import LEVELS as NPC_LEVELS
@@ -92,6 +93,7 @@ class CreateRoom(BaseModel):
     npc_level: str | None = None      # NPC 房:難度(dummy / normal,缺省 normal)
     npc_deck: dict | None = None      # NPC 房:指定的 NPC 牌組
     npc_decks: list[dict] | None = None  # NPC 房:隨機抽選的候選牌組
+    season: int | None = None         # 賽季(缺省為 default_season())
 
 
 class JoinBody(BaseModel):
@@ -104,6 +106,7 @@ class SitBody(BaseModel):
     deck: dict | None = None
     expect: str = "empty"             # 入座者以為的牌桌狀態:empty / waiting
     timer_seconds: int | None = None  # 開空桌時的計時(30 / 60 / 120)
+    season: int | None = None         # 開空桌時的賽季(缺省為 default_season())
 
 
 class ChoiceBody(BaseModel):
@@ -162,6 +165,7 @@ def _room_meta(room: Room, viewer) -> dict:
         "awaited_player": awaited_player(room.game) if room.game else None,
         "npc": _npc_meta(room),
         "table": _table_meta(room),
+        "season": room.season,
     }
 
 
@@ -220,7 +224,8 @@ def _scan_presets() -> dict[str, dict]:
             logging.getLogger(__name__).warning("跳過無效預組 %s: %s", path.name, exc)
             continue
         name = i18n.get(raw.get("name_key", ""), None) or raw.get("name") or deck_id
-        presets[deck_id] = {"path": path, "name": name, "name_key": raw.get("name_key") or None}
+        presets[deck_id] = {"path": path, "name": name, "name_key": raw.get("name_key") or None,
+                            "season": deck_season(raw["pages"])}
     return presets
 
 
@@ -237,7 +242,8 @@ def _presets() -> dict[str, dict]:
 
 def preset_list() -> list[dict]:
     """對外清單:預設預組置頂,其餘依 id 排序。"""
-    items = [{"id": pid, "name": p["name"], **({"name_key": p["name_key"]} if p["name_key"] else {})}
+    items = [{"id": pid, "name": p["name"], "season": p["season"],
+              **({"name_key": p["name_key"]} if p["name_key"] else {})}
              for pid, p in _presets().items()]
     items.sort(key=lambda x: (x["id"] != DEFAULT_PRESET, x["id"]))
     return items
@@ -247,31 +253,44 @@ def _default_deck() -> tuple[str, ...]:
     return load_deck(_presets()[DEFAULT_PRESET]["path"], card_db()).pages
 
 
-def _resolve_deck(spec: dict | None) -> tuple[str, ...] | None:
-    """解析牌組欄位。回傳 None = 用預設預組(level1)。
+def _season_of(raw: int | None) -> int:
+    """請求的賽季;未指定為缺省賽季,不可選的值回 422 room.bad_season。"""
+    if raw is None:
+        return default_season()
+    if raw not in selectable_seasons():
+        raise HTTPException(422, detail={"code": "room.bad_season",
+                                         "message": f"賽季須為 {selectable_seasons()}"})
+    return raw
+
+
+def _resolve_deck(spec: dict | None, season: int) -> tuple[str, ...] | None:
+    """解析牌組欄位並依賽季驗證。回傳 None = 用預設預組(level1)。
 
     - {preset: id}:id 必須在掃描集合內(白名單,絕不轉為任意路徑);未知回 4xx。
     - {pages:[...]}:自訂牌組以構築規則驗證,違規回 422。
+    預組與缺省牌組也依賽季驗證;超出賽季回 422 deck.season,detail 附房間賽季。
     """
     if spec is None:
-        return None
-    if "preset" in spec:
+        pages = list(_default_deck())
+    elif "preset" in spec:
         pid = spec.get("preset")
-        if pid == DEFAULT_PRESET:
-            return None
         preset = _presets().get(pid)
         if preset is None:
             raise HTTPException(404, detail={"code": "deck.unknown_preset",
                                              "message": f"未知的預組:{pid}"})
-        return load_deck(preset["path"], card_db()).pages
-    pages = spec.get("pages")
-    if not isinstance(pages, list):
-        raise HTTPException(422, detail={"code": "deck.bad_request",
-                                         "message": "deck 須為 preset 或 pages"})
+        pages = list(load_deck(preset["path"], card_db()).pages)
+    else:
+        pages = spec.get("pages")
+        if not isinstance(pages, list):
+            raise HTTPException(422, detail={"code": "deck.bad_request",
+                                             "message": "deck 須為 preset 或 pages"})
     try:
-        validate_deck(pages, card_db())
+        validate_deck(pages, card_db(), season=season)
     except DeckError as exc:
-        raise HTTPException(422, detail={"code": exc.code, "message": str(exc)})
+        extra = {"season": season} if exc.code == "deck.season" else {}
+        raise HTTPException(422, detail={"code": exc.code, "message": str(exc), **extra})
+    if spec is None or spec.get("preset") == DEFAULT_PRESET:
+        return None
     return tuple(pages)
 
 
@@ -291,7 +310,7 @@ def _deck_label(spec: dict | None) -> dict:
     return {"pages": list(spec["pages"])}
 
 
-def _npc_seat(body: CreateRoom) -> tuple[NpcSeat, tuple[str, ...] | None]:
+def _npc_seat(body: CreateRoom, season: int) -> tuple[NpcSeat, tuple[str, ...] | None]:
     """驗證 NPC 難度與牌組,抽選隨機牌組;回傳 NPC 座位與 NPC 牌組頁序(None=level1)。"""
     level = body.npc_level or "normal"
     if level not in NPC_LEVELS:
@@ -302,11 +321,11 @@ def _npc_seat(body: CreateRoom) -> tuple[NpcSeat, tuple[str, ...] | None]:
         raise _npc_http_error("npc.bad_decks", f"候選牌組須為 1 至 {NPC_DECK_CANDIDATES_MAX} 副")
     rng = random.Random(f"npc:{body.seed}") if body.seed is not None else random.Random()
     if body.npc_decks is not None:
-        resolved = [_resolve_deck(spec) for spec in body.npc_decks]   # 全部驗證後才抽
+        resolved = [_resolve_deck(spec, season) for spec in body.npc_decks]   # 全部驗證後才抽
         i = rng.randrange(len(resolved))
         spec, pages = body.npc_decks[i], resolved[i]
     else:
-        spec, pages = body.npc_deck, _resolve_deck(body.npc_deck)
+        spec, pages = body.npc_deck, _resolve_deck(body.npc_deck, season)
     return NpcSeat(level=level, rng=rng, deck=_deck_label(spec)), pages
 
 
@@ -418,16 +437,17 @@ async def get_online():
 @app.post("/api/rooms")
 async def create_room(body: CreateRoom):
     # 牌組先驗證再建房(非法牌組不建房)
+    season = _season_of(body.season)
     if body.mode == "local" and body.decks is not None:
         if len(body.decks) != 2:
             raise HTTPException(422, detail={"code": "deck.bad_request",
                                              "message": "本機房 decks 須為兩副"})
-        resolved = [_resolve_deck(body.decks[0]), _resolve_deck(body.decks[1])]
+        resolved = [_resolve_deck(body.decks[0], season), _resolve_deck(body.decks[1], season)]
     else:
-        resolved = [_resolve_deck(body.deck), None]
+        resolved = [_resolve_deck(body.deck, season), None]
     npc_seat = None
     if body.mode == "npc":
-        npc_seat, resolved[1] = _npc_seat(body)
+        npc_seat, resolved[1] = _npc_seat(body, season)
     if body.mode == "local" and body.names is not None:
         names = [_clean_name(body.names[0] if len(body.names) > 0 else None),
                  _clean_name(body.names[1] if len(body.names) > 1 else None)]
@@ -438,6 +458,7 @@ async def create_room(body: CreateRoom):
     except RoomError as exc:
         raise _http_error(exc)
     room.decks = resolved
+    room.season = season
     resp: dict = {
         "code": room.code,
         "mode": room.mode,
@@ -467,8 +488,9 @@ async def create_room(body: CreateRoom):
 
 @app.post("/api/rooms/{code}/join")
 async def join_room(code: str, body: JoinBody | None = None):
-    deck1 = _resolve_deck(body.deck if body else None)  # 非法牌組在佔位前就被拒
     existing = store.rooms.get(code.upper())
+    season = existing.season if existing is not None else default_season()
+    deck1 = _resolve_deck(body.deck if body else None, season)  # 非法牌組在佔位前就被拒
     if existing is not None and existing.table:
         raise HTTPException(409, detail={"code": "room.table_only", "message": "牌桌的房間須經牌桌入座"})
     try:
@@ -631,10 +653,11 @@ async def list_tables():
     return {"tables": [TABLES.view(t, store, now) for t in TABLES.tables]}
 
 
-def _new_table_room(number: int, timer: int, names: list, decks: list) -> tuple[Room, list[str]]:
+def _new_table_room(number: int, timer: int, season: int, names: list, decks: list) -> tuple[Room, list[str]]:
     """在牌桌上建立線上房;names / decks 有兩位時直接開局。回傳房間與各座位的 token。"""
     room, token0 = store.create("online", timer, None, names=[names[0], None])
     room.table = number
+    room.season = season
     room.decks = [decks[0], None]
     tokens = [token0]
     if len(names) > 1:
@@ -652,18 +675,23 @@ async def sit_table(number: int, body: SitBody):
         raise _table_error(422, "table.bad_expect", "expect 須為 empty 或 waiting")
     if body.expect == EMPTY and body.timer_seconds not in TABLE_TIMERS:
         raise _table_error(422, "table.bad_timer", f"牌桌計時須為 {TABLE_TIMERS}")
-    deck = _resolve_deck(body.deck)          # 非法牌組在改變牌桌前就被拒
-    name = _clean_name(body.name)
     # 以下到開局為止都不 await:同一桌的請求依到達順序處理
     state = TABLES.state(table, store)
+    if body.expect == EMPTY:
+        season = _season_of(body.season)
+    else:
+        waiting = TABLES.room_of(table, store)
+        season = waiting.season if waiting is not None else default_season()
+    deck = _resolve_deck(body.deck, season)  # 非法牌組在改變牌桌前就被拒
+    name = _clean_name(body.name)
     if state in (PLAYING, ENDED):
         raise _table_error(409, "table.busy", "這桌正在對戰")
     if body.expect == EMPTY:
         if state == WAITING:
             room = TABLES.room_of(table, store)
             raise _table_error(409, "table.taken", "這桌剛有人開桌",
-                               host=room.names[0], timer_seconds=room.timer_seconds)
-        room, tokens = _new_table_room(number, body.timer_seconds, [name], [deck])
+                               host=room.names[0], timer_seconds=room.timer_seconds, season=room.season)
+        room, tokens = _new_table_room(number, body.timer_seconds, season, [name], [deck])
         table.clear(room.code, time.time())
         return {"code": room.code, "player_token": tokens[0], "table": number,
                 "spectate_url": f"/?spectate={room.code}&token={room.spectator_token}",
@@ -743,12 +771,12 @@ async def _settle_table(table, room: Room, now: float, notify: bool = True) -> N
     stay = [seat for seat in (0, 1) if table.choices.get(seat) == REMATCH]
     moves: dict = {}                        # 舊座位 → (新 token, 新座位);觀戰者以 "spectator"
     if len(stay) == 2:
-        new, tokens = _new_table_room(table.number, room.timer_seconds, list(room.names), list(room.decks))
+        new, tokens = _new_table_room(table.number, room.timer_seconds, room.season, list(room.names), list(room.decks))
         moves = {0: (tokens[0], 0), 1: (tokens[1], 1), "spectator": (new.spectator_token, None)}
         table.clear(new.code, now)
     elif len(stay) == 1:
         seat = stay[0]
-        new, tokens = _new_table_room(table.number, room.timer_seconds, [room.names[seat]], [room.decks[seat]])
+        new, tokens = _new_table_room(table.number, room.timer_seconds, room.season, [room.names[seat]], [room.decks[seat]])
         moves = {seat: (tokens[0], 0)}        # 留下的人成為新房的開桌者(座位 0)
         table.clear(new.code, now)
     else:

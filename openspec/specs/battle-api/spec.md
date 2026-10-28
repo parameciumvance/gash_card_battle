@@ -421,3 +421,10 @@ API SHALL 提供 `GET /api/announcement`,回傳目前的公告:`{"announcement":
 #### Scenario: 觸發型不發出
 - **WHEN** 持有 P-013 的玩家受「パートナーの効果を使えない」限制,對手的魔物卡入墓
 - **THEN** 不發出 `effect_blocked`,也不翻頁
+
+### Requirement: 預組的賽季
+`GET /api/decks` 的每個預組 SHALL 含 `season`:該預組魔書的賽季(見 `card-data`「魔書的賽季」)。
+
+#### Scenario: 預組清單含賽季
+- **WHEN** 前端請求 `GET /api/decks`
+- **THEN** level1 的 `season` 為 1、level2 為 2、zeon 為 3

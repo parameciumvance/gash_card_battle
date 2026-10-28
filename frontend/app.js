@@ -7,6 +7,7 @@
 
 let DICT = {};        // i18n 字典(目前語言)
 let CARDS = {};       // 卡片數值資料(decks.js 的驗證也依賴)
+let SEASONS = { selectable: [1, 2, 3], default: 3, seasons: {}, special: {} };   // data/seasons.json
 let PENDING = new Set();   // 資料已收錄、效果尚未實作的卡號(data/pending_cards.json):卡池不顯示、構築規則拒絕
 
 // 已開放的卡(卡池、篩選選項用)
@@ -216,7 +217,7 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     // 依錯誤碼以目前語言顯示;字典沒有該錯誤碼時用伺服器原文
     const code = body.detail && body.detail.code;
-    const msg = code && DICT[`error.${code}`] !== undefined ? t(`error.${code}`)
+    const msg = code && DICT[`error.${code}`] !== undefined ? t(`error.${code}`, body.detail)
       : body.detail && body.detail.message ? body.detail.message : JSON.stringify(body);
     const err = new Error(msg);
     err.code = code;
@@ -387,21 +388,77 @@ function show(sectionId) {
 
 // ---------------------------------------------------------------- 牌組選單與 payload
 
+// 選項記下名稱(data-label)、賽季(data-season)與是否不合法(data-invalid),由 applySeasonLimits 決定標示與禁用
 function deckOptions(sel) {
   sel.innerHTML = "";
-  for (const p of PRESETS) {                 // 探索得到的預組(value 帶 preset: 前綴)
+  const add = (value, label, season, invalid) => {
     const opt = document.createElement("option");
-    opt.value = `preset:${p.id}`;
-    opt.textContent = presetName(p);
+    opt.value = value;
+    opt.textContent = label;
+    opt.dataset.label = label;
+    opt.dataset.season = season === null || season === undefined ? "" : String(season);
+    opt.dataset.invalid = invalid ? "1" : "";
+    opt.disabled = invalid;  // 不合法牌組不可選入對戰
     sel.appendChild(opt);
-  }
+  };
+  for (const p of PRESETS) add(`preset:${p.id}`, presetName(p), p.season, false);   // value 帶 preset: 前綴
   for (const d of DeckStore.list()) {
+    add(d.id, d.name + (d.valid ? "" : t("ui.deck.invalid_suffix")), deckSeason(d.pages), !d.valid);
+  }
+}
+
+// ---------------------------------------------------------------- 賽季(setup 頁的賽季選單限制牌組選單)
+
+const DECK_SELECTS = ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-friend", "deck-tables"];
+// 牌組選單 → 限制它的賽季選單;與朋友對戰的加入模式與牌桌頁不依賽季禁用(賽季由房間 / 牌桌決定)
+const DECK_SEASON_SELECT = {
+  "deck-local-0": "season-local", "deck-local-1": "season-local",
+  "deck-npc": "season-npc", "deck-npc-opp": "season-npc", "deck-friend": "season-friend",
+};
+
+function selectedSeason(id) {
+  return Number(document.getElementById(id).value) || SEASONS.default;
+}
+
+function deckSeasonLimit(deckId) {
+  const seasonId = DECK_SEASON_SELECT[deckId];
+  if (!seasonId || (deckId === "deck-friend" && friendMode === "join")) return null;
+  return selectedSeason(seasonId);
+}
+
+function optionSeason(opt) {
+  return opt && opt.dataset.season ? Number(opt.dataset.season) : null;
+}
+
+// 有限制時:超出賽季的魔書禁用並標示「第 N 賽季起」,選中的變成不可用就回到缺省;沒有限制時每個選項都標示賽季
+function applySeasonLimits() {
+  for (const id of DECK_SELECTS) {
+    const sel = document.getElementById(id);
+    const limit = deckSeasonLimit(id);
+    for (const opt of sel.options) {
+      if (opt.dataset.label === undefined) continue;     // NPC 的「隨機」
+      const season = optionSeason(opt);
+      const beyond = limit !== null && season !== null && season > limit;
+      opt.disabled = opt.dataset.invalid === "1" || beyond;
+      const tag = season !== null && Number.isFinite(season) && (beyond || limit === null);
+      opt.textContent = opt.dataset.label + (tag ? t("ui.deck.season_suffix", { n: season }) : "");
+    }
+    const current = sel.selectedOptions[0];
+    if (current && current.disabled) sel.value = `preset:${DEFAULT_PRESET}`;
+  }
+}
+
+function renderSeasonSelect(id) {
+  document.getElementById(`${id}-label`).textContent = t("ui.season.label");
+  const sel = document.getElementById(id);
+  sel.innerHTML = "";
+  for (const n of SEASONS.selectable) {
     const opt = document.createElement("option");
-    opt.value = d.id;
-    opt.textContent = d.name + (d.valid ? "" : t("ui.deck.invalid_suffix"));
-    opt.disabled = !d.valid;  // 不合法牌組不可選入對戰
+    opt.value = String(n);
+    opt.textContent = t("ui.season.n", { n });
     sel.appendChild(opt);
   }
+  sel.value = String(SEASONS.default);
 }
 
 function deckPayload(selectId) {
@@ -419,7 +476,7 @@ function nameVal(id) {
 async function startLocal() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "local",
+    body: JSON.stringify({ mode: "local", season: selectedSeason("season-local"),
       decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")],
       names: [nameVal("name-local-0"), nameVal("name-local-1")] }),
   });
@@ -434,18 +491,19 @@ async function startLocal() {
 
 const NPC_RANDOM_DECK = "npc:random";
 
-// 「隨機」:所有預組與本機儲存的合法牌組都是候選
-function npcDeckCandidates() {
-  return PRESETS.map((p) => ({ preset: p.id }))
-    .concat(DeckStore.validList().map((d) => ({ pages: d.pages })));
+// 「隨機」:所選賽季可用的預組與本機儲存的合法牌組都是候選
+function npcDeckCandidates(season) {
+  return PRESETS.filter((p) => !(p.season > season)).map((p) => ({ preset: p.id }))
+    .concat(DeckStore.validList().filter((d) => !(deckSeason(d.pages) > season)).map((d) => ({ pages: d.pages })));
 }
 
 async function startNpc() {
-  const payload = { mode: "npc", deck: deckPayload("deck-npc"),
+  const season = selectedSeason("season-npc");
+  const payload = { mode: "npc", season, deck: deckPayload("deck-npc"),
     npc_level: document.getElementById("npc-level").value,
     name: saveNick(document.getElementById("name-npc").value) };
   if (document.getElementById("deck-npc-opp").value === NPC_RANDOM_DECK) {
-    payload.npc_decks = npcDeckCandidates();
+    payload.npc_decks = npcDeckCandidates(season);
   } else {
     payload.npc_deck = deckPayload("deck-npc-opp");
   }
@@ -471,6 +529,7 @@ async function createRoom() {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "online", timer_seconds: timer ? Number(timer) : null,
+      season: selectedSeason("season-friend"),
       deck: deckPayload("deck-friend"), name: saveNick(document.getElementById("name-friend").value) }),
   });
   SESSION = { code: body.code, mode: "online", viewer: 0,
@@ -3464,14 +3523,17 @@ function renderPoolFilters() {
 }
 
 // 卡池圖示篩選(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」):類型徽章平鋪(多選),魔物、產品各一顆按鈕展開圖示網格(單選)。
-// ftypes 為集合,空集合不篩選;fmamodo / fproduct 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
+// ftypes 為集合,空集合不篩選;fmamodo / fproduct / fseason 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
+// 賽季篩選為累計:選第 N 賽季顯示卡片賽季 ≤ N 的卡(deck-builder「卡池賽季篩選」)
 const POOL_TYPES = ["mamodo", "partner", "spell", "event"];
 const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"] };
 const MAMODO_ART = [26, 24, 412, 388];   // 魔物卡的插圖區(卡名列以上),所有魔物卡共用
 let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/pool-filters.json:產品分排、魔物順序與合併
 
+const FILTER_MENUS = ["mamodo", "product", "season"];
+
 function newPoolFilters() {
-  return { ftypes: new Set(), fmamodo: null, fproduct: null, fopen: null };
+  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, fopen: null };
 }
 
 // 卡圖裁切的圖示(探測結果有快取,重繪不閃爍)。fallback 為文字時先放文字,卡圖可載入才換成裁切;
@@ -3540,6 +3602,10 @@ function poolCardMatches(def, filters) {
   if (filters.fmamodo && !mamodoFilterPaused(filters)
       && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
   if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) return false;
+  if (filters.fseason) {
+    const season = cardSeason(def.number);
+    if (season === null || season > Number(filters.fseason)) return false;
+  }
   return true;
 }
 
@@ -3572,10 +3638,14 @@ function renderCardPoolFilters(holder, filters, onChange) {
         ...mamodoItems] },
     product: { key: "fproduct", label: t("builder.filter.product"),
       items: productRows.flat().map((code) => ({ key: code, label: t("product." + code) })) },
+    season: { key: "fseason", label: t("builder.filter.season"),
+      items: SEASONS.selectable.map((n) => ({ key: String(n), label: t("ui.season.n", { n }),
+        short: t("ui.season.short", { n }) })) },
   };
-  // 圖示 + 文字;「無」只有文字
+  // 圖示 + 文字;「無」與賽季只有文字
   const itemFace = (group, item) => {
     const face = [];
+    if (group === "season") return [el("span", "filter-caption", item.label)];
     if (group === "product") face.push(productIcon(item.key));
     else if (item.key !== MAMODO_NONE) face.push(artIcon(item.card, MAMODO_ART, null, "mamodo-icon"));
     face.push(el("span", "filter-caption", item.label));
@@ -3589,7 +3659,7 @@ function renderCardPoolFilters(holder, filters, onChange) {
   };
 
   const menus = {};
-  for (const group of ["mamodo", "product"]) {
+  for (const group of FILTER_MENUS) {
     const g = groups[group];
     const btn = el("button", "filter-menu");
     btn.type = "button";
@@ -3631,13 +3701,13 @@ function renderCardPoolFilters(holder, filters, onChange) {
     }
     menus[group] = { btn, panel, tiles, allBtn };
   }
-  holder.append(bar, menus.mamodo.panel, menus.product.panel);
+  holder.append(bar, ...FILTER_MENUS.map((group) => menus[group].panel));
 
   function sync() {
     for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
     const paused = mamodoFilterPaused(filters);
     if (paused && filters.fopen === "mamodo") filters.fopen = null;
-    for (const group of ["mamodo", "product"]) {
+    for (const group of FILTER_MENUS) {
       const { btn, panel, tiles, allBtn } = menus[group];
       const g = groups[group];
       const current = filters[g.key];
@@ -3650,7 +3720,10 @@ function renderCardPoolFilters(holder, filters, onChange) {
       // 按鈕摘要:未選取為「全部」,否則為選取項目的圖示與名稱
       const summary = btn.querySelector(".filter-summary");
       const picked = g.items.find((item) => item.key === current);
-      summary.replaceChildren(...(picked ? itemFace(group, picked) : [t("builder.filter.all")]));
+      // 賽季按鈕用短標示,窄螢幕的篩選列才放得下
+      const face = !picked ? [t("builder.filter.all")]
+        : group === "season" ? [el("span", "filter-caption", picked.short)] : itemFace(group, picked);
+      summary.replaceChildren(...face);
       btn.ariaLabel = `${g.label}: ${picked ? picked.label : t("builder.filter.all")}`;
     }
   }
@@ -3798,6 +3871,11 @@ function renderBookGrid(grid, renderSlot) {
 }
 
 function renderValidation() {
+  // 魔書名稱旁的「第 N 賽季起」(deck-builder「魔書的賽季標示」):只是資訊,不影響合法性提示
+  const tag = document.getElementById("builder-season");
+  const season = deckSeason(B.deck.pages);
+  tag.classList.toggle("hidden", season === null || !Number.isFinite(season));
+  tag.textContent = season === null || !Number.isFinite(season) ? "" : t("ui.season.from", { n: season });
   const bar = document.getElementById("builder-validation");
   bar.innerHTML = "";
   const errors = validateDeckPages(B.deck.pages);
@@ -3860,6 +3938,8 @@ let friendMode = "create";
 
 // 上次的選擇(localStorage gash-setup):{npc: {deck, opp, level}, friend: {deck, timer, mode}, local: {deck0, deck1}}
 const SETUP_FIELDS = {
+  "season-npc": ["npc", "season"], "season-friend": ["friend", "season"],
+  "season-local": ["local", "season"], "season-tables": ["tables", "season"],
   "deck-npc": ["npc", "deck"], "deck-npc-opp": ["npc", "opp"], "npc-level": ["npc", "level"],
   "deck-friend": ["friend", "deck"], "timer-select": ["friend", "timer"],
   "deck-local-0": ["local", "deck0"], "deck-local-1": ["local", "deck1"],
@@ -3886,14 +3966,20 @@ function rememberSetup(mode, key, value) {
   try { localStorage.setItem("gash-setup", JSON.stringify(all)); } catch (_) { /* 不可用時不記 */ }
 }
 
-// 選單重新產生後還原:記住的值是可選的選項才選,否則維持缺省
+// 選單重新產生後還原:記住的值是可選的選項才選,否則維持缺省;先還原賽季,牌組選單才知道哪些可選
 function restoreSetup() {
-  for (const [id, [mode, key]] of Object.entries(SETUP_FIELDS)) {
-    const sel = document.getElementById(id);
-    const value = setupPref(mode)[key];
-    const opt = [...sel.options].find((o) => o.value === value);
-    if (opt && !opt.disabled) sel.value = value;
-  }
+  const fields = Object.entries(SETUP_FIELDS);
+  const restore = (entries) => {
+    for (const [id, [mode, key]] of entries) {
+      const sel = document.getElementById(id);
+      const value = setupPref(mode)[key];
+      const opt = [...sel.options].find((o) => o.value === value);
+      if (opt && !opt.disabled) sel.value = value;
+    }
+  };
+  restore(fields.filter(([id]) => id.startsWith("season-")));
+  applySeasonLimits();
+  restore(fields.filter(([id]) => !id.startsWith("season-")));
 }
 
 function openSetup(mode, opts = {}) {
@@ -3923,6 +4009,8 @@ function setFriendMode(mode, remember = true) {
   }
   document.getElementById("friend-desc").textContent = t(`ui.landing.${mode}_desc`);
   document.getElementById("friend-timer-row").classList.toggle("hidden", mode !== "create");
+  document.getElementById("friend-season-row").classList.toggle("hidden", mode !== "create");
+  applySeasonLimits();
   document.getElementById("friend-code-row").classList.toggle("hidden", mode !== "join");
   document.getElementById("friend-submit").textContent = t(`ui.landing.${mode}`);
   if (remember) rememberSetup("friend", "mode", mode);
@@ -4027,6 +4115,7 @@ function renderTablesGrid() {
     felt.append(head, state);
     const info = [];
     if (tb.timer_seconds) info.push(t("ui.tables.timer_short", { n: tb.timer_seconds }));   // 桌面空間小:短寫
+    if (tb.season) info.push(t("ui.season.short", { n: tb.season }));
     if (tb.state === "waiting") info.push(t("ui.tables.waited", { time: clockText(tb.waiting_seconds) }));
     if (info.length) {
       const meta = document.createElement("p");
@@ -4048,6 +4137,16 @@ function renderTablesGrid() {
       btn.onclick = () => spectateTable(tb);
     }
     card.append(seat(0), felt, seat(1), btn);
+    // 所選魔書超出開桌賽季(空桌)或該桌賽季(等待中)時不能入座
+    const limit = tb.state === "empty" ? selectedSeason("season-tables") : tb.state === "waiting" ? tb.season : null;
+    const deckSeasonNow = optionSeason(document.getElementById("deck-tables").selectedOptions[0]);
+    if (limit && deckSeasonNow !== null && deckSeasonNow > limit) {
+      btn.disabled = true;
+      const note = document.createElement("p");
+      note.className = "table-note";
+      note.textContent = t("ui.tables.season_mismatch", { n: limit });
+      card.appendChild(note);
+    }
     return card;
   }));
 }
@@ -4061,7 +4160,10 @@ async function sitTable(number, expect) {
   hideTableConfirm();
   const payload = { name: saveNick(document.getElementById("name-tables").value),
                     deck: deckPayload("deck-tables"), expect };
-  if (expect === "empty") payload.timer_seconds = Number(document.getElementById("timer-tables").value);
+  if (expect === "empty") {
+    payload.timer_seconds = Number(document.getElementById("timer-tables").value);
+    payload.season = selectedSeason("season-tables");
+  }
   try {
     const body = await api(`/api/tables/${number}/sit`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -4081,7 +4183,8 @@ function showTableConfirm(number, detail) {
   tableConfirm = number;
   const box = document.getElementById("tables-confirm");
   document.getElementById("tables-confirm-text").textContent = t("ui.tables.taken", {
-    n: number, host: tableName(detail.host, 0), timer: t("ui.timer.n", { n: detail.timer_seconds }) });
+    n: number, host: tableName(detail.host, 0), timer: t("ui.timer.n", { n: detail.timer_seconds }),
+    season: t("ui.season.n", { n: detail.season }) });
   document.getElementById("tables-confirm-join").onclick = () => sitTable(number, "waiting");
   document.getElementById("tables-confirm-cancel").onclick = hideTableConfirm;
   box.classList.remove("hidden");
@@ -4306,9 +4409,8 @@ function renderLanding() {
   document.getElementById("deck-friend-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-label").textContent = t("ui.deck.select");
   document.getElementById("deck-npc-opp-label").textContent = t("ui.deck.npc");
-  for (const id of ["deck-local-0", "deck-local-1", "deck-npc", "deck-npc-opp", "deck-friend", "deck-tables"]) {
-    deckOptions(document.getElementById(id));
-  }
+  for (const id of DECK_SELECTS) deckOptions(document.getElementById(id));
+  for (const id of ["season-npc", "season-friend", "season-local", "season-tables"]) renderSeasonSelect(id);
   renderTablesForm();
   const npcDeck = document.getElementById("deck-npc-opp");
   const random = document.createElement("option");      // 缺省:隨機
@@ -4320,7 +4422,11 @@ function renderLanding() {
   // 上次的選擇:變更時就記住(先去構築器再回來也保留),重新產生選單後還原
   for (const [id, [mode, key]] of Object.entries(SETUP_FIELDS)) {
     const field = document.getElementById(id);
-    field.onchange = () => rememberSetup(mode, key, field.value);
+    field.onchange = () => {
+      rememberSetup(mode, key, field.value);
+      if (id.startsWith("season-")) applySeasonLimits();
+      if (id === "season-tables" || id === "deck-tables") renderTablesGrid();
+    };
   }
   restoreSetup();
 
@@ -4435,6 +4541,8 @@ async function boot() {
       Object.fromEntries(list.map((c) => [c.number, c]))),
     fetch("/api/decks").then((r) => r.json()).then((d) => d.decks).catch(() => []),
     fetch("/api/meta").then((r) => r.json()).catch(() => META),
+    fetch("/data/seasons.json").then((r) => r.json())
+      .then((d) => { SEASONS = d; }).catch(() => {}),
     fetch("/data/pending_cards.json").then((r) => r.json())
       .then((d) => { PENDING = new Set(d.cards || []); }).catch(() => {}),
     fetch("/static/pool-filters.json").then((r) => r.json())

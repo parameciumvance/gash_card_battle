@@ -1077,6 +1077,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .table-card.playing .table-felt .table-state, .table-card.ended .table-felt .table-state { font-weight: bold; }
 .table-card.ended .table-felt { filter: saturate(.6) brightness(.9); }
 .table-card button { width: 100%; margin-top: 4px; }
+.table-card button:disabled { opacity: .5; cursor: not-allowed; }
+.table-note { margin: 2px 0 0; font-size: 12px; color: var(--ink); text-align: center; }
 #waiting-leave { margin-top: 8px; }
 .table-choice { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .table-choice-status, .table-choice-wait { font-size: 13px; color: var(--ink); }
@@ -1143,6 +1145,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   border: 1px solid var(--btn-line); background: #1c2333; color: var(--ink);
 }
 #builder-name { width: 180px; }
+#builder-season { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--btn-line); color: var(--ink); white-space: nowrap; }
 
 #builder-main { flex: 1; display: flex; min-height: 0; }
 #builder-pool {

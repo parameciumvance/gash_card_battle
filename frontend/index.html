@@ -58,6 +58,8 @@
     <div class="setup-panel" id="setup-npc">
       <label class="deck-label" id="name-npc-label" for="name-npc"></label>
       <input id="name-npc" class="name-input" maxlength="16">
+      <label class="deck-label" id="season-npc-label" for="season-npc"></label>
+      <select id="season-npc" class="season-select"></select>
       <label class="deck-label" id="deck-npc-label" for="deck-npc"></label>
       <select id="deck-npc" class="deck-select"></select>
       <label class="deck-label" id="deck-npc-opp-label" for="deck-npc-opp"></label>
@@ -73,6 +75,10 @@
       <p id="friend-desc"></p>
       <label class="deck-label" id="name-friend-label" for="name-friend"></label>
       <input id="name-friend" class="name-input" maxlength="16">
+      <div class="field" id="friend-season-row">
+        <label class="deck-label" id="season-friend-label" for="season-friend"></label>
+        <select id="season-friend" class="season-select"></select>
+      </div>
       <label class="deck-label" id="deck-friend-label" for="deck-friend"></label>
       <select id="deck-friend" class="deck-select"></select>
       <div class="field" id="friend-timer-row">
@@ -88,6 +94,8 @@
     <div class="setup-panel" id="setup-local">
       <label class="deck-label" id="name-local-0-label" for="name-local-0"></label>
       <input id="name-local-0" class="name-input" maxlength="16">
+      <label class="deck-label" id="season-local-label" for="season-local"></label>
+      <select id="season-local" class="season-select"></select>
       <label class="deck-label" id="deck-local-0-label" for="deck-local-0"></label>
       <select id="deck-local-0" class="deck-select"></select>
       <label class="deck-label" id="name-local-1-label" for="name-local-1"></label>
@@ -111,6 +119,8 @@
       <select id="deck-tables" class="deck-select"></select>
       <label class="deck-label" id="timer-tables-label" for="timer-tables"></label>
       <select id="timer-tables"></select>
+      <label class="deck-label" id="season-tables-label" for="season-tables"></label>
+      <select id="season-tables" class="season-select"></select>
     </div>
     <div id="tables-confirm" class="hidden" role="alertdialog">
       <p id="tables-confirm-text"></p>
@@ -127,6 +137,7 @@
       <select id="builder-deck-list"></select>
       <select id="builder-new"></select>
       <input id="builder-name" maxlength="24">
+      <span id="builder-season" class="hidden"></span>
       <button id="builder-save" class="primary"></button>
       <button id="builder-export"></button>
       <button id="builder-import"></button>

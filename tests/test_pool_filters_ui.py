@@ -1,5 +1,5 @@
 """卡池圖示篩選的瀏覽器測試(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」「卡池篩選的對應魔物」
-「魔物篩選圖示與順序」「產品篩選分排」「篩選圖示缺圖退回文字」)。金手指共用同一套篩選,見 test_cheat_editor.py。
+「魔物篩選圖示與順序」「產品篩選分排」「篩選圖示缺圖退回文字」「卡池賽季篩選」「魔書的賽季標示」)。金手指共用同一套篩選,見 test_cheat_editor.py。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_pool_filters_ui.py -q
@@ -306,9 +306,55 @@ def test_phone_filter_bar_is_one_line(browser, server):
     context, page, errors = open_builder(browser, server, viewport=PHONE)
     tops = page.locator(f"{FILTERS} .filter-bar > button").evaluate_all(
         "(bs) => bs.map((b) => Math.round(b.getBoundingClientRect().top))")
-    assert len(tops) == 6 and len(set(tops)) == 1
+    assert len(tops) == 7 and len(set(tops)) == 1
     menu(page, "mamodo").click()
     assert panel(page, "mamodo").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     context.close()
     assert not errors
+
+
+# ---------------------------------------------------------------- 賽季
+
+def test_season_filter_is_cumulative(builder):
+    assert [t.strip() for t in panel(builder, "season").locator(".filter-tile").all_text_contents()] == \
+        ["全部", "第 1 賽季", "第 2 賽季", "第 3 賽季"]
+    pick(builder, "season", "2")
+    assert not panel(builder, "season").is_visible()
+    numbers = pool_numbers(builder)
+    assert "M-001" in numbers and "M-030" in numbers and "M-040" not in numbers
+    assert numbers == cards_where(builder, "cardSeason(c.number) <= 2")
+    assert menu(builder, "season").locator(".filter-summary").inner_text() == "第2季"
+    menu(builder, "season").click()
+    panel(builder, "season").locator(".filter-all").click()
+    assert pool_numbers(builder) == cards_where(builder, "true")
+
+
+def test_season_filter_combines_with_type(builder):
+    type_badge(builder, "mamodo").click()
+    pick(builder, "season", "1")
+    numbers = pool_numbers(builder)
+    assert numbers and numbers == cards_where(builder, "c.type === 'mamodo' && c.number <= 'M-015'")
+
+
+def test_season_panel_is_exclusive(builder):
+    menu(builder, "mamodo").click()
+    menu(builder, "season").click()
+    assert panel(builder, "season").is_visible() and not panel(builder, "mamodo").is_visible()
+
+
+def test_deck_season_tag(builder):
+    tag = builder.locator("#builder-season")
+    builder.evaluate("B.deck.pages = Array(32).fill(null); builderMutated()")
+    assert tag.is_hidden()                                                       # 空魔書不顯示
+    builder.evaluate("""async () => {
+        B.deck.pages = await fetchPresetPages('level1'); B.selected = null; builderMutated();
+    }""")
+    assert tag.inner_text() == "第 1 賽季起"
+    assert builder.locator("#builder-validation .ok").is_visible()
+    builder.locator('#book-grid .page-slot[data-page="25"]').click()
+    builder.locator("#pool-grid .card", has=builder.locator(".cnum", has_text="M-030")).first.click()
+    builder.wait_for_function("B.deck.pages[25] === 'M-030'")
+    assert tag.inner_text() == "第 2 賽季起"
+    assert builder.locator("#builder-validation .ok").is_visible()               # 沒有新的違規
+    assert builder.locator("#builder-validation .err").count() == 0

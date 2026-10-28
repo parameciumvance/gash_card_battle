@@ -65,6 +65,32 @@ const DeckStore = {
   },
 };
 
+/* 賽季(data/seasons.json,card-data「賽季定義」):卡片屬於包含其卡號的最早賽季,沒有時為 null */
+function cardSeason(number) {
+  if (number in SEASONS.special) return SEASONS.special[number];
+  const i = number.lastIndexOf("-");
+  const prefix = number.slice(0, i);
+  const value = Number(number.slice(i + 1));
+  const ids = Object.keys(SEASONS.seasons).map(Number).sort((a, b) => a - b);
+  for (const id of ids) {
+    const limit = SEASONS.seasons[id][prefix];
+    if (limit !== undefined && value <= limit) return id;
+  }
+  return null;
+}
+
+/* 魔書從哪個賽季起可用:各卡賽季的最大值;空頁不計,沒有卡時為 null,含沒有賽季的卡時為 Infinity(任何賽季都不可用) */
+function deckSeason(pages) {
+  let max = null;
+  for (const num of pages) {
+    if (!num) continue;
+    const season = cardSeason(num);
+    if (season === null) return Infinity;
+    max = Math.max(max || 0, season);
+  }
+  return max;
+}
+
 /* 七條構築規則(rule3.md「魔書檔案夾」)+ 空頁檢查。pages: [32×卡號|null] */
 function validateDeckPages(pages) {
   const errors = [];

@@ -222,3 +222,65 @@ def test_idle_cleanup_frees_table():
     store.get(host["code"]).last_activity = 0
     store.cleanup_idle()
     assert table(1)["state"] == "empty"
+
+
+# ---------------------------------------------------------------- 賽季(game-tables「牌桌的賽季」)
+
+def sit_season(number, name, season, timer=60, status=200):
+    body = {"name": name, "expect": "empty", "timer_seconds": timer, "season": season}
+    res = client.post(f"/api/tables/{number}/sit", json=body)
+    assert res.status_code == status, res.text
+    return res.json()
+
+
+def test_open_table_with_season():
+    r = sit_season(4, "小明", 1)
+    assert r["room"]["season"] == 1
+    assert table(4)["season"] == 1
+    assert table(3)["season"] is None
+
+
+def test_default_table_season_is_3():
+    sit(4, "小明")
+    assert table(4)["season"] == 3
+
+
+def test_bad_table_season_rejected():
+    res = sit_season(4, "小明", 5, status=422)
+    assert res["detail"]["code"] == "room.bad_season"
+    assert table(4)["state"] == "empty"
+
+
+def test_guest_deck_beyond_table_season_rejected():
+    sit_season(2, "小明", 1)
+    res = sit(2, "小美", expect="waiting", deck={"preset": "level2"}, status=422)
+    assert res["detail"]["code"] == "deck.season" and res["detail"]["season"] == 1
+    assert table(2)["state"] == "waiting" and table(2)["names"][1] is None
+    sit(2, "小美", expect="waiting", deck={"preset": "level1"})
+    assert table(2)["state"] == "playing" and table(2)["season"] == 1
+
+
+def test_conflict_includes_season():
+    sit_season(2, "小明", 2)
+    res = client.post("/api/tables/2/sit", json={"name": "阿華", "expect": "empty", "timer_seconds": 120, "season": 3})
+    assert res.status_code == 409
+    detail = res.json()["detail"]
+    assert detail["code"] == "table.taken" and detail["season"] == 2
+
+
+def test_rematch_keeps_season():
+    host = sit_season(5, "小明", 1)
+    guest = sit(5, "小美", expect="waiting")
+    end_game(host["code"])
+    choose(5, host["player_token"], "rematch")
+    choose(5, guest["player_token"], "rematch")
+    assert table(5)["state"] == "playing" and table(5)["season"] == 1
+
+
+def test_one_leaves_new_host_room_keeps_season():
+    host = sit_season(5, "小明", 2)
+    guest = sit(5, "小美", expect="waiting")
+    end_game(host["code"])
+    choose(5, guest["player_token"], "leave")
+    choose(5, host["player_token"], "rematch")
+    assert table(5)["state"] == "waiting" and table(5)["season"] == 2

@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .cards import MAMODO, SPELL, CardDef, pending_cards
+from .seasons import card_season
 
 BOOK_SIZE = 32
 INTERMEDIATE_MIN_PAGE = 12
@@ -36,7 +37,8 @@ class Deck:
     pages: tuple[str, ...]  # pages[i] = 第 i+1 頁的卡號
 
 
-def validate_deck(pages: list[str], db: dict[str, CardDef]) -> None:
+def validate_deck(pages: list[str], db: dict[str, CardDef], season: int | None = None) -> None:
+    """season 有指定時,另外拒絕不屬於該賽季可用範圍的卡(deck.season)。"""
     if len(pages) != BOOK_SIZE:
         raise DeckError("deck.size", f"魔書須為 {BOOK_SIZE} 頁,實際 {len(pages)} 頁")
     for number in pages:
@@ -45,6 +47,10 @@ def validate_deck(pages: list[str], db: dict[str, CardDef]) -> None:
     pending = sorted(set(pages) & pending_cards())
     if pending:
         raise DeckError("deck.card_pending", f"尚未開放的卡: {', '.join(pending)}")
+    if season is not None:
+        beyond = sorted({n for n in pages if (card_season(n) or season + 1) > season})
+        if beyond:
+            raise DeckError("deck.season", f"第 {season} 賽季不能使用: {', '.join(beyond)}")
     if db[pages[0]].type != MAMODO:
         raise DeckError("deck.first_page", f"第 1 頁須為魔物卡,實際為 {pages[0]}")
     if db[pages[-1]].type != SPELL:

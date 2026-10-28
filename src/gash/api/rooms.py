@@ -57,6 +57,7 @@ class Room:
     last_activity: float = field(default_factory=time.time)
     npc: NpcSeat | None = None                    # NPC 房的 NPC 座位
     table: int | None = None                      # 牌桌的房間:桌號(不能用房號加入,見 tables.py)
+    season: int = 3                               # 賽季:雙方魔書都依此驗證(card-data「賽季定義」)
 
     def viewer_of(self, token: str):
         """token → viewer(0/1/"spectator");本機模式玩家 token 仍對映到各自 index。"""
