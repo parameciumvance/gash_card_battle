@@ -27,7 +27,7 @@
 - 恢復後沿 `path` 由深往淺「上溯」:父節點是 `Sequence` 時執行之後的兄弟節點;上溯經過節點時呼叫其 `leave(ctx)`(`AsOpponent` 在此把 `player` 換回來)。
 - pending 依專屬鍵分派,不只看「有沒有續體」,否則會跳過 M-012 / M-019 的確認 resolver:
   - `data["tree_choice"]`(常數 `tree.CHOICE_KEY`):由樹建立的選擇(`Choose`、`CoinWithPaidReflip` 的付費重擲詢問),引擎的 `_handle_choose` 只在 pending 含此鍵時交給 `tree.resume`,再由節點的 `resume_choice` 續行。
-  - `data["tree_cont"]`(常數 `tree.CONT_KEY`):擲幣確認鏈結束、待命觸發時的 callback payload,經通用 resolver `effect_tree_resume` 交給節點的 `resume`。`CoinWithPaidReflip` 的確認鏈停點也用這個鍵。
+  - `data["tree_cont"]`(常數 `tree.CONT_KEY`):擲硬幣子階段結束、待命觸發時的 callback payload,經通用 resolver `effect_tree_resume` 交給節點的 `resume`。`CoinWithPaidReflip` 的子階段停點也用這個鍵。
 - 目標以穩定的 slot UID 綁定,執行當下才重新查找;目標已離場時無效果、不發事件,也不改選別的目標。
 
 ## 決策種類
@@ -39,7 +39,7 @@
 ## 擲幣
 
 - `Coin` 只在第一次執行時消耗 `game.rng`;恢復時不重擲。玩家合法要求的 M-012 / M-019 重擲照原流程消耗 RNG。
-- 沒有確認鏈時 `flip_coins` 會同步呼叫 callback。為避免上溯與外層 `Sequence` 各續行一次,`Coin.run` 使用行程內、不進狀態的 in-flight 記號(`tree._flip`)判斷是同步完成還是停下。
+- 擲硬幣子階段沒有任何一方可用效果時,`flip_coins` 會同步呼叫 callback。為避免上溯與外層 `Sequence` 各續行一次,`Coin.run` 使用行程內、不進狀態的 in-flight 記號(`tree._flip`)判斷是同步完成還是停下。
 - 擲幣者與效果擁有者分開記錄:擲幣者寫在 `data["flipper"]`,呼叫端的 `data["player"]` 不可被覆寫(E-020 曾因此把 MP 給錯人)。
 - 付費重擲(E-011)的迴圈只在 `CoinWithPaidReflip` 節點內部,外層節點只續行一次。
 

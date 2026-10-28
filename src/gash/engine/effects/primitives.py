@@ -1,7 +1,7 @@
 """效果原語:卡片 handler 用來組合效果的共用積木。
 
-硬幣判定為互動式:擲出後若有可用的擲幣重擲魔物(reg.coin_reflip:M-012 重擲自己擲的、
-M-019 令對手重擲),會進入 pending 讓玩家決定是否重擲,確定後才呼叫 callback 繼續解決。
+硬幣判定為互動式:擲出後進入擲硬幣子階段(見 flip_coins),有可用的影響硬幣效果(M-012 / M-034 / M-019)時
+進入 pending 讓玩家決定,子階段結束後才呼叫 callback 繼續解決。
 """
 
 from __future__ import annotations
@@ -353,9 +353,12 @@ def _use_reflip(game, batch, player, slot):
 
 
 def flip_coins(game, batch, player, count, source, callback, data=None):
-    """由 player 擲 count 次硬幣;結果確定後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
-    確認鏈:擲幣者的對手有可用的「令對手重擲」(M-019)時先問是否令整組重擲;
-    擲幣者有可用的「重擲自己的硬幣」(M-012)時再進重擲確認。
+    """由 player 擲 count 次硬幣;擲硬幣子階段結束後呼叫 CHOICE_RESOLVERS[callback](game, batch, results, data)。
+
+    擲硬幣子階段(game-engine「擲硬幣子階段」):擲幣者先有機會使用影響硬幣結果的效果(M-012 重擲 1 枚、
+    M-034 把 1 枚反面改成正面,決策 coin_confirm),之後輪到對手(M-019 令擲幣者重擲 1 枚,決策 opp_coin_redo),
+    雙方輪替;使用效果後換另一方,雙方連續不使用時結束。沒有可用效果的一方自動不使用。
+    這些效果不經行動流程(不改行動權),也不提供ジャマー的回應(官方規則書第 47 頁 Q&A)。
 
     擲幣者記在 data["flipper"]。呼叫端放進 data 的 "player" 會原樣保留(E-020 由對手擲幣,
     callback 需要的是效果擁有者);沒有放時才預設為擲幣者。"""
@@ -367,8 +370,9 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
                   result="heads" if heads else "tails", source=source)
     data = dict(data or {})
     data.setdefault("player", player)
-    data.update({"results": results, "callback": callback, "flipper": player, "source": source})
-    _coin_confirm_chain(game, batch, data)
+    data.update({"results": results, "callback": callback, "flipper": player, "source": source,
+                 "coin_turn": player, "coin_passes": 0})
+    _coin_subphase(game, batch, data)
 
 
 def _set_heads_slot(game, player):
@@ -378,8 +382,8 @@ def _set_heads_slot(game, player):
                  if s.top in reg.COIN_SET_HEADS and not mamodo_effect_block(game, player, s)), None)
 
 
-def _confirm_options(game, player, results):
-    """擲幣確認的選項:保留;M-012 可用時每枚可重擲;M-034 可用時每枚反面可改成正面。只有「保留」時回傳 None。"""
+def _flipper_options(game, player, results):
+    """擲幣者的機會:不使用;M-012 可用時每枚可重擲;M-034 可用時每枚反面可改成正面。沒有可用效果時 None。"""
     options = [{"value": None, "label": "keep"}]
     if _reflip_slot(game, player, "self") is not None:
         options += [{"value": i, "label": "reflip"} for i in range(len(results))]
@@ -389,79 +393,87 @@ def _confirm_options(game, player, results):
     return options if len(options) > 1 else None
 
 
-def _ask_coin_confirm(game, batch, data) -> bool:
-    options = _confirm_options(game, data["flipper"], data["results"])
-    if options is None:
-        return False
-    player = data["flipper"]
-    game.state.pending = PendingChoice(
-        kind="coin_confirm", player=player, source=data["source"], options=options,
-        data=data, info=coin_info(data["results"]))
-    game.emit(batch, "choice_required", kind="coin_confirm", player=player,
-              results=["heads" if r else "tails" for r in data["results"]])
-    return True
+def _opponent_options(game, player, results):
+    """擲幣者對手的機會:不使用;M-019 可用時每枚可令擲幣者重擲。沒有可用效果時 None。"""
+    if _reflip_slot(game, player, "opponent") is None:
+        return None
+    return [{"value": None, "label": "keep"}] + [{"value": i, "label": "opp_reflip"}
+                                                  for i in range(len(results))]
 
 
-def _coin_confirm_chain(game, batch, data):
-    player = data["flipper"]
-    results = data["results"]
-    opp = 1 - player
-    redo = None if data.get("opp_redo_done") else _reflip_slot(game, opp, "opponent")
-    if redo is not None:
-        game.state.pending = PendingChoice(
-            kind="opp_coin_redo", player=opp, source=redo.top,
-            options=[{"value": None, "label": "keep"}, {"value": True, "label": "pay_reflip"}],
-            data=data, info=coin_info(results))
-        game.emit(batch, "choice_required", kind="opp_coin_redo", player=opp,
-                  results=["heads" if r else "tails" for r in results])
-        return
-    if _ask_coin_confirm(game, batch, data):
-        return
-    reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
+def _subphase_options(game, data):
+    who = data["coin_turn"]
+    if who == data["flipper"]:
+        return "coin_confirm", _flipper_options(game, who, data["results"])
+    return "opp_coin_redo", _opponent_options(game, who, data["results"])
+
+
+def _coin_subphase(game, batch, data):
+    """輪到的一方有可用效果時建立決策並停下;雙方連續不使用時結束並呼叫 callback。"""
+    while data["coin_passes"] < 2:
+        kind, options = _subphase_options(game, data)
+        if options is not None:
+            player = data["coin_turn"]
+            game.state.pending = PendingChoice(
+                kind=kind, player=player, source=data["source"], options=options,
+                data=data, info=coin_info(data["results"]))
+            game.emit(batch, "choice_required", kind=kind, player=player,
+                      results=["heads" if r else "tails" for r in data["results"]])
+            return
+        _next_turn(data, used=False)
+    reg.CHOICE_RESOLVERS[data["callback"]](game, batch, data["results"], data)
+
+
+def _next_turn(data, used):
+    data["coin_passes"] = 0 if used else data["coin_passes"] + 1
+    data["coin_turn"] = 1 - data["coin_turn"]
+
+
+def _reflip_one(game, batch, data, index):
+    heads = game.rng.random() < 0.5
+    data["results"][index] = heads
+    game.emit(batch, "coin_flipped", player=data["flipper"],
+              result="heads" if heads else "tails", source=data["source"], reflip=True)
+
+
+def _check_subphase_choice(game, value, data):
+    from ..engine import IllegalCommand
+    _kind, options = _subphase_options(game, data)
+    if value is None or value not in {o["value"] for o in (options or [])}:
+        raise IllegalCommand("choose.invalid", "無效的擲幣選擇")
 
 
 @reg.choice_resolver("opp_coin_redo")
 def _opp_coin_redo(game, batch, value, data):
-    opp = 1 - data["flipper"]
-    data["opp_redo_done"] = True
+    """擲幣者對手的機會:不使用,或以 M-019 令擲幣者重擲選定的 1 枚。"""
+    if value is not None:
+        _check_subphase_choice(game, value, data)
+        opp = data["coin_turn"]
+        _use_reflip(game, batch, opp, _reflip_slot(game, opp, "opponent"))
+        _reflip_one(game, batch, data, value)
     game.state.pending = None
-    redo = _reflip_slot(game, opp, "opponent") if value else None
-    if redo is not None:
-        _use_reflip(game, batch, opp, redo)
-        for i in range(len(data["results"])):
-            heads = game.rng.random() < 0.5
-            data["results"][i] = heads
-            game.emit(batch, "coin_flipped", player=data["flipper"],
-                      result="heads" if heads else "tails", source=data["source"], reflip=True)
-    _coin_confirm_chain(game, batch, data)
+    _next_turn(data, used=value is not None)
+    _coin_subphase(game, batch, data)
 
 
 @reg.choice_resolver("coin_confirm")
 def _coin_confirm(game, batch, value, data):
-    from ..engine import IllegalCommand, _discard_slot
+    """擲幣者的機會:不使用,M-012 重擲選定的 1 枚,或 M-034 把選定的反面改成正面。"""
+    from ..engine import _discard_slot
     player = data["flipper"]
-    results = data["results"]
-    if value is None:
-        game.state.pending = None
-        reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
-        return
-    if value not in {o["value"] for o in (_confirm_options(game, player, results) or [])} or value is None:
-        raise IllegalCommand("choose.invalid", "無效的擲幣確認選擇")
-    if isinstance(value, str):   # M-034:棄掉自己,把指定的反面硬幣改成正面
-        index = int(value.split(":")[1])
-        slot = _set_heads_slot(game, player)
-        game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
-        _discard_slot(game, batch, player, slot, reason="cost")
-        results[index] = True
-        game.emit(batch, "coin_set", player=player, index=index, result="heads", card=slot.top,
-                  source=data["source"])
-    else:
-        _use_reflip(game, batch, player, _reflip_slot(game, player, "self"))
-        heads = game.rng.random() < 0.5
-        results[value] = heads
-        game.emit(batch, "coin_flipped", player=player,
-                  result="heads" if heads else "tails", source=data["source"], reflip=True)
+    if value is not None:
+        _check_subphase_choice(game, value, data)
+        if isinstance(value, str):   # M-034:棄掉自己,把指定的反面硬幣改成正面
+            index = int(value.split(":")[1])
+            slot = _set_heads_slot(game, player)
+            game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
+            _discard_slot(game, batch, player, slot, reason="cost")
+            data["results"][index] = True
+            game.emit(batch, "coin_set", player=player, index=index, result="heads", card=slot.top,
+                      source=data["source"])
+        else:
+            _use_reflip(game, batch, player, _reflip_slot(game, player, "self"))
+            _reflip_one(game, batch, data, value)
     game.state.pending = None
-    if _ask_coin_confirm(game, batch, data):
-        return
-    reg.CHOICE_RESOLVERS[data["callback"]](game, batch, results, data)
+    _next_turn(data, used=value is not None)
+    _coin_subphase(game, batch, data)

@@ -2285,6 +2285,10 @@ function choiceLabel(opt, results) {
       const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
       return t("choice.reflip", { n: opt.value + 1, face });
     }
+    case "opp_reflip": {
+      const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
+      return t("choice.opp_reflip", { n: opt.value + 1, face });
+    }
     case "pay_reflip": return t("choice.pay_reflip");
     case "stop": return t("choice.stop");
     case "skip": return t("choice.skip");

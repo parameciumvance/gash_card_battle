@@ -45,6 +45,12 @@
 - 宣告時選定的對象在結算前不在時,那份效果沒有作用;攻擊被無效時,`on_win` 不執行,宣告時確定的效果一起失效。
 - S-021:`battle.data["negate_at_effects_end"]` 由 `_resolve_showdown` 開頭(雙方 pass 之後)處理,防禦已被無效時不生效。
 
+## 擲硬幣子階段
+
+- 規則出處:官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf)第 47 頁 Q&A「コインを振りなおしたり、オモテにする効果はいつ、どう使うの?」:コインを全部振った直後に使い、結果を変更できる;アクションを使わず使用でき、効果を使用する権利が移りかわることもない;ジャマー効果ではなく、ジャマー効果などで無効にできない。
+- 雙方都想使用時的順序規則書沒有明定;擲幣者先、之後輪替,是專案決定(見 `card-effects/design.md`「擲硬幣子階段的使用順序」)。第 45 頁「効果の競合」、第 47 頁「同時に発生したとき」是同時發生的效果由回合玩家決定**解決**順序,不適用於這裡的**使用**順序。
+- 實作在 `effects/primitives.py` 的 `flip_coins`:輪到誰(`coin_turn`)與連續不使用的次數(`coin_passes`)存在擲幣資料中,兩個決策種類 `coin_confirm`(擲幣者)、`opp_coin_redo`(擲幣者的對手)。子階段不經行動流程,不改 `action_player` / `consecutive_passes`,也不提供ジャマー的回應。
+
 ## 魔力勝負明細
 
 - 合計魔力由逐項明細推得,只有一份計算:`power_breakdown`(魔物魔力)與 `side_breakdown`(一方合計)回傳 `(total, items)`,`slot_power` / `_side_total` 只取 total。所以明細與合計不可能對不上。

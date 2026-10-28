@@ -109,6 +109,7 @@
   "choice.protect_damage.book": "{player}'s Spell Book will take {amount} damage",
   "choice.keep": "Keep the result",
   "choice.reflip": "Re-flip coin {n} ({face})",
+  "choice.opp_reflip": "Make opponent re-flip coin {n} ({face})",
   "choice.set_heads": "Turn coin {n} heads",
   "choice.pay_reflip": "Pay 2 MP to re-flip",
   "choice.stop": "Give up",

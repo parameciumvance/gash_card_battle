@@ -130,6 +130,7 @@
       "blocks": [
         {"list": [
           "Some effects flip coins, and the result depends on heads or tails. Both players can see the results.",
+          "After all coins are flipped, both players may use effects that change the result (re-flip, turn to heads). The player who flipped decides first, then players alternate; after one player uses an effect it is the other player's turn, and when neither uses any more the current result is resolved. These effects are not actions and cannot be negated by Jammer effects.",
           "Some cards let you re-flip, such as Kanchome's effect or an Event that re-flips for MP. When deciding whether to re-flip, the screen lists the current result of each coin."
         ]}
       ]

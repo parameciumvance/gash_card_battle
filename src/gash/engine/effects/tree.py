@@ -93,7 +93,7 @@ class Effect:
 
     def resume_choice(self, rt: Run, ctx: dict, value: Any, path: tuple, floor: int) -> None:
         """由 CHOICE_KEY 續體恢復(玩家回應了此節點建立的 pending)。預設與 resume 相同;
-        同時會停在「擲幣確認鏈」與「玩家選擇」兩種停點的節點(CoinWithPaidReflip)才需要區分。"""
+        同時會停在「擲硬幣子階段」與「玩家選擇」兩種停點的節點(CoinWithPaidReflip)才需要區分。"""
         self.resume(rt, ctx, value, path, floor)
 
 
@@ -997,7 +997,7 @@ class Standby(Effect):
 
 
 def _flip(rt: Run, ctx: dict, path: tuple, count: int, flipper: int):
-    """擲幣並走 M-012 / M-019 確認鏈。確認鏈同步結束時回傳結果;停在確認 pending 時回傳 None,
+    """擲幣並經過擲硬幣子階段。子階段同步結束時回傳結果;停在子階段的 pending 時回傳 None,
     之後由 effect_tree_resume 以 CONT_KEY 續體呼叫 path 節點的 resume(value=結果)。"""
     global _next_token
     _next_token += 1
@@ -1042,7 +1042,7 @@ class NegateNextDamageThisBattle(Effect):
 
 @dataclass(frozen=True)
 class Coin(Effect):
-    """由 flipper 擲 count 枚硬幣(沿用 M-012 / M-019 確認鏈),確認後依條件走 then / otherwise。
+    """由 flipper 擲 count 枚硬幣(經過擲硬幣子階段),確認後依條件走 then / otherwise。
 
     flipper="opponent" 時由對手擲(E-020):M-012 由對手決定、M-019 由效果擁有者決定。
     ctx["player"] 始終是效果擁有者,不因擲幣者改變。
@@ -1066,7 +1066,7 @@ class Coin(Effect):
     def run(self, rt, ctx, path):
         results = _flip(rt, ctx, path, self.count, _who(ctx, self.flipper))
         if results is None:
-            return False    # 進入確認鏈 pending,之後由 resume 接手
+            return False    # 進入擲硬幣子階段的 pending,之後由 resume 接手
         return self._branch(rt, ctx, path, results)
 
     def _branch(self, rt, ctx, path, results) -> bool:
@@ -1086,7 +1086,7 @@ class CoinWithPaidReflip(Effect):
 
     迴圈只發生在本節點內部:玩家選擇重擲時付費後重新執行本節點(同一個 path),
     直到結果符合、玩家停止或 MP 不足時,本節點才算完成並上溯一次。
-    兩種停點:擲幣確認鏈(CONT_KEY → resume)、重擲詢問(CHOICE_KEY → resume_choice)。
+    兩種停點:擲硬幣子階段(CONT_KEY → resume)、重擲詢問(CHOICE_KEY → resume_choice)。
     """
     count: int = 1
     on: Any = field(default_factory=HeadsAtLeast)
@@ -1125,7 +1125,7 @@ class CoinWithPaidReflip(Effect):
         return False
 
     def resume(self, rt, ctx, value, path, floor):
-        """擲幣確認鏈結束,value 為結果。"""
+        """擲硬幣子階段結束,value 為結果。"""
         if self._after_results(rt, ctx, path, floor, value):
             _ascend(rt, ctx, path, floor)
 

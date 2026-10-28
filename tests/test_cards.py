@@ -888,7 +888,7 @@ def test_e020_caster_m019_forces_opponent_reflip():
     # 擲幣者是對手 → 使用者(擲幣者的對手)的 M-019 可令其重擲,決策者是使用者
     g, _ = _e020_use((HEADS, TAILS), p0="M-019")
     assert g.state.pending.kind == "opp_coin_redo" and g.state.pending.player == 0
-    submit(g, {"type": "choose", "player": 0, "value": True})
+    submit(g, {"type": "choose", "player": 0, "value": 0})
     assert g.state.players[0].mp == 3
     assert g.state.players[1].mp == 0
 

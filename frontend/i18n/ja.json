@@ -109,6 +109,7 @@
   "choice.protect_damage.book": "{player}の魔本に {amount} ダメージ",
   "choice.keep": "結果を残す",
   "choice.reflip": "{n} 個目をふりなおす({face})",
+  "choice.opp_reflip": "相手に {n} 個目をふりなおさせる({face})",
   "choice.set_heads": "{n} 個目をオモテにする",
   "choice.pay_reflip": "MPを2払ってふりなおす",
   "choice.stop": "あきらめる",

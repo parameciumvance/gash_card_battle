@@ -62,7 +62,7 @@ reg.activated("M-011", mode="declare", timing="nonbattle", per_game=True, effect
     ),
 )))
 
-# M-012 的「重擲自己擲的硬幣」在擲幣確認鏈中詢問,不由玩家主動宣告
+# M-012 的「重擲自己擲的硬幣」在擲硬幣子階段中詢問,不由玩家主動宣告
 reg.coin_reflip("M-012", coins="self")
 
 reg.activated("M-013", mode="mp", mp_cost=2, timing="battle", condition=SelfInjured(),
@@ -90,7 +90,7 @@ reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, 
     When(OpponentOpenPagesLackDefenseSpell(), then=GainMp(amount=2)),
 )))
 
-# M-019 的「令對手重擲」在擲幣確認鏈中詢問,不由玩家主動宣告
+# M-019 的「令對手重擲」在擲硬幣子階段中詢問,不由玩家主動宣告
 reg.coin_reflip("M-019", coins="opponent")
 
 reg.activated("M-020", mode="mp", mp_cost=1, timing="nonbattle",
@@ -158,7 +158,7 @@ reg.damage_immunity("M-031", check=ImmuneToSpellDamageAtMost(total=6000))
 # M-032 為ジャマー:對手用完事件卡後由引擎詢問是否棄掉自己使其無效
 reg.jammer("M-032", discard_self=True, on="event")
 reg.activated("M-033", mode="discard", timing="nonbattle", effect=AddOwnDamageBonus(amount=1))
-# M-034 的「改成正面」在擲幣確認鏈中詢問,不由玩家主動宣告
+# M-034 的「改成正面」在擲硬幣子階段中詢問,不由玩家主動宣告
 reg.coin_set_heads("M-034")
 reg.activated("M-035", mode="mp", mp_cost=1, timing="nonbattle", condition=HasOptions(OpponentMamodo()),
               effect=Choose(

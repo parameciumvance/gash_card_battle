@@ -61,7 +61,7 @@ def test_m019_keep_result():
     give(g, 0, "M-019")
     tp, dp, events = defend_with_s025(g)
     assert kinds(events) == [("coin_flipped", "tails"), ("choice_required", "opp_coin_redo")]
-    assert pending(g) == ("opp_coin_redo", tp, [None, True])  # 決策者是對手(攻方)
+    assert pending(g) == ("opp_coin_redo", tp, [None, 0])  # 決策者是對手(攻方);每枚一個重擲選項
     events = submit(g, {"type": "choose", "player": tp, "value": None})
     assert g.state.battle.attack_negated is False  # 保留反面
     assert "mamodo:M-019" not in g.state.players[tp].used_abilities
@@ -69,11 +69,11 @@ def test_m019_keep_result():
     assert kinds(events) == []
 
 
-def test_m019_pay_reflip():
+def test_m019_reflip_one_coin():
     g = strict_game(TAILS, HEADS, book1=book(p2="S-025"))
     give(g, 0, "M-019")
     tp, dp, _ = defend_with_s025(g)
-    events = submit(g, {"type": "choose", "player": tp, "value": True})
+    events = submit(g, {"type": "choose", "player": tp, "value": 0})
     assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
                              ("attack_negated", None)]
     assert g.state.battle.attack_negated is True
@@ -82,14 +82,17 @@ def test_m019_pay_reflip():
     assert g.rng.calls == 2
 
 
-def test_m019_then_m012_chain():
+def test_m012_and_m019_alternate():
+    # 擲硬幣子階段:擲幣者(防方)先,之後輪替
     g = strict_game(TAILS, HEADS, TAILS, book1=book(p2="S-025"))
     give(g, 0, "M-019")
     give(g, 1, "M-012")
     tp, dp, events = defend_with_s025(g)
-    assert pending(g) == ("opp_coin_redo", tp, [None, True])
-    # 對手令整組重擲(反面 → 正面),接著輪到防方的 M-012 確認
-    events = submit(g, {"type": "choose", "player": tp, "value": True})
+    assert pending(g) == ("coin_confirm", dp, [None, 0])
+    events = submit(g, {"type": "choose", "player": dp, "value": None})        # 防方先不使用
+    assert pending(g) == ("opp_coin_redo", tp, [None, 0])
+    # 對手令第 1 枚重擲(反面 → 正面),接著再輪到防方
+    events = submit(g, {"type": "choose", "player": tp, "value": 0})
     assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
                              ("choice_required", "coin_confirm")]
     assert pending(g) == ("coin_confirm", dp, [None, 0])
@@ -279,8 +282,8 @@ def test_s026_with_m019_opponent_redo():
     g = strict_game(HEADS, TAILS, book0=book(p2="S-026", p3="S-001"))
     give(g, 1, "M-019")
     tp, dp, events = _s026_use(g)
-    assert pending(g) == ("opp_coin_redo", dp, [None, True])
-    events = submit(g, {"type": "choose", "player": dp, "value": True})
+    assert pending(g) == ("opp_coin_redo", dp, [None, 0])
+    events = submit(g, {"type": "choose", "player": dp, "value": 0})
     assert [k for k in kinds(events)] == [("ability_used", None), ("coin_flipped", "tails")]
     assert g.rng.calls == 2
     assert _s026_attack_undefendable(g, tp, dp) is False

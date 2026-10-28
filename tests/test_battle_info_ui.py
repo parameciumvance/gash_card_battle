@@ -59,6 +59,23 @@ def test_waiting_player_sees_current_results(page):
     assert "第 2 枚:反面" in page.locator("#acting-info").text_content()
 
 
+OPP_REDO_PENDING = """(player) => {
+    S = {...S, pending: {kind: 'opp_coin_redo', player, source: 'E-005',
+         options: [{value: null, label: 'keep'}, {value: 0, label: 'opp_reflip'}, {value: 1, label: 'opp_reflip'}],
+         info: {results: ['heads', 'tails']}}};
+    render();
+}"""
+
+
+def test_opponent_reflip_options_name_each_coin(page):
+    # M-019 讓對手重擲 1 枚:每枚一個選項,標明第幾枚與目前結果,不顯示付費文字
+    start_local(page)
+    page.evaluate(OPP_REDO_PENDING, 0)
+    buttons = page.locator("#action-bar .choice-options button").all_text_contents()
+    assert "讓對手重擲第 1 枚(正面)" in buttons and "讓對手重擲第 2 枚(反面)" in buttons
+    assert not any("MP" in b for b in buttons)
+
+
 # ---------------------------------------------------------------- 魔力明細
 
 def test_showdown_log_entry_opens_breakdown(page):

@@ -109,6 +109,7 @@
   "choice.protect_damage.book": "{player}的魔书将受到 {amount} 点伤害",
   "choice.keep": "保留结果",
   "choice.reflip": "重掷第 {n} 枚({face})",
+  "choice.opp_reflip": "让对手重掷第 {n} 枚({face})",
   "choice.set_heads": "把第 {n} 枚改成正面",
   "choice.pay_reflip": "支付 2 MP 重掷",
   "choice.stop": "放弃",

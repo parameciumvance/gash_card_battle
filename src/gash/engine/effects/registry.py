@@ -112,10 +112,10 @@ JAMMER: dict[str, dict] = {}
 SPELL_USE_LIMIT: dict[str, Callable] = {}
 
 # 擲幣重擲(M-012 / M-019): 場上魔物卡號 -> "self"(重擲自己擲的硬幣)/ "opponent"(令對手重擲);
-# 只在擲幣確認鏈(primitives.flip_coins)中詢問,不能主動宣告
+# 只在擲硬幣子階段(primitives.flip_coins)中詢問,不能主動宣告
 COIN_REFLIP: dict[str, str] = {}
 
-# 把自己擲的 1 枚硬幣改成正面(M-034,棄掉自己);只在擲幣確認鏈中詢問
+# 把自己擲的 1 枚硬幣改成正面(M-034,棄掉自己);只在擲硬幣子階段中詢問
 COIN_SET_HEADS: set[str] = set()
 
 # 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
@@ -392,7 +392,7 @@ def jammer(number: str, *, mp_cost: int = 0, discard_self: bool = False, on: str
 
 def coin_reflip(number: str, *, coins: str):
     """擲幣重擲(「魔物の効果」,每回合一次):coins="self" 重擲自己擲的 1 枚,"opponent" 令對手重擲。
-    擲幣後由引擎在確認鏈中詢問,不能主動宣告(不登記為 activated)。"""
+    擲幣後由引擎在擲硬幣子階段中詢問,不能主動宣告(不登記為 activated)。"""
     if coins not in ("self", "opponent"):
         raise ValueError(f"{number} 的 coin_reflip coins 須為 self / opponent")
     if number in COIN_REFLIP:
@@ -401,7 +401,7 @@ def coin_reflip(number: str, *, coins: str):
 
 
 def coin_set_heads(number: str):
-    """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在確認鏈中詢問(M-034)。"""
+    """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在擲硬幣子階段中詢問(M-034)。"""
     COIN_SET_HEADS.add(number)
 
 
