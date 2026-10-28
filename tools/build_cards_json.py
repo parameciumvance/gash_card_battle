@@ -5,7 +5,8 @@
 - `related_mamodo`:術/搭檔/事件卡直接取 `related_mamodo_ja`;魔物卡以 `name_ja` 去除
   括號後綴(如「（変身後）」)推導,使變身/形態卡與基礎家族名一致。
 - `effect_icon`:バトル/非バトル/ジャマー 轉為 battle/nonbattle/jammer,空字串為 None。
-- `sets` 沿用轉換前 `data/cards.json` 同卡號的舊值;無舊值的新卡取 xlsx 的 Sets 欄,兩者都沒有則為 []。
+- `sets`:`sets_ja` 每筆取全形空白前的產品名(去掉稀有度與販售形式),依 PRODUCTS 轉為產品代號,
+  去重並依 PRODUCTS 順序;PRODUCTS 沒有的產品名中止轉換(新產品要先決定代號)。
 - 不含卡圖連結:卡圖來源是 `tools/download_images.py` 的資料夾。
 
 用法: python tools/build_cards_json.py
@@ -18,11 +19,8 @@ import json
 import re
 from pathlib import Path
 
-import openpyxl
-
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data/cards_ja.csv"
-XLSX = ROOT / "openspec/specs/card-data/Zatch Bell CCG List for TTS.xlsx"
 OUT = ROOT / "data/cards.json"
 
 EXPECTED_COUNT = 237  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102
@@ -33,6 +31,22 @@ POWER_BONUS_RE = re.compile(r"^\+(\d+)$")
 POWER_BASE_RE = re.compile(r"^(\d+)$")
 
 EFFECT_ICON_MAP = {"バトル": "battle", "非バトル": "nonbattle", "ジャマー": "jammer"}
+
+# 日文產品名 → 產品代號(前端篩選、產品圖檔名與介面字串的鍵);順序即 sets 的排列順序
+PRODUCTS = {
+    "LEVEL:1": "level-1",
+    "LEVEL:2": "level-2",
+    "別売魔本": "mahon-file",
+    "LEVEL:3": "level-3",
+    "ガッシュ・ベルと仲間たち": "cardset-gash-nakama",
+    "ゼオンと最凶魔物達": "cardset-zeon",
+    "LEVEL:S": "level-s",
+    "TBB1": "tbb1",
+    "TBB2": "tbb2",
+    "RE": "re",
+    "FILE:1": "file-1",
+}
+PRODUCT_ORDER = list(PRODUCTS.values())
 
 
 def _none_if_blank(s: str) -> str | None:
@@ -83,56 +97,22 @@ def derive_effect_icon(row: dict) -> str | None:
     return EFFECT_ICON_MAP[icon]
 
 
-def card_number(cell) -> str:
-    """A 欄的卡號:HYPERLINK 公式(=HYPERLINK("url","E-001"))取顯示文字,其他取儲存格值。"""
-    value = str(cell.value or "")
-    if value.startswith("=HYPERLINK"):
-        quoted = re.findall(r'"([^"]*)"', value)
-        if len(quoted) >= 2:
-            return quoted[-1]
-        raise ValueError(f"無法解析卡號欄: {value!r}")
-    return value.strip()
+def derive_sets(row: dict) -> list[str]:
+    codes = set()
+    for entry in filter(None, row["sets_ja"].split("|")):
+        name = entry.split("\u3000")[0]
+        if name not in PRODUCTS:
+            raise SystemExit(f"{row['number']}: 產品對照表沒有「{name}」,請先在 PRODUCTS 登記代號")
+        codes.add(PRODUCTS[name])
+    return sorted(codes, key=PRODUCT_ORDER.index)
 
 
-def load_tts(xlsx_path: Path) -> dict[str, dict]:
-    """從 xlsx「The Table」工作表逐列讀取 卡號 → {sets},e/j 雙版本時 j 優先。
-    sets 為 Sets 欄以「, 」分隔的產品(新卡沒有舊值時使用)。"""
-    wb = openpyxl.load_workbook(xlsx_path, read_only=True)
-    ws = wb["The Table"]
-    header = [c.value for c in next(ws.iter_rows(max_row=1))]
-    sets_col = header.index("Sets")
-    out: dict[str, dict] = {}
-    versions: dict[str, str] = {}  # 基礎卡號 → 已入庫版本尾碼('' / 'e' / 'j')
-    for cells in ws.iter_rows(min_row=2):
-        raw_number = card_number(cells[0])
-        m = re.fullmatch(r"([A-Z]+-\d+)([ej]?)", raw_number)
-        if not m:
-            continue
-        number, suffix = m.group(1), m.group(2)
-        if number in versions and not (suffix == "j" and versions[number] == "e"):
-            continue
-        versions[number] = suffix
-        raw_sets = str(cells[sets_col].value or "")
-        out[number] = {"sets": [x.strip() for x in raw_sets.split(", ") if x.strip()]}
-    return out
-
-
-def load_old_cards(path: Path) -> dict[str, dict]:
-    if not path.exists():
-        return {}
-    raws = json.loads(path.read_text(encoding="utf-8"))
-    return {c["number"]: c for c in raws}
-
-
-def convert(csv_path: Path, tts: dict[str, dict], old_cards: dict[str, dict],
-            expected: int | None = EXPECTED_COUNT) -> list[dict]:
+def convert(csv_path: Path, expected: int | None = EXPECTED_COUNT) -> list[dict]:
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
 
     cards = []
     for row in rows:
-        old = old_cards.get(row["number"], {})
-        info = tts.get(row["number"], {})
         card = (
             {
                 "number": row["number"],
@@ -147,8 +127,7 @@ def convert(csv_path: Path, tts: dict[str, dict], old_cards: dict[str, dict],
                 "effect_icon": derive_effect_icon(row),
                 "power": parse_power(row["power"]),
                 "damage": None if row["damage"] == "?" else _int_or_none(row["damage"]),
-                # 沿用舊值;新卡取 TTS 卡表的 Sets 欄
-                "sets": old["sets"] if "sets" in old else info.get("sets", []),
+                "sets": derive_sets(row),
             }
         )
         if row["damage"] == "?":                 # 傷害依效果決定(卡面「ダメージ?」)
@@ -162,9 +141,7 @@ def convert(csv_path: Path, tts: dict[str, dict], old_cards: dict[str, dict],
 
 
 def main() -> None:
-    old_cards = load_old_cards(OUT)
-    tts = load_tts(XLSX)
-    cards = convert(CSV_PATH, tts, old_cards)
+    cards = convert(CSV_PATH)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(cards, ensure_ascii=False, indent=1), encoding="utf-8")
 

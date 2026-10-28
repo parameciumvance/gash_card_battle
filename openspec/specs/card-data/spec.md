@@ -7,7 +7,7 @@
 ## Requirements
 
 ### Requirement: 卡片資料轉換
-`data/cards.json` SHALL 由 `data/cards_ja.csv`(日文權威來源的抓取結果)轉換產生,而非由 xlsx 抽取。轉換 MUST 涵蓋該檔全部列(含未存在於舊 xlsx 來源的卡號),欄位對應規則(`cards.json` 不含卡圖連結;卡圖來源見「卡圖資產與備援」):
+`data/cards.json` SHALL 由 `data/cards_ja.csv`(日文權威來源的抓取結果)轉換產生,而非由 xlsx 抽取。轉換 MUST 涵蓋該檔全部列(含未存在於舊 xlsx 來源的卡號),欄位對應規則(`cards.json` 不含卡圖連結,卡圖來源見「卡圖資產與備援」;`sets` 見「收錄產品資料」):
 
 - `related_mamodo`(魔物家族識別鍵,戰術卡/搭檔卡/事件卡與其對應魔物卡必須相等以供引擎比對陣營歸屬)戰術卡/搭檔卡/事件卡 MUST 直接對應 `related_mamodo_ja`(空字串視為 null);魔物卡 MUST 以「`name_ja` 去除括號後綴(如「（変身後）」)」推導,使變身/形態卡(如 M-007「ゴフレ（変身後）」)的 `related_mamodo` 與其基礎家族名(「ゴフレ」)一致,並與同家族戰術卡/搭檔卡的 `related_mamodo_ja` 相等。
 - `name_ja`/`effect_ja`(欄位命名反映實際內容為日文,對應 `CardDef.name_ja`/`effect_ja`)MUST 直接對應 `cards_ja.csv` 的 `name_ja`/`effect_ja`。
@@ -15,7 +15,6 @@
 - `ad`/`class`/`cost`/`damage` MUST 直接對應同名或同語意欄位;`damage` 為「?」(傷害依效果決定)時 `damage` MUST 為 null 並另設 `damage_variable: true`。
 - `attr_name` MUST 僅在卡片類型為戰術時填入該卡的 `attr_ja`(元素);魔物卡與搭檔卡的 `attr_name` MUST 為 null——此欄位在引擎中僅用於戰術卡的屬性相容性判定,不承擔任何顯示職責(顯示由 `data/cards.zh-TW.json` 的 `attr` 欄位負責)。
 - `effect_icon` MUST 對應 `cards_ja.csv` 的 `effect_icon_ja`,轉為英文枚舉值:「バトル」→ `"battle"`、「非バトル」→ `"nonbattle"`、「ジャマー」→ `"jammer"`、空字串 → `null`。
-- `sets`(前端依產品篩選卡片所讀取的收錄產品清單)MUST 沿用轉換前既有 `data/cards.json` 中同卡號的舊值;沒有對應舊值的卡號 MUST 取 xlsx 對應列的 Sets 欄(以「, 」分隔);兩者都沒有時 `sets` MUST 為空陣列,不得因此中止轉換或報錯。
 
 #### Scenario: 變身形態魔物卡的家族識別鍵推導
 - **WHEN** 轉換 M-007(`name_ja` 為「ゴフレ（変身後）」)
@@ -41,17 +40,9 @@
 - **WHEN** 轉換 `damage` 為「?」的 S-061
 - **THEN** 該卡 `damage` 為 null,`damage_variable` 為 true
 
-#### Scenario: 新卡的收錄產品取自 xlsx
-- **WHEN** 轉換一張轉換前 `cards.json` 沒有的卡(如 M-048)
-- **THEN** 該卡 `sets` 為 xlsx 對應列 Sets 欄的各產品
-
 #### Scenario: cards.json 不含卡圖連結
 - **WHEN** 轉換執行完成
-- **THEN** 每張卡都沒有 `image_url` 欄位,xlsx 的卡圖超連結不讀取(卡圖來源見「卡圖資產與備援」)
-
-#### Scenario: 卡號在 xlsx 中無對應列
-- **WHEN** 轉換一張不存在於 xlsx 的卡號
-- **THEN** 該卡 `sets` 依沿用舊值或空陣列的規則決定,轉換正常完成不中止
+- **THEN** 每張卡都沒有 `image_url` 欄位(卡圖來源見「卡圖資產與備援」)
 
 ### Requirement: 中文翻譯檔獨立
 中文文本 SHALL 存於獨立檔 `data/cards.zh-TW.json`,以卡號為 key,含:卡名中譯、卡名日文原名、效果名中譯、效果全文中譯、風味文中譯(可缺)。翻譯依據 SHALL 為 `data/cards_ja.csv`(權威來源試算表的抓取結果,見 `tools/scrape_ja_effects.py`):卡名日文原名 MUST 與該檔的 `name_ja` 一致;效果全文中譯 SHALL 依該檔的 `effect_ja` 翻譯(該欄位已排除身分尾行與收錄產品資訊)。修改翻譯 MUST NOT 影響 cards.json 的數值與邏輯。結構 SHALL 允許並列新增其他語言檔。
@@ -65,7 +56,7 @@
 - **THEN** `cards.zh-TW.json` 的 `name_ja` MUST 更正為與 `data/cards_ja.csv` 一致
 
 ### Requirement: 預組魔書資料
-`ref/raw/deck/level1.txt` SHALL 轉為 `data/decks/level1.json`:32 個頁位依序對應卡號;載入時 MUST 驗證構築合法性(32 頁全滿、第 1 頁魔物、最後一頁戰術、中級 12 頁後、上級 22 頁後、同號 ≤4、魔物 ≤8)且每個卡號存在於 cards.json。
+`data/decks/` 的每個預組 SHALL 以 32 個頁位依序對應卡號,並記錄來源:`level1.json` 由 `ref/raw/deck/level1.txt` 轉換;`level2.json`、`gash-nakama.json`、`zeon.json` 依 atwiki 構築済み魔本頁(「黒き魔界よりの使者」pages/2054、「ガッシュ・ベルと仲間達」pages/2056、「ゼオンと最凶魔物達」pages/2057)的頁序。載入時 MUST 驗證構築合法性(32 頁全滿、第 1 頁魔物、最後一頁戰術、中級 12 頁後、上級 22 頁後、同號 ≤4、魔物 ≤8、不含尚未開放的卡)且每個卡號存在於 cards.json。每個預組 SHALL 有 `name_key`,其名稱在四種語言的介面字典中都有翻譯。
 
 #### Scenario: 預組魔書通過驗證
 - **WHEN** 引擎載入 level1.json
@@ -74,6 +65,10 @@
 #### Scenario: 非法魔書被拒
 - **WHEN** 載入一份第 1 頁不是魔物卡的魔書資料
 - **THEN** 載入失敗並回報違反的規則
+
+#### Scenario: 第三系列預組依魔本頁頁序
+- **WHEN** 載入 gash-nakama.json 與 zeon.json
+- **THEN** 兩者通過驗證,gash-nakama 的 P01 為 M-048、P32 為 S-091,zeon 的 P01 為 M-051、P32 為 S-101,32 頁與 atwiki 魔本頁一致
 
 ### Requirement: 卡圖資產與備援
 卡圖檔 SHALL 為 WebP,檔名 `{卡號}.webp`,尺寸與原圖相同並保留透明通道(卡片圓角)。卡圖的來源 SHALL 為使用者維護的公開 Google Drive 資料夾(`https://drive.google.com/drive/folders/1cXx4gpa41HiycU4hIN74xbp1Aj3hiE-k`),其中每張卡的圖檔名為 `{卡號}.webp`。卡圖下載腳本 SHALL 取得該資料夾的檔名清單,依 `cards.json` 的卡號下載對應的 `{卡號}.webp`,存至 `frontend/assets/cards/{卡號}.webp`:下載到的內容已是 WebP 時 SHALL 原樣存檔;不是 WebP 時 SHALL 轉成 WebP 後存檔。已存在 `{卡號}.webp` 的卡 SHALL 跳過(續抓);資料夾中沒有該卡的檔案或下載失敗時 SHALL 寫入失敗清單並繼續。其他格式的卡圖檔(例如舊的 `{卡號}.jpg`)MUST NOT 被當作已安裝的卡圖。卡圖缺失 MUST NOT 影響遊戲功能(前端以文字卡面呈現)。
@@ -252,4 +247,37 @@
 
 #### Scenario: 來源已修正時提醒
 - **WHEN** 頁面上的 S-069 效果文已不含登記的錯誤原文
+- **THEN** 工具報錯,不產出該卡
+
+### Requirement: 收錄產品資料
+`cards.json` 的 `sets`(前端依產品篩選所讀取的收錄產品清單)SHALL 由 `cards_ja.csv` 的 `sets_ja` 產生,轉換 MUST NOT 讀取 xlsx。每筆收錄產品取全形空白前的產品名(去掉稀有度與販售形式),依產品對照表轉為產品代號,去除重複並依對照表順序排列。對照表為:LEVEL:1 → `level-1`、LEVEL:2 → `level-2`、別売魔本 → `mahon-file`、LEVEL:3 → `level-3`、ガッシュ・ベルと仲間たち → `cardset-gash-nakama`、ゼオンと最凶魔物達 → `cardset-zeon`、LEVEL:S → `level-s`、TBB1 → `tbb1`、TBB2 → `tbb2`、RE → `re`、FILE:1 → `file-1`。對照表沒有的產品名 MUST 報錯中止轉換,不寫出 `cards.json`。
+
+#### Scenario: 收錄產品取自日文來源
+- **WHEN** 轉換 `sets_ja` 為「LEVEL:2　Rパック・自販機|LEVEL:2　Nスターター|TBB2　N|RE　R」的卡
+- **THEN** 該卡 `sets` 為 `["level-2", "tbb2", "re"]`
+
+#### Scenario: 每張卡都有收錄產品
+- **WHEN** 轉換執行完成
+- **THEN** 每張卡的 `sets` 至少有一個產品代號
+
+#### Scenario: 未登記的產品名中止轉換
+- **WHEN** 某卡的 `sets_ja` 含產品對照表沒有的產品名
+- **THEN** 轉換報錯並指出卡號與產品名,不寫出 `cards.json`
+
+### Requirement: 已知的收錄產品與風味文錯誤
+抓取工具 SHALL 登記 atwiki 卡頁上已確認的風味文 / 收錄產品錯誤並在解析時修正;頁面上找不到登記的錯誤原文時 MUST 報錯,由人工確認後更新登記。目前登記:
+
+- E-024 的風味文有兩行(LEVEL:S 再錄版與原版),第二行「これは私の趣味ではない...断じてだ!!」MUST 併入 `flavor_ja`(兩行以換行分隔),不當作收錄產品。
+- P-018 的收錄產品「TBB　N」MUST 改為「TBB2　N」(該頁標籤為「THE BEST BOOSTER 2」)。
+
+#### Scenario: E-024 的第二行風味文不是產品
+- **WHEN** 抓取並解析 E-024
+- **THEN** `sets_ja` 不含「これは私の趣味ではない...断じてだ!!」,`flavor_ja` 含兩行風味文
+
+#### Scenario: P-018 的 TBB 為 TBB2
+- **WHEN** 抓取並解析 P-018
+- **THEN** `sets_ja` 含「TBB2　N」,不含「TBB　N」
+
+#### Scenario: 來源已修正時提醒
+- **WHEN** 頁面上的 P-018 收錄產品已不含「TBB　N」
 - **THEN** 工具報錯,不產出該卡

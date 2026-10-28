@@ -168,18 +168,22 @@ def test_initial_failure_and_stale_response_cannot_reopen_or_overwrite(page):
 def test_filters_fallback_mobile_and_modal_permissions(page):
     page.route("**/static/assets/cards/E-001.webp", lambda route: route.abort())
     open_local(page)
-    filters = page.locator("#cheat-filters select")
-    card = page.evaluate("Object.values(CARDS).find(c => c.type === 'spell' && c.related_mamodo && c.related_mamodo !== 'Command: All' && c.sets.length)")
+    filters = page.locator("#cheat-filters")
+    card = page.evaluate("Object.values(CARDS).find(c => c.type === 'spell' && c.related_mamodo === 'ガッシュ・ベル' && c.sets.includes('level-1'))")
     before = books(page)
-    filters.nth(0).select_option("spell")
-    filters.nth(1).select_option(card["related_mamodo"])
-    filters.nth(2).select_option(card["sets"][0])
+    filters.locator(".filter-type[data-type=spell]").click()                 # 與構築器相同的圖示篩選
+    for group, key in (("mamodo", card["related_mamodo"]), ("product", "level-1")):
+        filters.locator(f".filter-menu[data-group={group}]").click()
+        filters.locator(f".filter-panel[data-group={group}] .filter-tile[data-key='{key}']").click()
+    filters.locator(".filter-menu[data-group=product]").click()
+    page.keyboard.press("Escape")                                           # 只收起網格,不關閉金手指
+    assert not filters.locator(".filter-panel[data-group=product]").is_visible()
+    assert page.locator("#cheat-panel").is_visible()
     nums = page.locator("#cheat-pool-grid .cnum").all_text_contents()
-    expected = page.evaluate("c => Object.values(CARDS).filter(x => x.type === 'spell' && x.related_mamodo === c.related_mamodo && x.sets.includes(c.sets[0])).map(x => x.number).sort()", card)
+    expected = page.evaluate("c => Object.values(CARDS).filter(x => x.type === 'spell' && x.related_mamodo === c.related_mamodo && x.sets.includes('level-1')).map(x => x.number).sort()", card)
     assert nums == expected
     assert books(page) == before
-    for i in range(3):
-        filters.nth(i).select_option("")
+    page.evaluate("Object.assign(CHEAT, newPoolFilters()); renderCheatFields()")   # 清除篩選
     image = page.locator('#cheat-pool-grid .card[aria-label^="E-001 "] img')
     pw.expect(image).to_have_attribute("src", "/static/back.jpg")
     for width in (390, 320):
@@ -213,7 +217,7 @@ def test_builder_shared_components_keep_original_behavior(page):
     slot(page, 0, "book-grid").locator(".slot-remove").click()             # 移除改用選中頁位上的按鈕
     assert page.evaluate("B.deck.pages[0]") is None
     assert page.evaluate("DeckStore.loadDraft().pages") == page.evaluate("B.deck.pages")
-    page.locator("#pool-filters select").first.select_option("event")
+    page.locator("#pool-filters .filter-type[data-type=event]").click()
     assert page.locator("#pool-grid .card:not(.type-event)").count() == 0
     assert page.locator("#builder-validation .err").count() > 0
     page.locator("#builder-save").click()

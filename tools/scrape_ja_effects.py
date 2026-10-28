@@ -88,6 +88,18 @@ KNOWN_TEXT_ERRORS: dict[str, tuple[str, str]] = {
     ),
 }
 
+# 已確認的多行風味文:卡號 → 第二行風味文。頁面最後一段的第二行是風味文而不是收錄產品,併入 flavor_ja
+# (以換行分隔);頁面第二行不是登記的文字時報錯。E-024:LEVEL:S 再錄版與原版各一行風味文
+KNOWN_EXTRA_FLAVOR: dict[str, str] = {
+    "E-024": "これは私の趣味ではない...断じてだ!!",
+}
+
+# 已確認的收錄產品錯誤:卡號 → (頁面上的錯誤原文, 修正後的文字),找不到原文時報錯。
+# P-018:「TBB　N」實為 TBB2(該頁標籤為「THE BEST BOOSTER 2」)
+KNOWN_SET_ERRORS: dict[str, tuple[str, str]] = {
+    "P-018": ("TBB\u3000N", "TBB2\u3000N"),
+}
+
 POWER_X_RE = re.compile(r"^\d+[x×]$", re.I)  # 擲幣倍率型,如 S-040 的 "2000×"(乘號,非字母 x)
 POWER_PLUS_RE = re.compile(r"^[＋+](\d+)$")  # 術的魔力加值,如 "＋4000"
 
@@ -323,8 +335,19 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
         result["effect_ja"] = result["effect_ja"].replace(wrong, fixed)
 
     flavor_lines = [strip_tags(x) for x in BR_RE.split(flavor_raw) if strip_tags(x)]
-    result["flavor_ja"] = flavor_lines[0] if flavor_lines else ""
-    result["sets_ja"] = "|".join(flavor_lines[1:])
+    flavor_count = 1
+    if number in KNOWN_EXTRA_FLAVOR:
+        if flavor_lines[1:2] != [KNOWN_EXTRA_FLAVOR[number]]:
+            raise ValueError(f"{number}: 第二行不是登記的風味文,來源可能已修正,請確認後更新 KNOWN_EXTRA_FLAVOR")
+        flavor_count = 2
+    result["flavor_ja"] = "\n".join(flavor_lines[:flavor_count])
+    sets = flavor_lines[flavor_count:]
+    if number in KNOWN_SET_ERRORS:
+        wrong, fixed = KNOWN_SET_ERRORS[number]
+        if wrong not in sets:
+            raise ValueError(f"{number}: 找不到登記的收錄產品錯誤原文,來源可能已修正,請確認後更新 KNOWN_SET_ERRORS")
+        sets = [fixed if x == wrong else x for x in sets]
+    result["sets_ja"] = "|".join(sets)
     return result
 
 

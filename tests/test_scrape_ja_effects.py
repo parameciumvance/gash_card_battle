@@ -13,7 +13,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools.scrape_ja_effects import (  # noqa: E402
-    KNOWN_TEXT_ERRORS, parse_card_page, parse_header, parse_product_page,
+    KNOWN_EXTRA_FLAVOR, KNOWN_SET_ERRORS, KNOWN_TEXT_ERRORS, parse_card_page, parse_header,
+    parse_product_page,
 )
 
 PRODUCT_PAGE_HTML = """
@@ -264,6 +265,8 @@ P-018　テスト搭檔3
 テスト用の風味文その十。
 <br />
 LEVEL:テスト　テストパック
+<br />
+TBB　N
 
 </div>
 </blockquote>
@@ -610,3 +613,50 @@ def test_known_text_error_corrected():
 def test_known_text_error_source_changed_raises():
     with pytest.raises(ValueError):
         parse_card_page(_s069_html("●別の効果文。"), "術", "S-069")
+
+
+def _e024_html(flavor_lines):
+    lines = "\n<br />\n".join(flavor_lines)
+    return f"""
+<h2>E-024　テストイベント</h2>
+<blockquote><div>
+E-024　テストイベント
+<br />
+イベント　MP0　自分のターン　相手のターン
+<br />
+仮の効果文。
+
+</div>
+<hr />
+<div>
+{lines}
+
+</div>
+</blockquote>
+"""
+
+
+def test_known_extra_flavor_line_not_a_product():
+    """E-024:風味文有兩行,第二行不是收錄產品,併入 flavor_ja。"""
+    extra = KNOWN_EXTRA_FLAVOR["E-024"]
+    r = parse_card_page(_e024_html(["森の妖精･･････? (LEVEL:S)", extra, "LEVEL:2　UR自販機", "LEVEL:S　N"]),
+                        "イベント", "E-024")
+    assert r["flavor_ja"] == f"森の妖精･･････? (LEVEL:S)\n{extra}"
+    assert r["sets_ja"] == "LEVEL:2　UR自販機|LEVEL:S　N"
+
+
+def test_known_extra_flavor_source_changed_raises():
+    with pytest.raises(ValueError):
+        parse_card_page(_e024_html(["森の妖精･･････? (LEVEL:S)", "LEVEL:2　UR自販機"]), "イベント", "E-024")
+
+
+def test_known_set_error_corrected():
+    """P-018:收錄產品「TBB　N」實為 TBB2(atwiki 頁標籤「THE BEST BOOSTER 2」)。"""
+    r = parse_card_page(PARTNER_CARD_KNOWN_GAP_HTML, "パートナー", "P-018")
+    wrong, fixed = KNOWN_SET_ERRORS["P-018"]
+    assert fixed in r["sets_ja"].split("|") and wrong not in r["sets_ja"].split("|")
+
+
+def test_known_set_error_source_changed_raises():
+    with pytest.raises(ValueError):
+        parse_card_page(PARTNER_CARD_KNOWN_GAP_HTML.replace("TBB　N", "TBB2　N"), "パートナー", "P-018")
