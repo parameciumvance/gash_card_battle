@@ -17,4 +17,5 @@
 - 卡片故事文字也要
 - 鈴芽探病禮重擲
 - 猛攻牌組上傳
-- 規格整理:battle-api、battle-ui、card-data、effect-tree 有需求本文超過 500 字(`openspec validate --all --strict` 的警告),把例子與邊界情況搬進情境或拆成多條需求
+- 規格整理:card-effects 以批次命名的解讀需求(「第 1 批其他卡的解讀」「第 1 批戰術與事件卡的解讀」「第 2 批加上的限制」「第 2 批戰鬥與常駐效果的解讀」「第 4 批其餘效果的解讀」)依卡或機制重整;card-effects/design.md 的行為決定以這些名稱引用,要逐條確認歸屬
+- 規則頁 spec(battle-ui「規則頁的內容檔與開啟」)寫中文、英文、日文三種語言的內容檔,實際有 rules.zh-TW / zh-CN / en / ja 四個,待決定是否修正 spec

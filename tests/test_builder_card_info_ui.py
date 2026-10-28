@@ -1,4 +1,4 @@
-"""牌組編輯器的卡片資訊瀏覽器測試(deck-builder「對頁編輯」、battle-ui「卡圖與文字卡面」):
+"""牌組編輯器的卡片資訊瀏覽器測試(deck-builder「對頁編輯」、battle-ui「文字卡面與卡圖」):
 卡號標籤、中級 / 上級標籤、詳情按鈕。
 需要 playwright 與 Chromium。
 

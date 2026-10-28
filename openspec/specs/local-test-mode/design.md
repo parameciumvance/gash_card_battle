@@ -1,6 +1,6 @@
 # local-test-mode — 設計
 
-端點在 `src/gash/api/app.py`(`get_debug_state` / `post_debug_state`),權限檢查集中在 `_check_cheat_access`。前端面板見 `battle-ui`「金手指面板」。
+端點在 `src/gash/api/app.py`(`get_debug_state` / `post_debug_state`),權限檢查集中在 `_check_cheat_access`。前端面板見 `battle-ui`「金手指視窗的開啟與載入」「金手指的魔書編輯操作」「金手指的草稿與套用」「金手指的重新整理與取消」「金手指面板的目前頁提示」。
 
 ## 行為決定與理由
 

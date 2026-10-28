@@ -207,7 +207,7 @@ def test_first_player_log(page):
         f"自由調查時間:{page.evaluate('pname(0)')} 先攻"
 
 
-# ---------------------------------------------------------------- 第 4 批(battle-ui「第 4 批的行動與選項」「第 4 批的記錄與作用中效果」)
+# ---------------------------------------------------------------- 第 4 批(battle-ui「個別卡片的行動與選項」「個別卡片效果的記錄與作用中效果」)
 
 def test_action_discard_buttons(page):
     p = start(page)
@@ -273,7 +273,7 @@ def test_batch4_effect_texts(page):
     assert page.evaluate("(e) => effectWhen(e)", block) == "在場上期間"
 
 
-# ---------------------------------------------------------------- 第 5 批(battle-ui「結束階段效果順序的選擇」「第 5 批的記錄與作用中效果」)
+# ---------------------------------------------------------------- 第 5 批(battle-ui「結束階段效果順序的選擇」「個別卡片效果的記錄與作用中效果」)
 
 def test_end_phase_order_buttons(page):
     p = start(page)

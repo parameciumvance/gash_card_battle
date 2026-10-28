@@ -1,4 +1,5 @@
-"""規則頁的瀏覽器測試(battle-ui「規則頁」「首頁入口」「回合與時機指示」的連結)。需要 playwright 與 Chromium。
+"""規則頁的瀏覽器測試(battle-ui「規則頁的內容檔與開啟」「規則頁的卡面圖示範例」「首頁的模式入口」、
+「時機指示」與「行動欄的詳細提示」的連結)。需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_rules_ui.py -q
 """

@@ -1,4 +1,4 @@
-"""行動欄附註與回合轉盤的瀏覽器測試(battle-ui「行動選項附註」「回合與時機指示」)。
+"""行動欄附註與回合轉盤的瀏覽器測試(battle-ui「行動選項附註」「回合轉盤」「回合轉盤的 pass 傾斜」)。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_turn_dial_ui.py -q

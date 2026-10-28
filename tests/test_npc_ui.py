@@ -1,4 +1,5 @@
-"""NPC 對戰的瀏覽器測試(battle-ui「首頁入口」「NPC 對戰畫面」「金手指面板」)。需要 playwright 與 Chromium。
+"""NPC 對戰的瀏覽器測試(battle-ui「各模式的設定頁」「設定頁的牌組選單」「NPC 對戰畫面」
+「金手指視窗的開啟與載入」)。需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_npc_ui.py -q
 """

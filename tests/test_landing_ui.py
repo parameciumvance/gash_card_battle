@@ -1,4 +1,5 @@
-"""首頁與設定頁的瀏覽器測試(battle-ui「首頁入口」「玩家暱稱」)。需要 playwright 與 Chromium。
+"""首頁與設定頁的瀏覽器測試(battle-ui「首頁的模式入口」「自由調查時間的名稱」「各模式的設定頁」
+「記住設定頁的選擇」「經加入連結進入設定頁」「玩家暱稱」)。需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_landing_ui.py -q
 """

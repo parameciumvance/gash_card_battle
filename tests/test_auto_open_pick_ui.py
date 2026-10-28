@@ -1,4 +1,4 @@
-"""決策開始時自動開啟棄牌區 / 魔書(battle-ui「選書對話框」):目標都在同一處、場上沒有目標時自動開啟,
+"""決策開始時自動開啟棄牌區 / 魔書(battle-ui「選擇畫面自動開啟」):目標都在同一處、場上沒有目標時自動開啟,
 每個決策只自動開啟一次。以合成的決策批次模擬 M-025(先從棄牌區選魔物,再選魔書的空頁)。
 
 Run: python -m pytest tests/test_auto_open_pick_ui.py -q
@@ -42,7 +42,7 @@ def test_field_targets_do_not_auto_open(page):
     assert not is_open(page, "dialog-overlay") and not is_open(page, "book-review-overlay")
 
 
-# ---------------------------------------------------------------- 選擇提示(battle-ui「選書對話框」)
+# ---------------------------------------------------------------- 選擇提示(battle-ui「選擇畫面的提示文字」)
 
 def test_book_grid_shows_what_to_pick(page):
     tp, _ = start_as(page, "all")

@@ -1,4 +1,4 @@
-"""意見回報的瀏覽器與靜態測試(battle-ui「意見回報」「首頁入口」)。瀏覽器測試需要 playwright 與 Chromium。
+"""意見回報的瀏覽器與靜態測試(battle-ui「意見回報」「首頁的模式入口」)。瀏覽器測試需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_feedback_ui.py -q
 """
