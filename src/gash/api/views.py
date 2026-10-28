@@ -64,7 +64,7 @@ def _slot_view(game: Game, player: int, slot) -> dict:
                             if reg.has_passive(n) and (by := effect_block_sources(game, player, slot, n))],
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
-        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 無戰術攻擊規格(M-027)
+        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 魔物效果攻擊規格(M-027)
         "mamodo_defense": reg.MAMODO_DEFENSE.get(slot.top),  # 魔物效果防禦規格(M-039)
         # 「1アクションを使って…捨て札にできる」:疊放的上層(M-046)/ 搭檔(P-020)
         "action_discard": len(slot.stack) > 1 and reg.ACTION_DISCARD.get(slot.top) == "top",
@@ -83,7 +83,7 @@ def _in_use_pages(game: Game, p: int) -> set[int]:
     pages: set[int] = set()
     if st.battle_in is not None and st.battle_in.get("attacker") == p:
         page = st.battle_in.get("page")
-        if page is not None:  # 無戰術攻擊(M-027)無頁
+        if page is not None:  # 魔物效果攻擊(M-027)無頁
             pages.add(page)
     if st.battle is not None:
         b = st.battle

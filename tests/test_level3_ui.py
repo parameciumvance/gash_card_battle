@@ -238,7 +238,7 @@ def test_mamodo_defense_button(page):
         render();
         return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons.map((b) => b.label);
     }""", p)
-    assert "直接防禦(魔力6500)" in label
+    assert "魔物效果防禦(魔力6500)" in label
 
 
 def test_set_heads_and_jammer_labels(page):

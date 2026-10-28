@@ -2715,7 +2715,7 @@ def test_e039_turn_page_mp_and_no_attack():
 
 
 def test_e039_blocks_mamodo_attack_and_not_removed():
-    # 「攻撃できない(この効果は取りのぞけない)」:無戰術攻擊也擋;E-036 / P-034 的移除不含它
+    # 「攻撃できない(この効果は取りのぞけない)」:魔物效果攻擊也擋;E-036 / P-034 的移除不含它
     from gash.engine.engine import remove_restrictions
     g, _ = mk(book("M-028", "E-039"), book("M-001"))
     st = g.state

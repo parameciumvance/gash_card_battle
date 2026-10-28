@@ -1,6 +1,6 @@
 """Level 2 卡池機制與逐卡效果測試(card-effects / game-engine 差分)。
 
-以自訂魔書(直接指定各頁卡號)驅動,聚焦第二彈新機制:無戰術攻擊、被動觸發器、
+以自訂魔書(直接指定各頁卡號)驅動,聚焦第二彈新機制:魔物效果攻擊、被動觸發器、
 書內/墓地搜卡、變身合體鏈、傷害上限/負傷代替、行為禁止旗標、翻頁每回合一次。
 """
 
@@ -55,7 +55,7 @@ def slot_uid(g, player, top):
     return next(s.uid for s in g.state.players[player].slots if s.top == top)
 
 
-# ---------------------------------------------------------------- 無戰術攻擊(M-027 / S-048)
+# ---------------------------------------------------------------- 魔物效果攻擊(M-027 / S-048)
 
 def test_mamodo_attack_full_battle():
     # P1=M-028 巴爾多羅, P2=S-048 傑貝爾, P3=M-027 裝甲
@@ -75,7 +75,7 @@ def test_mamodo_attack_full_battle():
     # 裝甲已疊上
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027" and len(slot.stack) == 2
-    # 現在無戰術攻擊
+    # 現在魔物效果攻擊
     submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo",
                "slot_uid": slot.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
@@ -1212,7 +1212,7 @@ def test_p008_discarded_partner_counts_as_discarded_this_turn():
 
 
 def _armored_attack_until_defender_acts():
-    """玩家 0 以裝甲巴爾多羅無戰術攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
+    """玩家 0 以裝甲巴爾多羅魔物效果攻擊,玩家 1(場上 M-004 裝 P-009)不防禦,攻方 pass。"""
     g, _ = mk(book("M-028", "S-048", "M-027"), book("M-004"))
     st = g.state
     st.players[0].mp = 10
@@ -1229,7 +1229,7 @@ def _armored_attack_until_defender_acts():
 
 
 def test_p009_cannot_negate_spellless_attack():
-    # 效果文:このバトルの、相手が使った「戰術」1つを無効にする → 無戰術攻擊不是戰術
+    # 效果文:このバトルの、相手が使った「戰術」1つを無効にする → 魔物效果攻擊不是戰術
     g = _armored_attack_until_defender_acts()
     with pytest.raises(IllegalCommand) as e:
         submit(g, {"type": "use_field_ability", "player": 1, "zone": "partner",
@@ -1615,7 +1615,7 @@ def test_p007_applies_when_defending_in_the_next_battle():
 
 
 def test_s026_next_battle_undefendable_applies_to_mamodo_attack():
-    # S-026 効果文:このターン中の次のバトルで、相手は防御できない。→ 無戰術攻擊的戰鬥也是「次のバトル」
+    # S-026 効果文:このターン中の次のバトルで、相手は防御できない。→ 魔物效果攻擊的戰鬥也是「次のバトル」
     g, _ = mk(book("M-028", "S-048", "S-026", "S-029", "M-027"), book("M-001"))
     st = g.state
     st.players[0].mp = st.players[1].mp = 10
@@ -2152,7 +2152,7 @@ def test_full_regression_level1_deck_still_plays():
     assert g.state.phase == BATTLE
 
 
-# ---------------------------------------------------------------- 整合:無戰術攻擊造成傷害
+# ---------------------------------------------------------------- 整合:魔物效果攻擊造成傷害
 
 def _run_attack_to_damage(g, attacker, defender):
     """防方不防禦、雙方戰鬥中 pass,推進到傷害/保護決策點。"""
@@ -2172,7 +2172,7 @@ def test_mamodo_attack_deals_book_damage():
     slot = g.state.players[0].slots[0]
     assert slot.top == "M-027"
     pos1 = g.state.players[1].pos
-    # 無戰術攻擊,防方無魔物可保護魔書(對手只有 1 隻魔物,可保護)→ 選不保護
+    # 魔物效果攻擊,防方無魔物可保護魔書(對手只有 1 隻魔物,可保護)→ 選不保護
     submit(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": slot.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})

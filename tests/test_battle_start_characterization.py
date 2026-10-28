@@ -1,4 +1,4 @@
-"""戰鬥開始的特性測試(refactor-battle-start):鎖定戰術攻擊與無戰術攻擊在各種「下一場戰鬥」待命下的
+"""戰鬥開始的特性測試(refactor-battle-start):鎖定戰術攻擊與魔物效果攻擊在各種「下一場戰鬥」待命下的
 完整事件序列、戰鬥狀態與剩下的待命。期望值是重構前的實際結果(tests/golden/battle_start.json);
 行為若要刻意改變,以 GOLDEN_UPDATE=1 重新產生並在 change 中說明。"""
 import dataclasses
@@ -83,7 +83,7 @@ SCENARIOS = {
     "spell_sugina_optional_not_chosen": lambda: run("M-008", pages=("S-029", "S-014"), discount=False),
     # スギナ攻擊並選擇使用減費:M-008 的可選待命消耗
     "spell_sugina_optional_chosen": lambda: run("M-008", pages=("S-029", "S-014"), discount=True),
-    # 無戰術攻擊(M-027):只消耗不限定魔物的 attack_undefendable 與 no_protect_book
+    # 魔物效果攻擊(M-027):只消耗不限定魔物的 attack_undefendable 與 no_protect_book
     "mamodo_attack": lambda: run("M-028", extra_slots=("M-027",), mamodo_attack=True),
     # P-015:自任意頁使用ビライツ(第 20 頁)
     "any_page": lambda: run("M-024", page=20, any_page="ビライツ",

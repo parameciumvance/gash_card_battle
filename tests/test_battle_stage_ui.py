@@ -1,5 +1,5 @@
 """對決舞台的攻防卡面(battle-ui「對決舞台的攻防卡面」)。以本機測試模式(level1 預組)操作,
-邊界情況(無戰術攻擊、被無效)以前端改寫快照模擬。需要 playwright 與 Chromium。"""
+邊界情況(魔物效果攻擊、被無效)以前端改寫快照模擬。需要 playwright 與 Chromium。"""
 from tests.test_battle_info_ui import cmd, start_local
 
 

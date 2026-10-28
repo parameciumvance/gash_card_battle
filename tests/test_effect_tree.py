@@ -1450,7 +1450,7 @@ def test_negate_opponent_spell_by_side():
     run(g, tree.NegateOpponentSpell("any"), player=1)                   # 防方:無效攻擊
     assert b.attack_negated
     assert not any_(g, 0) and not any_(g, 1)                             # 已被無效就不能再用
-    b.attack_negated, b.attack_spell = False, None                      # 無戰術攻擊
+    b.attack_negated, b.attack_spell = False, None                      # 魔物效果攻擊
     assert not attack(g, 1)
 
 

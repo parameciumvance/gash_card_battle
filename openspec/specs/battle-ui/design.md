@@ -78,7 +78,7 @@
 
 - `renderBattleStage` 在攻擊方那一側放 `stageCards`(戰鬥開始確認時依 `battle_in.slot` / `spell`,之後依 `battle.attack_slot` / `attack_spell`),防禦方在有 `defense_slot` 時放;防禦宣告前的文字為「等待防禦宣告」,不防禦為「不防禦」,魔物效果防禦(M-039)以「防禦:玩家〔魔物〕」呈現。
 - 卡面由 `cardEl` 產生,包在 `.stage-card[data-card]` 中,點擊以 `zoom(num)` 開純展示檢視(`stopPropagation`,不觸發盤面的其他點擊)。舞台在 `#board` 內,沿用 `#board .card` 的固定尺寸規則,只在 `.stage-cards` 上把 `--card-w` / `--card-h` / `--art-h` 換成較小的值(桌面 64×86、手機 50×70)。攻方卡面排在文字之前、防方在之後,左右對稱。
-- 無戰術攻擊的固定魔力來源卡由 `fixedPowerSource(breakdown, mamodo)` 判斷,與魔力對決對峙演出(`anim.js`)共用。對峙演出的防禦方以「有沒有防禦的魔物」判斷是否防禦(不是看有沒有戰術):魔物效果防禦(M-039)顯示魔物與「魔物效果防禦」,只有真的不防禦才顯示「不防禦」(過去誤判為不防禦,玩家回報)。被無效的一方在卡面上加 `.stage-negated`「無效」。
+- 魔物效果攻擊的固定魔力來源卡由 `fixedPowerSource(breakdown, mamodo)` 判斷,與魔力對決對峙演出(`anim.js`)共用。對峙演出的防禦方以「有沒有防禦的魔物」判斷是否防禦(不是看有沒有戰術):魔物效果防禦(M-039)顯示魔物與「魔物效果防禦」,只有真的不防禦才顯示「不防禦」(過去誤判為不防禦,玩家回報)。被無效的一方在卡面上加 `.stage-negated`「無效」。
 - 手機寬度時舞台會換行成攻擊方、「戰鬥中」、防禦方三排,比原本高;行動列固定在底部不受影響。
 
 ## 借用效果入口(E-010)
@@ -165,7 +165,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **魔力對決對峙**(`showdown`):全畫面暗背景(點擊跳過)、中央上下兩組「魔物+戰術」(以 `cardEl` 繪製),依 `topPlayerIndex()` 從各自那一側滑入,中間 VS。
   - 時段依總長 T(標準 2.5 秒、快 1.2 秒)比例:滑入 20% → 合計滾動 30% → 勝方衝撞 / 敗方震動 12% → 結果大字 38%。
   - 卡來自 `showdown` 事件的 `attack_mamodo` / `attack_spell` / `defense_mamodo` / `defense_spell`,不依賴前一個快照。
-  - 不防禦時防禦方只放「不防禦」虛線框(沒有特定的魔物);無戰術攻擊的戰術位置放明細 `fixed` 項的來源卡。
+  - 不防禦時防禦方只放「不防禦」虛線框(沒有特定的魔物);魔物效果攻擊的戰術位置放明細 `fixed` 項的來源卡。
   - 結果文字:攻擊成功 / 防禦成功(同值加小字「同值・防禦方勝」)/ 攻擊無效;被無效的一方蓋「無效」戳記。
 - **傷害能量**:`damage_dealt`、`mamodo_injured`、因傷害的 `mamodo_discarded` 各插一段阻塞演出,發光球自畫面中央飛向該方 `.book-cover` 或該魔物槽,命中爆光。起點固定在中央,因為傷害來源不一定在場上。傷害音效隨這一格,文字聚焦另起一格。戰鬥傷害通常要先等保護決策,能量多半在決策後那一批。
 - **保護**(`protected`,事件帶 `target` / `target_slot` / `target_player`):保護者在 `player` 的場上,對象在 `target_player` 的場上(P-027 以對手的魔物保護時兩者不同,保護者從對手場上移到受方魔書前,再回到對手的原位)。保護決策的選項依各自的 `player` 在對應的場上發光,不需另外處理。
@@ -297,6 +297,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **預組名稱**:`GET /api/decks` 回傳 `name_key` 時,前端以目前字典解析(`presetName()`),字典沒有才用伺服器的 `name`。
 - **標點與分隔**:清單分隔、卡片資訊分隔、頂欄分隔、括號與「玩家:標題」也走字典(`ui.sep.*`、`ui.paren`、`ui.choice_title`、`ui.you_suffix`),英文用半形與空白。
 - **用語**:中文一律稱「魔書」「戰術」「戰術卡」(專案負責人指定),畫面文字、卡片中譯、README、規格與設計文件、程式註解與伺服器訊息都相同;歸檔的 change 是歷史紀錄,保留當時的「魔本」「術」。「術語」「技術」等一般詞不受影響。日文採規則書用語(スタートフェイズ、ターンプレイヤー、魔書、戰術、パートナー、捨て札、負傷状態、かばう、スタンバイ、ステイ、ジャマー、表 / 裏);英文對齊卡圖與 TTS 卡表(START PHASE、turn player、Spell Book、SPELL、MAMODO、Partner、Event、Power、Injured、PROTECT、STANDBY、STAY、Discard Pile、heads / tails)。卡面圖示各語言都用卡面上的稱呼:「攻(A)」「防(D)」(英文 A (Attack) / D (Defense))、BATTLE、NO BATTLE、CUT-IN。
+- **魔物效果攻擊 / 防禦**:不用戰術卡、以魔物的效果攻擊或防禦(M-027、M-046、M-039 等「合計魔力Xで攻撃 / 防御する」)一律稱「魔物效果攻擊」「魔物效果防禦」(英文 MAMODO-effect attack / defense,日文「魔物の効果で攻撃 / 防御」),不用「無戰術攻擊」「直接攻擊」等說法(專案負責人決定;它是「魔物の効果」,受相關限制、每回合 1 次)。
   - 英文標籤較長,手機版時機指示用較短的英文標籤(No BATTLE、BATTLE:、Check)維持單行;頂欄按鈕不換行。
 - **簡體中文**:三個檔都由 `tools/build_zh_cn.py` 自繁中產生,不手動編輯(轉換規則見 `card-data/design.md`)。選單上繁中稱「繁體中文」、簡中稱「简体中文」:有兩種中文時必須區分。
 - **翻譯狀態**:日文與英文是初版翻譯,尚未經母語者校對;簡體中文是自動轉換,尚未校對。測試只保證條目、參數、段落與涵蓋一致,不檢查品質。

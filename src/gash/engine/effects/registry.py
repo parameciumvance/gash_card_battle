@@ -118,7 +118,7 @@ COIN_REFLIP: dict[str, str] = {}
 # 把自己擲的 1 枚硬幣改成正面(M-034,棄掉自己);只在擲硬幣子階段中詢問
 COIN_SET_HEADS: set[str] = set()
 
-# 無戰術攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
+# 魔物效果攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
 MAMODO_ATTACK: dict[str, dict] = {}
 
 # 魔物效果防禦(M-039): 卡號 -> {"mp_cost": int, "power": int}
@@ -440,7 +440,7 @@ def battle_phase_mp_lock(number: str):
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
-    """無戰術攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
+    """魔物效果攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
     if number in MAMODO_ATTACK:
         raise ValueError(f"{number} 的 mamodo_attack 已登記")
     MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage}

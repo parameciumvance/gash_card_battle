@@ -1657,7 +1657,7 @@ function slotButtons(p, slot) {
       onclick: () => send({ type: "use_field_ability", player: p, zone: "mamodo", slot_uid: slot.uid }),
     });
   }
-  // 無戰術攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
+  // 魔物效果攻擊(M-027 バルトロ〈裝甲〉):回合玩家、非戰鬥、非決策時可宣告
   if (slot.mamodo_attack && iControl(p) && p === S.turn_player && canActNow(p)) {
     const spec = slot.mamodo_attack;
     const blocked = usedReason(slot.mamodo_attack_used)
@@ -1867,15 +1867,15 @@ function openPageEl(p, entry) {
   return el;
 }
 
-// 以攻擊魔物槽 uid 取其卡名(無戰術攻擊顯示用)
-// 無戰術攻擊時代替戰術呈現的固定魔力來源卡(魔力明細中 kind 為 fixed 的來源;與魔物本身相同時不另列)。
+// 以攻擊魔物槽 uid 取其卡名(魔物效果攻擊顯示用)
+// 魔物效果攻擊時代替戰術呈現的固定魔力來源卡(魔力明細中 kind 為 fixed 的來源;與魔物本身相同時不另列)。
 // 對決舞台與魔力對決對峙演出共用
 function fixedPowerSource(breakdown, mamodo) {
   const fixed = (breakdown || []).find((i) => i.kind === "fixed");
   return fixed && fixed.source && fixed.source !== mamodo ? fixed.source : null;
 }
 
-// 對決舞台一方的縮小卡面:魔物+戰術(無戰術攻擊為固定魔力來源卡),點擊開純展示放大檢視;被無效時加標記
+// 對決舞台一方的縮小卡面:魔物+戰術(魔物效果攻擊為固定魔力來源卡),點擊開純展示放大檢視;被無效時加標記
 function stageCards(player, slotUid, spell, breakdown, negated) {
   const box = document.createElement("div");
   box.className = "stage-cards";
@@ -2023,7 +2023,7 @@ function renderBattleStage() {
     return;
   }
   const b = S.battle;
-  // 無戰術攻擊:攻方以魔物名代替戰術名呈現
+  // 魔物效果攻擊:攻方以魔物名代替戰術名呈現
   const attackLabel = b.attack_spell
     ? t("ui.battle_attack", { player: pname(b.attacker), spell: cname(b.attack_spell) })
     : t("ui.battle_attack_mamodo", { player: pname(b.attacker),

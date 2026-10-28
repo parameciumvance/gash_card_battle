@@ -79,7 +79,7 @@
           "Use an effect of a card in play: either player (see “Effects of cards in play”).",
           "Use an Event or NO BATTLE SPELL with A (Attack): only the turn player.",
           "Use an Event or NO BATTLE SPELL with D (Defense): only the non-turn player.",
-          "Declare an attack with a SPELL that has A (Attack): only the turn player; this goes to the BATTLE start check (see “BATTLE sequence”). Some MAMODO can attack without a SPELL; their total Power and damage are fixed values given on the card."
+          "Declare an attack with a SPELL that has A (Attack): only the turn player; this goes to the BATTLE start check (see “BATTLE sequence”). Some MAMODO can make a MAMODO-effect attack (without a SPELL); their total Power and damage are fixed values given on the card."
         ]},
         {"p": "You cannot freely turn your Spell Book in the BATTLE PHASE, but when damage or an effect turns you to a new pair of pages, you can use the cards on those pages."}
       ]

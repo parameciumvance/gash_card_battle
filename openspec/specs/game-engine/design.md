@@ -34,8 +34,8 @@
 | `no_protect_book`(E-013) | 都適用 | 本場不能保護魔書 |
 | `injure_instead`(S-057) | 戰術 | 獲勝改為負傷對手魔物 |
 
-- 效果文寫「術」的待命只適用於戰術攻擊;無戰術攻擊(M-027)不消耗它們,留到下一場戰鬥。
-- **新增作用於下一場戰鬥的待命**:在表加一列,寫明對戰術攻擊與無戰術攻擊是否適用;`tests/test_battle_start_characterization.py` 以期望檔鎖定兩種攻擊在各待命下的事件序列,刻意改變行為時以 `GOLDEN_UPDATE=1` 重新產生並說明。
+- 效果文寫「術」的待命只適用於戰術攻擊;魔物效果攻擊(M-027)不消耗它們,留到下一場戰鬥。
+- **新增作用於下一場戰鬥的待命**:在表加一列,寫明對戰術攻擊與魔物效果攻擊是否適用;`tests/test_battle_start_characterization.py` 以期望檔鎖定兩種攻擊在各待命下的事件序列,刻意改變行為時以 `GOLDEN_UPDATE=1` 重新產生並說明。
 
 ## 攻防效果的宣告時確定
 
@@ -59,13 +59,13 @@
 ```text
 mamodo / static / modifier / partnered / power_set / mamodo_floor    ← 魔物魔力
 spell / defense_self / spell_bonus / spell_floor                      ← 戰術魔力
-fixed                     ← 固定合計魔力(無戰術攻擊 M-027、魔物效果防禦 M-039、S-087)
+fixed                     ← 固定合計魔力(魔物效果攻擊 M-027、魔物效果防禦 M-039、S-087)
 negated                                                                ← 無效化(合計歸 0)
 ```
 
-- 戰鬥中戰術魔力的加減一律經 `primitives.add_spell_power` 記進 `battle.data["<side>_spell_power"]`(每筆含來源卡);無效化的來源記在 `battle.data["<side>_negated_by"]`;無戰術攻擊的魔物記在 `attack_fixed_source`。新增會改變戰術魔力的效果時,也要經這個函式,明細才會有來源。
+- 戰鬥中戰術魔力的加減一律經 `primitives.add_spell_power` 記進 `battle.data["<side>_spell_power"]`(每筆含來源卡);無效化的來源記在 `battle.data["<side>_negated_by"]`;魔物效果攻擊的魔物記在 `attack_fixed_source`。新增會改變戰術魔力的效果時,也要經這個函式,明細才會有來源。
 - `showdown` 事件附 `attacker`、`attacker_breakdown`、`defender_breakdown`;快照的 `battle` 附同樣的即時明細。
-- `showdown` 事件另附對峙的卡:`attack_mamodo` / `defense_mamodo`(魔物槽最上面的卡)、`attack_spell` / `defense_spell`;不防禦時防禦兩欄為 None,無戰術攻擊時 `attack_spell` 為 None。前端的對峙演出只靠事件本身,不依賴快照時序。
+- `showdown` 事件另附對峙的卡:`attack_mamodo` / `defense_mamodo`(魔物槽最上面的卡)、`attack_spell` / `defense_spell`;不防禦時防禦兩欄為 None,魔物效果攻擊時 `attack_spell` 為 None。前端的對峙演出只靠事件本身,不依賴快照時序。
 - `card_discarded` 對場上的卡(搭檔、疊放頂層)附 `slot`,魔書的卡附 `page`,供前端從原位置播放棄牌演出。
 - `protected` 事件附 `target`(`book` / `slot`)、`target_slot`(被保護的魔物槽)與 `target_player`(原本傷害對象的持有者),供保護演出知道保護者要移到哪裡。事件的 `player` 是保護者的持有者。
 
@@ -84,14 +84,14 @@ negated                                                                ← 無�
 - 規則出處:規則頁「エンドフェイズ」:「１、効果の解決」(結束階段的常駐效果與待命,「複数の効果が重なっているときには、ターンプレイヤーが解決の順番を決めることができます」,之後是魔物消失處理)→「２、ページをめくる」。
 - `_end_phase` → `_resolve_end_phase_effects`:收集 M-047 的 `scheduled_detach`、E-041 的 `end_phase_turn_opponent`、E-042 的 `end_phase_discard`;2 個以上時建立決策 `end_phase_order`(回合玩家,選項值為收集順序的索引,每次重新收集),只剩 1 個直接解決;全部解決後才 `_continue_end_phase`(魔物消失處理 → 強制翻頁 → E-038 → S-090 的搭檔 → 時效到期)。E-038 在強制翻頁之後是既有的偏差(todo)。
 - 事件卡上限:`events_used_this_turn` 與 `event_limit`(持續效果 `event_limit` 可提高)。
-- 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與無戰術攻擊都檢查(`attack.restricted`);不在可移除的分類中。
+- 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與魔物效果攻擊都檢查(`attack.restricted`);不在可移除的分類中。
 - E-038 的 MP 增加(`end_phase_mp` 待命)也在結束階段效果中解決(強制翻頁之前),與其他效果一起由回合玩家排序。
 
-## 直接攻擊 / 防禦的使用次數與ジャマー
+## 魔物效果攻擊 / 防禦的使用次數與ジャマー
 
 - 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
 - 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
-- M-026 對直接攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(直接攻擊:`_attack_declare_continue`;直接防禦:`_enter_effects_step`)。不採快照還原,因為直接攻擊本身就是開始戰鬥。
+- M-026 對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
 
 ## 保護者
 

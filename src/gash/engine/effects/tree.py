@@ -2698,7 +2698,7 @@ class NoBattleDamageModifierFrom:
 @dataclass(frozen=True)
 class CanNegateOpponentSpell:
     """目前的戰鬥中,對手有可被無效的戰術(P-009 any / P-016 attack / P-017 defense)。
-    attack:自己是防方、對手以戰術攻擊(無戰術攻擊不算)且尚未被無效;defense:自己是攻方、對手以戰術防禦且尚未被無效。"""
+    attack:自己是防方、對手以戰術攻擊(魔物效果攻擊不算)且尚未被無效;defense:自己是攻方、對手以戰術防禦且尚未被無效。"""
     which: str = "any"
 
     def __call__(self, game, player, slot=None) -> bool:
@@ -2828,7 +2828,7 @@ class SpellUsesPerTurnWhileCopies:
 
 @dataclass(frozen=True)
 class ImmuneToSpellDamageAtMost:
-    """傷害免疫:不受合計魔力 total 以下的戰術造成的傷害(無戰術攻擊不算術)(M-031)。
+    """傷害免疫:不受合計魔力 total 以下的戰術造成的傷害(魔物效果攻擊不算術)(M-031)。
     fn(game, player, slot, ctx) -> bool。"""
     total: int
 

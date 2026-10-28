@@ -123,7 +123,7 @@ def test_faceoff_mamodo_defense(faceoff_page):
     first = page.evaluate("window.__fo[0].first")
     assert first["defense"]["cards"] == ["M-039"]
     assert first["defense"]["empty"] == "魔物效果防禦"
-    assert first["attack"]["cards"] == ["M-046"] and first["attack"]["empty"] == "無戰術攻擊"
+    assert first["attack"]["cards"] == ["M-046"] and first["attack"]["empty"] == "魔物效果攻擊"
 
 
 def test_faceoff_click_skips(faceoff_page):

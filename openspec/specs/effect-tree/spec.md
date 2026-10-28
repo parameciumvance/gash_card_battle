@@ -221,7 +221,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 - **THEN** 為單一 `reg.event("E-001", when=has_own_mamodo, effect=…)` 呼叫,`when` 引用 `tree.py` 中的具名條件函式,註冊檔內無 lambda 或 handler 函式定義
 
 #### Scenario: 同一張卡的多個登記相鄰
-- **WHEN** 檢視 M-027(疊放規則 + 無戰術攻擊規格)的登記
+- **WHEN** 檢視 M-027(疊放規則 + 魔物效果攻擊規格)的登記
 - **THEN** 為相鄰的 `reg.stack_on("M-027", …)` 與 `reg.mamodo_attack("M-027", …)` 兩個呼叫,前後都是卡號不同的卡
 
 #### Scenario: 依卡片類別分檔

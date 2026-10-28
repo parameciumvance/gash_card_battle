@@ -528,7 +528,7 @@ def test_parse_header_trailing_icon_line_consumed():
 
 
 def test_parse_header_mamodo_ad_only_line_consumed():
-    # M-039 型:魔物卡第 2 行只有回合欄位(直接攻擊 / 防禦的標示)
+    # M-039 型:魔物卡第 2 行只有回合欄位(魔物效果攻擊 / 防禦的標示)
     header, used = parse_header(["魔物　4500", "バトル攻撃　バトル防御", "《格闘》効果文。"], "mamodo", "T-206")
     assert used == 2 and header["ad"] == "AD"
 

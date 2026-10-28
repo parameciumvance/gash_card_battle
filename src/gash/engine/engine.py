@@ -1082,14 +1082,14 @@ def _extra_cost_data(side: str, number: str, extra: int) -> dict:
 
 
 def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSlot, dict]:
-    """無戰術攻擊(M-027):驗證魔物已註冊直接攻擊效果且可支付費用。"""
+    """魔物效果攻擊(M-027):驗證魔物已註冊魔物效果攻擊且可支付費用。"""
     st = game.state
     slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
     if slot is None:
         raise IllegalCommand("attack.no_slot", "找不到指定的場上魔物")
     spec = reg.MAMODO_ATTACK.get(slot.top)
     if spec is None:
-        raise IllegalCommand("attack.no_mamodo_attack", "此魔物不能不用戰術卡直接攻擊")
+        raise IllegalCommand("attack.no_mamodo_attack", "此魔物不能以魔物效果攻擊")
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"attack.{block}", "此魔物的效果目前不能使用")
@@ -1180,7 +1180,7 @@ def _arm_next_battle_standbys(game: Game) -> None:
 
 @dataclass
 class AttackStart:
-    """攻擊來源準備好的戰鬥初始內容(戰術攻擊 / 無戰術攻擊),交給共用的戰鬥開始流程。"""
+    """攻擊來源準備好的戰鬥初始內容(戰術攻擊 / 魔物效果攻擊),交給共用的戰鬥開始流程。"""
     battle: dict                      # BattleState 的初始參數(attack_page / attack_spell / attack_slot)
     data: dict                        # battle.data 的初始內容
     started: dict                     # battle_started 事件的欄位
@@ -1214,7 +1214,7 @@ def _prepare_spell_attack(game: Game, batch: list[dict], bi: dict) -> AttackStar
 
 
 def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackStart:
-    """無戰術攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
+    """魔物效果攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
     game.state.players[attacker].used_abilities.add(f"mamodo_attack:{slot.top}")
@@ -1271,7 +1271,7 @@ BATTLE_START_STANDBYS = (
 
 
 def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
-    """戰鬥開始:準備攻擊來源(戰術 / 無戰術攻擊),之後共用建立戰鬥、啟用待命、發出事件與消耗待命。"""
+    """戰鬥開始:準備攻擊來源(戰術 / 魔物效果攻擊),之後共用建立戰鬥、啟用待命、發出事件與消耗待命。"""
     st = game.state
     attacker = bi["attacker"]
     prepare = _prepare_mamodo_attack if bi.get("mamodo_attack") else _prepare_spell_attack
@@ -1285,7 +1285,7 @@ def _start_battle(game: Game, batch: list[dict], bi: dict) -> None:
         for sb in _consume_standby(game, kind, lambda s, applies=applies: s.owner == attacker and applies(s, a)):
             apply(battle, sb)
             game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
-    # 直接攻擊是「魔物の効果」:防方的ジャマー(M-026)可使攻擊無效,詢問結束後才續行宣告時效果
+    # 魔物效果攻擊是「魔物の効果」:防方的ジャマー(M-026)可使攻擊無效,詢問結束後才續行宣告時效果
     if bi.get("mamodo_attack") and _offer_battle_jammer(game, batch, "attack", 1 - attacker, a.started["mamodo"]):
         return
     _attack_declare_continue(game, batch)
@@ -1429,7 +1429,7 @@ def _declare_mamodo_defense(game: Game, batch: list[dict], player: int, slot_uid
         raise IllegalCommand("defense.no_slot", "找不到指定的場上魔物")
     spec = reg.MAMODO_DEFENSE.get(slot.top)
     if spec is None:
-        raise IllegalCommand("defense.no_mamodo_defense", "此魔物不能不用戰術卡直接防禦")
+        raise IllegalCommand("defense.no_mamodo_defense", "此魔物不能以魔物效果防禦")
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"defense.{block}", "此魔物的效果目前不能使用")
@@ -1444,7 +1444,7 @@ def _declare_mamodo_defense(game: Game, batch: list[dict], player: int, slot_uid
     battle.data["defense_fixed_power"] = spec["power"]
     battle.data["defense_fixed_source"] = slot.top
     game.emit(batch, "defense_declared", player=player, spell=None, mamodo=slot.top, slot=slot.uid)
-    # 直接防禦是「魔物の効果」:攻方的ジャマー(M-026)可使防禦無效
+    # 魔物效果防禦是「魔物の効果」:攻方的ジャマー(M-026)可使防禦無效
     if _offer_battle_jammer(game, batch, "defense", battle.attacker, slot.top):
         return
     _enter_effects_step(game, batch)
@@ -1508,7 +1508,7 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     不防禦時明細為空、合計 0;被無效化時以「無效化」調整項把合計歸 0。"""
     if side == "attack":
         negated, negated_by = battle.attack_negated, battle.data.get("attack_negated_by")
-        if battle.attack_spell is None:  # 無戰術攻擊:固定合計魔力
+        if battle.attack_spell is None:  # 魔物效果攻擊:固定合計魔力
             total = battle.data.get("attack_fixed_power", 0)
             items = [_item("fixed", battle.data.get("attack_fixed_source"), total)]
             total, items = _attack_power_from(game, battle, total, items)
@@ -1562,7 +1562,7 @@ def _negate(total: int, items: list[dict], negated: bool, source: str | None) ->
 
 
 def _attack_damage_amount(game: Game, battle: BattleState) -> int:
-    if battle.attack_spell is None:  # 無戰術攻擊:固定傷害
+    if battle.attack_spell is None:  # 魔物效果攻擊:固定傷害
         base = battle.data.get("attack_fixed_damage", 0)
     else:
         base = game.db[battle.attack_spell].damage or 0
@@ -1806,7 +1806,7 @@ def _discard_jammer_silently(state: GameState, player: int, slot_uid: int) -> No
 
 def _offer_battle_jammer(game: Game, batch: list[dict], side: str, player: int, negated: str,
                          negate: bool = True) -> bool:
-    """直接攻擊 / 直接防禦(魔物の効果)後,player 有可用的ジャマー時詢問是否使該側無效(官方規則書第 42 頁:
+    """魔物效果攻擊 / 魔物效果防禦(魔物の効果)後,player 有可用的ジャマー時詢問是否使該側無效(官方規則書第 42 頁:
     「無効にする」包括取消戰鬥中使用的攻擊與防禦,所以不還原盤面,以攻擊 / 防禦無效處理)。
     negate=False 為連鎖:使上一次的無效化失效。建立詢問時回傳 True,詢問結束後由 _battle_jammer_done 續行。"""
     if _jammer_holder(game, player) is None:
@@ -1817,7 +1817,7 @@ def _offer_battle_jammer(game: Game, batch: list[dict], side: str, player: int, 
 
 
 def _battle_jammer_done(game: Game, batch: list[dict], side: str) -> None:
-    """戰鬥中攻防的ジャマー詢問結束:續行直接攻擊的宣告時效果,或進入直接防禦後的效果步驟。"""
+    """戰鬥中攻防的ジャマー詢問結束:續行魔物效果攻擊的宣告時效果,或進入魔物效果防禦後的效果步驟。"""
     game.jammer = None
     if game.state.battle is None or game.state.phase == GAME_OVER:
         return

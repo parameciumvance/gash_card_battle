@@ -38,7 +38,7 @@ NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其戰術與效果(E-024,target_slot)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
-NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與無戰術攻擊,E-039;不屬於可移除的分類)
+NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
 ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁戰術、效果與保護(E-043)
 PROTECT_ONLY = "protect_only"              # 只能以選定魔物(target_slot)保護(P-026)
 
@@ -160,9 +160,9 @@ class PlayerState:
 class BattleState:
     attacker: int
     step: str                            # STEP_DEFENSE / STEP_EFFECTS
-    attack_page: int | None              # 無戰術攻擊(M-027)時為 None
-    attack_spell: str | None             # 無戰術攻擊時為 None
-    attack_slot: int                     # 使用戰術(或直接攻擊)的魔物槽 uid
+    attack_page: int | None              # 魔物效果攻擊(M-027)時為 None
+    attack_spell: str | None             # 魔物效果攻擊時為 None
+    attack_slot: int                     # 使用戰術(或魔物效果攻擊)的魔物槽 uid
     attack_negated: bool = False
     attack_undefendable: bool = False
     defense_page: int | None = None
