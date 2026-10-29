@@ -7,3 +7,4 @@ dist/
 .claude/
 frontend/assets/cards/
 .env
+.claude/settings.local.json
