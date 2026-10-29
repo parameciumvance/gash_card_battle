@@ -4,9 +4,9 @@ from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import DeckError, load_deck, validate_deck
 
 
-def test_card_db_has_237_cards():
+def test_card_db_has_332_cards():
     db = card_db()
-    assert len(db) == 237  # Level 1 67 + Level 2 67 + S-042 + 第三彈 102
+    assert len(db) == 332  # Level 1 67 + Level 2 67 + S-042 + 第三彈 102 + 第 3 賽季其餘 95
     assert db["S-061"].damage is None and db["S-061"].damage_variable    # 「ダメージ?」:傷害依效果決定
     assert not db["S-001"].damage_variable
     assert db["M-001"].power_base == 4000
@@ -66,7 +66,7 @@ def test_pending_cards_rejected(monkeypatch):
     from gash.engine import deck as deck_mod
     from gash.engine.cards import pending_cards
     db = card_db()
-    assert pending_cards() == frozenset()                           # 第三彈全部開放後清單為空
+    assert "E-029" not in pending_cards()                           # 第三彈已全部開放
     monkeypatch.setattr(deck_mod, "pending_cards", lambda: frozenset({"E-029"}))   # 模擬尚未開放的卡
     pages = list(load_deck(DATA_DIR / "decks/level1.json", db).pages)
     pages[5] = "E-029"

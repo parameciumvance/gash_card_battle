@@ -2512,9 +2512,9 @@ BATCH5 = ("S-088", "S-089", "S-090", "E-029", "E-037", "E-039", "E-041", "E-042"
 
 
 def test_batch5_cards_are_open():
-    assert not pending_cards()                                                  # 第三彈全部開放
+    third = {*BATCH1, *BATCH2, *BATCH3, *BATCH4, *BATCH5}                     # 第三彈全部開放
     listed = json.loads((DATA_DIR / "pending_cards.json").read_text(encoding="utf-8"))["cards"]
-    assert listed == [] and 102 == sum(map(len, (BATCH1, BATCH2, BATCH3, BATCH4, BATCH5)))
+    assert not third & pending_cards() and not third & set(listed) and len(third) == 102
 
 
 def _command(spell, *coins, mp=10, extra=()):

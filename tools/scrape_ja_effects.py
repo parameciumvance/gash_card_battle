@@ -34,6 +34,10 @@
 
 第三彈(LEVEL:3 與同期商品):pages/35(LEVEL:3)、1189(ガッシュ・ベルと仲間達)、
 1190(ゼオンと最凶魔物達)、58(魔本ファイル,限 M-032:M-034)。
+
+第 3 賽季的其餘卡:pages/59(LIMITED EDITION Ⅰ)、58(魔本ファイル第2弾,限 M-059:M-061)、
+56(スペシャルボックス)、52、53(魔本拡張シート LEVEL:1 / 2,Ex-001~048)、
+61(特典カード,沒有分類:--untyped --range PR-001:PR-011,類型取自卡頁)。
 """
 
 from __future__ import annotations
@@ -78,8 +82,10 @@ KNOWN_DATA_GAPS: dict[str, dict] = {
 }
 
 # 已確認的效果文錯誤:卡號 → (頁面上的錯誤原文, 修正後的文字)。頁面上找不到原文時報錯(來源已修正或改寫,
-# 人工確認後更新登記)。S-069:「防御に使ったとき」與「攻撃に使ったとき」兩段的標題寫反(依卡圖與 TTS 卡表確認)
+# 人工確認後更新登記)。S-069:「防御に使ったとき」與「攻撃に使ったとき」兩段的標題寫反(依卡圖與 TTS 卡表確認);
+# Ex-002:句號後多一個「,」(頁面打字錯誤)
 KNOWN_TEXT_ERRORS: dict[str, tuple[str, str]] = {
+    "Ex-002": ("(0より小さくはならない)。,", "(0より小さくはならない)。"),
     "S-069": (
         "●この術を防御に使ったとき相手は、この攻撃を防御できない。コインを投げてオモテなら、相手の魔本にダメージ。"
         "●この術を攻撃に使ったとき魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、相手の攻撃を無効にする。",
@@ -92,6 +98,19 @@ KNOWN_TEXT_ERRORS: dict[str, tuple[str, str]] = {
 # (以換行分隔);頁面第二行不是登記的文字時報錯。E-024:LEVEL:S 再錄版與原版各一行風味文
 KNOWN_EXTRA_FLAVOR: dict[str, str] = {
     "E-024": "これは私の趣味ではない...断じてだ!!",
+}
+
+# 已確認的風味文位置錯誤:卡號 → 印在第一段最後(對應搭檔尾行之後)的風味文,移回 flavor_ja;
+# 第一段最後一行不是登記的文字時報錯。Ex-005:風味文接在「パートナー＝大海恵」之後
+KNOWN_MISPLACED_FLAVOR: dict[str, str] = {
+    "Ex-005": "私もやさしい王様を目指してあげるわ。",
+}
+
+# 收錄產品行的產品名(全形空白前):與 build_cards_json.PRODUCTS 的日文名相同,另加 KNOWN_SET_ERRORS
+# 修正前的「TBB」。最後一段中,第一個產品行之前的行是風味文,之後都是收錄產品
+PRODUCT_NAMES = {
+    "LEVEL:1", "LEVEL:2", "別売魔本", "LEVEL:3", "ガッシュ・ベルと仲間たち", "ゼオンと最凶魔物達",
+    "LTD1", "SPBOX", "拡張1", "拡張2", "プロモ", "LEVEL:S", "TBB1", "TBB2", "RE", "FILE:1", "TBB",
 }
 
 # 已確認的收錄產品錯誤:卡號 → (頁面上的錯誤原文, 修正後的文字),找不到原文時報錯。
@@ -124,19 +143,37 @@ def strip_tags(html: str) -> str:
 
 SECTION_RE = re.compile(r">収録カード</h3>(.*?)(?:<div id=\"atwiki-page-tags\"|$)", re.S)
 CATEGORY_RE = re.compile(r'<h4[^>]*>([^<]+)</h4>(.*?)(?=<h4|\Z)', re.S)
-CARD_LI_RE = re.compile(r'<li>\s*([A-Z]+-\d+)\s*<a href="([^"]+)"[^>]*>\s*([^<]*?)\s*</a>', re.S)
+# 卡號前綴:M / S / P / E / PR,以及擴張卡的「Ex」(atwiki 的寫法)
+CARD_NO = r"[A-Z][A-Za-z]*-\d+"
+CARD_LI_RE = re.compile(rf'<li>\s*({CARD_NO})\s*<a href="([^"]+)"[^>]*>\s*([^<]*?)\s*</a>', re.S)
 
 
 def parse_product_page(html: str, base_url: str) -> list[tuple[str, str, str, str]]:
-    """回傳 [(卡號, 個別卡頁絕對網址, 名稱, 分類原文), ...]。"""
+    """回傳 [(卡號, 個別卡頁絕對網址, 名稱, 分類原文), ...]。
+
+    只取 魔物/術/パートナー/イベント 四個分類;拡張シート頁另有「シート1~12」分組重複列出同一批卡,略過。"""
     m = SECTION_RE.search(html)
     if not m:
         raise ValueError("找不到「収録カード」區塊,頁面格式可能不同")
     section = m.group(1)
-    out = []
+    out, seen = [], set()
     for category, block in CATEGORY_RE.findall(section):
+        if category.strip() not in CATEGORY_TO_TYPE:
+            continue
         for number, href, name in CARD_LI_RE.findall(block):
-            out.append((number, urljoin(base_url, href), name.strip(), category.strip()))
+            if number not in seen:
+                seen.add(number)
+                out.append((number, urljoin(base_url, href), name.strip(), category.strip()))
+    return out
+
+
+def parse_card_list(html: str, base_url: str) -> list[tuple[str, str, str, str]]:
+    """沒有分類的卡號清單頁(特典卡頁):整頁的卡號清單,分類留空,由卡頁資料頭決定(card_page_category)。"""
+    out, seen = [], set()
+    for number, href, name in CARD_LI_RE.findall(html):
+        if number not in seen:
+            seen.add(number)
+            out.append((number, urljoin(base_url, href), name.strip(), ""))
     return out
 
 
@@ -263,6 +300,33 @@ def parse_header(main_lines: list[str], type_: str, number: str) -> tuple[dict, 
     return header, consumed
 
 
+def _is_product_line(line: str) -> bool:
+    return line.split("\u3000")[0] in PRODUCT_NAMES
+
+
+def _is_tail_line(line: str, type_: str) -> bool:
+    """整行是否為對應魔物 / 搭檔的尾行(戰術「X第N の術」/「コマンド」、搭檔「魔物＝X」、魔物「パートナー＝X」)。"""
+    if type_ == "spell":
+        return bool(re.fullmatch(r"[^。]+?第(\d+|[XＸ])の?術", line) or line == COMMAND_SPELL_TAIL)
+    if type_ == "partner":
+        return bool(PARTNER_TAIL_RE.match(line))
+    if type_ == "mamodo":
+        return bool(PARTNER_NAME_TAIL_RE.match(line))
+    return False
+
+
+def card_page_category(html: str, number: str) -> str:
+    """卡頁資料頭第一個 token 的類型(魔物/術/パートナー/イベント);不是這四者時報錯。"""
+    bq = BLOCKQUOTE_RE.search(html)
+    divs = DIV_RE.findall(bq.group(1)) if bq else []
+    lines = [strip_tags(x) for x in BR_RE.split(divs[0])] if divs else []
+    lines = [x for x in lines if x]
+    token = lines[1].split("\u3000")[0] if len(lines) > 1 else ""
+    if token not in CATEGORY_TO_TYPE:
+        raise ValueError(f"{number}: 卡頁資料頭的類型無法判定({token!r})")
+    return token
+
+
 def parse_card_page(html: str, category_ja: str, number: str) -> dict:
     bq = BLOCKQUOTE_RE.search(html)
     if not bq:
@@ -276,6 +340,15 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
 
     main_lines = [x for x in BR_RE.split(main_raw) if strip_tags(x)]
     main_lines = main_lines[1:]  # 第一行是「卡號　名稱」,略去
+    last_lines = [strip_tags(x) for x in BR_RE.split(flavor_raw) if strip_tags(x)]
+    # 拡張シート的卡把對應魔物 / 搭檔的尾行(「X第N の術」「魔物＝X」)印在最後一段開頭:移回效果文末
+    if last_lines and _is_tail_line(last_lines[0], type_):
+        main_lines.append(last_lines.pop(0))
+    misplaced = []
+    if number in KNOWN_MISPLACED_FLAVOR:
+        if not main_lines or strip_tags(main_lines[-1]) != KNOWN_MISPLACED_FLAVOR[number]:
+            raise ValueError(f"{number}: 第一段最後一行不是登記的風味文,來源可能已修正,請確認後更新 KNOWN_MISPLACED_FLAVOR")
+        misplaced = [strip_tags(main_lines.pop())]
 
     # 中間段落接在第一段之後一起交給資料頭解析:只有整行都是標記的行才會讀入資料頭
     # (M-039 的「バトル防御」在第二段開頭),其餘照舊併入效果文
@@ -334,8 +407,9 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
             raise ValueError(f"{number}: 找不到登記的效果文錯誤原文,來源可能已修正,請確認後更新 KNOWN_TEXT_ERRORS")
         result["effect_ja"] = result["effect_ja"].replace(wrong, fixed)
 
-    flavor_lines = [strip_tags(x) for x in BR_RE.split(flavor_raw) if strip_tags(x)]
-    flavor_count = 1
+    flavor_lines = misplaced + last_lines
+    # 第一個產品行之前都是風味文(可能沒有,也可能有多行,如拡張シート的「(スナック)」「(TBB)」兩版)
+    flavor_count = next((i for i, x in enumerate(flavor_lines) if _is_product_line(x)), len(flavor_lines))
     if number in KNOWN_EXTRA_FLAVOR:
         if flavor_lines[1:2] != [KNOWN_EXTRA_FLAVOR[number]]:
             raise ValueError(f"{number}: 第二行不是登記的風味文,來源可能已修正,請確認後更新 KNOWN_EXTRA_FLAVOR")
@@ -353,7 +427,7 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
 
 def parse_range(text: str) -> tuple[str, int, int]:
     """「M-032:M-053」→ ("M", 32, 53)。只接受同一類別前綴。"""
-    m = re.fullmatch(r"([A-Z]+)-(\d+):([A-Z]+)-(\d+)", text)
+    m = re.fullmatch(r"([A-Z][A-Za-z]*)-(\d+):([A-Z][A-Za-z]*)-(\d+)", text)
     if not m or m.group(1) != m.group(3):
         raise ValueError(f"卡號範圍格式錯誤: {text!r}(例: M-032:M-053)")
     return m.group(1), int(m.group(2)), int(m.group(4))
@@ -363,7 +437,7 @@ def in_ranges(number: str, ranges: list[tuple[str, int, int]]) -> bool:
     """卡號是否在任一範圍內;沒有指定範圍時一律 True。"""
     if not ranges:
         return True
-    m = re.fullmatch(r"([A-Z]+)-(\d+)", number)
+    m = re.fullmatch(r"([A-Z][A-Za-z]*)-(\d+)", number)
     return bool(m) and any(m.group(1) == p and lo <= int(m.group(2)) <= hi for p, lo, hi in ranges)
 
 
@@ -374,6 +448,9 @@ def main() -> None:
         i = args.index("--range")
         ranges.append(parse_range(args[i + 1]))
         del args[i:i + 2]
+    untyped = "--untyped" in args           # 沒有分類的卡號清單頁(特典卡頁):類型取自卡頁
+    if untyped:
+        args.remove("--untyped")
     sources = args
     if not sources:
         print(__doc__)
@@ -387,7 +464,8 @@ def main() -> None:
     entries: dict[str, tuple[str, str, str]] = {}  # 卡號 → (url, name, category)
     for src in sources:
         html = fetch(src)
-        for number, url, name, category in parse_product_page(html, src):
+        listed = parse_card_list(html, src) if untyped else parse_product_page(html, src)
+        for number, url, name, category in listed:
             if in_ranges(number, ranges):
                 entries[number] = (url, name, category)
     print(f"從 {len(sources)} 個產品頁取得 {len(entries)} 張卡(去重後)")
@@ -407,6 +485,7 @@ def main() -> None:
             continue
         try:
             html = fetch(url)
+            category = category or card_page_category(html, number)
             parsed = parse_card_page(html, category, number)
             rows[number] = {
                 "number": number, "type": CATEGORY_TO_TYPE.get(category, category),

@@ -181,6 +181,59 @@ def test_product_rows_skip_reprints(builder):
     assert captions[0] == builder.evaluate("t('product.level-1')")
 
 
+def all_open(route):
+    """測試替身:清空尚未開放清單,讓第 3 賽季的新產品都有開放卡片。"""
+    route.fulfill(content_type="application/json", body=json.dumps({"cards": []}))
+
+
+def product_rows(page):
+    return panel(page, "product").locator(".filter-row").evaluate_all(
+        "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
+
+
+SEASON_ROWS = [
+    ["level-1"],
+    ["level-2", "mahon-file", "ex-sheet-1"],
+    ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
+    ["promo"],
+]
+
+
+def test_product_rows_by_season_when_all_open(browser, server):
+    context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
+    menu(page, "product").click()
+    assert product_rows(page) == SEASON_ROWS
+    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "promo"):
+        assert tile(page, "product", code).locator("img").count() == 1, code
+        assert tile(page, "product", code).locator(".filter-caption").inner_text() == page.evaluate(f"t('product.{code}')")
+    context.close()
+    assert not errors
+
+
+def test_long_product_row_wraps_with_indent_on_phone(browser, server):
+    context, page, errors = open_builder(browser, server, viewport=PHONE, routes=[("**/data/pending_cards.json", all_open)])
+    menu(page, "product").click()
+    boxes = panel(page, "product").locator(".filter-row").nth(2).locator(".filter-tile").evaluate_all(
+        "(ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.left, r.top]; })")
+    first_left, first_top = boxes[0]
+    wrapped = [b for b in boxes if b[1] > first_top + 1]
+    assert wrapped, "第三排在手機寬度應換行"
+    assert min(b[0] for b in wrapped) > first_left + 8                    # 續行縮排
+    assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+    context.close()
+    assert not errors
+
+
+def test_pick_promo_shows_only_pr_cards(browser, server):
+    context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
+    pick(page, "product", "promo")
+    numbers = pool_numbers(page)
+    assert numbers and all(n.startswith("PR-") for n in numbers)
+    assert numbers == cards_where(page, "c.sets.includes('promo')")
+    context.close()
+    assert not errors
+
+
 def test_product_names_follow_language(browser, server):
     context, page, errors = open_builder(browser, server, locale="en")
     page.wait_for_function("document.documentElement.lang === 'en'")

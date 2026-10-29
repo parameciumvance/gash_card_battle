@@ -1191,7 +1191,9 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .pool-filters .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
 .pool-filters .filter-grid .filter-tile { display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
 .pool-filters .mamodo-icon { width: 100%; aspect-ratio: 412 / 388; border-radius: 4px; }
-.pool-filters .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+/* 一排是一個賽季的系列:放不下時換行,續行以懸掛縮排表示仍屬同一排 */
+.pool-filters .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; padding-left: 28px; }
+.pool-filters .filter-row > :first-child { margin-left: -28px; }
 .pool-filters .filter-row .filter-tile { width: 104px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .pool-filters .product-icon { width: 96px; height: 96px; }
 .pool-filters .product-icon img { width: 100%; height: 100%; object-fit: contain; }

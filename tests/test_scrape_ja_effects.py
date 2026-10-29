@@ -16,6 +16,8 @@ from tools.scrape_ja_effects import (  # noqa: E402
     KNOWN_EXTRA_FLAVOR, KNOWN_SET_ERRORS, KNOWN_TEXT_ERRORS, parse_card_page, parse_header,
     parse_product_page,
 )
+import tools.scrape_ja_effects as scraper  # noqa: E402
+
 
 PRODUCT_PAGE_HTML = """
 <h2>テスト商品</h2>
@@ -54,9 +56,9 @@ T-101　テスト術
 <div>
 テスト用の風味文。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 <br />
-LEVEL:テスト　別テストパック
+LEVEL:1　別テストパック
 
 </div>
 </blockquote>
@@ -79,7 +81,7 @@ T-103　テスト術2
 <div>
 テスト用の風味文その二。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -100,7 +102,7 @@ T-201　テストイベント
 <div>
 テスト用の風味文その三。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -122,7 +124,7 @@ T-001　テスト魔物
 <div>
 テスト用の風味文その四。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -155,7 +157,7 @@ T-002　テスト変身魔物
 <div>
 テスト用の風味文その十一。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -178,7 +180,7 @@ T-301　テスト搭檔
 <div>
 テスト用の風味文その六。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -199,7 +201,7 @@ T-302　テスト搭檔2
 <div>
 テスト用の風味文その七。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -220,7 +222,7 @@ T-105　テスト術4
 <div>
 テスト用の風味文その八。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -243,7 +245,7 @@ T-106　テストコマンド術
 <div>
 テスト用の風味文その九。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -264,7 +266,7 @@ P-018　テスト搭檔3
 <div>
 テスト用の風味文その十。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 <br />
 TBB　N
 
@@ -287,7 +289,7 @@ T-104　テスト術3
 <div>
 テスト用の風味文その五。
 <br />
-LEVEL:テスト　テストパック
+LEVEL:1　テストパック
 
 </div>
 </blockquote>
@@ -389,7 +391,7 @@ def test_parse_card_page_spell_single_line_header():
     assert r["related_mamodo_ja"] == "テスト魔物"
     assert r["effect_ja"] == "仮の効果文その一。仮の効果文その二。"
     assert r["flavor_ja"] == "テスト用の風味文。"
-    assert r["sets_ja"] == "LEVEL:テスト　テストパック|LEVEL:テスト　別テストパック"
+    assert r["sets_ja"] == "LEVEL:1　テストパック|LEVEL:1　別テストパック"
 
 
 def test_parse_card_page_spell_two_line_header():
@@ -564,7 +566,7 @@ T-301　テスト魔物
 <div>
 風味文。
 <br />
-LEVEL:テスト
+LEVEL:1
 </div></blockquote>
 """
 
@@ -660,3 +662,135 @@ def test_known_set_error_corrected():
 def test_known_set_error_source_changed_raises():
     with pytest.raises(ValueError):
         parse_card_page(PARTNER_CARD_KNOWN_GAP_HTML.replace("TBB　N", "TBB2　N"), "パートナー", "P-018")
+
+
+# ---------------------------------------------------------------- 第 3 賽季:拡張シート與特典卡頁
+
+EX_SHEET_PAGE_HTML = """
+<h3 id="id_x">収録カード</h3>
+<h4 id="id_a">魔物</h4>
+<ul><li>Ex-001 <a href="//w.example.test/pages/911.html"  >
+テスト魔物
+</a> R/N</li></ul>
+<br />
+<h4 id="id_b">術</h4>
+<ul><li>Ex-013 <a href="//w.example.test/pages/912.html"  >
+テスト術
+</a></li></ul>
+<br />
+<h3 id="id_y">収録カード（シート別）</h3>
+<h4 id="id_c">シート1</h4>
+<ul><li>Ex-001 <a href="//w.example.test/pages/911.html"  >
+テスト魔物
+</a> R/N</li>
+<li>Ex-013 <a href="//w.example.test/pages/912.html"  >
+テスト術
+</a></li></ul>
+<div id="atwiki-page-tags">...</div>
+"""
+
+PROMO_PAGE_HTML = """
+<h2>特典カード</h2>
+<h3 id="id_p">PR<a id="PR" name="PR"></a></h3>
+<ul><li>PR-001 <a href="//w.example.test/pages/921.html"  >
+テスト魔物
+</a></li>
+<li>PR-005 <a href="//w.example.test/pages/922.html"  >
+テストイベント
+</a></li></ul>
+<h3 id="id_q">Ex<a id="Ex" name="Ex"></a></h3>
+<ul><li>Ex-000 <a href="//w.example.test/pages/923.html"  >
+テスト
+</a></li></ul>
+"""
+
+
+def test_ex_sheet_page_skips_sheet_groups():
+    entries = parse_product_page(EX_SHEET_PAGE_HTML, "https://example.test/p.html")
+    assert [(n, c) for n, _, _, c in entries] == [("Ex-001", "魔物"), ("Ex-013", "術")]
+
+
+def test_untyped_card_list_reads_whole_page():
+    entries = scraper.parse_card_list(PROMO_PAGE_HTML, "https://example.test/p.html")
+    assert [(n, name, c) for n, _, name, c in entries] == [
+        ("PR-001", "テスト魔物", ""), ("PR-005", "テストイベント", ""), ("Ex-000", "テスト", "")]
+
+
+def test_ex_and_pr_ranges():
+    ranges = [scraper.parse_range("Ex-025:Ex-048"), scraper.parse_range("PR-001:PR-011")]
+    assert scraper.in_ranges("Ex-030", ranges) and scraper.in_ranges("PR-011", ranges)
+    assert not scraper.in_ranges("Ex-000", ranges) and not scraper.in_ranges("EX-030", ranges)
+
+
+@pytest.mark.parametrize("header, category", [
+    ("魔物　4000", "魔物"), ("イベント　MP0　自分のターン", "イベント"),
+    ("術　MP2　＋1000　ダメージ1　バトル攻撃　雷", "術"), ("パートナー", "パートナー"),
+])
+def test_card_page_category_from_header(header, category):
+    html = f"<blockquote><div>\nPR-001　テスト\n<br />\n{header}\n<br />\n効果。\n</div><hr /><div>風味。</div></blockquote>"
+    assert scraper.card_page_category(html, "PR-001") == category
+
+
+def test_card_page_category_unknown_raises():
+    html = "<blockquote><div>\nPR-001　テスト\n<br />\nなにか　4000\n</div><hr /><div>風味。</div></blockquote>"
+    with pytest.raises(ValueError):
+        scraper.card_page_category(html, "PR-001")
+
+
+def _ex_html(number, main_lines, last_lines):
+    main = "\n<br />\n".join([f"{number}　テスト"] + main_lines)
+    last = "\n<br />\n".join(last_lines)
+    return f"<blockquote><div>\n{main}\n</div>\n<hr />\n<div>\n{last}\n</div></blockquote>"
+
+
+def test_spell_tail_in_last_block():
+    # 拡張シートの卡:「第N の術」印在最後一段開頭,沒有風味文
+    html = _ex_html("Ex-013", ["術　MP1　＋3000　ダメージ1", "バトル攻撃　バトル防御", "相手の魔本にダメージ。"],
+                    ['<a href="//w.example.test/p.html">ガッシュ・ベル</a>第1の術', "拡張1"])
+    r = parse_card_page(html, "術", "Ex-013")
+    assert r["related_mamodo_ja"] == "ガッシュ・ベル" and r["effect_ja"] == "相手の魔本にダメージ。"
+    assert r["flavor_ja"] == "" and r["sets_ja"] == "拡張1"
+
+
+def test_partner_tail_in_last_block():
+    html = _ex_html("Ex-010", ["パートナー", "効果。"], ["魔物＝ハイド", "拡張1"])
+    r = parse_card_page(html, "パートナー", "Ex-010")
+    assert r["related_mamodo_ja"] == "ハイド" and r["flavor_ja"] == "" and r["sets_ja"] == "拡張1"
+
+
+def test_no_flavor_only_products():
+    html = _ex_html("Ex-004", ["魔物　4000", "パートナー＝テスト"], ["拡張1　R"])
+    r = parse_card_page(html, "魔物", "Ex-004")
+    assert r["flavor_ja"] == "" and r["sets_ja"] == "拡張1　R"
+
+
+def test_two_flavor_lines_before_products():
+    html = _ex_html("Ex-007", ["パートナー", "効果。", "魔物＝テスト"],
+                    ["(スナック)風味その一。", "(TBB)風味その二。", "拡張1", "TBB1", "RE"])
+    r = parse_card_page(html, "パートナー", "Ex-007")
+    assert r["flavor_ja"] == "(スナック)風味その一。\n(TBB)風味その二。"
+    assert r["sets_ja"] == "拡張1|TBB1|RE"
+
+
+def test_known_misplaced_flavor():
+    # Ex-005:風味文印在第一段的「パートナー＝」之後
+    flavor = scraper.KNOWN_MISPLACED_FLAVOR["Ex-005"]
+    html = _ex_html("Ex-005", ["魔物　4000", "パートナー＝大海恵", flavor], ["拡張1　R"])
+    r = parse_card_page(html, "魔物", "Ex-005")
+    assert r["related_partner_ja"] == "大海恵" and r["flavor_ja"] == flavor and r["effect_ja"] == ""
+
+
+def test_known_misplaced_flavor_source_changed_raises():
+    html = _ex_html("Ex-005", ["魔物　4000", "パートナー＝大海恵"], ["別の風味文。", "拡張1　R"])
+    with pytest.raises(ValueError):
+        parse_card_page(html, "魔物", "Ex-005")
+
+
+def test_product_names_match_converter():
+    from tools.build_cards_json import PRODUCTS
+    assert scraper.PRODUCT_NAMES == (set(PRODUCTS) - {"別売魔本(第2弾)"}) | {"TBB"}
+
+
+def test_ex002_stray_comma_removed():
+    html = _ex_html("Ex-002", ["魔物　2000", "効果(0より小さくはならない)。,", "パートナー＝テスト"], ["風味。", "拡張1"])
+    assert parse_card_page(html, "魔物", "Ex-002")["effect_ja"] == "効果(0より小さくはならない)。"

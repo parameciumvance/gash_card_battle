@@ -1,6 +1,6 @@
 """從使用者維護的公開 Google Drive 資料夾批次下載卡圖至 frontend/assets/cards/{卡號}.webp。
 
-- 卡圖來源是 FOLDER_ID 的資料夾,圖檔名為 {卡號}.webp;補圖、換圖都在資料夾操作。
+- 卡圖來源是 FOLDER_ID 的資料夾,圖檔名為 {卡號}.webp(擴張卡為 EX-xxx.webp,存成卡號 Ex-xxx);補圖、換圖都在資料夾操作。
 - 以公開資料夾的 embeddedfolderview 頁面取得「檔名 → 檔案 ID」,不需要 API 金鑰;解析不到任何檔案時報錯結束。
 - 下載到的已是 WebP 就原樣存檔;不是 WebP 時轉成 WebP(q80,保留透明)。
 - 已存在 .webp 的卡自動跳過(支援中斷續抓);舊的 .jpg 不算,會重新下載。
@@ -48,6 +48,11 @@ def parse_folder(page: str) -> dict[str, str]:
     return files
 
 
+def folder_name(number: str) -> str:
+    """卡號 → 資料夾中的檔名;資料夾的擴張卡寫作大寫「EX-」(卡號依 atwiki 為「Ex-」)。"""
+    return re.sub(r"^Ex-", "EX-", number) + ".webp"
+
+
 def fetch(file_id: str) -> bytes | None:
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     req = urllib.request.Request(url, headers=UA)
@@ -83,7 +88,7 @@ def main() -> None:
         if dest.exists():
             skip += 1
             continue
-        file_id = folder.get(dest.name)
+        file_id = folder.get(folder_name(number))
         if not file_id:
             failures.append(f"{number}\tnot-in-folder")
             fail += 1

@@ -280,7 +280,8 @@ docker compose up -d --remove-orphans
 
 卡圖的來源是維護者的公開 Google Drive 資料夾
 (<https://drive.google.com/drive/folders/1cXx4gpa41HiycU4hIN74xbp1Aj3hiE-k>),
-檔名為 `{卡號}.webp`,收有 TTS 卡表中的全部卡圖(含尚未實作的系列)。補圖、換圖都在這個資料夾操作。
+檔名為 `{卡號}.webp`(擴張卡寫作 `EX-xxx.webp`,下載後存成卡號 `Ex-xxx.webp`),收有 TTS 卡表中的全部卡圖(含尚未實作的系列)。補圖、換圖都在這個資料夾操作。
+新增卡片資料後(例如第 3 賽季的 95 張),在本機重新執行下載(已有的卡會跳過),再依下列步驟補傳到正式站。
 
 1. **(本機)下載卡圖**:
 

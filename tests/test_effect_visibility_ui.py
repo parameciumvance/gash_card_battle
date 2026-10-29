@@ -1,5 +1,6 @@
 """效果資訊醒目顯示的瀏覽器測試(battle-ui「魔力與費用的分色」「放大檢視的數值明細」「常駐效果失效的標示」
 「效果來源卡聚焦」「效果被擋下的記錄與聚焦」「傷害被防止的記錄寫出來源」)。以本機測試模式操作,快照欄位以前端改寫模擬。"""
+import pytest
 from tests.test_spell_user_ui import open_page_zoom, start_local
 
 
@@ -122,6 +123,19 @@ def test_trigger_by_own_action_gets_source_card_step(page):
 def test_own_passive_gets_card_step(page):
     steps = steps_of(page, 0, [{"type": "mp_changed", "player": 0, "delta": 1, "mp": 3, "reason": "M-002"}], 0)
     assert [(s["kind"], s["card"]) for s in steps] == [("card", "M-002")]
+
+
+@pytest.mark.parametrize("source", ["PR-011", "Ex-008"])
+def test_promo_and_ex_sources_get_card_step(page, source):
+    # PR- / Ex- 卡號也是效果來源卡(D5:卡號格式不只 M/S/P/E)
+    steps = steps_of(page, 0, [{"type": "mp_changed", "player": 0, "delta": 2, "mp": 3, "reason": source}], 0)
+    assert [(s["kind"], s["card"]) for s in steps] == [("card", source)]
+
+
+def test_log_links_promo_and_ex_card_names(page):
+    start_local(page)
+    refs = page.evaluate("cardRefs({type: 'mp_changed', reason: 'PR-011', card: 'Ex-008', other: 'XX-001'})")
+    assert sorted(refs) == ["Ex-008", "PR-011"]
 
 
 def test_same_source_as_used_card_is_merged(page):

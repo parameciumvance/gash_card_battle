@@ -52,3 +52,24 @@ def test_every_card_has_a_product():
     cards = convert(CSV_PATH)
     assert all(c["sets"] for c in cards)
     assert {c["number"]: c["sets"] for c in cards}["P-018"] == ["level-2", "tbb2", "re"]
+
+
+@pytest.mark.parametrize("sets_ja, sets", [
+    ("拡張2　R|TBB2　N", ["ex-sheet-2", "tbb2"]),
+    ("拡張1　R", ["ex-sheet-1"]),
+    ("SPBOX|TBB1|RE", ["special-box", "tbb1", "re"]),
+    ("LTD1", ["limited-1"]),
+    ("プロモ", ["promo"]),
+])
+def test_season3_products(tmp_path, sets_ja, sets):
+    p = tmp_path / "cards_ja.csv"
+    write_csv(p, [{**MAMODO, "sets_ja": sets_ja}])
+    assert convert(p, expected=None)[0]["sets"] == sets
+
+
+def test_mahon_file_volumes_by_number(tmp_path):
+    # atwiki 第1、2弾都寫「別売魔本」:M-059–M-061 是第2弾
+    p = tmp_path / "cards_ja.csv"
+    write_csv(p, [{**MAMODO, "number": n, "sets_ja": "別売魔本"} for n in ("M-032", "M-059", "M-060", "M-061")])
+    assert {c["number"]: c["sets"] for c in convert(p, expected=None)} == {
+        "M-032": ["mahon-file"], "M-059": ["mahon-file-2"], "M-060": ["mahon-file-2"], "M-061": ["mahon-file-2"]}

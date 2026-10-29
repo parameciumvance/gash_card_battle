@@ -7,6 +7,7 @@
 - `effect_icon`:バトル/非バトル/ジャマー 轉為 battle/nonbattle/jammer,空字串為 None。
 - `sets`:`sets_ja` 每筆取全形空白前的產品名(去掉稀有度與販售形式),依 PRODUCTS 轉為產品代號,
   去重並依 PRODUCTS 順序;PRODUCTS 沒有的產品名中止轉換(新產品要先決定代號)。
+  魔本ファイル第1、2弾在 atwiki 都寫「別売魔本」,MAHON_FILE_2 的卡轉為第2弾。
 - 不含卡圖連結:卡圖來源是 `tools/download_images.py` 的資料夾。
 
 用法: python tools/build_cards_json.py
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data/cards_ja.csv"
 OUT = ROOT / "data/cards.json"
 
-EXPECTED_COUNT = 237  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102
+EXPECTED_COUNT = 332  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102 + 第 3 賽季其餘 95
 
 FORM_SUFFIX_RE = re.compile(r"（[^）]*）")
 POWER_X_RE = re.compile(r"^(\d+)×$")
@@ -40,6 +41,12 @@ PRODUCTS = {
     "LEVEL:3": "level-3",
     "ガッシュ・ベルと仲間たち": "cardset-gash-nakama",
     "ゼオンと最凶魔物達": "cardset-zeon",
+    "LTD1": "limited-1",
+    "SPBOX": "special-box",
+    "別売魔本(第2弾)": "mahon-file-2",   # atwiki 不分第1、2弾,依卡號轉換(MAHON_FILE_2)
+    "拡張1": "ex-sheet-1",
+    "拡張2": "ex-sheet-2",
+    "プロモ": "promo",
     "LEVEL:S": "level-s",
     "TBB1": "tbb1",
     "TBB2": "tbb2",
@@ -47,6 +54,8 @@ PRODUCTS = {
     "FILE:1": "file-1",
 }
 PRODUCT_ORDER = list(PRODUCTS.values())
+# 魔本ファイル第2弾的卡:atwiki 卡頁的收錄產品與第1弾同為「別売魔本」,只有商品頁分開列出
+MAHON_FILE_2 = {"M-059", "M-060", "M-061"}
 
 
 def _none_if_blank(s: str) -> str | None:
@@ -101,6 +110,8 @@ def derive_sets(row: dict) -> list[str]:
     codes = set()
     for entry in filter(None, row["sets_ja"].split("|")):
         name = entry.split("\u3000")[0]
+        if name == "別売魔本" and row["number"] in MAHON_FILE_2:
+            name = "別売魔本(第2弾)"
         if name not in PRODUCTS:
             raise SystemExit(f"{row['number']}: 產品對照表沒有「{name}」,請先在 PRODUCTS 登記代號")
         codes.add(PRODUCTS[name])

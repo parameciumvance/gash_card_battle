@@ -1,17 +1,25 @@
 {
-  "_comment": "卡池篩選的呈現設定(deck-builder「魔物篩選圖示與順序」「產品篩選分排」)。products:每個內層陣列是產品網格的一排,只列出的產品會顯示(再收錄產品不列);mamodo:魔物網格的家族順序(related_mamodo),沒列出的家族依代表卡卡號接在最後;mamodo_merge:併入其他家族的家族(不單獨列出,選目標家族時一併顯示)。",
+  "_comment": "卡池篩選的呈現設定(deck-builder「魔物篩選圖示與順序」「產品篩選分排」)。products:每個內層陣列是產品網格的一排,一排是一個賽季的系列,放不下時換行、續行縮排;只列出的產品會顯示(再收錄產品不列);mamodo:魔物網格的家族順序(related_mamodo),沒列出的家族依代表卡卡號接在最後;mamodo_merge:併入其他家族的家族(不單獨列出,選目標家族時一併顯示)。",
   "products": [
     [
       "level-1"
     ],
     [
       "level-2",
-      "mahon-file"
+      "mahon-file",
+      "ex-sheet-1"
     ],
     [
       "level-3",
       "cardset-gash-nakama",
-      "cardset-zeon"
+      "cardset-zeon",
+      "limited-1",
+      "special-box",
+      "mahon-file-2",
+      "ex-sheet-2"
+    ],
+    [
+      "promo"
     ]
   ],
   "mamodo": [

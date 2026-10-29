@@ -31,7 +31,7 @@ const Anim = (() => {
     "attack_negated", "defense_negated", "game_ended",
     "damage_prevented", "damage_negated", "mp_reduction_prevented", "mp_gain_prevented", "effect_blocked",
   ]);
-  const CARD_NO = /^[EMPS]-\d{3}$/;
+  const CARD_NO = /^(?:[EMPS]|PR|Ex)-\d{3}$/;   // 卡號:M / S / P / E,特典卡 PR,擴張卡 Ex
   // 效果來源卡所在的欄位(常駐效果、待命 / ステイ、戰鬥後的附加效果等);reason 只在是卡號時算(支付費用為 spell:… 等)
   const SOURCE_FIELD = {
     pages_turned: "source", mamodo_healed: "source", damage_prevented: "source", mp_reduction_prevented: "source",

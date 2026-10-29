@@ -835,7 +835,7 @@ function linkCardNames(root, nums) {
 function cardRefs(ev) {
   const out = new Set();
   for (const v of Object.values(ev)) {
-    if (typeof v === "string" && /^[EMPS]-\d{3}$/.test(v) && CARDS[v]) out.add(v);
+    if (typeof v === "string" && /^(?:[EMPS]|PR|Ex)-\d{3}$/.test(v) && CARDS[v]) out.add(v);
   }
   return [...out];
 }

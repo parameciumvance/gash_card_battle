@@ -133,3 +133,13 @@ def test_unparsable_folder_page_aborts(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         run(tmp_path, monkeypatch, ["T-001"], "<html>sign in</html>", {})
     assert not (tmp_path / "out" / "_failed.txt").exists()
+
+
+def test_ex_card_from_uppercase_filename(tmp_path, monkeypatch):
+    # 資料夾檔名寫 EX-001.webp,卡號依 atwiki 為 Ex-001(card-data「外部來源的擴張卡號寫法」)
+    data = webp_bytes()
+    page = folder_page(("id-ex", "EX-001.webp"), ("id-m", "M-001.webp"))
+    out_dir, fetched = run(tmp_path, monkeypatch, ["Ex-001", "M-001"], page, {"id-ex": data, "id-m": data})
+    assert sorted(fetched) == ["id-ex", "id-m"]
+    assert (out_dir / "Ex-001.webp").read_bytes() == data
+    assert not (out_dir / "_failed.txt").exists()

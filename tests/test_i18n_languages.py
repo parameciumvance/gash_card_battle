@@ -169,7 +169,10 @@ def test_releases_are_translated(lang):
 @pytest.mark.parametrize("lang", LANGS)
 def test_card_texts_cover_all_cards(lang):
     texts = card_texts(lang)
-    missing = [n for n in cards_json() if not (texts.get(n) or {}).get("name") or not texts[n].get("effect")]
+    cards = cards_json()
+    # 沒有效果文的卡(白板魔物,如 Ex-001)效果文為空字串
+    missing = [n for n, c in cards.items() if not (texts.get(n) or {}).get("name")
+               or bool(texts[n].get("effect")) != bool(c["effect_ja"])]
     assert missing == []
 
 
@@ -222,11 +225,14 @@ def test_ja_card_text_examples():
 
 
 def test_en_names_match_tts_sheet():
-    # 卡表有值的照卡表;卡表屬性缺漏的戰術,依卡表中同元素的英文補上(card-data「日文與英文卡片文字」)
-    en, tts, cards = card_texts("en"), load_tts_names(), cards_json()
+    # 卡表有值的照卡表;卡表屬性缺漏的戰術,依卡表中同元素的英文補上;日文沒有 attr 時為空
+    # (card-data「日文與英文卡片文字」)
+    en, tts, cards, ja = card_texts("en"), load_tts_names(), cards_json(), card_texts("ja")
     names = element_names(load_csv(), tts)
 
     def expected(n):
+        if ja[n]["attr"] is None:
+            return tts[n]["name"], None
         attr = tts[n]["attr"]
         if attr is None and cards[n]["type"] == "spell" and cards[n]["attr_name"]:
             attr = names.get(cards[n]["attr_name"])
@@ -234,6 +240,28 @@ def test_en_names_match_tts_sheet():
 
     assert {n: (en[n]["name"], en[n]["attr"]) for n in en if (en[n]["name"], en[n]["attr"]) != expected(n)} == {}
     assert en["M-001"]["name"] == "Zatch Bell"
+
+
+def test_en_attr_empty_when_ja_has_none():
+    # 白板魔物:卡表有英文效果名,但日文效果文沒有《》效果名
+    en = card_texts("en")
+    assert load_tts_names()["Ex-001"]["attr"] == "Strong Resolve"
+    assert en["Ex-001"]["attr"] is None
+
+
+def test_zh_attr_without_brackets():
+    # 《》由 ui.card_with_attr 加上,資料本身不帶,與日文一致
+    for lang in ("zh-TW", "zh-CN"):
+        bad = {n: t["attr"] for n, t in card_texts(lang).items()
+               if isinstance(t, dict) and t.get("attr") and ("《" in t["attr"] or "》" in t["attr"])}
+        assert bad == {}, lang
+
+
+def test_zh_attr_present_iff_ja_attr():
+    # 繁中效果名 / 元素與日文對齊:日文有 attr 的卡繁中也要有,日文沒有的繁中也不留
+    ja, zh = card_texts("ja"), card_texts("zh-TW")
+    assert {n for n in ja if bool(ja[n]["attr"]) != bool(zh[n].get("attr"))} == set()
+    assert zh["P-002"]["attr"] == "強盜"
 
 
 def test_en_attr_fills_tts_gap():
@@ -295,3 +323,10 @@ def test_error_code_scan_finds_known_codes():
 def test_every_error_code_is_translated(lang):
     d = load(f"{lang}.json")
     assert sorted(c for c in server_error_codes() if f"error.{c}" not in d) == []
+
+
+def test_tts_ex_numbers_map_to_atwiki_spelling():
+    # 卡表寫 EX-001,卡號依 atwiki 為 Ex-001(card-data「外部來源的擴張卡號寫法」)
+    tts = load_tts_names()
+    assert tts["Ex-001"]["name"] and "EX-001" not in tts
+    assert tts["M-001"]["name"] == "Zatch Bell"

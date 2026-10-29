@@ -33,7 +33,7 @@ def borrow_partner(page):
     tp, op = page.evaluate("[S.turn_player, 1 - S.turn_player]")
     partner = page.evaluate("""(op) => {
       const top = S.players[op].slots[0].top;
-      return Object.values(CARDS).find((c) => c.type === 'partner'
+      return openCards().find((c) => c.type === 'partner'
         && c.related_mamodo === CARDS[top].related_mamodo && c.number !== 'P-006').number;
     }""", op)
     set_book(page, op, 2, partner)

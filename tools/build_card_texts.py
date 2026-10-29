@@ -6,7 +6,7 @@
 - `data/cards.en.json`:`name` / `attr` 由 TTS 卡表(`Zatch Bell CCG List for TTS.xlsx`)的英文卡名與
   Attribute / Effect Name 寫入(「-」為 None);卡表屬性缺漏的戰術,依卡表中同一元素其他戰術的英文補上
   (`element_names`,卡表沒有該元素的英文時仍為 None)。`effect` 是依 `effect_ja` 手寫的翻譯,保留檔中既有的值。
-  卡表的英文效果文與日文效果文有出入,不作為翻譯依據。
+  卡表的英文效果文與日文效果文有出入,不作為翻譯依據。卡表的擴張卡寫作 EX-,對應為卡號 Ex-。
 
 用法: python tools/build_card_texts.py
 """
@@ -68,15 +68,17 @@ def _dash_none(value) -> str | None:
 
 
 def load_tts_names(xlsx_path: Path = XLSX) -> dict[str, dict]:
-    """卡號 → {name, attr}。同一卡號有 e / j 兩版時英文名稱相同,取第一筆。"""
+    """卡號 → {name, attr}。同一卡號有 e / j 兩版時英文名稱相同,取第一筆。
+    卡表的擴張卡寫作「EX-」,依 atwiki 的卡號寫法對應為「Ex-」。"""
     wb = openpyxl.load_workbook(xlsx_path, read_only=True)
     ws = wb["The Table"]
     out: dict[str, dict] = {}
     for cells in ws.iter_rows():
         m = re.fullmatch(r"([A-Z]+-\d+)[ej]?", _card_number(cells[0]))
-        if not m or m.group(1) in out:
+        number = m and re.sub(r"^EX-", "Ex-", m.group(1))
+        if not m or number in out:
             continue
-        out[m.group(1)] = {"name": _dash_none(cells[2].value), "attr": _dash_none(cells[7].value)}
+        out[number] = {"name": _dash_none(cells[2].value), "attr": _dash_none(cells[7].value)}
     return out
 
 
@@ -98,7 +100,7 @@ def build_en(rows: list[dict], tts: dict[str, dict], existing: dict[str, dict]) 
     out = {}
     for row in sorted(rows, key=lambda r: r["number"]):
         num = row["number"]
-        attr = tts[num]["attr"]
+        attr = tts[num]["attr"] if ja_attr(row) else None  # 日文沒有效果名(白板魔物)時不留卡表的英文
         if attr is None and row["type"] == "spell" and ja_attr(row):
             attr = names.get(ja_attr(row))
         out[num] = {
@@ -120,7 +122,8 @@ def main() -> None:
     existing = json.loads(EN_OUT.read_text(encoding="utf-8")) if EN_OUT.exists() else {}
     en = build_en(rows, load_tts_names(), existing)
     _write(EN_OUT, en)
-    missing = [n for n, c in en.items() if not c["effect"]]
+    effect_ja = {row["number"]: row["effect_ja"] for row in rows}
+    missing = [n for n, c in en.items() if not c["effect"] and effect_ja[n]]   # 白板魔物沒有效果文
     print(f"已寫入 {JA_OUT.name}、{EN_OUT.name}: {len(en)} 張;英文效果未翻譯: {missing or '無'}")
 
 
