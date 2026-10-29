@@ -119,14 +119,22 @@ def test_filters_do_not_touch_book(builder):
     assert builder.evaluate("B.deck.pages[0]") == "M-001"
 
 
+def number_key(n):
+    """卡號順序:原有前綴(M / P / S / E)、Ex-、PR-,同前綴依編號(deck-builder「卡池排序」)。"""
+    prefix, num = n.split("-")
+    return ({"Ex": 1, "PR": 2}.get(prefix, 0), prefix, int(num))
+
+
 def test_pool_order_mamodo_partner_spell_event(builder):
     numbers = builder.locator("#pool-grid .card .cnum").all_text_contents()
-    prefixes = [n[0] for n in numbers]
-    assert prefixes == sorted(prefixes, key="MPSE".index)                  # 事件在最後
-    assert numbers[0] == "M-001" and numbers[-1].startswith("E-")
-    for p in "MPSE":
-        group = [n for n in numbers if n[0] == p]
-        assert group == sorted(group)                                       # 同類型依卡號
+    types = builder.evaluate("(ns) => ns.map((n) => CARDS[n].type)", numbers)
+    order = ["mamodo", "partner", "spell", "event"]
+    assert types == sorted(types, key=order.index)                         # 事件在最後
+    assert numbers[0] == "M-001" and types[-1] == "event"
+    for ty in order:
+        group = [n for n, t in zip(numbers, types) if t == ty]
+        assert group == sorted(group, key=number_key)                       # 同類型依卡號,Ex- / PR- 在後
+    assert numbers.index("M-069") < numbers.index("Ex-001") < numbers.index("PR-002")
 
 
 # ---------------------------------------------------------------- 對應魔物「無」與事件
@@ -176,7 +184,10 @@ def test_product_rows_skip_reprints(builder):
     menu(builder, "product").click()
     rows = panel(builder, "product").locator(".filter-row").evaluate_all(
         "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
-    assert rows == [["level-1"], ["level-2", "mahon-file"], ["level-3", "cardset-gash-nakama", "cardset-zeon"]]
+    has_open = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => openCards().some((c) => c.sets.includes(k))))",
+                                SEASON_ROWS)
+    assert rows == [r for r in has_open if r]                                  # 只列有開放卡片的產品
+    assert "mahon-file-2" not in sum(rows, [])                                 # M-059〜M-061 尚未開放
     captions = panel(builder, "product").locator(".filter-caption").all_text_contents()
     assert captions[0] == builder.evaluate("t('product.level-1')")
 
@@ -387,7 +398,7 @@ def test_season_filter_combines_with_type(builder):
     type_badge(builder, "mamodo").click()
     pick(builder, "season", "1")
     numbers = pool_numbers(builder)
-    assert numbers and numbers == cards_where(builder, "c.type === 'mamodo' && c.number <= 'M-015'")
+    assert numbers and numbers == cards_where(builder, "c.type === 'mamodo' && cardSeason(c.number) === 1")
 
 
 def test_season_panel_is_exclusive(builder):

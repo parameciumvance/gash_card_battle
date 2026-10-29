@@ -5,16 +5,17 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AddPower, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
+    AddPower, AddPowerPerOwnMamodo, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
     DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
     DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
     GainMpReducedByOpponent, HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot,
-    LockChosenOpponentMamodo, NextStartPhase, OpponentBookCards, OpponentBookPagesAround, OpponentMamodo,
+    LockChosenOpponentMamodo, ModifyNamedSpellsThisTurn, NextStartPhase, OpponentBookCards, OpponentBookPagesAround, OpponentMamodo,
     OpponentPartneredMamodo, OrSkip, OwnEmptyBookPages, OwnHasPartner, OwnInjuredMamodo, OwnMamodo,
-    OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlayablePartnerInDiscard,
-    PlayMamodoFromBook, ProtectAnyway, RaiseEventLimitThisTurn, ReduceOpponentMpUnlessReducedLastTurn, Ref,
+    OwnMamodoAndPartnerCount, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlayablePartnerInDiscard,
+    PlayMamodoFromBook, ProtectAnyway, RaiseEventLimitThisTurn, ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn,
+    ReduceOwnMp, Ref,
     RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen, RestrictSelf,
     ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseDiscardExceptKept, ScheduleEndPhaseMp,
     ScheduleEndPhaseTurnOpponent, ScheduleNoProtectBookNextBattle, Sequence, SwapOpponentBookPages,
@@ -296,3 +297,29 @@ reg.event("E-043", effect=AsOpponent(then=When(
         then=RestrictOthersThanChosen(),
     ),
 )))
+
+# E-046:擲幣次數為使用當下自己場上魔物與搭檔的數量;0 時不擲(沒有使用條件)
+reg.event("E-046", effect=Coin(
+    count=OwnMamodoAndPartnerCount(), on=Always(),
+    then=GainMpPerHeads(per_head=1),
+))
+
+# E-048:FAQ「魔力が必要なときに改めて計算しなおします」「新たに場に出した魔物は…ふやせます」→ 玩家層級、隨時重算
+reg.event("E-048", effect=AddPowerPerOwnMamodo(amount=1000, duration=DUR_UNTIL_END_NEXT_TURN))
+
+reg.event("E-049", effect=Choose(
+    EffectOptions((("plus", "both_mp_plus_2", None), ("minus", "both_mp_minus_2", None))),
+    bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "plus"),
+        then=Sequence(steps=(GainMp(amount=2), GainMp(amount=2, target="opponent"))),
+        otherwise=Sequence(steps=(ReduceOwnMp(amount=2), ReduceOpponentMp(amount=2))),
+    ),
+))
+
+reg.event("Ex-023", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+    then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
+))
+
+reg.event("PR-010", effect=ModifyNamedSpellsThisTurn(mamodo="ガッシュ・ベル", name="ザケル", cost=-1, power=2000))

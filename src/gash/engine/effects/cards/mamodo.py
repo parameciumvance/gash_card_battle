@@ -1,9 +1,10 @@
 """魔物卡(M-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_BATTLE, DUR_TURN, NO_SPELLS
+from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
-    AddOwnDamageBonus, AddPower, AddSelfPowerWhenAttacking, All, AlwaysImmune,
+    AddOwnDamageBonus, AddPower, Coin, HeadsAtLeast, NamedMamodoPowerBonus, NamedSpellPowerBonus,
+    NextStartPhase, Standby, StealOpponentMp, AddSelfPowerWhenAttacking, All, AlwaysImmune,
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
     SetSelfPowerToChosenThisTurn,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
@@ -12,7 +13,7 @@ from ..tree import (
     ImmuneToSpellDamageAtMost, IncreaseSelfDamage, NegateAttack, OpponentAttackDamageIs,
     OpponentBookCards, OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
-    OwnEmptyBookPages, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
+    OwnEmptyBookPages, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
     OwnOtherMamodo, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway, ReduceOpponentMp,
     Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
     ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
@@ -214,3 +215,41 @@ reg.activated("M-052", mode="mp", mp_cost=1, timing="nonbattle", effect=Sequence
     IncreaseSelfDamage(amount=1, duration=DUR_TURN),
 )))
 reg.damage_immunity("M-053", check=ImmuneToAttackDamage(1))
+
+reg.activated("M-056", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=GainMp(amount=3),
+))
+
+# M-064:棄掉自己為費用後選自己的魔物;「このゲーム中」= 該魔物離場前一直有效
+reg.activated("M-064", mode="discard", timing="nonbattle", per_game=True, condition=HasOptions(OwnOtherMamodo()),
+              effect=Choose(
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+    then=AddPower(amount=2000, duration=DUR_GAME, target=Ref("slot")),
+))
+
+reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
+    NextStartPhase(own=True), expires="own_start",
+    then=GainMp(amount=4),
+))
+
+reg.mamodo_attack("M-068", mp_cost=1, power=6000, damage=1, per_turn=2)
+reg.mamodo_attack("M-069", mp_cost=2, power=6000, damage=2)
+
+reg.activated("Ex-002", mode="mp", mp_cost=2, timing="nonbattle", condition=HasOptions(OpponentMamodo()),
+              effect=Choose(
+    OpponentMamodo(), bind="slot", prompt="pick_opponent_mamodo",
+    then=AddPower(amount=-2000, duration=DUR_TURN, target=Ref("slot"), side="opponent"),
+))
+
+# Ex-027「そうしたなら」:實際減少的量才增加(對手 MP 0 或被 P-021 擋下時不增加)
+reg.activated("Ex-027", mode="declare", timing="nonbattle", own_turn=True, effect=StealOpponentMp(amount=1))
+
+reg.activated("PR-002", mode="mp", mp_cost=3, timing="nonbattle",
+              effect=AddPower(amount=2000, duration=DUR_TURN, target=Ref("self_slot")))
+
+reg.static_power("PR-003", value=NamedMamodoPowerBonus(name="ガッシュ・ベル", amount=2000))
+
+reg.static_spell_power("PR-004", value=NamedSpellPowerBonus(mamodo="ガッシュ・ベル", name="ザケル", amount=1000))
+
+reg.end_phase("PR-011", when=OwnMpAtMost(1), effect=GainMp(amount=2))

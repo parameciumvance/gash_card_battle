@@ -2417,6 +2417,10 @@ function choiceLabel(opt, results) {
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
     case "gain_mp_2": return t("choice.gain_mp_2");
+    case "gain_mp_3": return t("choice.gain_mp_3");
+    case "reduce_opponent_mp_3": return t("choice.reduce_opponent_mp_3");
+    case "both_mp_plus_2": return t("choice.both_mp_plus_2");
+    case "both_mp_minus_2": return t("choice.both_mp_minus_2");
     case "extra_cost": return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
       : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
@@ -2783,12 +2787,14 @@ function effectText(e) {
   if (e.copy_card && DICT[`${key}.copy`] !== undefined) key += ".copy";    // M-035 魔力等於選定的魔物
   if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
-  if (e.power_delta) changes.push(t("effect.piece.power", { n: signed(e.power_delta) }));
+  if (e.base_zero) changes.push(t("effect.piece.base_zero"));
+  if (e.base_delta || e.cost) changes.push(t("effect.piece.base_cost", { n: signed(e.base_delta || e.cost) }));
+  if (e.power_delta || e.power) changes.push(t("effect.piece.power", { n: signed(e.power_delta || e.power) }));
   if (e.cost_delta) changes.push(t("effect.piece.cost", { n: signed(e.cost_delta) }));
   if (e.optional) changes.push(t("effect.piece.optional"));
   return t(key, { target: effectTarget(e), amount: signed(e.amount || 0),
     mamodo: e.mamodo ? mamodoName(e.mamodo) : t("effect.any_mamodo"),
-    card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")),
+    card: e.card ? cname(e.card) : "", changes: changes.join(t("ui.sep.list")), name: e.name || "",
     attr: e.attr ? t(`attr.${e.attr}`) : "", page: e.page ?? "",
     value: e.value ?? 0, copy: e.copy_card ? cname(e.copy_card) : "", turn: e.turn ?? "",
     min_total: e.min_total ?? "", count: e.count ?? "" });
@@ -3526,6 +3532,13 @@ function renderPoolFilters() {
 // ftypes 為集合,空集合不篩選;fmamodo / fproduct / fseason 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
 // 賽季篩選為累計:選第 N 賽季顯示卡片賽季 ≤ N 的卡(deck-builder「卡池賽季篩選」)
 const POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+
+// 卡號順序(deck-builder「卡池排序」):原有的前綴(M / P / S / E)優先,接著 Ex-,最後 PR-;同前綴依編號
+const NUMBER_PREFIX_RANK = { Ex: 1, PR: 2 };
+function compareCardNumbers(a, b) {
+  const [pa, na] = a.split("-"), [pb, nb] = b.split("-");
+  return (NUMBER_PREFIX_RANK[pa] || 0) - (NUMBER_PREFIX_RANK[pb] || 0) || pa.localeCompare(pb) || Number(na) - Number(nb);
+}
 const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"] };
 const MAMODO_ART = [26, 24, 412, 388];   // 魔物卡的插圖區(卡名列以上),所有魔物卡共用
 let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/pool-filters.json:產品分排、魔物順序與合併
@@ -3575,12 +3588,12 @@ function mamodoFilterItems() {
     const fam = filterFamily(c.related_mamodo);
     if (!fam || fam === COMMAND_MAMODO) continue;
     if (!(fam in reps)) reps[fam] = null;
-    if (c.type === "mamodo" && (!reps[fam] || c.number < reps[fam])) reps[fam] = c.number;
+    if (c.type === "mamodo" && (!reps[fam] || compareCardNumbers(c.number, reps[fam]) < 0)) reps[fam] = c.number;
   }
   const order = FILTER_CFG.mamodo || [];
   const rank = (fam) => (order.includes(fam) ? order.indexOf(fam) : order.length);
   const fams = Object.keys(reps).sort((x, y) => rank(x) - rank(y)
-    || (reps[x] || "~").localeCompare(reps[y] || "~"));
+    || (!reps[x] - !reps[y]) || (reps[x] && reps[y] ? compareCardNumbers(reps[x], reps[y]) : 0));
   return fams.map((fam) => ({ key: fam, card: reps[fam],
     label: familyLabel(reps[fam] && TEXT[reps[fam]] ? TEXT[reps[fam]].name : fam) }));
 }
@@ -3752,7 +3765,7 @@ function renderPool() {
 
 // 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件,同類型依卡號
 function comparePoolCards(a, b) {
-  return POOL_TYPES.indexOf(CARDS[a].type) - POOL_TYPES.indexOf(CARDS[b].type) || a.localeCompare(b);
+  return POOL_TYPES.indexOf(CARDS[a].type) - POOL_TYPES.indexOf(CARDS[b].type) || compareCardNumbers(a, b);
 }
 
 // 魔物篩選的「無」:只留指令戰術

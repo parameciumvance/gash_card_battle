@@ -11,7 +11,7 @@ from __future__ import annotations
 from ..engine.engine import (
     _spell_any_page_standby, _spell_usable_by, attack_undefendable, effect_block_sources, event_cost_breakdown,
     event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
-    side_breakdown, spell_block, spell_cost, spell_cost_breakdown,
+    side_breakdown, spell_block, spell_cost, spell_cost_breakdown, uses_this_turn,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
 
@@ -72,9 +72,16 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         # 效果已使用(每回合 1 次 / 一場限 1 次):前端據此停用按鈕
         "ability_used": _used(ps, "mamodo", slot.top, bool(top_spec and top_spec.per_game)),
         "partner_ability_used": _used(ps, "partner", slot.partner, bool(partner_spec and partner_spec.per_game)),
-        "mamodo_attack_used": _used(ps, "mamodo_attack", slot.top),
+        "mamodo_attack_used": _attack_used(ps, slot.top),
         "mamodo_defense_used": _used(ps, "mamodo_defense", slot.top),
     }
+
+
+def _attack_used(ps, number):
+    """魔物效果攻擊本回合已用滿次數(M-068 每回合 2 次)時為 "turn"。"""
+    from ..engine.effects import registry as reg
+    spec = reg.MAMODO_ATTACK.get(number)
+    return "turn" if spec and uses_this_turn(ps, f"mamodo_attack:{number}") >= spec["per_turn"] else False
 
 
 def _in_use_pages(game: Game, p: int) -> set[int]:
@@ -260,7 +267,9 @@ _PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_del
                        "copy_card": str,   # copy_card:M-035 魔力等於的對手魔物(使用時的卡)
                        "turn": int,    # turn:M-047 離場的回合
                        "min_total": int,   # min_total:M-048 不能防禦的合計魔力門檻
-                       "count": int}   # count:E-042 結束階段要棄掉的魔物數
+                       "count": int,   # count:E-042 結束階段要棄掉的魔物數
+                       "base_zero": bool, "base_delta": int,   # Ex-007 類 / Ex-035:下一場戰鬥的本來費用調整
+                       "name": str, "cost": int, "power": int}   # PR-010:戰術名稱、本來費用與魔力的增減
 
 
 def _public_data(data: dict) -> dict:

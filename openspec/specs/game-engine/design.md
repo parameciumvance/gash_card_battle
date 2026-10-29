@@ -57,9 +57,10 @@
 - 每一項為 `{"kind", "source", "amount"}`,各項 amount 加總恆等於 total。「魔力設為某值」(P-011 / M-035)、「不低於 0」、「無效化」都寫成明確的調整項,數值為被補上或扣掉的量:
 
 ```text
-mamodo / static / modifier / partnered / power_set / mamodo_floor    ← 魔物魔力
-spell / defense_self / spell_bonus / spell_floor                      ← 戰術魔力
+mamodo / static / modifier / partnered / per_mamodo / power_set / mamodo_floor   ← 魔物魔力
+spell / defense_self / spell_bonus / static_spell / spell_named / spell_floor   ← 戰術魔力
 fixed                     ← 固定合計魔力(魔物效果攻擊 M-027、魔物效果防禦 M-039、S-087)
+static_total              ← 場上效果對合計魔力的加成(Ex-036;S-087 的固定合計不加)
 negated                                                                ← 無效化(合計歸 0)
 ```
 
@@ -69,6 +70,7 @@ negated                                                                ← 無�
 - `card_discarded` 對場上的卡(搭檔、疊放頂層)附 `slot`,魔書的卡附 `page`,供前端從原位置播放棄牌演出。
 - `protected` 事件附 `target`(`book` / `slot`)、`target_slot`(被保護的魔物槽)與 `target_player`(原本傷害對象的持有者),供保護演出知道保護者要移到哪裡。事件的 `player` 是保護者的持有者。
 
+- 常駐效果的提供者以 `_field_cards(game, player, table)` 列出(魔物頂層與搭檔;同卡號多張各列一次,被「使えない」擋下的不列)。`STATIC_POWER` 同卡號多張在場時各自計入,不再只取第一張。
 - 「魔力設為某值」:持續效果 `power_set`(`data["value"]` 固定值,或 `copy_player` / `copy_slot` 複製對象),取最後建立、仍有效的一個;複製以遞迴 `power_breakdown` 取對象當下的魔力,帶走過的魔物集合,繞回時取那隻不計設定的魔力(`_raw=True`)。對象離場時跳過該設定。
 
 ## 1 個行動、ジャマー與「使えない」
@@ -86,11 +88,13 @@ negated                                                                ← 無�
 - 事件卡上限:`events_used_this_turn` 與 `event_limit`(持續效果 `event_limit` 可提高)。
 - 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與魔物效果攻擊都檢查(`attack.restricted`);不在可移除的分類中。
 - E-038 的 MP 增加(`end_phase_mp` 待命)也在結束階段效果中解決(強制翻頁之前),與其他效果一起由回合玩家排序。
+- 場上卡的結束階段效果(PR-011):`reg.end_phase(number, effect=, when=)`;回合玩家場上的這類卡在 `when` 成立時列為 `end_phase_field`,同一張卡每次結束階段只解決一次(`used_abilities` 鍵 `"end_phase:{卡號}:{slot uid}"`),一樣在強制翻頁之前。
+- 擁有者的下一個開始階段(M-067):待命 data `own_start` 只在擁有者的開始階段解決,回合結束時的待命清理也不移除它(其他 `start_phase` 待命在下一個開始階段解決,且最多保留到下一回合結束)。
 
 ## 魔物效果攻擊 / 防禦的使用次數與ジャマー
 
 - 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
-- 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
+- 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。效果文明示次數時以 `reg.mamodo_attack(per_turn=)` 登記(M-068 為 2);第 2 次以後記為 `"…#2"`,`uses_this_turn` 計數,快照在用滿時才標示 `"turn"`。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
 - M-026 對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
 
 ## 保護者

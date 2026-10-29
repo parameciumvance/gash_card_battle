@@ -88,13 +88,11 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot, _visited: frozens
     items = [_item("mamodo", slot.top, game.db[slot.top].power_base or 0)]
     for number, fn in reg.STATIC_POWER.items():
         for s in st.players[player].slots:
-            if s.top == number:
-                if card_effect_blocked(game, player, s, number):
-                    continue   # 這隻的效果被禁,看下一隻同名的
+            # 同卡號多張在場(同名上限有例外時)各自生效;被「使えない」擋下的那張不計
+            if s.top == number and not card_effect_blocked(game, player, s, number):
                 amount = fn(game, player, slot)
                 if amount:
                     items.append(_item("static", number, amount))
-                break
     for m in st.modifiers:
         if (m.kind == "power" and m.active(st.turn_no)
                 and m.target_player == player and m.target_slot == slot.uid
@@ -104,6 +102,9 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot, _visited: frozens
         if (m.kind == "power_partnered" and m.active(st.turn_no)
                 and m.target_player == player and slot.partner):
             items.append(_item("partnered", m.source, m.amount))
+        # E-048:所有魔物 +N × 當下自己場上的魔物數(每次查詢重算)
+        if m.kind == "power_per_own_mamodo" and m.active(st.turn_no) and m.target_player == player:
+            items.append(_item("per_mamodo", m.source, m.amount * len(st.players[player].slots)))
     raw = sum(i["amount"] for i in items)
     if not _raw:
         visited = _visited | {(player, slot.uid)}
@@ -345,8 +346,8 @@ def spell_cost_breakdown(game: Game, player: int, page: int, card: CardDef, slot
 
 def _base_spell_cost_items(game: Game, player: int, page: int, card: CardDef,
                            mamodo_name: str | None) -> list[dict]:
-    """「本来のコスト」的明細:印刷費用,經最後一頁(ADV)與 S-088 / P-005「本来のコストを0にする」調整
-    (有多個時以最後一個寫成一項調整)。"""
+    """「本来のコスト」的明細:印刷費用,經最後一頁(ADV)與 S-088 / P-005 / Ex-007 類「本来のコストを0にする」調整
+    (有多個時以最後一個寫成一項調整),再加上本來費用的增減(PR-010 / Ex-035,不低於 0)。"""
     ps = game.state.players[player]
     printed = card.cost or 0
     zero = None   # (kind, source)
@@ -360,9 +361,24 @@ def _base_spell_cost_items(game: Game, player: int, page: int, card: CardDef,
                 and m.active(game.state.turn_no)
                 and mamodo_name is not None and mamodo_name == m.data.get("mamodo")):
             zero = ("base_zero", m.source)
+    deltas = []
+    for sb in _spell_bonus_standbys(game, player, mamodo_name):   # Ex-007 類:下一場戰鬥中該家族的戰術 1 張
+        if sb.data.get("base_zero"):
+            zero = ("base_zero", sb.source)
+        elif sb.data.get("base_delta"):
+            deltas.append(_item("base_delta", sb.source, sb.data["base_delta"]))
+    deltas += [_item("base_delta", m.source, m.data["cost"])
+               for m in _spell_named_modifiers(game, player, card) if m.data.get("cost")]
     items = [_item("card", card.number, printed)]
     if zero and printed:
         items.append(_item(zero[0], zero[1], -printed))
+    base = sum(i["amount"] for i in items)
+    for d in deltas:
+        if base + d["amount"] < 0:   # 本来のコストは 0 より小さくはならない
+            d = dict(d, amount=-base)
+        if d["amount"]:
+            items.append(d)
+            base += d["amount"]
     return items
 
 
@@ -535,7 +551,8 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
         for slot in list(ps.slots):
             if slot.top == number and not note_effect_blocked(game, batch, player, slot, number, "start_phase"):
                 fn(game, batch, player, slot)
-    for sb in [s for s in st.standby if s.kind == "start_phase" and s.created_turn < st.turn_no]:
+    for sb in [s for s in st.standby if s.kind == "start_phase" and s.created_turn < st.turn_no
+               and (not s.data.get("own_start") or s.owner == player)]:   # M-067:擁有者的開始階段
         st.standby.remove(sb)
         reg.CHOICE_RESOLVERS[sb.data["callback"]](game, batch, None, sb.data)
     st.phase = BATTLE
@@ -1081,6 +1098,16 @@ def _extra_cost_data(side: str, number: str, extra: int) -> dict:
     return data
 
 
+def uses_this_turn(ps, key: str) -> int:
+    """本回合已使用的次數:第 1 次記為 key,之後記為 key#2、key#3…(used_abilities 是集合)。"""
+    return sum(1 for k in ps.used_abilities if k == key or k.startswith(key + "#"))
+
+
+def _mark_used(ps, key: str) -> None:
+    n = uses_this_turn(ps, key)
+    ps.used_abilities.add(key if n == 0 else f"{key}#{n + 1}")
+
+
 def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSlot, dict]:
     """魔物效果攻擊(M-027):驗證魔物已註冊魔物效果攻擊且可支付費用。"""
     st = game.state
@@ -1093,8 +1120,8 @@ def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSl
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"attack.{block}", "此魔物的效果目前不能使用")
-    if f"mamodo_attack:{slot.top}" in st.players[player].used_abilities:
-        raise IllegalCommand("attack.used", "此效果本回合已使用過")   # 「１つの効果は、１ターンに１回だけ」
+    if uses_this_turn(st.players[player], f"mamodo_attack:{slot.top}") >= spec["per_turn"]:
+        raise IllegalCommand("attack.used", "此效果本回合已使用過")   # 「１つの効果は、１ターンに１回だけ」(M-068 為 2 次)
     if st.players[player].mp < spec["mp_cost"]:
         raise IllegalCommand("attack.mp", "MP 不足")
     return slot, spec
@@ -1217,7 +1244,7 @@ def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackSta
     """魔物效果攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
-    game.state.players[attacker].used_abilities.add(f"mamodo_attack:{slot.top}")
+    _mark_used(game.state.players[attacker], f"mamodo_attack:{slot.top}")
     pay_mp(game, batch, attacker, spec["mp_cost"], f"mamodo_attack:{slot.top}")
     return AttackStart(
         battle={"attack_page": None, "attack_spell": None, "attack_slot": slot_uid},
@@ -1511,6 +1538,7 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
         if battle.attack_spell is None:  # 魔物效果攻擊:固定合計魔力
             total = battle.data.get("attack_fixed_power", 0)
             items = [_item("fixed", battle.data.get("attack_fixed_source"), total)]
+            total, items = _static_total(game, battle.attacker, battle.attack_slot, total, items)
             total, items = _attack_power_from(game, battle, total, items)
             return _negate(total, items, negated, negated_by)
         player, slot_uid, spell = battle.attacker, battle.attack_slot, battle.attack_spell
@@ -1520,8 +1548,9 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
         negated, negated_by = battle.defense_negated, battle.data.get("defense_negated_by")
         if not battle.defense_spell:  # 魔物效果防禦:固定合計魔力
             total = battle.data["defense_fixed_power"]
-            return _negate(total, [_item("fixed", battle.data.get("defense_fixed_source"), total)],
-                           negated, negated_by)
+            total, items = _static_total(game, battle.defender, battle.defense_slot, total,
+                                         [_item("fixed", battle.data.get("defense_fixed_source"), total)])
+            return _negate(total, items, negated, negated_by)
         player, slot_uid, spell = battle.defender, battle.defense_slot, battle.defense_spell
     card = game.db[spell]
     rider = reg.SPELL_RIDERS.get(spell)
@@ -1536,13 +1565,50 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     st = game.state
     spell_items += [_item("attr_power", m.source, m.amount) for m in st.modifiers   # S-062:雙方的屬性加成
                     if m.kind == "attr_power" and m.active(st.turn_no) and m.data.get("attr") == card.attr_name]
+    spell_items += [_item("static_spell", number, amount)                             # PR-004:常駐的戰術加成
+                    for number, s in _field_cards(game, player, reg.STATIC_SPELL_POWER)
+                    if (amount := reg.STATIC_SPELL_POWER[number](game, player, card))]
+    spell_items += [_item("spell_named", m.source, m.data.get("power", 0))           # PR-010:依戰術名稱的加成
+                    for m in _spell_named_modifiers(game, player, card) if m.data.get("power")]
     spell_pw = sum(i["amount"] for i in spell_items)
     if spell_pw < 0:  # 戰術的魔力加減不低於 0(M-008「0より小さくはならない」)
         spell_items.append(_item("spell_floor", None, -spell_pw))
     total, items = mamodo + max(0, spell_pw), items + spell_items
+    total, items = _static_total(game, player, slot_uid, total, items)
     if side == "attack":
         total, items = _attack_power_from(game, battle, total, items)
     return _negate(total, items, negated, negated_by)
+
+
+def _field_cards(game: Game, player: int, table: dict) -> list[tuple[str, MamodoSlot]]:
+    """player 場上(魔物頂層與搭檔)登記在 table 的常駐效果卡:[(卡號, 所在 slot)];同卡號多張各列一次,
+    被「使えない」擋下的不列。"""
+    out = []
+    for s in game.state.players[player].slots:
+        for number in (s.top, s.partner):
+            if number in table and not card_effect_blocked(game, player, s, number):
+                out.append((number, s))
+    return out
+
+
+def _static_total(game: Game, player: int, slot_uid, total: int, items: list[dict]) -> tuple[int, list[dict]]:
+    """Ex-036:場上效果對合計魔力的加成(戰術、魔物效果攻擊與防禦都適用)。"""
+    slot = game.state.slot_by_uid(player, slot_uid) if slot_uid is not None else None
+    if slot is None:
+        return total, items
+    for number, _s in _field_cards(game, player, reg.STATIC_TOTAL_POWER):
+        amount = reg.STATIC_TOTAL_POWER[number](game, player, slot)
+        if amount:
+            total, items = total + amount, items + [_item("static_total", number, amount)]
+    return total, items
+
+
+def _spell_named_modifiers(game: Game, player: int, card: CardDef) -> list[Modifier]:
+    """PR-010:本回合作用於某魔物名稱完全相符之戰術的持續效果。"""
+    st = game.state
+    return [m for m in st.modifiers
+            if m.kind == "spell_named" and m.active(st.turn_no) and m.target_player == player
+            and card.related_mamodo == m.data.get("mamodo") and card.name_ja == m.data.get("name")]
 
 
 def _attack_power_from(game: Game, battle: BattleState, total: int, items: list[dict]) -> tuple[int, list[dict]]:
@@ -1651,17 +1717,33 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     # 防方獲勝(或攻擊無效):攻方效果無效;僅【反擊】解決
     d_rider = reg.SPELL_RIDERS.get(battle.defense_spell) if battle.defense_spell else None
     if d_rider and d_rider.counter and not battle.defense_negated:
-        amount = game.db[battle.defense_spell].damage or 0
-        if d_rider.counter_damage_from_attack:   # S-061:等於對手攻擊的傷害
-            amount = _attack_damage_amount(game, battle)
-        if amount > 0:
-            amount += own_damage_bonus(game, battle.defender)
-        if amount > 0:
-            _start_damage(game, batch,
-                          [{"kind": "book", "player": battle.attacker, "amount": amount}],
-                          {"cause": "battle_counter", "source": battle.defense_spell,
-                           "source_player": battle.defender})
+        if d_rider.on_counter:                   # S-109:獲勝時才擲幣,由效果決定是否造成傷害
+            d_rider.on_counter(game, batch, battle.defender)
             return
+        counter_book_damage(game, batch)
+        return
+    _end_battle(game, batch)
+
+
+def end_battle(game: Game, batch: list[dict]) -> None:
+    _end_battle(game, batch)
+
+
+def counter_book_damage(game: Game, batch: list[dict]) -> None:
+    """【反擊】的結算:防方以魔力勝負獲勝時,以防禦戰術的傷害對攻方魔書造成傷害(0 時直接結束戰鬥)。"""
+    battle = game.state.battle
+    d_rider = reg.SPELL_RIDERS.get(battle.defense_spell)
+    amount = game.db[battle.defense_spell].damage or 0
+    if d_rider and d_rider.counter_damage_from_attack:   # S-061:等於對手攻擊的傷害
+        amount = _attack_damage_amount(game, battle)
+    if amount > 0:
+        amount += own_damage_bonus(game, battle.defender)
+    if amount > 0:
+        _start_damage(game, batch,
+                      [{"kind": "book", "player": battle.attacker, "amount": amount}],
+                      {"cause": "battle_counter", "source": battle.defense_spell,
+                       "source_player": battle.defender})
+        return
     _end_battle(game, batch)
 
 
@@ -2151,6 +2233,12 @@ def _finish_damage(game: Game, batch: list[dict], ctx: dict) -> None:
 
 def _finish_battle_damage(game: Game, batch: list[dict], ctx: dict) -> None:
     battle = game.state.battle
+    if ctx["cause"] == "battle_attack" and ctx.get("protected"):
+        rider = reg.SPELL_RIDERS.get(ctx["source"]) if ctx.get("source") else None
+        if rider and rider.on_protected:
+            rider.on_protected(game, batch, ctx["source_player"])
+            if game.state.phase == GAME_OVER:
+                return
     if ctx["cause"] == "battle_attack" and ctx.get("dealt"):
         rider = reg.SPELL_RIDERS.get(ctx["source"]) if ctx.get("source") else None
         if rider and rider.on_damage:
@@ -2219,6 +2307,7 @@ def _handle_choose(game: Game, batch: list[dict], command: dict) -> None:
         game.emit(batch, "protected", player=owner, slot=slot.uid, card=slot.top,
                   target=item["kind"], target_slot=item.get("slot_uid"),   # 原本的傷害對象(魔書或魔物)
                   target_player=item["player"])
+        ctx["protected"] = True   # S-112「この術のダメージを『かばわれた』とき」
         guard = _guard_immune(game, owner, slot, ctx)
         if guard:     # S-079:以ウォンレイ保護對手攻擊的傷害時不受傷害
             game.emit(batch, "damage_prevented", player=owner, slot=slot.uid, reason="guard", source=guard)
@@ -2291,6 +2380,13 @@ def _end_phase_effects(game: Game) -> list:
     out += [(sb.kind, sb.source, sb) for sb in st.standby
             if sb.kind in ("end_phase_mp", "end_phase_turn_opponent", "end_phase_discard")
             and sb.owner == st.turn_player]
+    # PR-011:回合玩家場上的結束階段常駐效果,條件成立且本次結束階段尚未解決者
+    ps = st.players[st.turn_player]
+    for number, slot in _field_cards(game, st.turn_player, reg.END_PHASE):
+        when = reg.END_PHASE_WHEN.get(number)
+        if (f"end_phase:{number}:{slot.uid}" not in ps.used_abilities
+                and (when is None or when.test(game, {"player": st.turn_player}))):
+            out.append(("end_phase_field", number, slot))
     return out
 
 
@@ -2335,6 +2431,10 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
         slot = st.slot_by_uid(obj.target_player, obj.target_slot)
         if slot is not None and len(slot.stack) > 1 and slot.top == obj.source:
             _detach_top(game, batch, obj.target_player, slot, reason="scheduled")
+        return
+    if kind == "end_phase_field":           # PR-011:場上卡的結束階段效果
+        st.players[st.turn_player].used_abilities.add(f"end_phase:{source}:{obj.uid}")
+        reg.END_PHASE[source](game, batch, st.turn_player, obj)
         return
     st.standby.remove(obj)
     game.emit(batch, "standby_resolved", card=source, kind=kind)
@@ -2391,7 +2491,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     st.standby = [s for s in st.standby
                   if not (s.data.get("expires", "turn") in ("turn", "next_battle")
                           and s.created_turn == st.turn_no)
-                  and not (s.created_turn < st.turn_no)]
+                  and not (s.created_turn < st.turn_no and not s.data.get("own_start"))]   # M-067:到擁有者的開始階段
     for p in st.players:
         p.spell_page_uses.clear()
         p.used_abilities.clear()

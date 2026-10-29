@@ -1343,7 +1343,7 @@ def test_data_registrations_reject_duplicates(monkeypatch):
     assert "T-960" in reg.SPELL_ONLY_STACK and "T-960" in reg.DETACH_KEEP_UNDER
     reg.max_copies("T-960", 2)
     reg.mamodo_attack("T-960", mp_cost=1, power=5000, damage=2)
-    assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2}
+    assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2, "per_turn": 1}
     reg.jammer("T-960", mp_cost=2)
     assert reg.JAMMER["T-960"] == {"mp_cost": 2, "discard_self": False, "on": "mamodo_effect"}
     for call in (lambda: reg.jammer("T-960", mp_cost=1),

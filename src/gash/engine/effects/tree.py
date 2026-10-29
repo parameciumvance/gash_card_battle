@@ -32,7 +32,7 @@ RESERVED_KINDS = frozenset({
 })
 
 # SpellRider 中可以傳效果樹的掛鉤(其餘欄位是旗標或數值查詢,不是效果)
-RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged")
+RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged", "on_counter", "on_protected")
 
 CHOICE_KEY = "tree_choice"   # Choose 建立的 pending:引擎只依此鍵把回應交給 resume
 CONT_KEY = "tree_cont"       # Coin / Standby 的 callback payload,只由 effect_tree_resume 讀取
@@ -891,7 +891,9 @@ class EffectOptions:
 
 @dataclass(frozen=True)
 class NextStartPhase:
+    """下一個開始階段;own=True 時為效果擁有者的下一個開始階段(M-067「次の自分のターンのスタートフェイズ」)。"""
     kind: ClassVar[str] = "start_phase"
+    own: bool = False
 
 
 # ================================================================ 停點節點
@@ -988,6 +990,8 @@ class Standby(Effect):
                 CONT_KEY: rt.cont(ctx, path, floor=len(path) + 1)}
         if self.restricts:
             data["restricts"] = list(self.restricts)
+        if getattr(self.at, "own", False):
+            data["own_start"] = True
         schedule_standby(rt.game, rt.batch, kind=self.at.kind, source=ctx["source"], owner=ctx["player"],
                          data=data)
         return True
@@ -1010,6 +1014,15 @@ def _flip(rt: Run, ctx: dict, path: tuple, count: int, flipper: int):
     finally:
         _INFLIGHT.pop(token, None)
     return holder.get("results")
+
+
+@dataclass(frozen=True)
+class OwnMamodoAndPartnerCount:
+    """計數規格:自己場上魔物與搭檔的數量(E-046 的擲幣次數)。"""
+
+    def value(self, game, ctx) -> int:
+        slots = game.state.players[ctx["player"]].slots
+        return len(slots) + sum(1 for s in slots if s.partner)
 
 
 @dataclass(frozen=True)
@@ -1044,10 +1057,12 @@ class NegateNextDamageThisBattle(Effect):
 class Coin(Effect):
     """由 flipper 擲 count 枚硬幣(經過擲硬幣子階段),確認後依條件走 then / otherwise。
 
+    count 可為計數規格(有 value(game, ctx),如 OwnMamodoAndPartnerCount),在執行時計算;0 枚時不擲,
+    以空結果分支(E-046)。
     flipper="opponent" 時由對手擲(E-020):M-012 由對手決定、M-019 由效果擁有者決定。
     ctx["player"] 始終是效果擁有者,不因擲幣者改變。
     """
-    count: int = 1
+    count: Any = 1
     on: Any = field(default_factory=HeadsAtLeast)
     then: Effect = field(default_factory=Nothing)
     otherwise: Effect = field(default_factory=Nothing)
@@ -1064,7 +1079,10 @@ class Coin(Effect):
         return True
 
     def run(self, rt, ctx, path):
-        results = _flip(rt, ctx, path, self.count, _who(ctx, self.flipper))
+        count = self.count if isinstance(self.count, int) else self.count.value(rt.game, ctx)
+        if count == 0:
+            return self._branch(rt, ctx, path, [])
+        results = _flip(rt, ctx, path, count, _who(ctx, self.flipper))
         if results is None:
             return False    # 進入擲硬幣子階段的 pending,之後由 resume 接手
         return self._branch(rt, ctx, path, results)
@@ -1148,18 +1166,37 @@ class CoinWithPaidReflip(Effect):
 
 @dataclass(frozen=True)
 class AddPower(Effect):
-    """對 target 綁定的魔物加魔力。執行時才依 UID 重新查找;目標已離場則無效果、無事件。"""
+    """對 target 綁定的魔物加魔力(side="opponent" 時為對手的魔物,Ex-002)。執行時才依 UID 重新查找;
+    目標已離場則無效果、無事件。"""
     amount: int = 0
     duration: str = ""
     target: Ref = Ref("slot")
+    side: str = "self"
+
+    def __post_init__(self):
+        _check_who(self.side)
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
-        slot = rt.game.state.slot_by_uid(player, ctx[self.target.name])
+        owner = _who(ctx, self.side)
+        slot = rt.game.state.slot_by_uid(owner, ctx[self.target.name])
         if slot is None:
             return True
-        add_power(rt.game, rt.batch, source=ctx["source"], owner=player, target_player=player,
+        add_power(rt.game, rt.batch, source=ctx["source"], owner=player, target_player=owner,
                   target_slot=slot.uid, amount=self.amount, duration=self.duration)
+        return True
+
+
+@dataclass(frozen=True)
+class AddPowerPerOwnMamodo(Effect):
+    """自己場上所有魔物(含之後放出的)魔力 +amount × 當下自己場上的魔物數,每次查詢重算(E-048)。"""
+    amount: int = 0
+    duration: str = DUR_UNTIL_END_NEXT_TURN
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="power_per_own_mamodo", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player, amount=self.amount)
         return True
 
 
@@ -1425,6 +1462,19 @@ class MarkInjuredMamodoDiscarded(Effect):
 
 
 @dataclass(frozen=True)
+class AddSpellSelfBonus(Effect):
+    """此戰術的魔力加值,攻防皆可(依 on_declare 的 ctx["side"])(S-108)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        add_spell_power(battle, ctx["side"], ctx["source"], self.amount)
+        return True
+
+
+@dataclass(frozen=True)
 class AddDefenseSelfBonus(Effect):
     """以此戰術防禦時魔力加值(S-016)。事件 source 沿用遷移前的 "defense_bonus"。"""
     amount: int = 0
@@ -1510,6 +1560,16 @@ class RestrictBothPlayers(Effect):
         for p in (0, 1):
             add_restriction(rt.game, rt.batch, source=ctx["source"], owner=ctx["player"],
                             target_player=p, flag=self.flag, duration=self.duration)
+        return True
+
+
+@dataclass(frozen=True)
+class ReduceOwnMp(Effect):
+    """自己的 MP 因自己的效果減少(不足額時歸 0)(E-049)。"""
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        reduce_mp(rt.game, rt.batch, ctx["player"], self.amount, ctx["source"])
         return True
 
 
@@ -1804,10 +1864,13 @@ class PreventDamageToSelf(Effect):
 @dataclass(frozen=True)
 class ScheduleNextSpellBonus(Effect):
     """[待命] 本回合下一場戰鬥中,mamodo 使用的戰術費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
+    base_zero / base_delta 調整的是「本来のコスト」(Ex-007 類為 0、Ex-035 為 -5;追加費用不受影響)。
     optional:由使用者在宣告戰術時選擇是否套用(M-008「1低いコストで使うことができる。そうしたなら…」)。"""
     mamodo: str = ""
     power_delta: int = 0
     cost_delta: int = 0
+    base_zero: bool = False
+    base_delta: int = 0
     optional: bool = False
     expires: str = "next_battle"   # "turn":本回合任一場戰鬥中第一次使用(P-023「このターン中のバトルで」)
 
@@ -1815,7 +1878,24 @@ class ScheduleNextSpellBonus(Effect):
         schedule_standby(rt.game, rt.batch, kind="spell_bonus", source=ctx["source"], owner=ctx["player"],
                          data={"mamodo": self.mamodo, "power_delta": self.power_delta,
                                "cost_delta": self.cost_delta, "expires": self.expires,
+                               **({"base_zero": True} if self.base_zero else {}),
+                               **({"base_delta": self.base_delta} if self.base_delta else {}),
                                **({"optional": True} if self.optional else {})})
+        return True
+
+
+@dataclass(frozen=True)
+class ModifyNamedSpellsThisTurn(Effect):
+    """本回合自己使用的 mamodo 的戰術中名稱完全為 name 者:本來費用 +cost、魔力 +power(PR-010)。"""
+    mamodo: str = ""
+    name: str = ""
+    cost: int = 0
+    power: int = 0
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="spell_named", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"],
+                     data={"mamodo": self.mamodo, "name": self.name, "cost": self.cost, "power": self.power})
         return True
 
 
@@ -2444,6 +2524,26 @@ class FinishAttackWithoutDamage(Effect):
 
 
 @dataclass(frozen=True)
+class CounterBookDamage(Effect):
+    """【反擊】的結算:以此戰術的傷害對攻方魔書造成傷害(須搭配 on_counter;S-109 擲出正面)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import counter_book_damage
+        counter_book_damage(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class EndBattleWithoutCounter(Effect):
+    """【反擊】沒有造成傷害,結束戰鬥(須搭配 on_counter;S-109 擲出反面)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import end_battle
+        end_battle(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
 class InjureOpponentMamodoInstead(Effect):
     """攻擊方獲勝的結算:改為對對手 1 隻魔物造成傷害,攻擊方選擇(須搭配 on_win_owns_damage;S-070)。"""
 
@@ -2791,6 +2891,40 @@ class PowerBonus:
 
 
 @dataclass(frozen=True)
+class NamedMamodoPowerBonus:
+    """自己場上名稱為 name 的魔物(含視為該名稱者)+amount(PR-003)。"""
+    name: str
+    amount: int
+
+    def bonus(self, game, player, slot, provider) -> int:
+        from .primitives import mamodo_name
+        return self.amount if mamodo_name(game, slot) == self.name else 0
+
+
+@dataclass(frozen=True)
+class NamedSpellPowerBonus:
+    """STATIC_SPELL_POWER:mamodo 的戰術中名稱完全為 name 者魔力 +amount(PR-004)。fn(game, player, spell) -> int。"""
+    mamodo: str
+    name: str
+    amount: int
+
+    def __call__(self, game, player, spell_card) -> int:
+        return self.amount if spell_card.related_mamodo == self.mamodo and spell_card.name_ja == self.name else 0
+
+
+@dataclass(frozen=True)
+class TotalPowerWhenBattlingWith:
+    """STATIC_TOTAL_POWER:以名稱為 name 的魔物攻擊或防禦時,該方合計魔力 +amount(Ex-036)。
+    fn(game, player, slot) -> int。"""
+    name: str
+    amount: int
+
+    def __call__(self, game, player, slot) -> int:
+        from .primitives import mamodo_name
+        return self.amount if mamodo_name(game, slot) == self.name else 0
+
+
+@dataclass(frozen=True)
 class CanUseSpellsWithAttr:
     """戰術相容:這隻魔物可使用其他魔物屬性為 attr 的戰術(M-023「木」)。fn(game, player, slot, spell) -> bool。"""
     attr: str
@@ -3012,6 +3146,6 @@ def rider_hook(number: str, hook: str, tree: Effect):
                        {"player": defender, "amount": amount, "source": number})
         return on_defense_damaged
 
-    def handler(game, batch, player):     # on_damage / on_win
+    def handler(game, batch, player):     # on_damage / on_win / on_counter / on_protected
         run_effect(game, batch, effect_id, {"player": player, "source": number})
     return handler

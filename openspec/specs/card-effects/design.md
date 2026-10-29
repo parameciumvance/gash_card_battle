@@ -164,6 +164,19 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - E-041:`PlayerState.dealt_damage_this_turn` 在 `_apply_damage_item` 實際造成傷害時記給 `ctx["source_player"]`(受方是對手時)。
 - E-042 / E-041 的結束階段待命 `end_phase_discard` / `end_phase_turn_opponent` 由結束階段效果的定序流程解決(見 game-engine design)。
 
+### 第 3 賽季卡片的機制
+
+- 開放:第 3 賽季依機制分批(新卡多半補強既有家族,不需每批自成牌組);開放清單在 card-effects「第 3 賽季卡片的開放」累加,不以批號命名需求。
+- 白板魔物(Ex-001 等):不登記任何效果,效果操作因沒有登記而拒絕(`ability.none`),卡面效果文為空。
+- 「本場遊戲中」:時效 `DUR_GAME`,不到期;綁定魔物的 modifier 隨魔物離場失效(M-064)。
+- E-048:玩家層級 modifier `power_per_own_mamodo`,`power_breakdown` 每次以當下的場上魔物數計算(明細 `per_mamodo`)。
+- 依戰術名稱:`reg.static_spell_power`(PR-004,`NamedSpellPowerBonus`)與本回合 modifier `spell_named`(PR-010,`ModifyNamedSpellsThisTurn`:本來費用與魔力);以戰術卡的 `related_mamodo` 與 `name_ja` 完全比對。
+- 合計魔力:`reg.static_total_power`(Ex-036,`TotalPowerWhenBattlingWith`),依戰鬥中魔物的名稱判斷,戰術與魔物效果攻擊 / 防禦都加。
+- 本來費用的待命:`ScheduleNextSpellBonus(base_zero= / base_delta=)`,在 `_base_spell_cost_items` 套用(本來費用不低於 0,追加費用另計),`expires="next_battle"` 只作用於下一場戰鬥。PR-010 的 `spell_named` 費用也在這裡。
+- 擲幣次數:`Coin(count=<計數規格>)`,E-046 用 `OwnMamodoAndPartnerCount`;0 枚時不擲,以空結果分支。
+- 戰術附加效果:`SpellRider.on_counter`(【反擊】防方獲勝時取代預設的反擊傷害,S-109 擲幣;預設傷害為 `engine.counter_book_damage`)與 `on_protected`(此戰術攻擊的傷害被保護後,S-112;`_handle_choose` 在保護時標記 `ctx["protected"]`)。`AddSpellSelfBonus` 依 `on_declare` 的攻防方加此戰術的魔力(S-108)。
+- 其他:`AddPower(side="opponent")`(Ex-002)、`ReduceOwnMp`(E-049)、`NamedMamodoPowerBonus`(PR-003,依 `mamodo_name` 含視為ガッシュ・ベル者)、`NextStartPhase(own=True)`(M-067)、`reg.end_phase`(PR-011)。
+
 ## 行為決定與理由
 
 以下「相關規格」除非另外註明,皆指 `card-effects` › 需求「第二彈 68 種卡全數可用」下的情境。修改相關卡片前先看這裡;要改變 `Confirmed` 或 `Project Decision` 的決定,須先與專案負責人確認。
@@ -759,3 +772,41 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 2026-10-24 explore 中專案負責人確認
 
 **確認狀態:** `Confirmed`
+
+### 第 3 賽季卡片的效果文解讀(已確認)
+
+**相關規格:** `card-effects` › 需求「依場上魔物數重算的魔力加成(E-048)」「限定家族的本來費用待命」「グリサ的解讀」「同一張常駐效果卡多張在場」
+
+**決定:**
+- E-048:每次需要魔力時依當下自己場上的魔物數重算,使用之後才放出的魔物也加。
+- Ex-007 / Ex-010 / Ex-011 / Ex-012 / Ex-035:只調整本來的費用,宣告時的追加費用照付;只作用於下一場戰鬥(既有決定「『このターン中の次のバトル』只作用於下一場」)。
+- Ex-027:「そうしたなら」——對手 MP 實際減少時才增加自己的 MP;對手 MP 為 0 或被 P-021 擋下時不增加。
+- 常駐效果同一卡號多張在場時各自生效、疊加;效果文寫「重複しない」者除外(P-003 / P-004 / P-006 的不疊加來自效果文)。
+
+**理由:** E-048 與 Ex-007 類有 atwiki 卡頁的 FAQ 與裁定;Ex-027 依「そうしたなら」的既有處理(E-016);疊加是因為效果文沒有不疊加的依據。
+
+**依據:**
+- atwiki E-048 卡頁 FAQ Q1 / Q2;Ex-007 卡頁引用的舊規則官方 FAQ(Ex-011「追加でふやすコストは０にはなりません」)
+- 2026-10-29 explore 與 propose 中專案負責人確認(Ex-027、疊加)
+
+**確認狀態:** `Confirmed`
+
+### 第 3 賽季卡片的效果文解讀(推定)
+
+**相關規格:** `card-effects` › 需求「ガッシュ・ベル的解讀」「ウマゴン的解讀」「合計魔力的場上加成(Ex-036)」「依戰術名稱的加成與減費」「事件卡 E-046 / E-049 的解讀」
+
+**決定:**
+- PR-011:常駐條件「MP が 1 以下なら使える」成立時自動解決、不詢問(同 M-002),於結束階段的效果解決時(強制翻頁之前)判斷。
+- Ex-036:「そのバトルの合計魔力」對魔物效果攻擊(M-069)也加。
+- PR-003:視為ガッシュ・ベル的魔物(M-047)也加。
+- PR-004 / PR-010:依戰術卡本身是否屬於ガッシュ・ベル判斷,不論由哪隻魔物使用(M-029 使用「ザケル」時也適用)。
+- E-046:場上沒有魔物與搭檔時也能使用,不擲幣。
+- 這批沒有「バトル」圖示的啟動效果只能在戰鬥外使用;「自分のバトルフェイズに」另限自己的回合。Ex-007 類攻防都有作用,不限自己的回合(同 P-007)。
+- M-067:MP 在使用者自己的下一個開始階段增加(跨過對手的回合)。
+
+**理由:** 效果文沒有明說的部分比照既有卡(M-002、P-007、M-047 的「としてあつかう」)與字面。
+
+**依據:**
+- 各卡日文效果文
+
+**確認狀態:** `Inferred`

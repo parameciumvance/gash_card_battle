@@ -3,7 +3,7 @@
 from ...state import DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_PARTNER_EFFECTS, PROTECT_ONLY
 from .. import registry as reg
 from ..tree import (
-    All, AllowAttrSpellsThisTurn, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
+    All, AllowAttrSpellsThisTurn, Bound, EffectOptions, ReduceOpponentMp, TotalPowerWhenBattlingWith, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
     DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMp,
     GainMpWhenOpponentUsesEvent, GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage,
     LockChosenOpponentMamodo, MakeNextAttackUndefendable, NegateNextDamageThisBattle,
@@ -118,3 +118,32 @@ reg.activated("P-033", mode="discard", timing="nonbattle", condition=HasOptions(
 
 reg.activated("P-034", mode="discard", timing="nonbattle", effect=RemoveRestrictions(categories=("spells",)))
 reg.activated("P-035", mode="discard", timing="nonbattle", effect=ReduceOpponentMpByStartGain(multiplier=2))
+
+# Ex-007 / 010 / 011 / 012:下一場戰鬥中該家族的戰術 1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
+# 攻防都有作用,不限自己的回合(同 P-007)
+reg.activated("Ex-007", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="ガッシュ・ベル", base_zero=True))
+reg.activated("Ex-008", mode="discard", timing="nonbattle", effect=GainMp(amount=4))
+reg.activated("Ex-009", mode="discard", timing="nonbattle", effect=ReduceOpponentMp(amount=4))
+reg.activated("Ex-010", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="ハイド", base_zero=True))
+reg.activated("Ex-011", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="ティオ", base_zero=True))
+reg.activated("Ex-012", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="フェイン", base_zero=True))
+
+reg.activated("Ex-033", mode="discard", timing="nonbattle", effect=Choose(
+    EffectOptions((("gain", "gain_mp_3", None), ("reduce", "reduce_opponent_mp_3", None))),
+    bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "gain"),
+        then=GainMp(amount=3),
+        otherwise=ReduceOpponentMp(amount=3),
+    ),
+))
+
+reg.activated("Ex-035", mode="discard", timing="nonbattle",
+              effect=ScheduleNextSpellBonus(mamodo="ブラゴ", base_delta=-5))
+
+reg.static_total_power("Ex-036", value=TotalPowerWhenBattlingWith(name="ウォンレイ", amount=2000))
+reg.action_discard("Ex-036", "partner")

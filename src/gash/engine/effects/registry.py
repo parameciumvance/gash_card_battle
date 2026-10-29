@@ -20,6 +20,17 @@ STATIC_POWER: dict[str, Callable] = {}
 # fn(game, batch, player, slot) — 回合玩家開始階段的常在效果(M-002)
 START_PHASE: dict[str, Callable] = {}
 
+# 結束階段觸發的常駐效果(PR-011):fn(game, batch, player, slot);與結束階段的待命一起由回合玩家定序。
+# END_PHASE_WHEN:觸發條件(條件型,test(game, ctx));不成立時不列入結束階段的效果
+END_PHASE: dict[str, Callable] = {}
+END_PHASE_WHEN: dict[str, Any] = {}
+
+# 常駐的戰術魔力加成(PR-004):fn(game, player, spell_card) -> int
+STATIC_SPELL_POWER: dict[str, Callable] = {}
+
+# 常駐的合計魔力加成(Ex-036):fn(game, player, slot) -> int;slot 為該方戰鬥中的魔物
+STATIC_TOTAL_POWER: dict[str, Callable] = {}
+
 
 @dataclass
 class Activated:
@@ -58,6 +69,8 @@ class SpellRider:
     extra_cost: tuple | None = None       # 宣告時的追加費用 (step, max, power, damage):每 step 魔力 +power、傷害 +damage(S-067 / S-097)
     counter_damage_from_attack: bool = False  # 【反擊】傷害等於對手攻擊的傷害(S-061)
     fixed_total: dict | None = None       # 合計魔力固定值 {"attack": n, "defense": n},不加其他加成(S-087)
+    on_counter: Callable | None = None    # 【反擊】防方獲勝時取代預設的反擊傷害,自行處理到戰鬥結束 fn(game, batch, defender)(S-109)
+    on_protected: Callable | None = None  # 此戰術攻擊的傷害被保護後 fn(game, batch, attacker)(S-112)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
@@ -188,6 +201,23 @@ def _value_hook(table: dict, number: str, hook: str, value):
         table[number] = fn
         return fn
     return deco
+
+
+def end_phase(number: str, *, effect, when=None):
+    """自己的結束階段觸發的常駐效果(PR-011);when 為觸發條件。"""
+    if when is not None:
+        END_PHASE_WHEN[number] = when
+    return _slot_hook(END_PHASE, number, "end_phase", effect)
+
+
+def static_spell_power(number: str, *, value=None):
+    """常駐的戰術魔力加成 fn(game, player, spell_card) -> int(PR-004)。"""
+    return _value_hook(STATIC_SPELL_POWER, number, "static_spell_power", value)
+
+
+def static_total_power(number: str, *, value=None):
+    """常駐的合計魔力加成 fn(game, player, slot) -> int(Ex-036)。"""
+    return _value_hook(STATIC_TOTAL_POWER, number, "static_total_power", value)
 
 
 def static_power(number: str, *, value=None):
@@ -330,7 +360,7 @@ def spell_compat(number: str, *, check=None):
 
 # 常駐效果(「このカードが場にある→」,持續中或之後仍可能發動)所在的登記表;快照據此列出失效中的效果。
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
-PASSIVE_TABLES = ("START_PHASE", "STATIC_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
+PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
                   "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
                   "BLOCK_OPPONENT_FAMILY")
 
@@ -439,11 +469,12 @@ def battle_phase_mp_lock(number: str):
     BATTLE_PHASE_MP_LOCK.add(number)
 
 
-def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int):
-    """魔物效果攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害。"""
+def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_turn: int = 1):
+    """魔物效果攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害;
+    每回合可用 per_turn 次(效果文明示次數時,如 M-068「1ターンに2回まで」)。"""
     if number in MAMODO_ATTACK:
         raise ValueError(f"{number} 的 mamodo_attack 已登記")
-    MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage}
+    MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage, "per_turn": per_turn}
 
 
 def ignore_spell_block(number: str):

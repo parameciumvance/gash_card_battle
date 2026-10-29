@@ -21,7 +21,7 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 | Capability | 責任 | Spec 覆蓋 | Design 覆蓋 | 備註 |
 |---|---|---|---|---|
 | `game-engine` | 遊戲規則:階段、行動權、戰鬥流程、傷害與保護、勝敗、中途決策 | Partial | Partial | 初評。規則依官方規則書與 atwiki 規則頁(見 AGENTS.md);design 只有架構與 pending |
-| `card-effects` | 第一、二彈全部卡片與第三彈已開放卡片(分批實作中,見 design「第三彈分批開放」)的效果行為,效果原語、持續效果、待命、被動觸發 | Partial | Partial | 逐卡行為以日文效果文為準,spec 情境只列解讀與易錯處;design 只整理了效果樹遷移以來的機制與解讀 |
+| `card-effects` | 第一、二彈與第三彈全部卡片、第 3 賽季已開放卡片(依機制分批實作中,見 design「第 3 賽季卡片的機制」)的效果行為,效果原語、持續效果、待命、被動觸發 | Partial | Partial | 逐卡行為以日文效果文為準,spec 情境只列解讀與易錯處;design 只整理了效果樹遷移以來的機制與解讀 |
 | `effect-tree` | 卡片效果的執行機制:節點、直譯器、續體、登記入口 | Documented | Documented | 每條需求都有對應測試(`tests/test_effect_tree.py`,擲幣確認鏈另見 `tests/test_effect_characterization.py`) |
 | `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔書資料、賽季定義(卡號範圍) | Partial | Partial | 初評;design 整理了卡片文字檔、第三彈資料(含尚未開放清單 `data/pending_cards.json`、收錄產品與預組)、第 3 賽季資料(Ex / PR 卡、拡張シート版面、`mahon-file-2`)、賽季定義與卡圖(來源與格式) |
 | `online-room` | 房號約戰、房間賽季與魔書驗證、token 身分、回合計時與逾時代打、斷線重連、觀戰、NPC 房與 NPC 座位的驅動、對戰中人數 | Partial | Partial | 初評;design 只整理了等待者、NPC 座位、對戰中人數與房間賽季 |

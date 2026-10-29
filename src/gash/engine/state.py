@@ -48,6 +48,7 @@ DUR_TURN = "turn"                        # 本回合(至結束階段完畢)
 DUR_UNTIL_END_NEXT_TURN = "until_end_next_turn"  # 至下回合結束階段
 DUR_NEXT_TURN = "next_turn"              # 僅下一回合中生效(E-001)
 DUR_UNTIL_END_OWN_NEXT_TURN = "until_end_own_next_turn"  # 至建立者的下一個回合結束階段(S-075)
+DUR_GAME = "game"                        # 本場遊戲中(M-064);綁定魔物時隨該魔物離場失效
 
 
 @dataclass

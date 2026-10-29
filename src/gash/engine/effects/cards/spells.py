@@ -6,7 +6,7 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
-    AddAttackBonusPerHeads, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
+    AddAttackBonusPerHeads, AddSpellSelfBonus, CounterBookDamage, EndBattleWithoutCounter, TurnPagesForward, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
     AdjustDefenseDamage, All, Always, AttachPartnerFromDiscard, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
     Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableBookProtection,
     DiscardChosenPartner, DiscardFromOpponentBook, DiscardOwnMamodoByNumber, EffectOptions,
@@ -27,6 +27,7 @@ from ..tree import (
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
 # S-001 等第一彈香草戰術,以及第二彈 S-029 S-044 S-047 S-049 S-050 S-051 S-052 S-053 S-054 S-055。
 # 第三彈的香草戰術:S-059 S-065 S-071 S-080 S-085 S-091 S-096 S-099 S-102 S-105;S-063 為防禦獲勝時無效(資料驅動)。
+# 第 3 賽季的香草戰術:S-107 Ex-013 Ex-017 Ex-020 Ex-038〜Ex-042;Ex-018 / Ex-019 為防禦獲勝時無效(資料驅動)。
 
 reg.spell_rider("S-003", counter=True)
 
@@ -471,3 +472,27 @@ reg.spell_rider("S-106", on_declare=When(
         TurnOwnPagesOncePerTurn(leaves=1),
     )),
 ))
+
+reg.spell_rider("S-108", on_declare=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=AddSpellSelfBonus(amount=2000),
+))
+
+# S-109:「魔力勝負で勝ったとき、コインを投げて」→ 獲勝時才擲幣(不在宣告時)
+reg.spell_rider("S-109", counter=True, on_counter=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=CounterBookDamage(),
+    otherwise=EndBattleWithoutCounter(),
+))
+
+reg.spell_rider("S-110", on_damage=RestrictOpponent(flag=NO_SPELLS, duration=DUR_TURN))
+
+reg.spell_rider("S-111", on_declare=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=DisableBookProtection(),
+))
+
+reg.spell_rider("S-112", on_protected=TurnPagesForward(leaves=1, target="opponent"))
+
+reg.spell_rider("Ex-014", counter=True)
+reg.spell_rider("Ex-016", counter=True)
