@@ -542,6 +542,7 @@ async function createRoom() {
 }
 
 function showWaiting(body) {
+  resetLog();   // 新房間的記錄與序號從零開始(同一分頁打過的上一局不殘留)
   show("waiting");
   document.getElementById("waiting-title").textContent = t("ui.waiting_opponent");
   document.getElementById("waiting-code").textContent = SESSION.code;
