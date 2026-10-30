@@ -1,10 +1,13 @@
 """事件卡(E-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import (
-    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_SPELLS,
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS,
+    NO_SPELLS,
 )
 from .. import registry as reg
 from ..tree import (
+    DamageChosenOpponentMamodo, ForceProtectWith, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
+    battle_phase_first, opponent_has_two_or_more_mamodo,
     AddPower, AddPowerPerOwnMamodo, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
@@ -304,6 +307,12 @@ reg.event("E-046", effect=Coin(
     then=GainMpPerHeads(per_head=1),
 ))
 
+# E-047:只封鎖選定魔物的戰術(魔物效果不受影響)
+reg.event("E-047", when=opponent_has_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=NO_SPELLS),
+))
+
 # E-048:FAQ「魔力が必要なときに改めて計算しなおします」「新たに場に出した魔物は…ふやせます」→ 玩家層級、隨時重算
 reg.event("E-048", effect=AddPowerPerOwnMamodo(amount=1000, duration=DUR_UNTIL_END_NEXT_TURN))
 
@@ -321,5 +330,37 @@ reg.event("Ex-023", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
 ))
+
+# Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻
+reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+    then=Sequence(steps=(
+        AddPower(amount=5000, duration=DUR_TURN, target=Ref("slot")),
+        ScheduleEndPhaseDiscardSlot(target=Ref("slot")),
+    )),
+))
+
+# Ex-024:傷害,對手可以保護(atwiki 卡頁 FAQ)
+reg.event("Ex-024", when=opponent_has_two_or_more_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=DamageChosenOpponentMamodo(),
+))
+
+# Ex-047:能保護就必須以選定的魔物保護,優先於 P-027;不妨礙防禦(atwiki 卡頁 FAQ)
+reg.event("Ex-047", when=opponent_has_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=ForceProtectWith(),
+))
+
+# Ex-048:高於 4 的一方算「MPをへらす」、低於 4 的一方算「MPをふやす」
+reg.event("Ex-048", effect=SetBothMp(value=4))
+
+# PR-005「すきな順で」:使用者逐一選下一個效果;沒有負傷魔物時省略回復
+reg.event("PR-005", when=battle_phase_first, effect=UseAllInChosenOrder(entries=(
+    ("heal", "heal_all_injured", OwnInjuredMamodo(), HealAllOwnMamodo()),
+    ("mp", "gain_mp_2", None, GainMp(amount=2)),
+    ("restrict", "restrict_both_effects_spells", None,
+     RestrictBothPlayers(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_TURN)),
+)))
 
 reg.event("PR-010", effect=ModifyNamedSpellsThisTurn(mamodo="ガッシュ・ベル", name="ザケル", cost=-1, power=2000))

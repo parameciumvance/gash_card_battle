@@ -3,6 +3,9 @@
 from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
+    AdjustDefenseDamage, AttackWithOwnBookDamageSpell, EffectOptions, HealSlot, InjureChosenOpponentMamodo,
+    MakeNextAttackUndefendable, OpponentHealthyMamodo, OpponentIsAttacking, OrSkip, OwnInjuredMamodo,
+    RedirectAttackTo, ScheduleEndPhaseDiscardAllPartners, ScheduleOnAttack,
     AddOwnDamageBonus, AddPower, Coin, HeadsAtLeast, NamedMamodoPowerBonus, NamedSpellPowerBonus,
     NextStartPhase, Standby, StealOpponentMp, AddSelfPowerWhenAttacking, All, AlwaysImmune,
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
@@ -216,10 +219,46 @@ reg.activated("M-052", mode="mp", mp_cost=1, timing="nonbattle", effect=Sequence
 )))
 reg.damage_immunity("M-053", check=ImmuneToAttackDamage(1))
 
+# 「このターン中の次のバトルで、自分がこの魔物の術で攻撃」:對手回合的下一場戰鬥是對手攻擊,限自己的回合(同 P-001)
+reg.activated("M-054", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=MakeNextAttackUndefendable(own_slot=True),
+))
+
+# M-055:攻擊時(防禦宣告前)詢問是否使用;對手沒有魔物時不詢問。正面改傷害攻擊方選的魔物,反面戰術無效
+reg.activated("M-055", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=ScheduleOnAttack())
+reg.on_attack("M-055", when=AttackWithOwnBookDamageSpell(), effect=Choose(
+    OrSkip(EffectOptions((("use", "coin_redirect_damage", None),))), bind="use", prompt="pick_effect",
+    then=When(
+        Bound("use", "use"),
+        then=Coin(
+            count=1, on=HeadsAtLeast(1),
+            then=Choose(OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo", then=RedirectAttackTo()),
+            otherwise=NegateAttack(),
+        ),
+    ),
+))
+
 reg.activated("M-056", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Coin(
     count=1, on=HeadsAtLeast(1),
     then=GainMp(amount=3),
 ))
+
+# M-057:在對手攻擊的戰鬥中使用,不要求這隻魔物在戰鬥中(同 M-043)
+reg.activated("M-057", mode="mp", mp_cost=2, timing="battle", condition=OpponentIsAttacking(), effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=NegateAttack(),
+))
+
+# M-059:負傷不是傷害(不能保護、不看不受傷害)
+reg.activated("M-059", mode="discard", timing="nonbattle", condition=HasOptions(OpponentHealthyMamodo()),
+              effect=Choose(
+    OpponentHealthyMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=InjureChosenOpponentMamodo(),
+))
+
+# M-061:「このターンのエンドフェイズに」;對手受 M-049 / M-066 保護的搭檔不棄(自己的照棄)
+reg.activated("M-061", mode="discard", timing="nonbattle", effect=ScheduleEndPhaseDiscardAllPartners())
 
 # M-064:棄掉自己為費用後選自己的魔物;「このゲーム中」= 該魔物離場前一直有效
 reg.activated("M-064", mode="discard", timing="nonbattle", per_game=True, condition=HasOptions(OwnOtherMamodo()),
@@ -227,6 +266,8 @@ reg.activated("M-064", mode="discard", timing="nonbattle", per_game=True, condit
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=AddPower(amount=2000, duration=DUR_GAME, target=Ref("slot")),
 ))
+
+reg.partner_discard_guard("M-066")
 
 reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
     NextStartPhase(own=True), expires="own_start",
@@ -245,11 +286,22 @@ reg.activated("Ex-002", mode="mp", mp_cost=2, timing="nonbattle", condition=HasO
 # Ex-027「そうしたなら」:實際減少的量才增加(對手 MP 0 或被 P-021 擋下時不增加)
 reg.activated("Ex-027", mode="declare", timing="nonbattle", own_turn=True, effect=StealOpponentMp(amount=1))
 
+# Ex-031:在對手以戰術攻擊的戰鬥中使用;魔物效果攻擊不適用
+reg.activated("Ex-031", mode="mp", mp_cost=1, timing="battle", condition=OpponentIsAttacking(spell_only=True),
+              effect=AdjustDefenseDamage(amount=-1))
+
 reg.activated("PR-002", mode="mp", mp_cost=3, timing="nonbattle",
               effect=AddPower(amount=2000, duration=DUR_TURN, target=Ref("self_slot")))
 
 reg.static_power("PR-003", value=NamedMamodoPowerBonus(name="ガッシュ・ベル", amount=2000))
 
 reg.static_spell_power("PR-004", value=NamedSpellPowerBonus(mamodo="ガッシュ・ベル", name="ザケル", amount=1000))
+
+# PR-008:沒有負傷魔物時不能使用;正面時選 1 隻回復
+reg.activated("PR-008", mode="mp", mp_cost=1, timing="nonbattle", condition=HasOptions(OwnInjuredMamodo()),
+              effect=Coin(
+    count=1, on=HeadsAtLeast(1),
+    then=Choose(OwnInjuredMamodo(), bind="slot", prompt="pick_own_injured_mamodo", then=HealSlot(target=Ref("slot"))),
+))
 
 reg.end_phase("PR-011", when=OwnMpAtMost(1), effect=GainMp(amount=2))

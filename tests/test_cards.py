@@ -1291,7 +1291,7 @@ def test_e010_each_partner_borrowed_acts_for_borrower(number):
         events = submit(g, {"type": "use_borrowed_effect", "player": 0})
     except IllegalCommand as e:
         # 只有「沒有可無效的對手術」這類對象不存在的使用條件可以拒絕(防方未用戰術、自己是攻方)
-        assert number in ("P-009", "P-016", "P-017") and e.code == "ability.condition"
+        assert number in ("P-009", "P-016", "P-017", "P-040") and e.code == "ability.condition"
         return
     assert any(ev["type"] == "ability_used" and ev["player"] == 0 for ev in events)
     assert holder.partner in (number, None)                  # 借用不棄卡(P-008 會棄掉對手的搭檔)

@@ -41,6 +41,10 @@ NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與�
 NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
 ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁戰術、效果與保護(E-043)
 PROTECT_ONLY = "protect_only"              # 只能以選定魔物(target_slot)保護(P-026)
+NO_EVENTS = "no_events"                    # 不能使用事件卡(P-042;不屬於可移除的分類)
+NO_DEFENSE_SPELL_SLOT = "no_defense_spell_slot"  # 不能以選定魔物(target_slot)使用防禦戰術(P-043)
+NO_PROTECT_SLOT = "no_protect_slot"        # 選定魔物(target_slot)不能保護(P-043)
+NO_NAMED_SPELLS = "no_named_spells"        # 不能使用 data["mamodo"] 家族的戰術(PR-009)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
@@ -141,6 +145,8 @@ class PlayerState:
     start_phase_mp_gain: int = 0
     # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
     dealt_damage_this_turn: bool = False
+    # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
+    spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔書中的頁碼。"""
@@ -205,6 +211,7 @@ class GameState:
     pending: PendingChoice | None = None
     modifiers: list[Modifier] = field(default_factory=list)
     standby: list[Standby] = field(default_factory=list)
+    battle_phase_acted: bool = False      # 本回合戰鬥階段中已有行動(PR-005「バトルフェイズの一番最初」)
     winner: int | None = None
     end_reason: str | None = None
     _uid_seq: int = 0

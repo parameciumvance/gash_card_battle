@@ -1,8 +1,12 @@
 """搭檔卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_PARTNER_EFFECTS, PROTECT_ONLY
+from ...state import (
+    DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT, NO_EVENTS, NO_PARTNER_EFFECTS,
+    NO_PROTECT_SLOT, PROTECT_ONLY,
+)
 from .. import registry as reg
 from ..tree import (
+    AttackByFamilyWithTarget, RestrictOpponentSlotThisBattle, ScheduleBattleLock, ScheduleOnAttack,
     All, AllowAttrSpellsThisTurn, Bound, EffectOptions, ReduceOpponentMp, TotalPowerWhenBattlingWith, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
     DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMp,
     GainMpWhenOpponentUsesEvent, GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage,
@@ -118,6 +122,33 @@ reg.activated("P-033", mode="discard", timing="nonbattle", condition=HasOptions(
 
 reg.activated("P-034", mode="discard", timing="nonbattle", effect=RemoveRestrictions(categories=("spells",)))
 reg.activated("P-035", mode="discard", timing="nonbattle", effect=ReduceOpponentMpByStartGain(multiplier=2))
+
+reg.opponent_event_lock("P-038")
+reg.action_discard("P-038", "partner")
+reg.activated("P-040", mode="discard", timing="battle", condition=CanNegateOpponentSpell("any"),
+              effect=NegateOpponentSpell("any"))
+
+# P-042 / P-043「『ダニー』の術や『魔物の効果』で攻撃」:該家族魔物的戰術或魔物效果攻擊(以攻擊的魔物判斷,同 P-001);
+# 對手回合的下一場戰鬥是對手攻擊,限自己的回合
+reg.activated("P-042", mode="discard", timing="nonbattle", own_turn=True,
+              effect=ScheduleBattleLock(mamodo="ダニー", flags=(NO_PARTNER_EFFECTS, NO_EVENTS)))
+
+# P-043:使用時選對手魔物;攻擊時(防禦宣告前)由使用者選其中一個效果,選定的魔物已離場時不詢問
+reg.activated("P-043", mode="declare", timing="nonbattle", own_turn=True, condition=HasOptions(OpponentMamodo()),
+              effect=Choose(
+    OpponentMamodo(), bind="target", prompt="pick_opponent_mamodo",
+    then=ScheduleOnAttack(target="target"),
+))
+reg.on_attack("P-043", when=AttackByFamilyWithTarget(mamodo="ウォンレイ"), effect=Choose(
+    EffectOptions((("no_defense_spell", "opponent_no_defense_spell", None),
+                   ("no_protect", "opponent_no_protect", None))),
+    bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "no_defense_spell"),
+        then=RestrictOpponentSlotThisBattle(flag=NO_DEFENSE_SPELL_SLOT),
+        otherwise=RestrictOpponentSlotThisBattle(flag=NO_PROTECT_SLOT),
+    ),
+))
 
 # Ex-007 / 010 / 011 / 012:下一場戰鬥中該家族的戰術 1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
 # 攻防都有作用,不限自己的回合(同 P-007)

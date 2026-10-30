@@ -21,6 +21,7 @@
 
 - 規則出處:atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html)「かわりばんこのルール」:「1つのバトルが終了し、非バトルに戻るとまずターンプレイヤーがアクションすることができます」;使用者已對照規則確認。
 - `_end_battle` 在戰鬥結束(非判負)時把行動權設為回合玩家並歸零連續 pass,不沿用戰鬥中最後行動者的輪替。
+- 「バトルフェイズの一番最初」(PR-005):`GameState.battle_phase_acted` 在進入戰鬥階段時設為 False,非戰鬥中的行動指令(`_do_action`)成功執行後設為 True;單純 pass 不算行動。宣告攻擊也經過 `_do_action`,所以戰鬥中一定已經是 True。
 
 ## 戰鬥開始與待命表
 
@@ -30,11 +31,15 @@
 | 待命 | 適用條件 | 套用 |
 |---|---|---|
 | `spell_bonus`(M-008、P-007) | 戰術;`mamodo` 為 None 或等於使用魔物家族;可選者須選擇使用 | 攻擊戰術魔力加值 |
-| `attack_undefendable`(S-019、S-026、P-001) | `mamodo` 為 None;或戰術且等於使用魔物家族 | 攻擊不可被防禦 |
+| `attack_undefendable`(S-019、S-026、P-001、M-054) | `mamodo` 為 None;或戰術且等於使用魔物家族;`slot_uid` 指定時限以那隻魔物的戰術攻擊 | 攻擊不可被防禦 |
+| `battle_lock`(P-042) | 攻擊魔物的家族(`AttackStart.family`,魔物效果攻擊也有)等於 `mamodo` | 本場戰鬥對手的限制(`flags`) |
 | `no_protect_book`(E-013) | 都適用 | 本場不能保護魔書 |
 | `injure_instead`(S-057) | 戰術 | 獲勝改為負傷對手魔物 |
+| `redirect_damage`(P-022) | 戰術且等於使用魔物家族 | 傷害改給指定的對手魔物 |
 
 - 效果文寫「術」的待命只適用於戰術攻擊;魔物效果攻擊(M-027)不消耗它們,留到下一場戰鬥。
+- 套用函式的簽名是 `(game, battle, sb)`。`AttackStart` 另帶攻擊的魔物 `slot_uid` 與家族 `family`(`mamodo_name` 只在戰術攻擊時有值,供「術」的待命判斷)。
+- **攻擊時要做決策的待命**(M-055 / P-043):待命種類 `on_attack`,由 `reg.on_attack(number, when=..., effect=...)` 登記條件與效果樹。戰鬥開始時(套用完上表後)條件成立者標記 `armed`;`_attack_declare_continue` 先逐一執行標記的效果樹(可建立決策),樹尾的 `ContinueAttackDeclaration` 回到 `_attack_declare_continue`,全部完成才進入 `_ask_injure_target` 與宣告時效果。攻擊已被無效(M-055 反面)時不再執行剩下的。條件不成立的待命照 `next_battle` 的規則在戰鬥結束時移除。M-055 正面時設定 `injure_instead` / `injure_target`,所以之後不再詢問對象。
 - **新增作用於下一場戰鬥的待命**:在表加一列,寫明對戰術攻擊與魔物效果攻擊是否適用;`tests/test_battle_start_characterization.py` 以期望檔鎖定兩種攻擊在各待命下的事件序列,刻意改變行為時以 `GOLDEN_UPDATE=1` 重新產生並說明。
 
 ## 攻防效果的宣告時確定
@@ -89,6 +94,7 @@ negated                                                                ← 無�
 - 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與魔物效果攻擊都檢查(`attack.restricted`);不在可移除的分類中。
 - E-038 的 MP 增加(`end_phase_mp` 待命)也在結束階段效果中解決(強制翻頁之前),與其他效果一起由回合玩家排序。
 - 場上卡的結束階段效果(PR-011):`reg.end_phase(number, effect=, when=)`;回合玩家場上的這類卡在 `when` 成立時列為 `end_phase_field`,同一張卡每次結束階段只解決一次(`used_abilities` 鍵 `"end_phase:{卡號}:{slot uid}"`),一樣在強制翻頁之前。
+- 「このターンのエンドフェイズに」的待命(E-038 / E-041 / E-042 / Ex-021 / M-061)依建立的回合收集(`created_turn == turn_no`),不看擁有者是否為回合玩家:M-061 在對手的回合也能使用。M-061 的 `end_phase_discard_partners` 棄掉雙方全部的搭檔,對手受 M-049 / M-066 保護的除外。
 - 擁有者的下一個開始階段(M-067):待命 data `own_start` 只在擁有者的開始階段解決,回合結束時的待命清理也不移除它(其他 `start_phase` 待命在下一個開始階段解決,且最多保留到下一回合結束)。
 
 ## 魔物效果攻擊 / 防禦的使用次數與ジャマー
@@ -102,7 +108,8 @@ negated                                                                ← 無�
 - `_eligible_protectors(game, item, ctx)` 回傳(持有者, 魔物)。一般是受方自己的其他魔物;傷害原因是對手的攻擊、對象是自己魔書時,另加 `protect_with_opponent` 持續效果指定、仍在場的對手魔物(P-027)。
 - 建立保護決策只有 `_protect_choice` 一處(傷害流程與受傷順序決策共用)。選項的 `player` 是保護者的持有者;`choose` 驗證時依選項找出持有者,傷害打在持有者的魔物上(負傷,已負傷入墓)。決策者仍是受方。
 - 不採用「把對手的魔物暫時視為自己的魔物」:會牽動場面計數與其他效果。
-- 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect_book`(E-013 的待命、S-035 類)使魔書傷害不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物不受受方的限制,只排除不能保護的魔物。
+- 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect_book`(E-013 的待命、S-035 類)使魔書傷害不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物不受受方的限制,只排除不能保護的魔物。`no_protect_slot`(P-043)排除選定的魔物(`protect_anyway` 優先)。
+- 強制保護(Ex-047):`_protect_choice` 先找受方生效中的 `forced_protector`,指定的魔物在候選內時建立只有它的保護決策並立即以 `_handle_choose` 解決(發 `protect_forced`),不等受方回應;不在候選內(傷害對象就是它、已離場、受限制)時照一般流程詢問。
 
 ## 場上魔物的欄位
 

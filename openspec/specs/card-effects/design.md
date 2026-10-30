@@ -176,6 +176,11 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 擲幣次數:`Coin(count=<計數規格>)`,E-046 用 `OwnMamodoAndPartnerCount`;0 枚時不擲,以空結果分支。
 - 戰術附加效果:`SpellRider.on_counter`(【反擊】防方獲勝時取代預設的反擊傷害,S-109 擲幣;預設傷害為 `engine.counter_book_damage`)與 `on_protected`(此戰術攻擊的傷害被保護後,S-112;`_handle_choose` 在保護時標記 `ctx["protected"]`)。`AddSpellSelfBonus` 依 `on_declare` 的攻防方加此戰術的魔力(S-108)。
 - 其他:`AddPower(side="opponent")`(Ex-002)、`ReduceOwnMp`(E-049)、`NamedMamodoPowerBonus`(PR-003,依 `mamodo_name` 含視為ガッシュ・ベル者)、`NextStartPhase(own=True)`(M-067)、`reg.end_phase`(PR-011)。
+- 限制:`spell_block` 多了 `card` / `defense` 參數。`NO_SPELLS` 帶 `target_slot` 時只封鎖那隻魔物(E-047);`NO_NAMED_SPELLS`(`data["mamodo"]`,依戰術卡的 `related_mamodo`,PR-009)、`NO_DEFENSE_SPELL_SLOT` / `NO_PROTECT_SLOT`(P-043,`target_slot`)分別屬於 spells / protect 分類;`NO_EVENTS`(P-042)不屬於可移除的分類。P-038 是常駐效果(`reg.opponent_event_lock`),在 `use_event` 檢查持有者的戰鬥階段,並列在作用中效果(`static` / `event_lock`)。
+- 強制保護:modifier `forced_protector`(Ex-047),在 `_protect_choice` 中該魔物在候選內就直接保護(事件 `protect_forced`)。
+- 戰術屬性:`PlayerState.spell_attrs_by_turn` 在宣告戰術(攻擊、防禦、非戰鬥)時記錄 `attr_name`,只保留本回合與前一回合;`OpponentUsedAttrLastTurn`(Ex-043)。
+- 攻擊時的待命:`ScheduleOnAttack` + `reg.on_attack(number, when=fn(game, standby, attack), effect=...)`(M-055 / P-043);`ScheduleBattleLock`(P-042);`MakeNextAttackUndefendable(own_slot=True)`(M-054)。見 game-engine design「戰鬥開始與待命表」。
+- 其他:`SetBothMp`(Ex-048,增加走 `gain_mp`、減少走 `reduce_opponent_mp`)、`UseAllInChosenOrder`(PR-005「すきな順で」,`requires` 沒有選項時省略該效果)、`InjureChosenOpponentMamodo`(M-059,不經傷害管線)、`DamageChosenOpponentMamodo`(Ex-024)、`GuardBookAndNamedMamodo` + modifier `named_immune`(PR-009,`_apply_damage_item` 在 `full_immune` 之後檢查)、`LockOpponentMamodoPerHeads`(Ex-044,依場上順序對應各枚硬幣)、`ScheduleEndPhaseDiscardSlot` / `ScheduleEndPhaseDiscardAllPartners`(Ex-021 / M-061)、`battle_phase_first`(PR-005,`GameState.battle_phase_acted`)。
 
 ## 行為決定與理由
 
@@ -810,3 +815,30 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 各卡日文效果文
 
 **確認狀態:** `Inferred`
+
+### 第 3 賽季限制、無效與傷害類卡片的解讀
+
+**相關規格:** `card-effects` › 需求「強制以指定魔物保護(Ex-047)」「前一回合使用過的戰術屬性(Ex-043)」「戰鬥階段一開始才能使用的事件卡(PR-005)」「MP 設為定值(Ex-048)」「依攻擊方式生效的下一場戰鬥待命」「攻擊時改變傷害對象或無效(M-055)」「自己的魔書與指定家族不受傷害(PR-009)」「結束階段棄掉卡片的待命」「ティオ的解讀」「キッド的解讀」「ノリトー・ハッサミー的解讀」「事件卡 E-047 / Ex-021 / Ex-024 的解讀」
+
+**決定:**
+- Ex-047:能保護就以選定的魔物保護,不詢問、優先於 P-027 的保護者;不妨礙防禦。
+- Ex-024:傷害可以保護。
+- P-042 / P-043:「『ダニー』の術や『魔物の効果』で攻撃」= 該家族魔物的戰術或魔物效果攻擊,以攻擊的魔物判斷(同 P-001)。P-043 的兩個效果在攻擊時(防禦宣告前)由使用者選。
+- M-055:對手場上沒有魔物時不詢問;正面時由攻擊方選要傷害的魔物。
+- Ex-048:每位玩家分開判斷,高於 4 的一方算「MPをへらす」效果、低於 4 的一方算「MPをふやす」效果,各自適用 MP 保護與紀錄。
+- PR-005:戰鬥階段中雙方都還沒有行動(pass 不算)時才能用;三個效果由使用者選順序,沒有負傷魔物時省略回復。
+- Ex-043:「使った」以宣告為準,之後被無效也算。
+- Ex-015:攻擊獲勝時才解決(防方獲勝時攻方的效果不解決)。
+- M-057 / Ex-031:在對手攻擊的戰鬥中使用,不要求這隻魔物在戰鬥中(同 M-043)。
+- PR-008:沒有負傷魔物時不能使用。
+- PR-009:限制與不受傷害分開管理,P-034 / E-036 只移除「術を使えない」。
+- Ex-044:依場上順序逐隻擲幣,不讓玩家選順序(結果不受順序影響)。
+- M-061:使用者自己受 M-049 / M-066 保護的搭檔照常棄掉(效果文只擋「相手の効果」)。
+
+**理由:** Ex-047 / Ex-024 有 atwiki 卡頁 FAQ;其餘依效果文字面與既有卡的處理(P-001、M-043、E-021、S-075),效果文沒有明說的部分在 explore 中提出推定。
+
+**依據:**
+- atwiki Ex-047 卡頁 FAQ Q1 / Q2、Ex-024 卡頁 FAQ Q1;各卡日文效果文
+- 2026-10-30 explore 與 propose 中專案負責人確認(P-042 / P-043、M-055、Ex-048「増減都算」、PR-005「すきな順」提供選擇並省略回復,其餘推定經同意)
+
+**確認狀態:** `Confirmed`

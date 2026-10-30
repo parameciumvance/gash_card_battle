@@ -146,6 +146,13 @@ BLOCK_OPPONENT_FAMILY: dict[str, tuple[str, str]] = {}
 # 此搭檔在場上時,戰鬥階段中持有者的 MP 不因對手的效果減少、不因自己的效果增加(P-020)
 BATTLE_PHASE_MP_LOCK: set[str] = set()
 
+# 此搭檔在場上時,持有者的戰鬥階段中對手不能使用事件卡(P-038)
+OPPONENT_EVENT_LOCK: set[str] = set()
+
+# 攻擊時解決的待命(「このターン中の次のバトルで、…攻撃したとき」M-055 / P-043):
+# 卡號 -> (效果樹 id, 條件 fn(game, standby, attack) -> bool);待命種類 on_attack,由 tree.ScheduleOnAttack 排定
+ON_ATTACK: dict[str, tuple[str, Callable]] = {}
+
 # 「術を使えない」時仍可使用由這隻魔物使用的戰術(M-038)
 IGNORE_SPELL_BLOCK: set[str] = set()
 
@@ -362,7 +369,7 @@ def spell_compat(number: str, *, check=None):
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
 PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
                   "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
-                  "BLOCK_OPPONENT_FAMILY")
+                  "BLOCK_OPPONENT_FAMILY", "OPPONENT_EVENT_LOCK")
 
 
 def has_passive(number: str | None) -> bool:
@@ -467,6 +474,19 @@ def block_opponent_family(number: str, *, family: str, event_name: str):
 def battle_phase_mp_lock(number: str):
     """戰鬥階段中持有者的 MP 不因對手的效果減少、不因自己的效果增加(P-020)。"""
     BATTLE_PHASE_MP_LOCK.add(number)
+
+
+def opponent_event_lock(number: str):
+    """此搭檔在場上時,持有者的戰鬥階段中對手不能使用事件卡(P-038)。"""
+    OPPONENT_EVENT_LOCK.add(number)
+
+
+def on_attack(number: str, *, effect, when: Callable):
+    """攻擊時解決的待命效果:下一場戰鬥開始時 when(game, standby, attack) 成立才在防禦宣告前執行 effect
+    (效果樹,可建立決策);不成立時待命隨該戰鬥結束而消失。"""
+    from . import tree
+    effect_id = tree.register_on_attack(number, effect)
+    ON_ATTACK[number] = (effect_id, when)
 
 
 def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_turn: int = 1):

@@ -2416,6 +2416,11 @@ function choiceLabel(opt, results) {
     case "s043_fuse": return t("choice.s043_fuse");
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
+    case "heal_all_injured": return t("choice.heal_all_injured");
+    case "restrict_both_effects_spells": return t("choice.restrict_both_effects_spells");
+    case "coin_redirect_damage": return t("choice.coin_redirect_damage");
+    case "opponent_no_defense_spell": return t("choice.opponent_no_defense_spell");
+    case "opponent_no_protect": return t("choice.opponent_no_protect");
     case "gain_mp_2": return t("choice.gain_mp_2");
     case "gain_mp_3": return t("choice.gain_mp_3");
     case "reduce_opponent_mp_3": return t("choice.reduce_opponent_mp_3");
@@ -3284,7 +3289,11 @@ function logLine(ev) {
       return ev.target_player !== undefined && ev.target_player !== ev.player
         ? t("log.protected_by_opponent", { player: pname(ev.target_player), owner: pname(ev.player), card: cname(ev.card) })
         : t("log.protected", { ...P, card: cname(ev.card) });
-    case "mamodo_injured": return t("log.mamodo_injured", { ...P, card: cname(ev.card) });
+    case "mamodo_injured":   // M-059:效果使其負傷(不是傷害)時寫出來源
+      return ev.source ? t("log.mamodo_injured_by", { ...P, card: cname(ev.card), source: cname(ev.source) })
+        : t("log.mamodo_injured", { ...P, card: cname(ev.card) });
+    case "protect_forced": return t("log.protect_forced", { ...P, card: cname(ev.card), source: cname(ev.source) });
+    case "attack_redirected": return t("log.attack_redirected", { card: cname(ev.card), source: cname(ev.source) });
     case "mamodo_discarded": return t("log.mamodo_discarded", { ...P, card: cname(ev.cards[ev.cards.length - 1]) });
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });
     case "card_discarded": return t("log.card_discarded", { ...P, card: cname(ev.card) });

@@ -1230,13 +1230,16 @@ class NegateAttack(Effect):
 @dataclass(frozen=True)
 class MakeNextAttackUndefendable(Effect):
     """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在由該家族的魔物攻擊時生效
-    (以使用戰術的魔物判定,指令戰術由該魔物使用時也適用)(P-001)。"""
+    (以使用戰術的魔物判定,指令戰術由該魔物使用時也適用)(P-001)。own_slot 時只在以這隻魔物的戰術攻擊時生效(M-054)。"""
     mamodo: str | None = None
+    own_slot: bool = False
 
     def run(self, rt, ctx, path):
         data = {"expires": "next_battle"}
         if self.mamodo:
             data["mamodo"] = self.mamodo
+        if self.own_slot:
+            data["slot_uid"] = ctx["self_slot"]
         schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
                          source=ctx["source"], owner=ctx["player"], data=data)
         return True
@@ -1671,6 +1674,7 @@ class LockChosenOpponentMamodo(Effect):
     """
     target: Ref = Ref("choice")
     flag: str = "mamodo_locked"
+    duration: str = DUR_TURN
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
@@ -1678,7 +1682,7 @@ class LockChosenOpponentMamodo(Effect):
         if slot is None:
             return True
         m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
-                            target_player=1 - player, flag=self.flag, duration=DUR_TURN)
+                            target_player=1 - player, flag=self.flag, duration=self.duration)
         m.target_slot = slot.uid
         return True
 
@@ -3006,6 +3010,340 @@ class DamageBonusIfAttackTotalAtLeast:
         return self.bonus if battle.data.get("attack_total", 0) >= self.threshold else 0
 
 
+# ---------------------------------------------------------------- 第 3 賽季:限制、無效、傷害與負傷
+
+class OpponentHealthyMamodo:
+    """對手場上健康的魔物(M-059)。選項值為 slot UID。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = 1 - ctx["player"]
+        return [slot_option(opp, s) for s in game.state.players[opp].slots if not s.injured]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
+        if slot is None or slot.injured:
+            raise IllegalCommand("choose.invalid", "須選擇對手場上健康的魔物")
+
+
+class OpponentMamodoCount:
+    """計數規格:對手場上魔物的數量(Ex-044 的擲幣次數)。"""
+
+    def value(self, game, ctx) -> int:
+        return len(game.state.players[1 - ctx["player"]].slots)
+
+
+@dataclass(frozen=True)
+class OpponentUsedAttrLastTurn:
+    """直前的回合(上一個回合)對手宣告過 attr 屬性的戰術(Ex-043)。"""
+    attr: str
+
+    def test(self, game, ctx) -> bool:
+        st = game.state
+        return self.attr in st.players[1 - ctx["player"]].spell_attrs_by_turn.get(st.turn_no - 1, set())
+
+
+@dataclass(frozen=True)
+class OpponentIsAttacking:
+    """目前的戰鬥中對手是攻方且攻擊沒有被無效;spell_only 時限以戰術攻擊(M-057 / Ex-031)。
+    不要求使用效果的魔物在戰鬥中(同 M-043)。簽名同 activated 的 condition。"""
+    spell_only: bool = False
+
+    def __call__(self, game, player, slot=None) -> bool:
+        b = game.state.battle
+        return (b is not None and b.attacker == 1 - player and not b.attack_negated
+                and (not self.spell_only or b.attack_spell is not None))
+
+
+def battle_phase_first(game, player) -> bool:
+    """自己的戰鬥階段中,雙方都還沒有任何行動(PR-005「自分のバトルフェイズの一番最初に使う」)。"""
+    st = game.state
+    return st.turn_player == player and st.battle is None and not st.battle_phase_acted
+
+
+@dataclass(frozen=True)
+class AttackWithOwnBookDamageSpell:
+    """攻擊時待命的條件:以使用效果的這隻魔物、「相手の魔本にダメージ」效果的戰術攻擊,且對手場上有魔物(M-055)。
+    簽名 fn(game, standby, attack)。"""
+
+    def __call__(self, game, sb, a) -> bool:
+        spell = a.started.get("spell")
+        return (a.is_spell and a.slot_uid == sb.data.get("slot_uid")
+                and "相手の魔本にダメージ" in game.db[spell].effect_ja
+                and bool(game.state.players[1 - sb.owner].slots))
+
+
+@dataclass(frozen=True)
+class AttackByFamilyWithTarget:
+    """攻擊時待命的條件:以 mamodo 家族魔物的戰術或魔物效果攻擊,且使用時選定的對手魔物仍在場(P-043)。
+    簽名 fn(game, standby, attack)。"""
+    mamodo: str
+
+    def __call__(self, game, sb, a) -> bool:
+        uid = sb.data.get("target")
+        return (a.family == self.mamodo
+                and game.state.slot_by_uid(1 - sb.owner, uid if isinstance(uid, int) else -1) is not None)
+
+
+def opponent_has_two_or_more_mamodo(game, player) -> bool:
+    """事件卡的使用條件:對手場上有 2 隻以上魔物(Ex-024)。"""
+    return len(game.state.players[1 - player].slots) >= 2
+
+
+@dataclass(frozen=True)
+class ForceProtectWith(Effect):
+    """本回合對手的魔書或魔物受傷害時,能保護就必須以 target 綁定的對手魔物保護(Ex-047)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="forced_protector", source=ctx["source"], owner=player,
+                     duration=DUR_TURN, target_player=1 - player, target_slot=ctx[self.target.name])
+        return True
+
+
+@dataclass(frozen=True)
+class LockOpponentMamodoPerHeads(Effect):
+    """對手場上的魔物依場上順序對應 ctx["results"] 的各枚硬幣,正面者被封鎖魔物效果與戰術(Ex-044)。"""
+    duration: str = DUR_UNTIL_END_NEXT_TURN
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slots = list(rt.game.state.players[1 - player].slots)
+        for slot, heads in zip(slots, ctx.get("results", [])):
+            if heads:
+                m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                                    target_player=1 - player, flag="mamodo_locked", duration=self.duration)
+                m.target_slot = slot.uid
+        return True
+
+
+@dataclass(frozen=True)
+class UseAllInChosenOrder(Effect):
+    """「次の効果のすべてを、すきな順で使う」(PR-005):由使用者逐一選下一個要使用的效果,最後一個自動使用。
+
+    entries 為 (value, label, requires, effect):requires 為選項規格時,沒有選項就省略該效果;effect 須同步完成。
+    """
+    entries: tuple = ()
+    prompt: str = "pick_effect"
+    bind: str = "used_effects"
+
+    def children(self):
+        return tuple(e[3] for e in self.entries)
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def _remaining(self, game, ctx) -> list[tuple]:
+        done = ctx.get(self.bind, [])
+        return [e for e in self.entries
+                if e[0] not in done and (e[2] is None or e[2].options(game, ctx))]
+
+    def _use(self, rt, ctx, path, value) -> None:
+        idx = next(i for i, e in enumerate(self.entries) if e[0] == value)
+        ctx[self.bind] = ctx.get(self.bind, []) + [value]
+        self.entries[idx][3].run(rt, ctx, path + (idx,))
+
+    def run(self, rt, ctx, path):
+        while True:
+            remaining = self._remaining(rt.game, ctx)
+            if not remaining:
+                return True
+            if len(remaining) == 1:
+                self._use(rt, ctx, path, remaining[0][0])
+                continue
+            options = [{"value": e[0], "label": e[1]} for e in remaining]
+            rt.game.state.pending = PendingChoice(
+                kind=self.prompt, player=ctx["player"], options=options, source=ctx["source"],
+                data={CHOICE_KEY: rt.cont(ctx, path)})
+            rt.game.emit(rt.batch, "choice_required", kind=self.prompt, player=ctx["player"], options=options)
+            return False
+
+    def resume(self, rt, ctx, value, path, floor):
+        from ..engine import IllegalCommand
+        if value not in [e[0] for e in self._remaining(rt.game, ctx)]:
+            raise IllegalCommand("choose.invalid", "無效的效果選擇")
+        self._use(rt, ctx, path, value)
+        if self.run(rt, ctx, path):
+            _ascend(rt, ctx, path, floor)
+
+
+@dataclass(frozen=True)
+class SetBothMp(Effect):
+    """雙方 MP 都設為 value(Ex-048)。依玩家 0、1 分別判斷:高於 value 的一方是「MPをへらす」效果
+    (對手的部分適用 MP 保護與「減少對手 MP」的紀錄),低於 value 的一方是「MPをふやす」效果
+    (使用者自己的部分在戰鬥階段中適用 P-020)。"""
+    value: int = 0
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        game, user = rt.game, ctx["player"]
+        for p in (0, 1):
+            diff = self.value - game.state.players[p].mp
+            if diff > 0:
+                gain_mp(game, rt.batch, p, diff, ctx["source"], by=user)
+            elif diff < 0 and p == user:
+                reduce_mp(game, rt.batch, p, -diff, ctx["source"])
+            elif diff < 0:
+                reduce_opponent_mp(game, rt.batch, user, -diff, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleBattleLock(Effect):
+    """[待命] 本回合下一場戰鬥以 mamodo 家族的戰術或魔物效果攻擊時,該場戰鬥中對手受 flags 的限制(P-042)。"""
+    mamodo: str = ""
+    flags: tuple = ()
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="battle_lock", source=ctx["source"], owner=ctx["player"],
+                         data={"expires": "next_battle", "mamodo": self.mamodo, "flags": list(self.flags)})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleOnAttack(Effect):
+    """[待命] 本回合下一場戰鬥攻擊時解決 reg.on_attack 登記的效果(M-055 / P-043);
+    記下使用效果的魔物與 target 綁定的對象。"""
+    target: str = ""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="on_attack", source=ctx["source"], owner=ctx["player"],
+                         data={"expires": "next_battle", "slot_uid": ctx.get("self_slot"),
+                               "target": ctx.get(self.target) if self.target else None})
+        return True
+
+
+@dataclass(frozen=True)
+class ContinueAttackDeclaration(Effect):
+    """攻擊時的待命效果結束:回到攻擊宣告的流程(下一個待命、宣告時效果)。由 tree.register_on_attack 加在樹尾。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import _attack_declare_continue
+        if rt.game.state.battle is not None:
+            _attack_declare_continue(rt.game, rt.batch)
+        return True
+
+
+@dataclass(frozen=True)
+class RedirectAttackTo(Effect):
+    """這次攻擊改為對 target 綁定的對手魔物造成傷害,不對魔書造成傷害(M-055)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is None:
+            return True
+        slot = rt.game.state.slot_by_uid(1 - ctx["player"], ctx[self.target.name])
+        if slot is None:
+            return True
+        battle.data["injure_instead"] = True
+        battle.data["injure_target"] = slot.uid
+        rt.game.emit(rt.batch, "attack_redirected", source=ctx["source"], player=ctx["player"],
+                     slot=slot.uid, card=slot.top)
+        return True
+
+
+@dataclass(frozen=True)
+class RestrictOpponentSlotThisBattle(Effect):
+    """本場戰鬥中以 flag 限制 target 綁定的對手魔物(P-043);對象已離場時沒有效果。"""
+    flag: str = ""
+    target: Ref = Ref("target")
+
+    def run(self, rt, ctx, path):
+        from ..state import DUR_BATTLE
+        player = ctx["player"]
+        uid = ctx.get(self.target.name)
+        if rt.game.state.slot_by_uid(1 - player, uid if isinstance(uid, int) else -1) is None:
+            return True
+        m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                            target_player=1 - player, flag=self.flag, duration=DUR_BATTLE)
+        m.target_slot = uid
+        return True
+
+
+@dataclass(frozen=True)
+class InjureChosenOpponentMamodo(Effect):
+    """使 target 綁定的對手健康魔物負傷;不是傷害,不經傷害管線(不能保護、不看不受傷害)(M-059)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(1 - player, ctx[self.target.name])
+        if slot is None or slot.injured:
+            return True
+        slot.injured = True
+        rt.game.emit(rt.batch, "mamodo_injured", player=1 - player, slot=slot.uid, card=slot.top,
+                     source=ctx["source"], reason="effect")
+        return True
+
+
+@dataclass(frozen=True)
+class DamageChosenOpponentMamodo(Effect):
+    """戰鬥外對 target 綁定的對手魔物造成 1 次傷害,走一般的保護流程(Ex-024)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        from ..engine import _start_damage
+        player = ctx["player"]
+        uid = ctx[self.target.name]
+        if rt.game.state.slot_by_uid(1 - player, uid) is None:
+            return True
+        _start_damage(rt.game, rt.batch, [{"kind": "slot", "player": 1 - player, "slot_uid": uid, "amount": 1}],
+                      {"cause": "effect", "source": ctx["source"], "source_player": player, "amount": 1})
+        return True
+
+
+@dataclass(frozen=True)
+class GuardBookAndNamedMamodo(Effect):
+    """自己的魔書與 mamodo(「」名稱完全比對)不受傷害,到 duration 為止(PR-009)。"""
+    mamodo: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="named_immune", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player, data={"mamodo": self.mamodo, "book": True})
+        return True
+
+
+@dataclass(frozen=True)
+class RestrictOwnNamedSpells(Effect):
+    """自己不能使用 mamodo 的戰術,到 duration 為止(PR-009;「術を使えない」)。"""
+    mamodo: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                            target_player=player, flag="no_named_spells", duration=self.duration)
+        m.data["mamodo"] = self.mamodo
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleEndPhaseDiscardSlot(Effect):
+    """[待命] 本回合結束階段棄掉自己 target 綁定的魔物(Ex-021);已離場時沒有效果。"""
+    target: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        schedule_standby(rt.game, rt.batch, kind="end_phase_discard", source=ctx["source"], owner=player,
+                         data={"slots": [[player, ctx[self.target.name]]], "count": 1})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleEndPhaseDiscardAllPartners(Effect):
+    """[待命] 本回合結束階段棄掉雙方場上全部的搭檔(M-061;對手受 M-049 / M-066 保護的除外)。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="end_phase_discard_partners", source=ctx["source"],
+                         owner=ctx["player"])
+        return True
+
+
 # ================================================================ 直譯器
 
 def node_at(root: Effect, path) -> Effect:
@@ -3102,6 +3440,11 @@ def register_spell_nonbattle(number: str, tree: Effect):
     def handler(game, batch, player):
         run_effect(game, batch, effect_id, {"player": player, "source": number})
     return handler
+
+
+def register_on_attack(number: str, tree: Effect) -> str:
+    """攻擊時解決的待命效果(reg.on_attack):樹尾接上 ContinueAttackDeclaration,回到攻擊宣告流程。"""
+    return _install(number, "on_attack", Sequence(steps=(tree, ContinueAttackDeclaration())))
 
 
 def register_slot_hook(number: str, hook: str, tree: Effect, legacy_taken: bool = False):

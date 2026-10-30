@@ -187,7 +187,6 @@ def test_product_rows_skip_reprints(builder):
     has_open = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => openCards().some((c) => c.sets.includes(k))))",
                                 SEASON_ROWS)
     assert rows == [r for r in has_open if r]                                  # 只列有開放卡片的產品
-    assert "mahon-file-2" not in sum(rows, [])                                 # M-059〜M-061 尚未開放
     captions = panel(builder, "product").locator(".filter-caption").all_text_contents()
     assert captions[0] == builder.evaluate("t('product.level-1')")
 
@@ -217,6 +216,20 @@ def test_product_rows_by_season_when_all_open(browser, server):
     for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "promo"):
         assert tile(page, "product", code).locator("img").count() == 1, code
         assert tile(page, "product", code).locator(".filter-caption").inner_text() == page.evaluate(f"t('product.{code}')")
+    context.close()
+    assert not errors
+
+
+def mahon_file_2_pending(route):
+    """測試替身:魔書卡本第二彈的卡(M-059〜M-061)都尚未開放。"""
+    route.fulfill(content_type="application/json", body=json.dumps({"cards": ["M-059", "M-060", "M-061"]}))
+
+
+def test_product_without_open_cards_hidden(browser, server):
+    context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", mahon_file_2_pending)])
+    menu(page, "product").click()
+    rows = product_rows(page)
+    assert "mahon-file-2" not in sum(rows, []) and "special-box" in sum(rows, [])
     context.close()
     assert not errors
 

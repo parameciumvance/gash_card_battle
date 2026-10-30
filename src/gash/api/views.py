@@ -254,6 +254,11 @@ def _effects_view(game: Game) -> list[dict]:
             event = next((n for n, c in game.db.items() if c.type == "event" and c.name_ja == spec[1]), None)
             out.append({"type": "static", "kind": "block_family", "source": s.partner, "owner": p,
                         "target_player": 1 - p, "target_slot": None, "mamodo": spec[0], "card": event})
+    for p, ps in enumerate(st.players):   # P-038:持有者的戰鬥階段中對手不能使用事件卡
+        for s in ps.slots:
+            if s.partner in reg.OPPONENT_EVENT_LOCK:
+                out.append({"type": "static", "kind": "event_lock", "source": s.partner, "owner": p,
+                            "target_player": 1 - p, "target_slot": None})
     return out
 
 

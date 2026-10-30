@@ -6,6 +6,8 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
+    GuardBookAndNamedMamodo, LockOpponentMamodoPerHeads, OpponentMamodoCount, OpponentUsedAttrLastTurn,
+    RestrictOwnNamedSpells, opponent_has_mamodo,
     AddAttackBonusPerHeads, AddSpellSelfBonus, CounterBookDamage, EndBattleWithoutCounter, TurnPagesForward, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
     AdjustDefenseDamage, All, Always, AttachPartnerFromDiscard, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
     Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableBookProtection,
@@ -495,4 +497,24 @@ reg.spell_rider("S-111", on_declare=Coin(
 reg.spell_rider("S-112", on_protected=TurnPagesForward(leaves=1, target="opponent"))
 
 reg.spell_rider("Ex-014", counter=True)
+# Ex-015:攻擊獲勝時(防方獲勝時攻方的效果不解決)
+reg.spell_rider("Ex-015", on_win=RestrictOpponent(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
 reg.spell_rider("Ex-016", counter=True)
+
+# Ex-043:對手上一個回合宣告過「雷」屬性的戰術(被無效也算)時,宣告時確定加成
+reg.spell_rider("Ex-043", on_declare=When(
+    OpponentUsedAttrLastTurn("雷"),
+    then=Sequence(steps=(AddSpellSelfBonus(amount=4000), IncreaseThisSpellDamage(amount=2))),
+))
+
+# Ex-044:對手的每隻魔物依場上順序各擲 1 枚(結果不受順序影響,不讓玩家選順序)
+reg.spell_nonbattle("Ex-044", when=opponent_has_mamodo, effect=Coin(
+    count=OpponentMamodoCount(), on=Always(),
+    then=LockOpponentMamodoPerHeads(duration=DUR_UNTIL_END_NEXT_TURN),
+))
+
+# PR-009:限制與不受傷害分開管理(P-034 / E-036 只移除「術を使えない」)
+reg.spell_nonbattle("PR-009", effect=Sequence(steps=(
+    RestrictOwnNamedSpells(mamodo="ガッシュ・ベル", duration=DUR_UNTIL_END_OWN_NEXT_TURN),
+    GuardBookAndNamedMamodo(mamodo="ガッシュ・ベル", duration=DUR_UNTIL_END_OWN_NEXT_TURN),
+)))
