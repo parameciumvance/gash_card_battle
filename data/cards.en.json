@@ -237,7 +237,7 @@
   "name": "Friends",
   "name_ja": "仲間",
   "attr": null,
-  "effect": "This effect can be used if you have 2 or more MAMODO in play. Make all your MAMODO “Healthy”."
+  "effect": "This effect can be used if you have 2 or more MAMODO in play. Choose all MAMODO in your play area and make them “Healthy”."
  },
  "E-041": {
   "name": "My Irritation Isn't Going Away!",
@@ -573,7 +573,7 @@
   "name": "Naomi",
   "name_ja": "ナオミちゃん",
   "attr": null,
-  "effect": "[STAY] Choose 1 of your opponent's MAMODO. During this turn, when your opponent's Spell Book or MAMODO would take damage, your opponent must “protect” with that MAMODO whenever possible."
+  "effect": "[STAY] Choose 1 of your opponent's MAMODO. During this turn, when your opponent's Spell Book or MAMODO would take damage, your opponent “protects” against that damage with that MAMODO whenever possible."
  },
  "Ex-048": {
   "name": "Mochinoki Amusement Park",
@@ -771,7 +771,7 @@
   "name": "Zatch Bell",
   "name_ja": "ガッシュ・ベル",
   "attr": "Going Out",
-  "effect": "Discard this card → Negate the Event card your opponent just used."
+  "effect": "Discard this card → Negate 1 Event card your opponent just used."
  },
  "M-033": {
   "name": "Brago",
@@ -1719,7 +1719,7 @@
   "name": "Grandsen",
   "name_ja": "グランセン",
   "attr": "Ground",
-  "effect": "When you use this SPELL, for each additional 2 cost you pay, this SPELL gets +2000 Power and +1 damage (up to 6 additional cost). Damage to your opponent's Spell Book."
+  "effect": "When you use this SPELL, for each additional 2 cost, you may give this SPELL +2000 Power and +1 damage (up to 6 additional cost). Damage to your opponent's Spell Book."
  },
  "S-068": {
   "name": "Grancrag",
@@ -1899,7 +1899,7 @@
   "name": "Ma Seshield",
   "name_ja": "マ・セシルド",
   "attr": null,
-  "effect": "When you use this SPELL, if you pay 2 additional cost, this SPELL gets +4000 Power. When you win the Power showdown, negate your opponent's attack."
+  "effect": "When you use this SPELL, if you pay 2 additional cost, you may give this SPELL +4000 Power. When you win the Power showdown, negate your opponent's attack."
  },
  "S-098": {
   "name": "Saifogeo",
