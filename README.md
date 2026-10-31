@@ -13,6 +13,7 @@
 
 ```bash
 pip install -e ".[dev]"
+python -m playwright install --with-deps chromium-headless-shell   # 瀏覽器測試用(開發容器建立時會自動執行)
 uvicorn gash.api.app:app --reload
 # 瀏覽器開 http://127.0.0.1:8000/
 ```
