@@ -6,13 +6,15 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
+    DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
+    TurnOwnPagesBackOncePerTurn,
     DamageChosenOpponentMamodo, ForceProtectWith, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
     battle_phase_first, opponent_has_two_or_more_mamodo,
     AddPower, AddPowerPerOwnMamodo, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
     Choose, Coin, CoinWithPaidReflip, DeployableMamodoInOwnBook, DeployMamodoFromBook,
     DiscardChosenMamodo, DiscardChosenPartner, DiscardedMamodoToReturn,
-    DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
+    DiscardFromOpponentBook, DiscardFromOpponentBookPayCost, DiscardOtherPartners, EffectOptions, GainMp, GainMpPerHeads,
     GainMpReducedByOpponent, HasOptions, HeadsAtLeast, HeadsCount, HealAllOwnMamodo, HealSlot,
     LockChosenOpponentMamodo, ModifyNamedSpellsThisTurn, NextStartPhase, OpponentBookCards, OpponentBookPagesAround, OpponentMamodo,
     OpponentPartneredMamodo, OrSkip, OwnEmptyBookPages, OwnHasPartner, OwnInjuredMamodo, OwnMamodo,
@@ -301,6 +303,33 @@ reg.event("E-043", effect=AsOpponent(then=When(
     ),
 )))
 
+# E-044:依一般放出的規則;搭檔有多隻可裝的魔物時由使用者選
+reg.event("E-044", when=HasOptions(PlayableOnOwnOpenPages()), effect=Choose(
+    PlayableOnOwnOpenPages(), bind="page", prompt="pick_own_open_page",
+    then=When(
+        OwnPageIsPartner(),
+        then=Choose(
+            SlotsForBookPartner(), bind="slot", prompt="pick_mamodo_for_partner",
+            then=AttachPartnerFromBookPage(),
+        ),
+        otherwise=DeployMamodoFromBook(),
+    ),
+))
+
+# E-045:對象是具有限制效果的卡(由實作推導,見 tree.py 的 restriction_kinds);不當使用條件(同 E-016),最後一頁除外
+reg.event("E-045", effect=Sequence(steps=(
+    RevealOpponentBook(),
+    When(
+        HasOptions(OpponentBookCards(None, exclude_last=True, restricting=True)),
+        then=Choose(
+            OpponentBookCards(None, exclude_last=True, restricting=True), bind="page",
+            prompt="pick_opponent_book_card", auto_single=False,
+            then=DiscardFromOpponentBook(),
+        ),
+        otherwise=AwaitBookReviewEnd(),
+    ),
+)))
+
 # E-046:擲幣次數為使用當下自己場上魔物與搭檔的數量;0 時不擲(沒有使用條件)
 reg.event("E-046", effect=Coin(
     count=OwnMamodoAndPartnerCount(), on=Always(),
@@ -326,11 +355,6 @@ reg.event("E-049", effect=Choose(
     ),
 ))
 
-reg.event("Ex-023", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
-    then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
-))
-
 # Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻
 reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
@@ -340,10 +364,39 @@ reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
     )),
 ))
 
+# Ex-022:自己的翻頁算「合計1回」的 1 次(同 E-039);已受限制時只翻對手
+reg.event("Ex-022", effect=Sequence(steps=(
+    TurnPagesForward(leaves=1, target="opponent"),
+    TurnOwnPageLimitedThenGainMp(leaves=1),
+)))
+
+reg.event("Ex-023", when=has_own_mamodo, effect=Choose(
+    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+    then=AddPower(amount=3000, duration=DUR_TURN, target=Ref("slot")),
+))
+
 # Ex-024:傷害,對手可以保護(atwiki 卡頁 FAQ)
 reg.event("Ex-024", when=opponent_has_two_or_more_mamodo, effect=Choose(
     OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
     then=DamageChosenOpponentMamodo(),
+))
+
+# Ex-045:已使用、仍在頁上的事件卡也算
+reg.event("Ex-045", effect=Sequence(steps=(
+    PeekOpponentOpenPages(),
+    When(OpponentOpenPagesHaveEvent(), then=TurnPagesForward(leaves=1, target="opponent")),
+)))
+
+# Ex-046「2枚出さなければならない」:能放 2 隻時才能使用;依序選,第 2 隻放出後重算;不列疊放的魔物
+reg.event("Ex-046", when=HasOptions(DeployableMamodoInOwnBook(no_stack=True, pair=True)), effect=Choose(
+    DeployableMamodoInOwnBook(no_stack=True, pair=True), bind="page", prompt="pick_mamodo_in_own_book",
+    then=Sequence(steps=(
+        PlayMamodoFromBook(),
+        Choose(
+            DeployableMamodoInOwnBook(no_stack=True), bind="second", prompt="pick_mamodo_in_own_book",
+            then=PlayMamodoFromBook(page=Ref("second")),
+        ),
+    )),
 ))
 
 # Ex-047:能保護就必須以選定的魔物保護,優先於 P-027;不妨礙防禦(atwiki 卡頁 FAQ)
@@ -361,6 +414,12 @@ reg.event("PR-005", when=battle_phase_first, effect=UseAllInChosenOrder(entries=
     ("mp", "gain_mp_2", None, GainMp(amount=2)),
     ("restrict", "restrict_both_effects_spells", None,
      RestrictBothPlayers(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_TURN)),
+)))
+
+# PR-007:這張事件卡移到棄牌區(該頁變空頁)後回翻;自己的回翻算「合計1回」的 1 次(同 P-018)
+reg.event("PR-007", effect=Sequence(steps=(
+    DiscardThisEventFromBook(),
+    TurnOwnPagesBackOncePerTurn(leaves=2),
 )))
 
 reg.event("PR-010", effect=ModifyNamedSpellsThisTurn(mamodo="ガッシュ・ベル", name="ザケル", cost=-1, power=2000))

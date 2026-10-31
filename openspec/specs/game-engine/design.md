@@ -100,6 +100,7 @@ negated                                                                ← 無�
 ## 魔物效果攻擊 / 防禦的使用次數與ジャマー
 
 - 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
+- 「1 つの效果」以卡號計(`used_abilities` 的鍵是 `zone:卡號`):官方規則書第 20 頁在「このカードを捨て札にする→」明寫「捨て札にしたあとに、新たに同じカードナンバーのカードを場に出したとしても、そのカードの効果を使うことはできません」;「使用を宣言する→」「MPを○へらす→」只寫「1つの効果は、1ターンに1回」,同樣以卡號計是推論,使用者 2026-10-31 確認三種一致。規則頁「效果」一節也寫明相同編號的卡算同一個效果。
 - 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。效果文明示次數時以 `reg.mamodo_attack(per_turn=)` 登記(M-068 為 2);第 2 次以後記為 `"…#2"`,`uses_this_turn` 計數,快照在用滿時才標示 `"turn"`。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
 - M-026 對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
 

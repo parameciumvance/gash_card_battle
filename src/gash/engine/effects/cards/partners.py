@@ -6,6 +6,7 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
+    AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage, SlotsForBookPartner,
     AttackByFamilyWithTarget, RestrictOpponentSlotThisBattle, ScheduleBattleLock, ScheduleOnAttack,
     All, AllowAttrSpellsThisTurn, Bound, EffectOptions, ReduceOpponentMp, TotalPowerWhenBattlingWith, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
     DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMp,
@@ -122,6 +123,16 @@ reg.activated("P-033", mode="discard", timing="nonbattle", condition=HasOptions(
 
 reg.activated("P-034", mode="discard", timing="nonbattle", effect=RemoveRestrictions(categories=("spells",)))
 reg.activated("P-035", mode="discard", timing="nonbattle", effect=ReduceOpponentMpByStartGain(multiplier=2))
+
+# P-036:使用條件以這張搭檔棄掉後的場面判斷(可再放出另一張「高嶺清麿」)
+reg.activated("P-036", mode="discard", timing="nonbattle",
+              condition=HasOptions(AttachablePartnerPagesInOwnBook(excluding_self=True)), effect=Choose(
+    AttachablePartnerPagesInOwnBook(), bind="page", prompt="pick_partner_in_own_book",
+    then=Choose(
+        SlotsForBookPartner(), bind="slot", prompt="pick_mamodo_for_partner",
+        then=AttachPartnerFromBookPage(),
+    ),
+))
 
 reg.opponent_event_lock("P-038")
 reg.action_discard("P-038", "partner")

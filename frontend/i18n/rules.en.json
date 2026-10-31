@@ -121,7 +121,7 @@
           "Discard this card →: discard this card, then use it. If another effect discards the card, you cannot use this effect; and if you play another card with the same number after discarding, it cannot be used again that turn.",
           "While this card is in play →: works for as long as the card is in play, takes no action, and triggers automatically at the given timing."
         ]},
-        {"p": "Each effect of the first three kinds can be used only once per turn. STANDBY effects take effect at the given timing; STAY effects last until the given time limit. Effects currently active can be checked with “Active effects” in the top bar."}
+        {"p": "Each effect of the first three kinds can be used only once per turn; cards with the same number count as the same effect (even if one is discarded and another put into play). STANDBY effects take effect at the given timing; STAY effects last until the given time limit. Effects currently active can be checked with “Active effects” in the top bar."}
       ]
     },
     {

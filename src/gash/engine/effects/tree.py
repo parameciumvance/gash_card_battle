@@ -14,7 +14,11 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from ..cards import PARTNER
-from ..state import DUR_TURN, DUR_UNTIL_END_NEXT_TURN, PendingChoice
+from ..state import (
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, MAMODO_LOCKED, NO_ATTACK, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT,
+    NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT_BOOK, NO_PROTECT_SLOT, NO_SPELLS,
+    ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
+)
 from . import registry as reg
 from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
@@ -632,19 +636,33 @@ def _partner_slots(game, player, card) -> list:
 @dataclass(frozen=True)
 class AttachablePartnerPagesInOwnBook:
     """自己魔書中(尚未離開的)搭檔卡頁,且場上有可裝備它的魔物(E-027);name 指定時只列該名稱(E-034)。
-    選項值為頁碼。"""
+    選項值為頁碼。excluding_self 時以 self_slot 的搭檔已棄掉的場面判斷(P-036 以費用支付後的場面判斷使用條件)。"""
     name: str = ""
+    excluding_self: bool = False
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import same_name_in_play
         player = ctx["player"]
         ps = game.state.players[player]
+        # 借用(E-010)時不棄掉搭檔,self_slot 不是使用者的魔物:照一般場面判斷
+        self_slot = game.state.slot_by_uid(player, ctx.get("self_slot", -1)) if self.excluding_self else None
+        if self_slot is not None and self_slot.partner is None:
+            self_slot = None
         out = []
         for p in range(1, 33):
             if p in ps.consumed_pages:
                 continue
             card = game.db[ps.card_at(p)]
-            if card.type == PARTNER and _partner_slots(game, player, card) and (not self.name
-                                                                              or card.name_ja == self.name):
+            if card.type != PARTNER or (self.name and card.name_ja != self.name):
+                continue
+            if self_slot is None:
+                if _partner_slots(game, player, card):
+                    out.append(page_option(player, p, card.number))
+                continue
+            leaving = game.db[self_slot.partner]
+            slots = _partner_slots(game, player, card) + (
+                [self_slot] if family(game, self_slot) == card.related_mamodo else [])
+            if slots and (not same_name_in_play(game, player, card) or card.name_ja == leaving.name_ja):
                 out.append(page_option(player, p, card.number))
         return out
 
@@ -781,10 +799,23 @@ class DeployableMamodoInOwnBook:
         return out
 
     name: str = ""   # 指定時只列名稱相同的魔物(E-034「ティオ」)
+    no_stack: bool = False   # 不列疊放的魔物(Ex-046)
+    pair: bool = False       # 只列放出後仍有第 2 張可放的卡(Ex-046 的第 1 張)
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import MAX_FIELD_MAMODO
         targets = self._targets(game, ctx["player"])
-        return [t for t in targets if game.db[t["card"]].name_ja == self.name] if self.name else targets
+        if self.name:
+            targets = [t for t in targets if game.db[t["card"]].name_ja == self.name]
+        if self.no_stack:
+            targets = [t for t in targets if t["card"] not in reg.STACK_ON]
+        if self.pair:
+            if len(game.state.players[ctx["player"]].slots) + 2 > MAX_FIELD_MAMODO:
+                return []
+            names = {t["value"]: game.db[t["card"]].name_ja for t in targets}
+            targets = [t for t in targets
+                       if any(o["value"] != t["value"] and names[o["value"]] != names[t["value"]] for o in targets)]
+        return targets
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -794,9 +825,11 @@ class DeployableMamodoInOwnBook:
 
 @dataclass(frozen=True)
 class OpponentBookCards:
-    """對手魔書中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 戰術 / E-017 事件)。"""
-    card_type: str
+    """對手魔書中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 戰術 / E-017 事件)。
+    card_type 為 None 時不限類型;restricting 時只列具有限制效果的卡(E-045)。"""
+    card_type: str | None
     exclude_last: bool = False
+    restricting: bool = False
 
     def options(self, game, ctx) -> list[dict]:
         opp = game.state.players[1 - ctx["player"]]
@@ -804,8 +837,12 @@ class OpponentBookCards:
         for p in range(1, 33):
             if p in opp.consumed_pages or (self.exclude_last and p == 32):
                 continue
-            if game.db[opp.card_at(p)].type == self.card_type:
-                out.append(page_option(1 - ctx["player"], p, opp.card_at(p)))
+            number = opp.card_at(p)
+            if self.card_type is not None and game.db[number].type != self.card_type:
+                continue
+            if self.restricting and not restriction_kinds(number):
+                continue
+            out.append(page_option(1 - ctx["player"], p, number))
         return out
 
     def validate(self, game, ctx, value) -> None:
@@ -1295,6 +1332,7 @@ class AdjustDefenseDamage(Effect):
 @dataclass(frozen=True)
 class DisableBookProtection(Effect):
     """本場戰鬥中,防禦方不能保護魔書(S-035)。"""
+    restricts: ClassVar[tuple[str, ...]] = ("protect",)
 
     def run(self, rt, ctx, path):
         battle = rt.game.state.battle
@@ -1617,6 +1655,7 @@ class BorrowPartner(Effect):
 @dataclass(frozen=True)
 class ScheduleNoProtectBookNextBattle(Effect):
     """[待命] 本回合下一場戰鬥,對手不能保護魔書(E-013)。"""
+    restricts: ClassVar[tuple[str, ...]] = ("protect",)
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="no_protect_book",
@@ -2454,6 +2493,7 @@ class GainMpWhenOpponentUsesEvent(Effect):
 class RestrictOthersThanChosen(Effect):
     """在 AsOpponent 中使用:本回合 ctx["player"](被限制的一方)除了 target 綁定的魔物以外,
     其他魔物的效果與戰術不能使用,也不能保護(E-043 由對手選擇保留的魔物)。"""
+    restricts: ClassVar[tuple[str, ...]] = ("spells", "mamodo_effects", "protect")
     target: Ref = Ref("slot")
 
     def run(self, rt, ctx, path):
@@ -3105,6 +3145,7 @@ class ForceProtectWith(Effect):
 @dataclass(frozen=True)
 class LockOpponentMamodoPerHeads(Effect):
     """對手場上的魔物依場上順序對應 ctx["results"] 的各枚硬幣,正面者被封鎖魔物效果與戰術(Ex-044)。"""
+    restricts: ClassVar[tuple[str, ...]] = ("spells", "mamodo_effects")
     duration: str = DUR_UNTIL_END_NEXT_TURN
 
     def run(self, rt, ctx, path):
@@ -3311,6 +3352,7 @@ class GuardBookAndNamedMamodo(Effect):
 @dataclass(frozen=True)
 class RestrictOwnNamedSpells(Effect):
     """自己不能使用 mamodo 的戰術,到 duration 為止(PR-009;「術を使えない」)。"""
+    restricts: ClassVar[tuple[str, ...]] = ("spells",)
     mamodo: str = ""
     duration: str = ""
 
@@ -3342,6 +3384,168 @@ class ScheduleEndPhaseDiscardAllPartners(Effect):
         schedule_standby(rt.game, rt.batch, kind="end_phase_discard_partners", source=ctx["source"],
                          owner=ctx["player"])
         return True
+
+
+# ---------------------------------------------------------------- 第 3 賽季:從魔書放出、翻對手魔書、從魔書棄掉
+
+@dataclass(frozen=True)
+class PlayableOnOwnOpenPages:
+    """自己目前翻開的頁中可放出的魔物卡或搭檔卡(依一般放出的規則 `play_block`)(E-044)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..engine import play_block
+        player = ctx["player"]
+        ps = game.state.players[player]
+        return [page_option(player, p, ps.card_at(p)) for p in ps.open_pages()
+                if p not in ps.consumed_pages and play_block(game, player, ps.card_at(p)) is None]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇翻開頁中可放出的魔物或搭檔卡")
+
+
+@dataclass(frozen=True)
+class OwnPageIsPartner:
+    """自己魔書 page 綁定那頁是搭檔卡(E-044 依選到的卡分支)。"""
+    page: Ref = Ref("page")
+
+    def test(self, game, ctx) -> bool:
+        return game.db[game.state.players[ctx["player"]].card_at(ctx[self.page.name])].type == PARTNER
+
+
+@dataclass(frozen=True)
+class OwnMamodoToDiscardKeepingField:
+    """自己場上可棄掉的魔物,棄掉後場上仍要有魔物(M-062,atwiki 卡頁 FAQ Q2):只剩這 1 隻時,
+    魔書中要有可放出的魔物才列入。skip 時加「不棄掉」,只在之後能放出魔物時提供。選項值為 slot UID。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        player = ctx["player"]
+        slots = game.state.players[player].slots
+        can_deploy = bool(DeployableMamodoInOwnBook().options(game, ctx))
+        out = [slot_option(player, s) for s in slots if len(slots) >= 2 or _deployable_after_discard(game, ctx, s)]
+        if out and can_deploy:
+            out.append({"value": None, "label": "skip"})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
+
+
+def _deployable_after_discard(game, ctx, slot) -> bool:
+    """假設 slot 已棄掉,魔書中有可放出的魔物(M-062 棄掉唯一的魔物後必須放出)。"""
+    ps = game.state.players[ctx["player"]]
+    index = ps.slots.index(slot)
+    ps.slots.remove(slot)
+    try:
+        return bool(DeployableMamodoInOwnBook().options(game, ctx))
+    finally:
+        ps.slots.insert(index, slot)
+
+
+@dataclass(frozen=True)
+class DeployableAfterDiscard:
+    """M-062 的第二個效果:可放出的魔物;已棄掉魔物且場上仍有魔物時才可不放出。選項值為頁碼。"""
+    discarded: Ref = Ref("discard")
+
+    def options(self, game, ctx) -> list[dict]:
+        opts = DeployableMamodoInOwnBook().options(game, ctx)
+        if opts and ctx.get(self.discarded.name) is not None and game.state.players[ctx["player"]].slots:
+            opts = opts + [{"value": None, "label": "skip"}]
+        return opts
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔書中可放出的魔物卡")
+
+
+def can_discard_or_deploy(game, player, slot) -> bool:
+    """M-062 的使用條件:兩個效果至少能用一個。"""
+    ctx = {"player": player, "self_slot": slot.uid}
+    return bool(OwnMamodoToDiscardKeepingField().options(game, ctx)) or bool(
+        DeployableMamodoInOwnBook().options(game, ctx))
+
+
+@dataclass(frozen=True)
+class OpponentBookAtLastPage:
+    """對手的魔書翻到最後一頁(M-063)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        return game.state.players[1 - player].pos >= 32
+
+
+@dataclass(frozen=True)
+class OpponentOpenPagesHaveEvent:
+    """對手目前翻開的頁中有事件卡(含已使用、仍在頁上的事件卡)(Ex-045)。"""
+
+    def test(self, game, ctx) -> bool:
+        from ..cards import EVENT
+        opp = game.state.players[1 - ctx["player"]]
+        return any(p not in opp.consumed_pages and game.db[opp.card_at(p)].type == EVENT
+                   for p in opp.open_pages())
+
+
+@dataclass(frozen=True)
+class DiscardThisEventFromBook(Effect):
+    """把正在使用的事件卡(ctx["page"])從自己魔書移到棄牌區,該頁變成空頁(PR-007)。"""
+
+    def run(self, rt, ctx, path):
+        discard_from_book(rt.game, rt.batch, ctx["player"], ctx["page"], ctx["source"])
+        return True
+
+
+# ---------------------------------------------------------------- 具有限制效果的卡(E-045)
+# 由效果的實作推導,不手寫卡號清單:效果樹節點的限制旗標經 RESTRICTION_KINDS 換算,不用旗標的節點以類別屬性
+# `restricts` 標示,登記表(P-031 的家族禁止)另外標示。與 engine.RESTRICTION_CATEGORIES(移除與無視的分類)
+# 分開:依 atwiki E-045 卡頁 FAQ,「攻撃できない」(E-039)也算,但它不能被移除。
+# 守門測試(tests/test_restriction_kinds.py)以效果文的限制字樣核對推導結果。
+
+SPELLS, PROTECT, MAMODO_EFFECTS = "spells", "protect", "mamodo_effects"
+
+# 限制旗標 → 「術を使えない」「かばうことができない」「魔物の効果を使えない」的種類
+RESTRICTION_KINDS = {
+    NO_SPELLS: {SPELLS},
+    NO_ATTACK_SPELL: {SPELLS},           # P-014 / P-033「術で攻撃できない」(FAQ)
+    NO_ATTACK: {SPELLS},                 # E-039「攻撃できない」(FAQ)
+    NO_DEFENSE_SPELL_SLOT: {SPELLS},
+    NO_NAMED_SPELLS: {SPELLS},
+    NO_MAMODO_EFFECTS: {MAMODO_EFFECTS},
+    MAMODO_LOCKED: {SPELLS, MAMODO_EFFECTS},
+    NO_EFFECTS_AND_SPELLS: {SPELLS, MAMODO_EFFECTS},
+    ONLY_MAMODO: {SPELLS, MAMODO_EFFECTS, PROTECT},
+    PROTECT_ONLY: {PROTECT},
+    NO_PROTECT_SLOT: {PROTECT},
+    NO_PROTECT_BOOK: {PROTECT},
+}
+
+
+def _node_kinds(node) -> set[str]:
+    kinds = set(getattr(node, "restricts", ()))
+    flags = [getattr(node, "flag", None), *getattr(node, "flags", ())]
+    for flag in flags:
+        kinds |= RESTRICTION_KINDS.get(flag, set())
+    return kinds
+
+
+def _walk(node):
+    yield node
+    for child in node.children():
+        yield from _walk(child)
+
+
+def restriction_kinds(number: str) -> frozenset[str]:
+    """這張卡的效果具有的限制種類;空集合表示不具有限制效果。"""
+    kinds: set[str] = set()
+    for effect_id, root in EFFECTS.items():
+        if effect_id.split(":", 1)[0] == number:
+            for node in _walk(root):
+                kinds |= _node_kinds(node)
+    if number in reg.BLOCK_OPPONENT_FAMILY:
+        kinds.add(MAMODO_EFFECTS)          # P-031:對手的該家族不能使用「魔物の効果」
+    return frozenset(kinds)
 
 
 # ================================================================ 直譯器

@@ -181,6 +181,9 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 戰術屬性:`PlayerState.spell_attrs_by_turn` 在宣告戰術(攻擊、防禦、非戰鬥)時記錄 `attr_name`,只保留本回合與前一回合;`OpponentUsedAttrLastTurn`(Ex-043)。
 - 攻擊時的待命:`ScheduleOnAttack` + `reg.on_attack(number, when=fn(game, standby, attack), effect=...)`(M-055 / P-043);`ScheduleBattleLock`(P-042);`MakeNextAttackUndefendable(own_slot=True)`(M-054)。見 game-engine design「戰鬥開始與待命表」。
 - 其他:`SetBothMp`(Ex-048,增加走 `gain_mp`、減少走 `reduce_opponent_mp`)、`UseAllInChosenOrder`(PR-005「すきな順で」,`requires` 沒有選項時省略該效果)、`InjureChosenOpponentMamodo`(M-059,不經傷害管線)、`DamageChosenOpponentMamodo`(Ex-024)、`GuardBookAndNamedMamodo` + modifier `named_immune`(PR-009,`_apply_damage_item` 在 `full_immune` 之後檢查)、`LockOpponentMamodoPerHeads`(Ex-044,依場上順序對應各枚硬幣)、`ScheduleEndPhaseDiscardSlot` / `ScheduleEndPhaseDiscardAllPartners`(Ex-021 / M-061)、`battle_phase_first`(PR-005,`GameState.battle_phase_acted`)。
+- 具有限制效果的卡(E-045):`tree.restriction_kinds(number)` 走訪該卡所有掛鉤的效果樹,節點的限制旗標經 `RESTRICTION_KINDS` 換算為 spells / protect / mamodo_effects,不用旗標的節點以類別屬性 `restricts` 標示(`ScheduleNoProtectBookNextBattle`、`DisableBookProtection`、`RestrictOthersThanChosen`、`LockOpponentMamodoPerHeads`、`RestrictOwnNamedSpells`;`Standby` 的 `restricts` 欄位同名同義),P-031 的 `block_opponent_family` 另外算 mamodo_effects。與 `engine.RESTRICTION_CATEGORIES`(移除與無視)分開:`NO_ATTACK`(E-039)算 spells 但不能被移除。守門測試 `tests/test_restriction_kinds.py` 以效果文的限制字樣核對,新增卡片時沒有標示就會失敗;排除名單(解除限制的卡、卡片規則)寫在測試裡並附理由。
+- 從魔書放出:`PlayableOnOwnOpenPages`(E-044,依 `play_block`)+ `OwnPageIsPartner` 分支;`DeployableMamodoInOwnBook(no_stack=, pair=)`(Ex-046);`OwnMamodoToDiscardKeepingField` / `DeployableAfterDiscard` / `can_discard_or_deploy`(M-062);`AttachablePartnerPagesInOwnBook(excluding_self=True)`(P-036 以棄掉後的場面判斷使用條件)。
+- 其他:`OpponentBookCards(None, restricting=True)`(E-045)、`OpponentOpenPagesHaveEvent`(Ex-045)、`OpponentBookAtLastPage`(M-063)、`DiscardThisEventFromBook`(PR-007)。
 
 ## 行為決定與理由
 
@@ -842,3 +845,28 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 2026-10-30 explore 與 propose 中專案負責人確認(P-042 / P-043、M-055、Ex-048「増減都算」、PR-005「すきな順」提供選擇並省略回復,其餘推定經同意)
 
 **確認狀態:** `Confirmed`
+
+### 第 3 賽季從魔書放出、翻頁與棄卡類卡片的解讀
+
+**相關規格:** `card-effects` › 需求「具有限制效果的卡」「從魔書放出 2 隻魔物(Ex-046)」「棄掉與放出魔物(M-062)」「從魔書放出搭檔(P-036)」「事件卡 E-044 / E-045 / Ex-022 / Ex-045 / PR-007 的解讀」「檢視對手魔書的效果不以對象為使用條件」「ブラゴ的解讀」「ウマゴン的解讀」「キッド的解讀」「ノリトー・ハッサミー的解讀」
+
+**決定:**
+- E-045:「具有限制效果的卡」依 atwiki 卡頁 FAQ 的清單,判斷依據是限制的意思而不是字面:「攻撃できない」(E-039)、「術で攻撃できない」(P-014、P-033)、「術カードを使えない」(M-006)、「この術のダメージをかばうことができない」也算;解除或無視限制的卡(E-031、E-036、M-038、M-042)不算。FAQ 沒列的 Ex-044、P-031 同類,算;M-058「自分は、この魔物の術を使えない」、M-051「この魔物は『かばう』ことができない」是卡片規則,不是效果,不算。由實作推導,不手寫清單。
+- E-045 / Ex-003:最後一頁的卡不能選(game-engine「最後一頁的戰術」);E-045 不以對手魔書中有對象為使用條件(同 E-016),Ex-003 沒有可棄的卡時只檢視。
+- Ex-003 / M-063:沒有寫「自分のターン」,不限回合;戰鬥中不能使用。
+- Ex-046:能放 2 隻時才能使用;依序選,第 2 隻在第 1 隻放出後重算;疊放的魔物不列入。
+- M-062:先選是否棄掉、再選是否放出,至少用一個;棄掉後場上仍滿 3 隻時不能放出,解決後場上必須有魔物(棄掉唯一的魔物後必須放出,放不出時不能選棄掉)。
+- P-036:使用條件以棄掉這張搭檔後的場面判斷;E-010 借用時不棄掉,照一般場面判斷。
+- Ex-032:「ナゾナゾ博士」裝在這隻キッド(同 M-020 / M-021 / M-041)。
+- Ex-045:已使用、仍在頁上的事件卡也算「有事件卡」。
+- PR-007:事件卡從魔書移到棄牌區,該頁變成空頁;回翻算「合計1回」的 1 次(同 P-018)。
+- E-044:依一般放出的規則;搭檔有多隻可裝的魔物時由使用者選。(推定)
+- Ex-022:本回合已受「翻自己魔書」合計 1 次的限制時,只翻對手魔書。(推定)
+
+**理由:** E-045、M-062 有 atwiki 卡頁 FAQ;最後一頁的限制依 game-engine 既有規則;其餘依效果文字面與既有卡的處理(E-016、E-039、M-020、M-045、P-018)。E-045 的判斷改由實作推導,是因為手寫清單在新增卡片時容易漏(使用者 2026-10-31),推導加上效果文守門測試,新卡沒有標示就會被擋下。
+
+**依據:**
+- atwiki E-045 卡頁 FAQ Q1(可棄的卡的清單,2004-01-28)、M-062 卡頁 FAQ Q1 / Q2;各卡日文效果文
+- 2026-10-30 / 31 explore 與 propose 中專案負責人確認(E-045 的範圍與推導方式、M-058 是卡片規則、Ex-046 排除疊放、其餘推定經同意)
+
+**確認狀態:** `Confirmed`(E-044 搭檔選魔物、Ex-022 已受限制時只翻對手為 `Inferred`)

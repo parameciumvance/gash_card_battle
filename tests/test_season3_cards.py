@@ -31,11 +31,12 @@ def test_season3_cards_pending():
     # 效果已實作的卡依批次開放(card-effects「第 3 賽季卡片的開放」),其餘仍尚未開放
     from tests.test_season3_effects_1 import BATCH as BATCH1
     from tests.test_season3_effects_2 import BATCH as BATCH2
-    assert set(SEASON3) & pending_cards() == set(SEASON3) - set(BATCH1) - set(BATCH2)
+    from tests.test_season3_effects_3 import BATCH as BATCH3
+    assert set(SEASON3) & pending_cards() == set(SEASON3) - set(BATCH1) - set(BATCH2) - set(BATCH3)
 
 
 def test_room_with_ex_card_rejected():
     pages = list(load_deck(DATA_DIR / "decks/level1.json", card_db()).pages)
-    pages[20] = "Ex-003"
+    pages[20] = "Ex-025"
     res = TestClient(app).post("/api/rooms", json={"mode": "online", "deck": {"pages": pages}})
     assert res.status_code == 422 and res.json()["detail"]["code"] == "deck.card_pending"

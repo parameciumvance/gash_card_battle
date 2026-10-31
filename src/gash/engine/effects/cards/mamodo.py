@@ -3,6 +3,8 @@
 from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS
 from .. import registry as reg
 from ..tree import (
+    DeployableAfterDiscard, DeployableMamodoInOwnBook, DiscardChosenMamodo, OpponentBookAtLastPage,
+    OwnMamodoToDiscardKeepingField, PlayMamodoFromBook, can_discard_or_deploy,
     AdjustDefenseDamage, AttackWithOwnBookDamageSpell, EffectOptions, HealSlot, InjureChosenOpponentMamodo,
     MakeNextAttackUndefendable, OpponentHealthyMamodo, OpponentIsAttacking, OrSkip, OwnInjuredMamodo,
     RedirectAttackTo, ScheduleEndPhaseDiscardAllPartners, ScheduleOnAttack,
@@ -257,8 +259,35 @@ reg.activated("M-059", mode="discard", timing="nonbattle", condition=HasOptions(
     then=InjureChosenOpponentMamodo(),
 ))
 
+reg.activated("M-060", mode="discard", timing="nonbattle", own_turn=True,
+              effect=TurnPagesForward(leaves=1, target="opponent"))
+
 # M-061:「このターンのエンドフェイズに」;對手受 M-049 / M-066 保護的搭檔不棄(自己的照棄)
 reg.activated("M-061", mode="discard", timing="nonbattle", effect=ScheduleEndPhaseDiscardAllPartners())
+
+# M-062「片方または両方を、この順で」:先選是否棄掉、再選是否放出,至少用一個;
+# atwiki 卡頁 FAQ:棄掉後場上滿 3 隻不能放出,解決後場上必須有魔物(棄掉唯一的魔物後必須放出)
+reg.activated("M-062", mode="mp", mp_cost=2, timing="nonbattle", own_turn=True, condition=can_discard_or_deploy,
+              effect=Sequence(steps=(
+    Choose(
+        OwnMamodoToDiscardKeepingField(), bind="discard", prompt="pick_own_mamodo",
+        then=When(
+            Bound("discard", None),
+            otherwise=DiscardChosenMamodo(target=Ref("discard")),
+        ),
+    ),
+    Choose(
+        DeployableAfterDiscard(), bind="page", prompt="pick_mamodo_in_own_book",
+        then=When(
+            Bound("page", None),
+            otherwise=PlayMamodoFromBook(),
+        ),
+    ),
+)))
+
+# M-063:沒有寫「自分のターン」,不限回合
+reg.activated("M-063", mode="declare", timing="nonbattle", condition=OpponentBookAtLastPage(),
+              effect=TurnPagesForward(leaves=1, target="opponent"))
 
 # M-064:棄掉自己為費用後選自己的魔物;「このゲーム中」= 該魔物離場前一直有效
 reg.activated("M-064", mode="discard", timing="nonbattle", per_game=True, condition=HasOptions(OwnOtherMamodo()),
@@ -283,12 +312,28 @@ reg.activated("Ex-002", mode="mp", mp_cost=2, timing="nonbattle", condition=HasO
     then=AddPower(amount=-2000, duration=DUR_TURN, target=Ref("slot"), side="opponent"),
 ))
 
+# Ex-003:沒有寫「自分のターン」,不限回合;最後一頁除外,沒有可棄的卡時只檢視
+reg.activated("Ex-003", mode="declare", timing="nonbattle", per_game=True, effect=Sequence(steps=(
+    PeekOpponentOpenPages(),
+    Choose(
+        OpponentOpenPageCards(), bind="page", prompt="pick_opponent_book_card",
+        then=DiscardFromOpponentBook(),
+    ),
+)))
+
 # Ex-027「そうしたなら」:實際減少的量才增加(對手 MP 0 或被 P-021 擋下時不增加)
 reg.activated("Ex-027", mode="declare", timing="nonbattle", own_turn=True, effect=StealOpponentMp(amount=1))
 
 # Ex-031:在對手以戰術攻擊的戰鬥中使用;魔物效果攻擊不適用
 reg.activated("Ex-031", mode="mp", mp_cost=1, timing="battle", condition=OpponentIsAttacking(spell_only=True),
               effect=AdjustDefenseDamage(amount=-1))
+
+# Ex-032:裝在這隻キッド(同 M-020 / M-021 / M-041)
+reg.activated("Ex-032", mode="mp", mp_cost=2, timing="nonbattle",
+              condition=All(SelfHasNoPartner(), HasOptions(OwnBookPartnerNamed("ナゾナゾ博士"))), effect=Choose(
+    OwnBookPartnerNamed("ナゾナゾ博士"), bind="page", prompt="pick_partner_in_own_book",
+    then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
+))
 
 reg.activated("PR-002", mode="mp", mp_cost=3, timing="nonbattle",
               effect=AddPower(amount=2000, duration=DUR_TURN, target=Ref("self_slot")))
