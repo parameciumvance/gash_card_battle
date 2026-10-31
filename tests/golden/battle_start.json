@@ -17,7 +17,9 @@
     ],
     "injure_instead": true,
     "injure_target": 2,
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -64,7 +66,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    },
    {
@@ -101,7 +103,9 @@
     "attack_fixed_damage": 2,
     "attack_fixed_power": 5000,
     "attack_fixed_source": "M-027",
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -140,7 +144,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    }
   ],
@@ -186,7 +190,9 @@
     ],
     "injure_instead": true,
     "injure_target": 2,
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -233,7 +239,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    },
    {
@@ -318,7 +324,9 @@
     ],
     "injure_instead": true,
     "injure_target": 2,
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -380,7 +388,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    },
    {
@@ -419,7 +427,9 @@
     ],
     "injure_instead": true,
     "injure_target": 2,
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -476,7 +486,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    },
    {
@@ -519,7 +529,9 @@
     ],
     "injure_instead": true,
     "injure_target": 2,
-    "no_protect_book": true
+    "no_protect": [
+     1
+    ]
    },
    "defense_declared": false,
    "defense_negated": false,
@@ -561,7 +573,7 @@
    },
    {
     "card": "E-013",
-    "kind": "no_protect_book",
+    "kind": "no_protect",
     "type": "standby_resolved"
    },
    {

@@ -97,7 +97,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 ### 傷害加值:`own_damage_bonus` 與 `damage_delta`
 
-- `damage_delta` 只加在指定的攻擊:P-003 以攻擊的魔物(`target_slot`)限定;M-005 帶 `data["mamodo"]`,加在該名稱的戰術(`engine.attack_spell_names`)或這隻魔物的魔物效果攻擊。
+- `damage_delta` 只加在指定的攻擊:P-003 以攻擊的魔物(`target_slot`)限定;M-005 帶 `data["mamodo"]`,加在該名稱的戰術(`engine.attack_spell_names`)或這隻魔物的魔物效果攻擊;防禦時加在該名稱的防禦戰術的【反擊】傷害(`engine._counter_damage_delta`,只算帶 `mamodo` 的)。
 - `own_damage_bonus`(M-033)是「自己使用的魔物效果與戰術」全部的傷害,引擎在攻擊傷害(`_attack_damage_amount`)與【反擊】傷害都加上;非戰鬥的傷害效果(第 4 批的 S-094)實作時也要加。
 - 戰術自身的「この術のダメージ+N」(S-082 / S-083)寫進本場戰鬥的 `attack_damage_delta`。
 - 「N ダメージの攻撃」(M-053 免疫、M-043 無效)一律以 `_attack_damage_amount` 的結果判定(含加成)。
@@ -108,7 +108,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 ### 以對手的魔物保護(P-027)
 
-持續效果 `protect_with_opponent`(本場戰鬥,目標為對手魔物槽)。`engine._eligible_protectors` 回傳(持有者, 魔物):傷害原因是對手的攻擊、對象是自己魔書時,加入此效果指定的對手魔物。保護規則的引擎面見 `game-engine` design。
+持續效果 `protect_with_opponent`(本場戰鬥,目標為對手魔物槽)。`engine._eligible_protectors` 回傳(持有者, 魔物):傷害原因是對手的攻擊、對象是自己魔書時,加入此效果指定的對手魔物;受方的「かばうことができない」限制與 E-031 同樣適用於它。保護規則的引擎面見 `game-engine` design。
 
 ### 本回合戰術相容(P-029)
 
@@ -116,10 +116,11 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 ### 限制的分類、無視與移除
 
-- 限制以 `restriction` 持續效果加旗標表示,分類在 `engine.RESTRICTION_CATEGORIES`(spells / mamodo_effects / protect);待命的分類在 `engine.STANDBY_CATEGORIES`(`no_protect_book`)或待命 `data["restricts"]`(`Standby(restricts=...)`,S-074)。新增限制旗標時要同時登記分類,無視與移除才會認得它。
+- 限制以 `restriction` 持續效果加旗標表示,分類在 `engine.RESTRICTION_CATEGORIES`(spells / mamodo_effects / protect);待命的分類在 `engine.STANDBY_CATEGORIES`(`no_protect`)或待命 `data["restricts"]`(`Standby(restricts=...)`,S-074)。新增限制旗標時要同時登記分類,無視與移除才會認得它。
 - 檢查集中在兩個函式:`spell_block(game, player, slot, attack=)`(「術を使えない」:`no_spells`、`no_effects_and_spells`、攻擊時的 `no_attack_spell`、指定魔物的 `mamodo_locked`、選定魔物以外的 `only_mamodo`;回傳既有的錯誤碼)與 `mamodo_effect_block(game, player, slot)`(「魔物の効果を使えない」)。戰鬥中宣告、非戰鬥戰術、費用顯示、魔物啟動效果、魔物效果攻擊、ジャマー、擲幣重擲都改用它們。
 - 無視:`reg.ignore_spell_block`(M-038:場上有 M-038 時,「M-038 的名稱の術」不受 `spell_block` 限制);`protect_anyway` 持續效果(M-042 / E-031);`reg.cannot_protect`(M-051)優先於一切。保護的檢查順序見 `game-engine` design「保護者」。
 - 移除:`engine.remove_restrictions(game, batch, player, categories, whose)`,移除持續效果與待命(整個效果),發出 `restrictions_removed`。S-035 類的戰鬥旗標與 M-051 的性質不是持續 / 待命效果,不會被移除。
+- 本場戰鬥不能保護:`battle.data["no_protect"]` 是被限制的玩家清單(`engine.forbid_protection`)。S-035 類(`DisableProtection`)限制防禦方;E-013 的待命(`no_protect`)套用時限制使用者的對手。魔書與魔物的傷害都擋,P-027 指定的對手魔物也一樣(`_eligible_protectors` 對它套用同一個 `can_protect`)。
 - 新時效 `DUR_UNTIL_END_OWN_NEXT_TURN`(S-075):建立後第二個回合的結束階段到期。S-075 以單一複合旗標 `no_effects_and_spells` 表示,不拆成兩個旗標,移除時才會整個效果一起消失。
 
 ### 宣告時的追加費用(S-067 / S-097)
@@ -400,6 +401,20 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - M-025 效果文
 
 **確認狀態:** `Inferred`
+
+### M-025 放回羅布諾斯是可選的
+
+**相關規格:** 情境「M-025 放回羅布諾斯可選擇不使用」
+
+**決定:** 放回羅布諾斯可以選擇不使用,之後照樣 MP +2。
+
+**理由:** 效果文寫「もどすことができる」,依 AGENTS.md 是可選。atwiki 卡頁的 FAQ 互相衝突:新規則的 FAQ 寫「可能な限りもどします」(能放回就要放回),舊規則的 FAQ 寫「必要ありません」(不必放回);依「以日文效果文為準」採用效果文。
+
+**依據:**
+- M-025 效果文、atwiki M-025 卡頁 FAQ(新規則與舊規則)
+- 2026-10-31 l12-effect-fixes explore 中專案負責人決定
+
+**確認狀態:** `Project Decision`
 
 ### M-026 完整還原
 
@@ -882,3 +897,26 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 2026-10-30 / 31 explore 與 propose 中專案負責人確認(E-045 的範圍與推導方式、M-058 是卡片規則、Ex-046 排除疊放、其餘推定經同意)
 
 **確認狀態:** `Confirmed`(E-044 搭檔選魔物、Ex-022 已受限制時只翻對手為 `Inferred`)
+
+### 第 1、2 彈依效果文修正的解讀
+
+**相關規格:** `card-effects` › 需求「自己攻擊 / 防禦的戰鬥中的魔力加成」「M-005 的傷害加值」「M-031 的傷害免疫範圍」「不能保護的範圍」「E-027 與不會被棄掉的搭檔」「S-040 的魔力」「S-057 改變的傷害」
+
+**決定:**
+- M-001 / M-017 / M-010:「自分が攻撃 / 防御するバトル中」是自己攻擊 / 防禦的戰鬥,這隻魔物不必參與;沒有參與時使用照常成立、加成不影響合計魔力。
+- M-005:「このバトル中」任何戰鬥都能使用;自己防禦時,這隻魔物名稱的戰術的【反擊】傷害也 +1。
+- M-031:【反擊】傷害以防禦方的合計魔力判斷;非戰鬥戰術造成的傷害沒有合計魔力,不適用。
+- 「かばうことができない」不限魔書:E-013 的戰鬥中使用者的對手、S-035 類的這個戰術的傷害(含經 S-057 / M-055 / P-022 打在魔物上),魔書與魔物都不能保護。以 P-027 指定的對手魔物保護也是「かばう」,同樣受限制;受方的 E-031 照樣可以無視。M-042(「この魔物で」)只對持有者自己的保護有效。
+- E-027:對手那一半中,M-049 / M-066 保護的搭檔不棄掉,結果留下 2 張以上也可以;對手仍從所有搭檔中選要保留的 1 張(推定)。自己那一半是自己的效果,照常只留 1 張。
+- S-040:防禦時也擲 3 次,魔力為正面數 ×2000。
+- S-057:只改變本來會造成傷害的戰術(沒有 `no_book_damage` 的攻擊戰術);沒有傷害的戰術不詢問對象、照原效果解決,待命在那一場戰鬥消耗。
+
+**理由:** 第 1、2 彈當初依英文資源實作,多了效果文沒有的條件(只限這隻魔物攻擊 / 防禦、只限攻擊、只限魔書)或漏掉效果文的範圍。依日文效果文與 atwiki 卡頁 FAQ 修正。P-027 原本不受受方的限制,沒有規則依據。
+
+**依據:**
+- 各卡日文效果文;atwiki M-031 卡頁 FAQ Q1(只擋術的傷害)、E-027 卡頁 FAQ Q1(受保護的搭檔不棄掉)、S-057 卡頁 FAQ A2(本来相手にダメージを与える術でなければ、ダメージは与えられません)
+- 2026-10-31 l12-effect-fixes explore 與 propose 中專案負責人決定(含 P-027 也受限制、S-035 類統一為 `no_protect`)
+
+**確認狀態:** `Project Decision`(E-027 選擇保留的方式為 `Inferred`)
+
+**待確認:** S-036 / S-101(同時傷害對手魔書與所有魔物)在 S-057 待命下怎麼改變,記在 `todo.md`,目前宣告時仍詢問對象、獲勝時照原效果解決。

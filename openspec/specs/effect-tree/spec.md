@@ -188,7 +188,7 @@ Scope:節點與直譯器的約束(副作用恰好一次、續體為純資料、�
 魔物 / 搭檔卡 SHALL 有下列效果樹入口:`reg.activated(number, mode=…, mp_cost=…, timing=…, per_game=…, condition=…, effect=<樹>)`(費用、時機、次數限制與使用條件照舊由引擎檢查)、`reg.on_play` / `reg.on_discard` / `reg.start_phase(number, effect=<樹>)`、`reg.trigger(number, event_type, effect=<樹>)`;這些入口的 `ctx` MUST 含該卡所在魔物的 UID `self_slot`,觸發器另含觸發事件 `event`。
 
 #### Scenario: 啟動型效果以效果樹註冊
-- **WHEN** M-001 以 `reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("attack"), effect=AddPower(…, target=Ref("self_slot")))` 註冊,玩家在攻擊的戰鬥中使用
+- **WHEN** M-001 以 `reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=OwnSideInBattle("attack"), effect=AddPower(…, target=Ref("self_slot")))` 註冊,玩家在攻擊的戰鬥中使用
 - **THEN** 引擎照舊檢查時機、MP、使用條件並扣費,效果樹以 `self_slot` 找到 M-001 所在魔物並加魔力;在防守的戰鬥中使用時以 `ability.condition` 拒絕
 
 #### Scenario: 啟動型效果註冊參數錯誤不留痕跡

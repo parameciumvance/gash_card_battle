@@ -849,10 +849,10 @@ def test_e036_removes_both_players_three_kinds():
     kept_partner = restrict(g, 0, NO_PARTNER_EFFECTS, source="E-008")
     kept_defense = restrict(g, 1, NO_DEFENSE, owner=0, source="S-073")
     from gash.engine.effects.primitives import schedule_standby
-    schedule_standby(g, [], kind="no_protect_book", source="E-013", owner=1)
+    schedule_standby(g, [], kind="no_protect", source="E-013", owner=1)
     use_event(g)
     assert [m for m in st.modifiers if m.kind == "restriction"] == [kept_partner, kept_defense]
-    assert not [sb for sb in st.standby if sb.kind == "no_protect_book"]
+    assert not [sb for sb in st.standby if sb.kind == "no_protect"]
 
 
 # ---------------------------------------------------------------- パピプリオ

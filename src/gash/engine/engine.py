@@ -19,7 +19,7 @@ from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
     NO_ATTACK, NO_DEFENSE_SPELL_SLOT, NO_EFFECTS_AND_SPELLS, NO_EVENTS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS,
-    NO_PARTNER_EFFECTS, NO_PROTECT_BOOK, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
+    NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
     place_slot,
 )
@@ -175,7 +175,7 @@ RESTRICTION_CATEGORIES = {
     NO_PROTECT_SLOT: {"protect"},
 }
 # 待命種類 → 分類(作用於待命擁有者的對手);待命也可在 data["restricts"] 自帶分類(S-074)
-STANDBY_CATEGORIES = {"no_protect_book": {"protect"}}
+STANDBY_CATEGORIES = {"no_protect": {"protect"}}
 
 
 def _restrictions(game: Game, player: int):
@@ -283,6 +283,19 @@ def attack_undefendable(game: Game, battle: BattleState) -> bool:
                and sb.data.get("slot_uid") == battle.attack_slot
                and _side_total(game, battle, "attack") >= sb.data.get("min_total", 0)
                for sb in game.state.standby)
+
+
+def forbid_protection(battle: BattleState, player: int) -> None:
+    """本場戰鬥中 player 不能保護魔書與魔物受到的傷害(E-013 / S-035 類「かばうことができない」)。"""
+    players = battle.data.setdefault("no_protect", [])
+    if player not in players:
+        players.append(player)
+
+
+def spell_deals_damage(number: str) -> bool:
+    """這張攻擊戰術本來會造成傷害(S-057:卡頁 FAQ A2);S-019 / S-020 這類獲勝時只發生效果的不算。"""
+    rider = reg.SPELL_RIDERS.get(number)
+    return not (rider and rider.no_book_damage)
 
 
 def _protect_anyway(game: Game, player: int, slot: MamodoSlot) -> bool:
@@ -1329,8 +1342,8 @@ def _apply_undefendable(game, battle, sb):
     battle.attack_undefendable = True
 
 
-def _apply_no_protect_book(game, battle, sb):
-    battle.data["no_protect_book"] = True
+def _apply_no_protect(game, battle, sb):
+    forbid_protection(battle, 1 - sb.owner)
 
 
 def _apply_injure_instead(game, battle, sb):
@@ -1364,10 +1377,11 @@ BATTLE_START_STANDBYS = (
      _apply_undefendable),
     # P-042:以「指定魔物の術」或該魔物的魔物效果攻擊時,本場戰鬥對手的限制
     ("battle_lock", lambda sb, a: a.by(sb.data.get("mamodo")), _apply_battle_lock),
-    # E-013:本場戰鬥不能保護魔書
-    ("no_protect_book", lambda sb, a: True, _apply_no_protect_book),
-    # S-057:下一張攻擊戰術獲勝改為負傷對手魔物
-    ("injure_instead", lambda sb, a: a.is_spell, _apply_injure_instead),
+    # E-013:本場戰鬥中,使用者的對手不能保護(魔書與魔物的傷害)
+    ("no_protect", lambda sb, a: True, _apply_no_protect),
+    # S-057:下一張本來會造成傷害的攻擊戰術,獲勝改為傷害對手 1 隻魔物(卡頁 FAQ A2:沒有傷害的戰術不改變)
+    ("injure_instead", lambda sb, a: a.is_spell and spell_deals_damage(a.battle["attack_spell"]),
+     _apply_injure_instead),
     # P-022:以「指定魔物の術」攻擊時,傷害改給指定的對手魔物
     ("redirect_damage", lambda sb, a: a.spell_of(sb.data.get("mamodo")),
      _apply_redirect_damage),
@@ -1797,6 +1811,7 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     att, att_items = side_breakdown(game, battle, "attack")
     deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
+    battle.data["defense_total"] = deff
     attacker_wins = (not battle.attack_negated) and att > deff
     a_slot = st.slot_by_uid(battle.attacker, battle.attack_slot)
     d_slot = st.slot_by_uid(battle.defender, battle.defense_slot) if _defended(battle) else None
@@ -1849,7 +1864,7 @@ def counter_book_damage(game: Game, batch: list[dict]) -> None:
     if d_rider and d_rider.counter_damage_from_attack:   # S-061:等於對手攻擊的傷害
         amount = _attack_damage_amount(game, battle)
     if amount > 0:
-        amount += own_damage_bonus(game, battle.defender)
+        amount += own_damage_bonus(game, battle.defender) + _counter_damage_delta(game, battle)
     if amount > 0:
         _start_damage(game, batch,
                       [{"kind": "book", "player": battle.attacker, "amount": amount}],
@@ -1857,6 +1872,15 @@ def counter_book_damage(game: Game, batch: list[dict]) -> None:
                        "source_player": battle.defender})
         return
     _end_battle(game, batch)
+
+
+def _counter_damage_delta(game: Game, battle: BattleState) -> int:
+    """防禦方「這隻魔物の術」的傷害加值(M-005):名稱在防禦戰術的「〇〇の術」判定中的 damage_delta。"""
+    st = game.state
+    names = spell_names(game, game.db[battle.defense_spell], st.slot_by_uid(battle.defender, battle.defense_slot))
+    return sum(m.amount for m in st.modifiers
+               if m.kind == "damage_delta" and m.target_player == battle.defender and m.active(st.turn_no)
+               and m.data.get("mamodo") in names)
 
 
 def attack_book_damage(game: Game, batch: list[dict]) -> None:
@@ -2133,10 +2157,10 @@ def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> lis
     st = game.state
     player = item["player"]
     battle = st.battle
-    # 「かばうことができない」:不能保護魔書(E-013 / S-035 類)、只能以選定魔物保護(P-026 / E-043);
-    # M-042 / E-031 的魔物照樣可保護;M-051(reg.CANNOT_PROTECT)一律不能保護
-    no_book = (item["kind"] == "book" and battle is not None and battle.data.get("no_protect_book")
-               and player == battle.defender)
+    # 「かばうことができない」:本場戰鬥不能保護(E-013 / S-035 類,魔書與魔物的傷害)、只能以選定魔物保護
+    # (P-026 / E-043);以 P-027 指定的對手魔物保護也一樣。M-042 / E-031 的魔物照樣可保護;
+    # M-051(reg.CANNOT_PROTECT)一律不能保護
+    forbidden = battle is not None and player in battle.data.get("no_protect", ())
     only = [m.target_slot for m in _restrictions(game, player) if m.flag in (PROTECT_ONLY, ONLY_MAMODO)]
     banned = {m.target_slot for m in _restrictions(game, player) if m.flag == NO_PROTECT_SLOT}   # P-043
 
@@ -2145,7 +2169,7 @@ def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> lis
             return False
         if _protect_anyway(game, player, s):
             return True
-        return not no_book and s.uid not in banned and all(s.uid == uid for uid in only)
+        return not forbidden and s.uid not in banned and all(s.uid == uid for uid in only)
 
     if item["kind"] == "book":
         out = [(player, s) for s in st.players[player].slots if can_protect(s)]
@@ -2154,8 +2178,7 @@ def _eligible_protectors(game: Game, item: dict, ctx: dict | None = None) -> lis
             for m in st.modifiers:
                 if m.kind == "protect_with_opponent" and m.owner == player and m.active(st.turn_no):
                     s = st.slot_by_uid(1 - player, m.target_slot)
-                    if (s is not None and s.top not in reg.CANNOT_PROTECT
-                            and all(s is not t for _, t in out)):
+                    if s is not None and can_protect(s) and all(s is not t for _, t in out):
                         out.append((1 - player, s))
         return out
     return [(player, s) for s in st.players[player].slots if s.uid != item.get("slot_uid") and can_protect(s)]

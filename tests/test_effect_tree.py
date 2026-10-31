@@ -484,27 +484,27 @@ def test_adjust_defense_damage_matches_old_event_shape():
     assert g.state.battle.data["defense_damage_delta"] == -2
 
 
-def test_disable_book_protection_matches_old_event_shape():
+def test_disable_protection_forbids_defender():
     g = game()
     start_battle_for_leaf_test(g)
-    batch = run(g, tree.DisableBookProtection())
+    batch = run(g, tree.DisableProtection())
     assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000"}]
-    assert g.state.battle.data["no_protect_book"] is True
+    assert g.state.battle.data["no_protect"] == [g.state.battle.defender]
 
 
-def test_add_attack_bonus_per_heads_scales_with_results():
+def test_add_spell_power_per_heads_scales_with_results():
     g = game()
     start_battle_for_leaf_test(g)
-    batch = run(g, tree.AddAttackBonusPerHeads(per_head=2000), results=[True, True, False])
+    batch = run(g, tree.AddSpellPowerPerHeads(per_head=2000), results=[True, True, False], side="attack")
     assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": 4000}]
     assert g.state.battle.data["attack_spell_power"] == [
         {"kind": "spell_bonus", "source": "T-000", "amount": 4000}]
 
 
-def test_add_attack_bonus_per_heads_all_tails_is_zero_but_recorded():
+def test_add_spell_power_per_heads_all_tails_is_zero_but_recorded():
     g = game()
     start_battle_for_leaf_test(g)
-    batch = run(g, tree.AddAttackBonusPerHeads(per_head=2000), results=[False, False])
+    batch = run(g, tree.AddSpellPowerPerHeads(per_head=2000), results=[False, False], side="defense")
     assert without_seq(batch) == [{"type": "effect_applied", "source": "T-000", "amount": 0}]
 
 
@@ -1235,14 +1235,15 @@ def test_value_hooks_register_specs_and_reject_duplicates():
     assert reg.DAMAGE_IMMUNITY["T-937"] == tree.Never() == reg.SPELL_COMPAT["T-937"]
 
 
-def test_self_in_battle_as_and_simple_slot_queries():
+def test_own_side_in_battle_and_simple_slot_queries():
     from gash.engine.state import BattleState
     g = game()
     s = slot0(g, 0)
-    assert not tree.SelfInBattleAs("attack")(g, 0, s)
+    assert not tree.OwnSideInBattle("attack")(g, 0, s)
     g.state.battle = BattleState(attacker=0, step="defense", attack_page=1, attack_spell="S-001",
-                                 attack_slot=s.uid)
-    assert tree.SelfInBattleAs("attack")(g, 0, s) and not tree.SelfInBattleAs("defense")(g, 0, s)
+                                 attack_slot=s.uid + 100)                 # 這隻魔物沒有參與也算
+    assert tree.OwnSideInBattle("attack")(g, 0, s) and not tree.OwnSideInBattle("defense")(g, 0, s)
+    assert tree.OwnSideInBattle("defense")(g, 1, slot0(g, 1))
     assert tree.OwnMamodoAtLeast(1)(g, 0, s) and not tree.OwnMamodoAtLeast(2)(g, 0, s)
     g.state.players[0].pos = 32
     assert tree.OwnBookAtLastPage()(g, 0, s) and not tree.Never()(g, 0, s)

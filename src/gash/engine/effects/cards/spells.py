@@ -8,9 +8,9 @@ from .. import registry as reg
 from ..tree import (
     GuardBookAndNamedMamodo, LockOpponentMamodoPerHeads, OpponentMamodoCount, OpponentUsedAttrLastTurn,
     RestrictOwnNamedSpells, opponent_has_mamodo,
-    AddAttackBonusPerHeads, AddSpellSelfBonus, CounterBookDamage, EndBattleWithoutCounter, TurnPagesForward, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
+    AddSpellPowerPerHeads, AddSpellSelfBonus, CounterBookDamage, EndBattleWithoutCounter, TurnPagesForward, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
     AdjustDefenseDamage, All, Always, AttachPartnerFromDiscard, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
-    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableBookProtection,
+    Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableProtection,
     DiscardChosenPartner, DiscardFromOpponentBook, DiscardOwnMamodoByNumber, EffectOptions,
     FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
     HeadsAtLeast, HealOwnFamily, HealSlot, IncreaseThisSpellDamage, InjureOpponentMamodoInstead,
@@ -105,7 +105,7 @@ reg.spell_rider("S-035", on_declare=When(
     SideIs("attack"),
     then=Coin(
         count=2, on=HeadsAtLeast(2),
-        then=DisableBookProtection(),
+        then=DisableProtection(),
     ),
 ))
 
@@ -126,12 +126,9 @@ reg.spell_rider("S-039", on_damage=Choose(
     then=DiscardChosenPartner(),
 ))
 
-reg.spell_rider("S-040", on_declare=When(
-    SideIs("attack"),
-    then=Coin(
-        count=3, on=Always(),
-        then=AddAttackBonusPerHeads(per_head=2000),
-    ),
+reg.spell_rider("S-040", on_declare=Coin(
+    count=3, on=Always(),
+    then=AddSpellPowerPerHeads(per_head=2000),
 ))
 
 reg.spell_nonbattle("S-041", effect=Coin(
@@ -210,7 +207,7 @@ reg.spell_rider("S-060", on_declare=When(
     SideIs("attack"),
     then=Coin(
         count=1, on=HeadsAtLeast(1),
-        then=DisableBookProtection(),
+        then=DisableProtection(),
     ),
 ))
 
@@ -321,7 +318,7 @@ reg.spell_rider("S-081", on_declare=When(
     SideIs("attack"),
     then=Coin(
         count=1, on=HeadsAtLeast(1),
-        then=DisableBookProtection(),
+        then=DisableProtection(),
     ),
 ))
 
@@ -491,7 +488,7 @@ reg.spell_rider("S-110", on_damage=RestrictOpponent(flag=NO_SPELLS, duration=DUR
 
 reg.spell_rider("S-111", on_declare=Coin(
     count=1, on=HeadsAtLeast(1),
-    then=DisableBookProtection(),
+    then=DisableProtection(),
 ))
 
 reg.spell_rider("S-112", on_protected=TurnPagesForward(leaves=1, target="opponent"))

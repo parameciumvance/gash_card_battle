@@ -19,17 +19,16 @@ from ..tree import (
     OpponentBookCards, OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
-    OwnSpellOrEffectAttacking,
-    OwnOtherMamodo, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway, ReduceOpponentMp,
-    Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
+    OwnOtherMamodo, OwnSideInBattle, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway,
+    ReduceOpponentMp, Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
     ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
-    SelfInBattleAs, SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies,
+    SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies,
     SwapBookPages, TurnPagesForward, When,
 )
 
 # activated 的 mode / mp_cost / timing / own_turn / per_game / condition 由引擎檢查,effect 只描述效果本身。
 
-reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("attack"),
+reg.activated("M-001", mode="mp", mp_cost=1, timing="battle", condition=OwnSideInBattle("attack"),
               effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
 
 reg.start_phase("M-002", effect=When(
@@ -40,7 +39,7 @@ reg.start_phase("M-002", effect=When(
 reg.static_power("M-003", value=SelfPowerBonus(amount=1000, when=SelfInjured()))
 reg.static_power("M-004", value=SelfPowerBonus(amount=1000, when=SelfHasPartner()))
 
-reg.activated("M-005", mode="mp", mp_cost=2, timing="battle", condition=OwnSpellOrEffectAttacking(),
+reg.activated("M-005", mode="mp", mp_cost=2, timing="battle",
               effect=IncreaseSelfDamage(amount=1, duration=DUR_BATTLE))
 
 reg.on_play("M-006", effect=RestrictOpponent(flag=NO_SPELLS, duration=DUR_TURN))
@@ -53,7 +52,7 @@ reg.activated("M-008", mode="declare", timing="nonbattle",
 reg.on_discard("M-009", effect=GainMp(amount=4))
 
 reg.stack_on("M-010", base=("M-009",))
-reg.activated("M-010", mode="mp", mp_cost=1, timing="battle", condition=SelfInBattleAs("defense"),
+reg.activated("M-010", mode="mp", mp_cost=1, timing="battle", condition=OwnSideInBattle("defense"),
               effect=AddPower(amount=1000, duration=DUR_BATTLE, target=Ref("self_slot")))
 
 # 對手魔書有沒有魔物是檢視後才知道的資訊,不當使用條件;沒有時檢視後不棄
@@ -89,7 +88,7 @@ reg.activated("M-016", mode="declare", timing="nonbattle", per_game=True,
     ),
 ))
 
-reg.activated("M-017", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
+reg.activated("M-017", mode="mp", mp_cost=2, timing="battle", condition=OwnSideInBattle("attack"),
               effect=AddPower(amount=2000, duration=DUR_BATTLE, target=Ref("self_slot")))
 
 reg.activated("M-018", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, effect=Sequence(steps=(

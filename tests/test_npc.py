@@ -222,15 +222,15 @@ def test_normal_acts_and_beats_dummy(selfplay):
 
 # ---------------------------------------------------------------- 一般難度的基本判斷
 
-def _attack_on(npc_player_pos, *, no_protect_book=False):
+def _attack_on(npc_player_pos, *, no_protect=False):
     """玩家 0 以 S-001(ガッシュ 4000 + 2000)攻擊 NPC(玩家 1);停在 NPC 的防禦宣告。"""
     g = mk(first=0)
     g.state.players[1].pos = npc_player_pos
     submit(g, {"type": "flip_pages", "player": 0, "count": 1})
     submit(g, {"type": "declare_attack", "player": 0, "page": 5})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    if no_protect_book:
-        g.state.battle.data["no_protect_book"] = True
+    if no_protect:
+        g.state.battle.data["no_protect"] = [1]
     assert g.state.battle.step == "defense" and awaited_player(g) == 1
     return g
 
@@ -263,7 +263,7 @@ def test_protects_with_opponent_mamodo_from_p027():
 
 
 def test_defends_when_no_defense_loses():
-    g = _attack_on(32, no_protect_book=True)                            # P32=S-005 費用 0,合計 10000
+    g = _attack_on(32, no_protect=True)                            # P32=S-005 費用 0,合計 10000
     choice = top_choice(g, 1)
     assert choice["type"] == "declare_defense" and choice["page"] == 32
     submit(g, choice)

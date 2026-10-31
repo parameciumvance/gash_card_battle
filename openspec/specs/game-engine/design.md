@@ -33,8 +33,8 @@
 | `spell_bonus`(M-008、P-007) | 戰術;`mamodo` 為 None 或是「mamodo の術」(`AttackStart.spell_of`);可選者須選擇使用 | 攻擊戰術魔力加值 |
 | `attack_undefendable`(S-019、S-026、P-001、M-054) | `mamodo` 為 None;或是「mamodo の術」(M-054 記這隻魔物的名稱) | 攻擊不可被防禦 |
 | `battle_lock`(P-042) | 「mamodo の術」或 mamodo 的魔物效果攻擊(`AttackStart.by`) | 本場戰鬥對手的限制(`flags`) |
-| `no_protect_book`(E-013) | 都適用 | 本場不能保護魔書 |
-| `injure_instead`(S-057) | 戰術 | 獲勝改為負傷對手魔物 |
+| `no_protect`(E-013) | 都適用 | 本場使用者的對手不能保護(魔書與魔物的傷害) |
+| `injure_instead`(S-057) | 本來會造成傷害的戰術(`engine.spell_deals_damage`) | 獲勝改為傷害對手魔物 |
 | `redirect_damage`(P-022) | 「mamodo の術」 | 傷害改給指定的對手魔物 |
 
 - 效果文寫「術」的待命只適用於戰術攻擊;魔物效果攻擊(M-027)不消耗它們,留到下一場戰鬥。
@@ -109,7 +109,7 @@ negated                                                                ← 無�
 - `_eligible_protectors(game, item, ctx)` 回傳(持有者, 魔物)。一般是受方自己的其他魔物;傷害原因是對手的攻擊、對象是自己魔書時,另加 `protect_with_opponent` 持續效果指定、仍在場的對手魔物(P-027)。
 - 建立保護決策只有 `_protect_choice` 一處(傷害流程與受傷順序決策共用)。選項的 `player` 是保護者的持有者;`choose` 驗證時依選項找出持有者,傷害打在持有者的魔物上(負傷,已負傷入墓)。決策者仍是受方。
 - 不採用「把對手的魔物暫時視為自己的魔物」:會牽動場面計數與其他效果。
-- 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect_book`(E-013 的待命、S-035 類)使魔書傷害不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物不受受方的限制,只排除不能保護的魔物。`no_protect_slot`(P-043)排除選定的魔物(`protect_anyway` 優先)。
+- 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect`(被限制的玩家清單;E-013 的待命、S-035 類)使魔書與魔物的傷害都不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物也是「かばう」,套用受方的同一套檢查(受方的 `protect_anyway` 對它有效;M-042 指定的是持有者自己的魔物,它被對手指定時不適用)。`no_protect_slot`(P-043)排除選定的魔物(`protect_anyway` 優先)。
 - 強制保護(Ex-047):`_protect_choice` 先找受方生效中的 `forced_protector`,指定的魔物在候選內時建立只有它的保護決策並立即以 `_handle_choose` 解決(發 `protect_forced`),不等受方回應;不在候選內(傷害對象就是它、已離場、受限制)時照一般流程詢問。
 
 ## 場上魔物的欄位

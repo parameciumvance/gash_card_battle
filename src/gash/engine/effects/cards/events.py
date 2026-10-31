@@ -23,7 +23,7 @@ from ..tree import (
     ReduceOwnMp, Ref,
     RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen, RestrictSelf,
     ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseDiscardExceptKept, ScheduleEndPhaseMp,
-    ScheduleEndPhaseTurnOpponent, ScheduleNoProtectBookNextBattle, Sequence, SwapOpponentBookPages,
+    ScheduleEndPhaseTurnOpponent, ScheduleNoProtectNextBattle, Sequence, SwapOpponentBookPages,
     TurnOwnPageLimitedThenGainMp, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
     ZeroBothPlayersMp,
     dealt_damage_this_turn, has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
@@ -92,7 +92,7 @@ reg.event("E-012", when=HasOptions(DeployableMamodoInOwnBook()), effect=Choose(
     then=DeployMamodoFromBook(),
 ))
 
-reg.event("E-013", effect=ScheduleNoProtectBookNextBattle())
+reg.event("E-013", effect=ScheduleNoProtectNextBattle())
 
 reg.event("E-014", effect=Sequence(steps=(
     TurnPagesForward(leaves=1, target="opponent"),

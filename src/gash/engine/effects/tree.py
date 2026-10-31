@@ -16,7 +16,7 @@ from typing import Any, ClassVar
 from ..cards import PARTNER
 from ..state import (
     DUR_TURN, DUR_UNTIL_END_NEXT_TURN, MAMODO_LOCKED, NO_ATTACK, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT,
-    NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT_BOOK, NO_PROTECT_SLOT, NO_SPELLS,
+    NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS,
     ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
 )
 from . import registry as reg
@@ -142,6 +142,7 @@ class AsOpponent(Effect):
 
     完成後外層的 ctx["player"] 仍是效果擁有者(同步完成時外層 ctx 本來就沒被換;
     非同步恢復時由 leave 換回)。子樹綁定的名稱(Choose 的 bind 等)會留在 ctx 中。
+    子樹內 ctx["as_opponent"] 為 True,供「相手の効果」的判斷(E-027 與 M-049)。
     """
     then: Effect = field(default_factory=Nothing)
 
@@ -151,14 +152,16 @@ class AsOpponent(Effect):
     def run(self, rt, ctx, path):
         inner = dict(ctx)
         inner["player"] = 1 - ctx["player"]
+        inner["as_opponent"] = True
         done = self.then.run(rt, inner, path + (0,))
         if done:
-            ctx.update({k: v for k, v in inner.items() if k != "player"})
+            ctx.update({k: v for k, v in inner.items() if k not in ("player", "as_opponent")})
         return done
 
     def leave(self, ctx):
         out = dict(ctx)
         out["player"] = 1 - ctx["player"]
+        out.pop("as_opponent", None)
         return out
 
 
@@ -1330,22 +1333,23 @@ class AdjustDefenseDamage(Effect):
 
 
 @dataclass(frozen=True)
-class DisableBookProtection(Effect):
-    """本場戰鬥中,防禦方不能保護魔書(S-035)。"""
+class DisableProtection(Effect):
+    """本場戰鬥中,防禦方不能保護這個戰術的傷害(打在魔書或經 S-057 等改打魔物都一樣)(S-035 類)。"""
     restricts: ClassVar[tuple[str, ...]] = ("protect",)
 
     def run(self, rt, ctx, path):
         battle = rt.game.state.battle
         if battle is None:
             return True
-        battle.data["no_protect_book"] = True
+        from ..engine import forbid_protection
+        forbid_protection(battle, battle.defender)
         rt.game.emit(rt.batch, "effect_applied", source=ctx["source"])
         return True
 
 
 @dataclass(frozen=True)
-class AddAttackBonusPerHeads(Effect):
-    """依 ctx["results"](Coin 擲出的結果)的正面數量,為本場戰鬥的攻擊魔力加值(S-040)。"""
+class AddSpellPowerPerHeads(Effect):
+    """依 ctx["results"](Coin 擲出的結果)的正面數量,為本場戰鬥中這個戰術(ctx["side"] 那一方)的魔力加值(S-040)。"""
     per_head: int = 0
 
     def run(self, rt, ctx, path):
@@ -1353,7 +1357,7 @@ class AddAttackBonusPerHeads(Effect):
         if battle is None:
             return True
         amount = sum(ctx["results"]) * self.per_head
-        add_spell_power(battle, "attack", ctx["source"], amount)
+        add_spell_power(battle, ctx["side"], ctx["source"], amount)
         rt.game.emit(rt.batch, "effect_applied", source=ctx["source"], amount=amount)
         return True
 
@@ -1653,12 +1657,12 @@ class BorrowPartner(Effect):
 
 
 @dataclass(frozen=True)
-class ScheduleNoProtectBookNextBattle(Effect):
-    """[待命] 本回合下一場戰鬥,對手不能保護魔書(E-013)。"""
+class ScheduleNoProtectNextBattle(Effect):
+    """[待命] 本回合下一場戰鬥,對手不能保護(魔書與魔物的傷害)(E-013)。"""
     restricts: ClassVar[tuple[str, ...]] = ("protect",)
 
     def run(self, rt, ctx, path):
-        schedule_standby(rt.game, rt.batch, kind="no_protect_book",
+        schedule_standby(rt.game, rt.batch, kind="no_protect",
                          source=ctx["source"], owner=ctx["player"])
         return True
 
@@ -1855,13 +1859,16 @@ class ReduceOpponentMpUnlessReducedLastTurn(Effect):
 
 @dataclass(frozen=True)
 class DiscardOtherPartners(Effect):
-    """自己場上的搭檔卡只保留 keep 綁定那隻魔物身上的,其餘依場上順序棄掉(E-027)。"""
+    """自己場上的搭檔卡只保留 keep 綁定那隻魔物身上的,其餘依場上順序棄掉(E-027)。在對手視角下(AsOpponent)
+    這是對手的效果:不會被對手的效果棄掉的搭檔(M-049 / M-066)不棄,結果留下 2 張以上也可以(卡頁 FAQ)。"""
     keep: Ref = Ref("keep")
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
         keep = ctx[self.keep.name]
         for s in list(rt.game.state.players[player].slots):
+            if ctx.get("as_opponent") and partner_discard_guarded(rt.game, player, s):
+                continue
             if s.partner and s.uid != keep:
                 discard_partner(rt.game, rt.batch, player, s, ctx["source"])
         return True
@@ -1884,8 +1891,8 @@ class AttachPartnerFromBookPage(Effect):
 
 @dataclass(frozen=True)
 class IncreaseSelfDamage(Effect):
-    """這隻魔物的魔物效果與戰術造成的傷害 +amount(M-005)。戰術依這隻魔物的名稱判定(data["mamodo"],
-    card-effects「『〇〇の術』的判定」),魔物效果只看這隻(target_slot)。"""
+    """本場戰鬥中這隻魔物的魔物效果與戰術造成的傷害 +amount(M-005),攻擊與【反擊】都算。戰術依這隻魔物的名稱
+    判定(data["mamodo"],card-effects「『〇〇の術』的判定」),魔物效果只看這隻(target_slot)。"""
     amount: int = 0
     duration: str = ""
 
@@ -2751,31 +2758,16 @@ class GainMpReducedByOpponent(Effect):
 # ---- 魔物 / 搭檔卡的查詢:啟動條件 fn(game, player, slot) -> bool、常駐魔力加成
 
 @dataclass(frozen=True)
-class SelfInBattleAs:
-    """這隻魔物正以 side("attack" / "defense")身分參與目前的戰鬥(M-001 / M-005 / M-010 / M-017)。"""
+class OwnSideInBattle:
+    """目前的戰鬥是自己攻擊(side="attack")/ 防禦(side="defense")的戰鬥(M-001 / M-010 / M-017
+    「自分が攻撃 / 防御するバトル中」);這隻魔物不必參與。"""
     side: str
 
     def __call__(self, game, player, slot) -> bool:
         b = game.state.battle
         if b is None:
             return False
-        if self.side == "attack":
-            return b.attacker == player and b.attack_slot == slot.uid
-        return b.defender == player and b.defense_slot == slot.uid
-
-
-@dataclass(frozen=True)
-class OwnSpellOrEffectAttacking:
-    """目前的戰鬥正以這隻魔物的戰術(名稱,card-effects「『〇〇の術』的判定」)或這隻魔物的魔物效果攻擊(M-005)。"""
-
-    def __call__(self, game, player, slot) -> bool:
-        from ..engine import attack_spell_names
-        b = game.state.battle
-        if b is None or b.attacker != player:
-            return False
-        if b.attack_spell is None:
-            return b.attack_slot == slot.uid
-        return family(game, slot) in attack_spell_names(game, b)
+        return (b.attacker if self.side == "attack" else b.defender) == player
 
 
 @dataclass(frozen=True)
@@ -3025,15 +3017,19 @@ class SpellUsesPerTurnWhileCopies:
 
 @dataclass(frozen=True)
 class ImmuneToSpellDamageAtMost:
-    """傷害免疫:不受合計魔力 total 以下的戰術造成的傷害(魔物效果攻擊不算術)(M-031)。
-    fn(game, player, slot, ctx) -> bool。"""
+    """傷害免疫:不受合計魔力 total 以下的戰術在戰鬥中造成的傷害(M-031):攻擊以攻擊方、【反擊】以防禦方的
+    合計魔力判斷。魔物效果攻擊不算術;非戰鬥戰術沒有合計魔力,不適用。fn(game, player, slot, ctx) -> bool。"""
     total: int
 
     def __call__(self, game, player, slot, ctx) -> bool:
         b = game.state.battle
-        if b is None or ctx.get("cause") != "battle_attack" or b.attack_spell is None:
+        if b is None:
             return False
-        return b.data.get("attack_total", 0) <= self.total
+        if ctx.get("cause") == "battle_attack" and b.attack_spell is not None:
+            return b.data.get("attack_total", 0) <= self.total
+        if ctx.get("cause") == "battle_counter":
+            return b.data.get("defense_total", 0) <= self.total
+        return False
 
 
 @dataclass(frozen=True)
@@ -3556,7 +3552,7 @@ RESTRICTION_KINDS = {
     ONLY_MAMODO: {SPELLS, MAMODO_EFFECTS, PROTECT},
     PROTECT_ONLY: {PROTECT},
     NO_PROTECT_SLOT: {PROTECT},
-    NO_PROTECT_BOOK: {PROTECT},
+    NO_PROTECT: {PROTECT},
 }
 
 

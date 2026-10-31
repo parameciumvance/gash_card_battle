@@ -24,7 +24,7 @@ STANDBYS = {
                               "optional": True}),
     "P-001": ("attack_undefendable", {"expires": "next_battle", "mamodo": "ガッシュ・ベル"}),
     "S-026": ("attack_undefendable", {"expires": "next_battle"}),
-    "E-013": ("no_protect_book", {}),
+    "E-013": ("no_protect", {}),
     "S-057": ("injure_instead", {"expires": "next_battle"}),
 }
 ALL = list(STANDBYS)
@@ -83,7 +83,7 @@ SCENARIOS = {
     "spell_sugina_optional_not_chosen": lambda: run("M-008", pages=("S-029", "S-014"), discount=False),
     # スギナ攻擊並選擇使用減費:M-008 的可選待命消耗
     "spell_sugina_optional_chosen": lambda: run("M-008", pages=("S-029", "S-014"), discount=True),
-    # 魔物效果攻擊(M-027):只消耗不限定魔物的 attack_undefendable 與 no_protect_book
+    # 魔物效果攻擊(M-027):只消耗不限定魔物的 attack_undefendable 與 no_protect
     "mamodo_attack": lambda: run("M-028", extra_slots=("M-027",), mamodo_attack=True),
     # P-015:自任意頁使用ビライツ(第 20 頁)
     "any_page": lambda: run("M-024", page=20, any_page="ビライツ",
@@ -119,7 +119,7 @@ def test_golden_covers_expected_consumption():
     assert ("spell_bonus", "M-008") not in left["spell_sugina_optional_chosen"]
     mamodo = left["mamodo_attack"]
     assert {("spell_bonus", "TEST"), ("injure_instead", "S-057"), ("attack_undefendable", "P-001")} <= mamodo
-    assert ("attack_undefendable", "S-026") not in mamodo and ("no_protect_book", "E-013") not in mamodo
+    assert ("attack_undefendable", "S-026") not in mamodo and ("no_protect", "E-013") not in mamodo
     assert expected["mamodo_attack"]["battle"]["attack_undefendable"] is True
     assert expected["spell_gash"]["battle"]["data"].get("injure_instead") is True
     assert ("spell_any_page", "P-015") not in left["any_page"]
