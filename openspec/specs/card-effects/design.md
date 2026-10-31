@@ -10,10 +10,14 @@
 
 E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己的回合使用,而一回合中的戰鬥都由回合玩家攻擊(`game-engine` › 需求「戰鬥開始確認(バトル・イン)」 › 情境「只有回合玩家能宣告攻擊」),所以「自己攻擊的下一場」就是「下一場」。
 
-### 「〇〇の術」的費用與加成
+### 「〇〇の術」的判定與費用、加成
 
-- `spell_cost(game, player, page, card, slot=)` 依使用的魔物計算;未指定魔物時取可用魔物中最低的費用,供畫面顯示與宣告前的 MP 檢查。
-- 加成待命(`spell_bonus`)只在使用魔物相符時消耗。
+- 「X の術」一律以 `primitives.spell_names(game, card, slot)` 判定:回傳戰術卡的對應魔物(指令戰術沒有)與使用魔物 slot 的名稱(`family`,含 `reg.TREATED_AS`);X 在其中就算。slot 為 None 時只看所屬。
+- 指示詞(この / その / 選んだ魔物)在建立效果時把那隻魔物的名稱寫進 `data["mamodo"]`(`MakeNextAttackUndefendable(own_slot)`、`LockChosenOpponentMamodo`、`LockOpponentMamodoPerHeads`、P-043 的 `RestrictOpponentSlotThisBattle(by_name=True)`、M-005 的 `IncreaseSelfDamage`、`ScheduleOnAttack` 的 `self_mamodo` / `target_mamodo`);那隻魔物離場後仍依名稱作用。「魔物の効果」與保護的限制仍看 `target_slot`。
+- E-043(`ONLY_MAMODO`):被擋的名稱是目前在場、選定的那一隻以外的魔物的名稱(`engine._other_names`)。
+- `spell_cost(game, player, page, card, slot=)` 依使用的魔物計算;未指定魔物時取可用魔物中最低的費用,供畫面顯示與宣告前的 MP 檢查。費用與加成的待命(`spell_bonus`、`spell_cost_zero`)以 `spell_names` 比對。
+- 戰鬥開始的 `AttackStart.spell_names` 是攻擊戰術由攻擊的魔物使用時的名稱集合;`spell_of(name)` / `by(name)`(含魔物效果攻擊)供待命表與攻擊時待命的條件使用。
+- PR-004 / PR-010 指名「ザケル」只看所屬:名為「ザケル」的戰術只屬於ガッシュ・ベル與ゼオン,ガッシュ・ベル不能使用ゼオン的戰術,加上使用者那一半不會多出符合的戰術(`tests/test_spell_ownership.py` 檢查此前提)。日後有讓ガッシュ・ベル使用其他魔物戰術的卡時要改用 `spell_names`。M-037 也只看所屬:エシュロス沒有戰術相容擴充,也沒有攻擊用的指令戰術。
 
 ### 可選的減費(M-008)
 
@@ -93,7 +97,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 ### 傷害加值:`own_damage_bonus` 與 `damage_delta`
 
-- `damage_delta`(M-005、P-003)只加在指定的攻擊(以攻擊的魔物限定)。
+- `damage_delta` 只加在指定的攻擊:P-003 以攻擊的魔物(`target_slot`)限定;M-005 帶 `data["mamodo"]`,加在該名稱的戰術(`engine.attack_spell_names`)或這隻魔物的魔物效果攻擊。
 - `own_damage_bonus`(M-033)是「自己使用的魔物效果與戰術」全部的傷害,引擎在攻擊傷害(`_attack_damage_amount`)與【反擊】傷害都加上;非戰鬥的傷害效果(第 4 批的 S-094)實作時也要加。
 - 戰術自身的「この術のダメージ+N」(S-082 / S-083)寫進本場戰鬥的 `attack_damage_delta`。
 - 「N ダメージの攻撃」(M-053 免疫、M-043 無效)一律以 `_attack_damage_amount` 的結果判定(含加成)。
@@ -114,7 +118,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 - 限制以 `restriction` 持續效果加旗標表示,分類在 `engine.RESTRICTION_CATEGORIES`(spells / mamodo_effects / protect);待命的分類在 `engine.STANDBY_CATEGORIES`(`no_protect_book`)或待命 `data["restricts"]`(`Standby(restricts=...)`,S-074)。新增限制旗標時要同時登記分類,無視與移除才會認得它。
 - 檢查集中在兩個函式:`spell_block(game, player, slot, attack=)`(「術を使えない」:`no_spells`、`no_effects_and_spells`、攻擊時的 `no_attack_spell`、指定魔物的 `mamodo_locked`、選定魔物以外的 `only_mamodo`;回傳既有的錯誤碼)與 `mamodo_effect_block(game, player, slot)`(「魔物の効果を使えない」)。戰鬥中宣告、非戰鬥戰術、費用顯示、魔物啟動效果、魔物效果攻擊、ジャマー、擲幣重擲都改用它們。
-- 無視:`reg.ignore_spell_block`(M-038:由它使用的戰術不受 `spell_block` 限制);`protect_anyway` 持續效果(M-042 / E-031);`reg.cannot_protect`(M-051)優先於一切。保護的檢查順序見 `game-engine` design「保護者」。
+- 無視:`reg.ignore_spell_block`(M-038:場上有 M-038 時,「M-038 的名稱の術」不受 `spell_block` 限制);`protect_anyway` 持續效果(M-042 / E-031);`reg.cannot_protect`(M-051)優先於一切。保護的檢查順序見 `game-engine` design「保護者」。
 - 移除:`engine.remove_restrictions(game, batch, player, categories, whose)`,移除持續效果與待命(整個效果),發出 `restrictions_removed`。S-035 類的戰鬥旗標與 M-051 的性質不是持續 / 待命效果,不會被移除。
 - 新時效 `DUR_UNTIL_END_OWN_NEXT_TURN`(S-075):建立後第二個回合的結束階段到期。S-075 以單一複合旗標 `no_effects_and_spells` 表示,不拆成兩個旗標,移除時才會整個效果一起消失。
 
@@ -176,7 +180,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 擲幣次數:`Coin(count=<計數規格>)`,E-046 用 `OwnMamodoAndPartnerCount`;0 枚時不擲,以空結果分支。
 - 戰術附加效果:`SpellRider.on_counter`(【反擊】防方獲勝時取代預設的反擊傷害,S-109 擲幣;預設傷害為 `engine.counter_book_damage`)與 `on_protected`(此戰術攻擊的傷害被保護後,S-112;`_handle_choose` 在保護時標記 `ctx["protected"]`)。`AddSpellSelfBonus` 依 `on_declare` 的攻防方加此戰術的魔力(S-108)。
 - 其他:`AddPower(side="opponent")`(Ex-002)、`ReduceOwnMp`(E-049)、`NamedMamodoPowerBonus`(PR-003,依 `mamodo_name` 含視為ガッシュ・ベル者)、`NextStartPhase(own=True)`(M-067)、`reg.end_phase`(PR-011)。
-- 限制:`spell_block` 多了 `card` / `defense` 參數。`NO_SPELLS` 帶 `target_slot` 時只封鎖那隻魔物(E-047);`NO_NAMED_SPELLS`(`data["mamodo"]`,依戰術卡的 `related_mamodo`,PR-009)、`NO_DEFENSE_SPELL_SLOT` / `NO_PROTECT_SLOT`(P-043,`target_slot`)分別屬於 spells / protect 分類;`NO_EVENTS`(P-042)不屬於可移除的分類。P-038 是常駐效果(`reg.opponent_event_lock`),在 `use_event` 檢查持有者的戰鬥階段,並列在作用中效果(`static` / `event_lock`)。
+- 限制:`spell_block` 多了 `card` / `defense` 參數。`NO_SPELLS` 帶 `target_slot` 時只封鎖選定魔物名稱的戰術(E-047,`data["mamodo"]`);`NO_NAMED_SPELLS`(`data["mamodo"]`,PR-009)、`NO_DEFENSE_SPELL_SLOT`(P-043,`data["mamodo"]`)/ `NO_PROTECT_SLOT`(P-043,`target_slot`)分別屬於 spells / protect 分類;`NO_EVENTS`(P-042)不屬於可移除的分類。P-038 是常駐效果(`reg.opponent_event_lock`),在 `use_event` 檢查持有者的戰鬥階段,並列在作用中效果(`static` / `event_lock`)。
 - 強制保護:modifier `forced_protector`(Ex-047),在 `_protect_choice` 中該魔物在候選內就直接保護(事件 `protect_forced`)。
 - 戰術屬性:`PlayerState.spell_attrs_by_turn` 在宣告戰術(攻擊、防禦、非戰鬥)時記錄 `attr_name`,只保留本回合與前一回合;`OpponentUsedAttrLastTurn`(Ex-043)。
 - 攻擊時的待命:`ScheduleOnAttack` + `reg.on_attack(number, when=fn(game, standby, attack), effect=...)`(M-055 / P-043);`ScheduleBattleLock`(P-042);`MakeNextAttackUndefendable(own_slot=True)`(M-054)。見 game-engine design「戰鬥開始與待命表」。
@@ -203,17 +207,25 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 **確認狀態:** `Project Decision`
 
-### 「〇〇の術」以使用戰術的魔物判定
+### 「〇〇の術」包含屬於該魔物與由該魔物使用的戰術
 
-**相關規格:** 情境「「〇〇の術」以使用戰術的魔物判定」
+**相關規格:** `card-effects` › 需求「『〇〇の術』的判定」;情境「「〇〇の術」以使用戰術的魔物判定」「「〇〇の術」包含其他魔物使用的該魔物戰術」「M-054 依名稱適用」「E-043 有同名的另一隻」
 
-**決定:** P-001、P-005、P-007、M-008 的「〇〇の術」以使用戰術的魔物判定,不看戰術卡上的對應魔物;不限使用對象的指令戰術由該魔物使用時也適用。
+**決定:**
+- 「X の術」指戰術卡的對應魔物是 X,或由名稱 X 的魔物使用的戰術(聯集)。指令戰術沒有對應魔物,只看使用者。W 魔物以戰術對應的那一半當使用者。
+- 寫魔物名(「『X』の術」)與指示詞(「この / その / 選んだ魔物の術」)一致:指示詞以那隻魔物在效果決定對象時的名稱代入 X,離場後仍依名稱作用。是否為限制效果不影響讀法。
+- 「その魔物の『魔物の効果』」與「かばう」的限制只作用於選定的那一隻。「X による」攻擊或傷害(P-003、P-004、P-012)看攻擊的魔物,不屬於此判定。
+- E-043「選んだ魔物以外の魔物の術」:以外的魔物以單隻計(A(1)、A(2)、B 選了 A(1),以外是 A(2) 與 B),其戰術依名稱解析,所以不能使用 A 的戰術與 B 的戰術,A(1) 有同名的 A(2) 在場時也不能使用戰術;A(1) 的魔物效果可以使用。以外的魔物以目前在場者判斷。
 
-**理由:** 「スギナの術」可以讀成「スギナ對應的戰術卡」或「スギナ使用的戰術」,效果文不足以唯一決定。
+**理由:**
+- 「X の術」可以讀成「屬於 X 的戰術」或「X 使用的戰術」,兩者都直觀,所以專案負責人決定兩者都算。
+- 佐證所屬的讀法:M-029 卡頁 FAQ 說「本来『ガッシュ・ベル』のものである『ザケル』」;atwiki「わかりにくいルール」(pages/2078.html)寫「効果テキストで効果の対象となる魔物の名前が名指しでされている場合、その効果は指定の魔物にしか適用する事ができない」。
+- 同頁的官方例子(裝在ガッシュ・ベル＆ブラゴ的高嶺清麿效果不影響ブラゴ的戰術)與聯集不衝突:W 魔物使用 B 的戰術時使用者算 B,而「このパートナーの魔物」是 A。
+- 效果文沒有以魔物為主詞的「X が使う術」寫法;寫到使用都是「自分が使う」或「この魔物で…使う」(M-023、M-029、M-036)。
 
 **依據:**
-- P-001、P-005、P-007、M-008 效果文
-- 專案負責人決定
+- M-029 卡頁 FAQ、atwiki pages/2078.html
+- 2026-10-31 spell-ownership explore 中專案負責人決定(聯集、指示詞也依名稱、E-043 的讀法);取代先前的「『〇〇の術』以使用戰術的魔物判定」
 
 **確認狀態:** `Project Decision`
 
@@ -670,7 +682,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 「術を使えない」包含不能用戰術攻擊(P-014 / P-033):M-038 可無視它,P-034 / E-036 會移除它。
 - 「術を使えない」不分戰鬥與非戰鬥:E-002、M-006、S-004 等生效時非戰鬥戰術也不能用。過去只在戰鬥宣告時檢查,這次改正(既有行為改變,使用者確認)。
 - 複合的限制(E-024 / S-074 / S-075 / E-043)被移除時整個效果移除。P-034 只移除自己的,E-036 移除雙方的。
-- M-038 的「この魔物の術」指由它使用的戰術(含指令戰術);被封鎖時戰術仍可用、啟動效果不可;它的常駐效果在「魔物の効果を使えない」時仍有效。
+- M-038 的「この魔物の術」依「『〇〇の術』包含屬於該魔物與由該魔物使用的戰術」:ロップス的戰術與 M-038 使用的戰術(含指令戰術);被封鎖時戰術仍可用、啟動效果不可;它的常駐效果在「魔物の効果を使えない」時仍有效。
 - M-042 / E-031 可無視 S-035 類「この術のダメージをかばうことができない」;M-051 任何情況都不能保護,且不受任何傷害。
 - S-074 比照 E-001 在使用時選擇魔物;S-075 持續到使用者的下一個回合結束(跨 3 個回合)。
 - P-026 由使用者選擇;E-043 由對手選擇(對手沒有魔物時仍可使用)。
@@ -826,7 +838,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 **決定:**
 - Ex-047:能保護就以選定的魔物保護,不詢問、優先於 P-027 的保護者;不妨礙防禦。
 - Ex-024:傷害可以保護。
-- P-042 / P-043:「『ダニー』の術や『魔物の効果』で攻撃」= 該家族魔物的戰術或魔物效果攻擊,以攻擊的魔物判斷(同 P-001)。P-043 的兩個效果在攻擊時(防禦宣告前)由使用者選。
+- P-042 / P-043:「『ダニー』の術や『魔物の効果』で攻撃」=「ダニー」の術(見「『〇〇の術』包含屬於該魔物與由該魔物使用的戰術」)或ダニー的魔物效果攻擊。P-043 的兩個效果在攻擊時(防禦宣告前)由使用者選;「選んだ魔物の防御の術」依選定時的名稱判定,選定的魔物離場後仍可選並生效,「かばう」的限制只在選定的魔物仍在場時提供。
 - M-055:對手場上沒有魔物時不詢問;正面時由攻擊方選要傷害的魔物。
 - Ex-048:每位玩家分開判斷,高於 4 的一方算「MPをへらす」效果、低於 4 的一方算「MPをふやす」效果,各自適用 MP 保護與紀錄。
 - PR-005:戰鬥階段中雙方都還沒有行動(pass 不算)時才能用;三個效果由使用者選順序,沒有負傷魔物時省略回復。

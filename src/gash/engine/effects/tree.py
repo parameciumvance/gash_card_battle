@@ -1266,8 +1266,8 @@ class NegateAttack(Effect):
 
 @dataclass(frozen=True)
 class MakeNextAttackUndefendable(Effect):
-    """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在由該家族的魔物攻擊時生效
-    (以使用戰術的魔物判定,指令戰術由該魔物使用時也適用)(P-001)。own_slot 時只在以這隻魔物的戰術攻擊時生效(M-054)。"""
+    """[待命] 本回合下一場戰鬥的攻擊不可被防禦。mamodo 指定時,只在以「mamodo」の術攻擊時生效(P-001);
+    own_slot 時為這隻魔物的名稱(M-054「この魔物の術」)。判定見 card-effects「『〇〇の術』的判定」。"""
     mamodo: str | None = None
     own_slot: bool = False
 
@@ -1275,8 +1275,8 @@ class MakeNextAttackUndefendable(Effect):
         data = {"expires": "next_battle"}
         if self.mamodo:
             data["mamodo"] = self.mamodo
-        if self.own_slot:
-            data["slot_uid"] = ctx["self_slot"]
+        if self.own_slot:   # 「この魔物の術」:依這隻魔物的名稱判定(同 mamodo 指定)
+            data["mamodo"] = family(rt.game, rt.game.state.slot_by_uid(ctx["player"], ctx["self_slot"]))
         schedule_standby(rt.game, rt.batch, kind="attack_undefendable",
                          source=ctx["source"], owner=ctx["player"], data=data)
         return True
@@ -1709,7 +1709,8 @@ class LockChosenOpponentMamodo(Effect):
     P-026 以 `protect_only` 表示對手只能以這隻魔物保護。
 
     沿用遷移前的作法:先以 add_restriction 建立(此時 modifier_added 事件的 target_slot 為 None),
-    再把 modifier 的 target_slot 設為選中的魔物。
+    再把 modifier 的 target_slot 設為選中的魔物。戰術的限制(「その魔物の術」)依選定時的名稱判定
+    (data["mamodo"],card-effects「『〇〇の術』的判定」),魔物效果與保護只看選中的那一隻。
     """
     target: Ref = Ref("choice")
     flag: str = "mamodo_locked"
@@ -1723,6 +1724,7 @@ class LockChosenOpponentMamodo(Effect):
         m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
                             target_player=1 - player, flag=self.flag, duration=self.duration)
         m.target_slot = slot.uid
+        m.data["mamodo"] = family(rt.game, slot)
         return True
 
 
@@ -1882,14 +1884,16 @@ class AttachPartnerFromBookPage(Effect):
 
 @dataclass(frozen=True)
 class IncreaseSelfDamage(Effect):
-    """這隻魔物的魔物效果與戰術造成的傷害 +amount(M-005)。"""
+    """這隻魔物的魔物效果與戰術造成的傷害 +amount(M-005)。戰術依這隻魔物的名稱判定(data["mamodo"],
+    card-effects「『〇〇の術』的判定」),魔物效果只看這隻(target_slot)。"""
     amount: int = 0
     duration: str = ""
 
     def run(self, rt, ctx, path):
+        slot = rt.game.state.slot_by_uid(ctx["player"], ctx["self_slot"])
         add_modifier(rt.game, rt.batch, kind="damage_delta", source=ctx["source"], owner=ctx["player"],
                      duration=self.duration, target_player=ctx["player"],
-                     target_slot=ctx["self_slot"], amount=self.amount)
+                     target_slot=ctx["self_slot"], amount=self.amount, data={"mamodo": family(rt.game, slot)})
         return True
 
 
@@ -1906,7 +1910,7 @@ class PreventDamageToSelf(Effect):
 
 @dataclass(frozen=True)
 class ScheduleNextSpellBonus(Effect):
-    """[待命] 本回合下一場戰鬥中,mamodo 使用的戰術費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
+    """[待命] 本回合下一場戰鬥中,「mamodo」の術的費用 +cost_delta、魔力 +power_delta(M-008 / P-007)。
     base_zero / base_delta 調整的是「本来のコスト」(Ex-007 類為 0、Ex-035 為 -5;追加費用不受影響)。
     optional:由使用者在宣告戰術時選擇是否套用(M-008「1低いコストで使うことができる。そうしたなら…」)。"""
     mamodo: str = ""
@@ -2068,7 +2072,7 @@ class DoubleAttackDamage(Effect):
 
 @dataclass(frozen=True)
 class SpellsCostZeroThisTurn(Effect):
-    """本回合 mamodo 使用的戰術費用為 0(以使用戰術的魔物判定,指令戰術也適用)(P-005)。"""
+    """本回合「mamodo」の術的本來費用為 0(P-005;card-effects「『〇〇の術』的判定」)。"""
     mamodo: str = ""
 
     def run(self, rt, ctx, path):
@@ -2492,7 +2496,8 @@ class GainMpWhenOpponentUsesEvent(Effect):
 @dataclass(frozen=True)
 class RestrictOthersThanChosen(Effect):
     """在 AsOpponent 中使用:本回合 ctx["player"](被限制的一方)除了 target 綁定的魔物以外,
-    其他魔物的效果與戰術不能使用,也不能保護(E-043 由對手選擇保留的魔物)。"""
+    其他魔物的效果與戰術不能使用,也不能保護(E-043 由對手選擇保留的魔物)。「以外の魔物の術」依名稱判定:
+    目前在場、選定的那一隻以外的魔物的名稱的戰術都不能使用(engine._other_names)。"""
     restricts: ClassVar[tuple[str, ...]] = ("spells", "mamodo_effects", "protect")
     target: Ref = Ref("slot")
 
@@ -2707,7 +2712,7 @@ class ScheduleSpellFromNextSpreads(Effect):
 
 @dataclass(frozen=True)
 class ScheduleRedirectDamage(Effect):
-    """[待命] 本回合下一場戰鬥以 mamodo 家族的戰術攻擊時,傷害改給 target 綁定的對手魔物(P-022)。"""
+    """[待命] 本回合下一場戰鬥以「mamodo」の術攻擊時,傷害改給 target 綁定的對手魔物(P-022)。"""
     mamodo: str = ""
     target: Ref = Ref("choice")
 
@@ -2757,6 +2762,20 @@ class SelfInBattleAs:
         if self.side == "attack":
             return b.attacker == player and b.attack_slot == slot.uid
         return b.defender == player and b.defense_slot == slot.uid
+
+
+@dataclass(frozen=True)
+class OwnSpellOrEffectAttacking:
+    """目前的戰鬥正以這隻魔物的戰術(名稱,card-effects「『〇〇の術』的判定」)或這隻魔物的魔物效果攻擊(M-005)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        from ..engine import attack_spell_names
+        b = game.state.battle
+        if b is None or b.attacker != player:
+            return False
+        if b.attack_spell is None:
+            return b.attack_slot == slot.uid
+        return family(game, slot) in attack_spell_names(game, b)
 
 
 @dataclass(frozen=True)
@@ -2810,7 +2829,7 @@ class Never:
 
 @dataclass(frozen=True)
 class OwnAttackBy:
-    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004:以使用戰術的魔物判定)。
+    """目前的戰鬥中,自己是攻方且攻擊的魔物屬於 mamodo 家族(P-003 / P-004「『X』による」:以攻擊的魔物判定)。
     當 When 條件:不成立時效果不發生(作用對象不是使用條件)。"""
     mamodo: str
 
@@ -3103,26 +3122,35 @@ def battle_phase_first(game, player) -> bool:
 
 @dataclass(frozen=True)
 class AttackWithOwnBookDamageSpell:
-    """攻擊時待命的條件:以使用效果的這隻魔物、「相手の魔本にダメージ」效果的戰術攻擊,且對手場上有魔物(M-055)。
-    簽名 fn(game, standby, attack)。"""
+    """攻擊時待命的條件:以這隻魔物(名稱,card-effects「『〇〇の術』的判定」)的「相手の魔本にダメージ」效果的
+    戰術攻擊,且對手場上有魔物(M-055)。簽名 fn(game, standby, attack)。"""
 
     def __call__(self, game, sb, a) -> bool:
         spell = a.started.get("spell")
-        return (a.is_spell and a.slot_uid == sb.data.get("slot_uid")
+        return (a.spell_of(sb.data.get("self_mamodo"))
                 and "相手の魔本にダメージ" in game.db[spell].effect_ja
                 and bool(game.state.players[1 - sb.owner].slots))
 
 
 @dataclass(frozen=True)
-class AttackByFamilyWithTarget:
-    """攻擊時待命的條件:以 mamodo 家族魔物的戰術或魔物效果攻擊,且使用時選定的對手魔物仍在場(P-043)。
+class AttackByFamily:
+    """攻擊時待命的條件:以「mamodo」の術(card-effects「『〇〇の術』的判定」)或 mamodo 的魔物效果攻擊(P-043)。
     簽名 fn(game, standby, attack)。"""
     mamodo: str
 
     def __call__(self, game, sb, a) -> bool:
-        uid = sb.data.get("target")
-        return (a.family == self.mamodo
-                and game.state.slot_by_uid(1 - sb.owner, uid if isinstance(uid, int) else -1) is not None)
+        return a.by(self.mamodo)
+
+
+@dataclass(frozen=True)
+class BoundOpponentSlotOnField:
+    """選項規格:ctx[name] 綁定的對手魔物仍在場時有一個選項(P-043「かばう」的限制需要那一隻在場)。"""
+    name: str = "target"
+
+    def options(self, game, ctx) -> list:
+        uid = ctx.get(self.name)
+        slot = game.state.slot_by_uid(1 - ctx["player"], uid) if isinstance(uid, int) else None
+        return [uid] if slot is not None else []
 
 
 def opponent_has_two_or_more_mamodo(game, player) -> bool:
@@ -3156,6 +3184,7 @@ class LockOpponentMamodoPerHeads(Effect):
                 m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
                                     target_player=1 - player, flag="mamodo_locked", duration=self.duration)
                 m.target_slot = slot.uid
+                m.data["mamodo"] = family(rt.game, slot)   # 戰術依名稱判定(同 LockChosenOpponentMamodo)
         return True
 
 
@@ -3233,7 +3262,7 @@ class SetBothMp(Effect):
 
 @dataclass(frozen=True)
 class ScheduleBattleLock(Effect):
-    """[待命] 本回合下一場戰鬥以 mamodo 家族的戰術或魔物效果攻擊時,該場戰鬥中對手受 flags 的限制(P-042)。"""
+    """[待命] 本回合下一場戰鬥以「mamodo」の術或 mamodo 的魔物效果攻擊時,該場戰鬥中對手受 flags 的限制(P-042)。"""
     mamodo: str = ""
     flags: tuple = ()
 
@@ -3250,9 +3279,14 @@ class ScheduleOnAttack(Effect):
     target: str = ""
 
     def run(self, rt, ctx, path):
+        st = rt.game.state
+        target = ctx.get(self.target) if self.target else None
+        slot = st.slot_by_uid(1 - ctx["player"], target) if isinstance(target, int) else None
+        own = st.slot_by_uid(ctx["player"], ctx.get("self_slot", -1))
         schedule_standby(rt.game, rt.batch, kind="on_attack", source=ctx["source"], owner=ctx["player"],
-                         data={"expires": "next_battle", "slot_uid": ctx.get("self_slot"),
-                               "target": ctx.get(self.target) if self.target else None})
+                         data={"expires": "next_battle", "slot_uid": ctx.get("self_slot"), "target": target,
+                               "self_mamodo": family(rt.game, own) if own is not None else None,
+                               "target_mamodo": family(rt.game, slot) if slot is not None else None})
         return True
 
 
@@ -3288,19 +3322,23 @@ class RedirectAttackTo(Effect):
 
 @dataclass(frozen=True)
 class RestrictOpponentSlotThisBattle(Effect):
-    """本場戰鬥中以 flag 限制 target 綁定的對手魔物(P-043);對象已離場時沒有效果。"""
+    """本場戰鬥中以 flag 限制 target 綁定的對手魔物(P-043)。by_name 時(「選んだ魔物の防御の術」)
+    依選定時的名稱(ctx["target_mamodo"])判定,對象已離場仍有效;否則對象已離場時沒有效果。"""
     flag: str = ""
     target: Ref = Ref("target")
+    by_name: bool = False
 
     def run(self, rt, ctx, path):
         from ..state import DUR_BATTLE
         player = ctx["player"]
         uid = ctx.get(self.target.name)
-        if rt.game.state.slot_by_uid(1 - player, uid if isinstance(uid, int) else -1) is None:
+        if not self.by_name and rt.game.state.slot_by_uid(1 - player, uid if isinstance(uid, int) else -1) is None:
             return True
         m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
                             target_player=1 - player, flag=self.flag, duration=DUR_BATTLE)
         m.target_slot = uid
+        if self.by_name:
+            m.data["mamodo"] = ctx.get("target_mamodo")
         return True
 
 

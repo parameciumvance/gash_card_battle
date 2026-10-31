@@ -17,6 +17,17 @@ def family(game, slot) -> str:
     return reg.TREATED_AS.get(slot.top) or game.db[slot.top].related_mamodo
 
 
+def spell_names(game, card, slot) -> frozenset:
+    """這個戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」):戰術卡的對應魔物,與使用它的魔物
+    (slot,未定時為 None)的名稱。指令戰術沒有對應魔物,只看使用者。"""
+    names = set()
+    if card is not None and not card.is_command_spell and card.related_mamodo:
+        names.add(card.related_mamodo)
+    if slot is not None:
+        names.add(family(game, slot))
+    return frozenset(names)
+
+
 def mamodo_name(game, slot) -> str:
     """場上魔物的名稱(「」名稱比對、同名限制);視為另一魔物的卡依 reg.TREATED_AS。"""
     return reg.TREATED_AS.get(slot.top) or game.db[slot.top].name_ja

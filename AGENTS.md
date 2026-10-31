@@ -17,7 +17,7 @@
 
 ### 以日文效果文為準
 
-- 權威來源是日文效果文:`data/cards.json` 的 `effect_ja`(由 `data/cards_ja.csv` 產生)與 `effect_icon`,規則以官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,掃描檔,頁碼以印刷頁碼為準)與 atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html,可用 `tools/scrape_ja_effects.fetch` 抓取)為準,兩者不一致時以官方規則書為準,有疑慮時先確認並把用到的規則寫進規格(通常是 `game-engine`)。英文翻譯與 `data/cards.zh-TW.json` 的中譯只供閱讀,不可作為實作依據。
+- 權威來源是日文效果文:`data/cards.json` 的 `effect_ja`(由 `data/cards_ja.csv` 產生)與 `effect_icon`,規則以官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,掃描檔,頁碼以印刷頁碼為準)與 atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html,可用 `tools/scrape_ja_effects.fetch` 抓取;另有「わかりにくいルール」pages/2078.html 與「裁定が不明なルール・カード」pages/2077.html,查規則時一併查)為準,兩者不一致時以官方規則書為準,有疑慮時先確認並把用到的規則寫進規格(通常是 `game-engine`)。英文翻譯與 `data/cards.zh-TW.json` 的中譯只供閱讀,不可作為實作依據。
 - 實作前逐字對照效果文,特別注意這些措辭:
   - 「〜できる」「使える」:可選,在決定的時點提供「不使用」(Choose 選項加 `{"value": None, "label": "skip"}`);例如 M-008 是在下一場戰鬥宣告戰術時才決定是否減費,就在那時詢問。唯一例外:宣告使用卡片時就要決定、且整張卡只有這單一效果(如 S-026 / S-057「オモテなら、次の効果を使える」),不提供是否使用的選項。遇到與 S-026 / S-057 同樣的情況時,先提醒使用者確認,確認後才實作,並記錄到對應 change 的 `design.md`。
   - 「選び」「選ぶ」:由該玩家選擇,不可自動挑第一個;「相手は…選び」由對手選(`AsOpponent`)。

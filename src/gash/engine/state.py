@@ -36,15 +36,15 @@ NO_PROTECT_BOOK = "no_protect_book"        # 不能保護魔書傷害(戰鬥時�
 NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
-MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其戰術與效果(E-024,target_slot)
+MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其效果(target_slot)與其名稱的戰術(data["mamodo"])(E-024)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
 NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
-ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁戰術、效果與保護(E-043)
+ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁效果與保護,禁其名稱的戰術(E-043)
 PROTECT_ONLY = "protect_only"              # 只能以選定魔物(target_slot)保護(P-026)
 NO_EVENTS = "no_events"                    # 不能使用事件卡(P-042;不屬於可移除的分類)
-NO_DEFENSE_SPELL_SLOT = "no_defense_spell_slot"  # 不能以選定魔物(target_slot)使用防禦戰術(P-043)
+NO_DEFENSE_SPELL_SLOT = "no_defense_spell_slot"  # 不能使用選定魔物名稱(data["mamodo"])的防禦戰術(P-043)
 NO_PROTECT_SLOT = "no_protect_slot"        # 選定魔物(target_slot)不能保護(P-043)
-NO_NAMED_SPELLS = "no_named_spells"        # 不能使用 data["mamodo"] 家族的戰術(PR-009)
+NO_NAMED_SPELLS = "no_named_spells"        # 不能使用「data["mamodo"]」の術(PR-009)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中

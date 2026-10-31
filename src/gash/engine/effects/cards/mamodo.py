@@ -19,6 +19,7 @@ from ..tree import (
     OpponentBookCards, OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
+    OwnSpellOrEffectAttacking,
     OwnOtherMamodo, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway, ReduceOpponentMp,
     Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
     ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
@@ -39,7 +40,7 @@ reg.start_phase("M-002", effect=When(
 reg.static_power("M-003", value=SelfPowerBonus(amount=1000, when=SelfInjured()))
 reg.static_power("M-004", value=SelfPowerBonus(amount=1000, when=SelfHasPartner()))
 
-reg.activated("M-005", mode="mp", mp_cost=2, timing="battle", condition=SelfInBattleAs("attack"),
+reg.activated("M-005", mode="mp", mp_cost=2, timing="battle", condition=OwnSpellOrEffectAttacking(),
               effect=IncreaseSelfDamage(amount=1, duration=DUR_BATTLE))
 
 reg.on_play("M-006", effect=RestrictOpponent(flag=NO_SPELLS, duration=DUR_TURN))

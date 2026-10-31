@@ -1118,8 +1118,9 @@ def _pokkerio_uses_sugina_spell(setup):
     return g, sugina, pokkerio
 
 
-def test_p005_cost_zero_only_when_sugina_uses_the_spell():
-    # 使用者決定:「スギナ」の術 以使用戰術的魔物判定 → ポッケリオ 用 スギナ 的戰術不免費
+def test_p005_cost_zero_when_pokkerio_uses_sugina_spell():
+    # 自分の「スギナ」の術すべての、本来のコストを0にする:ポッケリオ 使用的 スギナ 戰術也是「スギナ」の術
+    # (card-effects「『〇〇の術』的判定」,使用者 2026-10-31)
     from gash.engine.engine import spell_cost
     def use_p005(g, sugina):
         sugina.partner = "P-005"
@@ -1130,13 +1131,13 @@ def test_p005_cost_zero_only_when_sugina_uses_the_spell():
     mp = g.state.players[0].mp
     submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": pokkerio.uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})   # 開戰時才扣費
-    assert g.state.players[0].mp == mp - card.cost
+    assert g.state.players[0].mp == mp
     assert spell_cost(g, 0, 2, card, slot=sugina) == 0
-    assert spell_cost(g, 0, 2, card, slot=pokkerio) == card.cost
-    assert spell_cost(g, 0, 2, card) == 0                             # 未指定魔物:取可用魔物中最低
+    assert spell_cost(g, 0, 2, card, slot=pokkerio) == 0
 
 
-def test_m008_bonus_only_when_sugina_uses_the_spell():
+def test_m008_bonus_when_pokkerio_uses_sugina_spell():
+    # この魔物の術を本来より1低いコストで使うことができる:「この魔物」= スギナ,ポッケリオ 使用的 スギナ 戰術也算
     def use_m008(g, sugina):
         submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo", "slot_uid": sugina.uid})
         submit(g, {"type": "pass", "player": 1})
@@ -1144,10 +1145,12 @@ def test_m008_bonus_only_when_sugina_uses_the_spell():
     card = g.db["S-014"]
     mp = g.state.players[0].mp
     submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": pokkerio.uid})
+    assert g.state.pending.kind == "spell_discount"
+    submit(g, {"type": "choose", "player": 0, "value": True})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    assert g.state.players[0].mp == mp - card.cost                    # 不減費
+    assert g.state.players[0].mp == mp - (card.cost - 1)
     _, items = side_breakdown(g, g.state.battle, "attack")
-    assert not any(i["kind"] == "spell_bonus" for i in items)          # 不減魔力
+    assert any(i["kind"] == "spell_bonus" for i in items)               # 魔力 -1000
 
 
 def test_p006_only_usable_in_battle():

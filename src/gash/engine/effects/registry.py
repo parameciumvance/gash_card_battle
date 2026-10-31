@@ -153,7 +153,7 @@ OPPONENT_EVENT_LOCK: set[str] = set()
 # 卡號 -> (效果樹 id, 條件 fn(game, standby, attack) -> bool);待命種類 on_attack,由 tree.ScheduleOnAttack 排定
 ON_ATTACK: dict[str, tuple[str, Callable]] = {}
 
-# 「術を使えない」時仍可使用由這隻魔物使用的戰術(M-038)
+# 「術を使えない」時仍可使用「這隻魔物の術」(M-038;engine.spell_block 依名稱判定)
 IGNORE_SPELL_BLOCK: set[str] = set()
 
 # 不能保護的魔物(「かばうことができる」時也不能;M-051)
@@ -498,7 +498,7 @@ def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_tur
 
 
 def ignore_spell_block(number: str):
-    """「術を使えない」時,由這隻魔物使用的戰術仍可使用(M-038)。"""
+    """「術を使えない」時,「這隻魔物の術」(名稱,含其他魔物使用的與這隻使用的戰術)仍可使用(M-038)。"""
     IGNORE_SPELL_BLOCK.add(number)
 
 

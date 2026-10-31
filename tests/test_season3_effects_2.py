@@ -55,14 +55,14 @@ def test_batch_cards_are_open():
 
 # ---------------------------------------------------------------- E-047
 
-def test_e047_blocks_only_chosen_mamodo_spells():
+def test_e047_blocks_chosen_mamodo_spells():
     # 【ステイ】相手の魔物1体を選ぶ。このターン中、相手はその魔物の術を使えない。
-    g, _ = mk(book("M-001", "E-047", "S-001"), book("M-001", "S-029"))
+    g, _ = mk(book("M-001", "E-047", "S-001"), book("M-001", "S-029", "S-099"))
     st = g.state
     st.players[0].mp = 5
     to_battle(g, 0)
     a = st.players[1].slots[0]
-    b = add_slot(g, 1, "M-002")
+    zeon = add_slot(g, 1, "M-029")
     st.players[1].mp = 10
     use_event(g, 2)
     assert st.pending.player == 0
@@ -71,8 +71,8 @@ def test_e047_blocks_only_chosen_mamodo_spells():
     submit(g, {"type": "pass", "player": 1})
     battle_in(g, 3)
     assert code(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": a.uid}) == "spell.restricted"
-    submit(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": b.uid})   # 其他魔物可以
-    assert g.state.battle.defense_spell == "S-029"
+    submit(g, {"type": "declare_defense", "player": 1, "page": 3, "slot_uid": zeon.uid})   # 其他魔物自己的戰術可以
+    assert g.state.battle.defense_spell == "S-099"
 
 
 # ---------------------------------------------------------------- Ex-015
@@ -400,10 +400,10 @@ def test_m054_tails_defendable():
     assert g.state.battle.defense_spell == "S-029"
 
 
-def test_m054_only_this_mamodo():
+def test_m054_same_name_mamodo_also_undefendable():
+    # この魔物の術 = 「ガッシュ・ベル」の術(card-effects「『〇〇の術』的判定」):同名的另一隻使用時也適用
     g = _m054(True, other_attacks=True)
-    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
-    assert g.state.battle.defense_spell == "S-029"
+    assert code(g, {"type": "declare_defense", "player": 1, "page": 2}) == "defense.undefendable"
 
 
 def test_m054_own_turn_only():
@@ -484,14 +484,15 @@ def test_m055_not_offered_without_opponent_mamodo():
     assert st.pending is None and st.battle.step == "defense"
 
 
-def test_m055_not_offered_for_other_mamodo():
-    g, _ = mk(book("M-055", "S-008"), book("M-001"))
+def test_m055_not_offered_for_other_mamodo_spell():
+    # 「この魔物の…術」= ブラゴ 的戰術(card-effects「『〇〇の術』的判定」):ブラゴ 以外的魔物使用自己的戰術時不適用
+    g, _ = mk(book("M-055", "S-001"), book("M-001"))
     st = g.state
     st.players[0].mp = 10
     to_battle(g, 0)
     submit(g, ability(0, st.players[0].slots[0]))
     submit(g, {"type": "pass", "player": 1})
-    other = add_slot(g, 0, "M-033")
+    other = add_slot(g, 0, "M-001")
     battle_in(g, 2, slot=other)
     assert st.pending is None
     submit(g, {"type": "no_defense", "player": 1})
@@ -721,11 +722,12 @@ def test_p043_no_protect_with_chosen():
 
 
 def test_p043_no_defense_spell_of_chosen():
-    # ●相手は、選んだ魔物の防御の術を使えない。
+    # ●相手は、選んだ魔物の防御の術を使えない。依名稱判定(card-effects「『〇〇の術』的判定」):同名的 B 也不能
     g, a, b = _p043("no_defense_spell")
     assert code(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": a.uid}) == "spell.restricted"
-    submit(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": b.uid})
-    assert g.state.battle.defense_spell == "S-029"
+    assert code(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": b.uid}) == "spell.restricted"
+    submit(g, {"type": "no_defense", "player": 1})
+    assert g.state.battle.defense_spell is None
 
 
 def test_p043_other_mamodo_attack_not_asked():

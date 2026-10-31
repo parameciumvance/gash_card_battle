@@ -6,7 +6,7 @@ import pytest
 
 from gash.api.views import snapshot
 from gash.engine.cards import card_db
-from gash.engine.effects.primitives import add_modifier
+from gash.engine.effects.primitives import add_modifier, family
 from gash.engine.engine import IllegalCommand, new_game, submit
 from gash.engine.state import DUR_TURN, MAMODO_LOCKED, MamodoSlot
 from gash.npc.candidates import candidates
@@ -35,8 +35,9 @@ def give(g, p, number, partner=None):
 
 
 def lock(g, p, slot):
+    """同 E-024:魔物效果只限這隻,戰術依這隻的名稱判定(card-effects「『〇〇の術』的判定」)。"""
     add_modifier(g, [], kind="restriction", source="E-024", owner=1 - p, duration=DUR_TURN,
-                 target_player=p, target_slot=slot.uid, flag=MAMODO_LOCKED)
+                 target_player=p, target_slot=slot.uid, flag=MAMODO_LOCKED, data={"mamodo": family(g, slot)})
 
 
 def to_battle(g):
@@ -88,15 +89,16 @@ def test_nonbattle_spell_locked_user_rejected():
     assert g.state.players[0].mp == 5
 
 
-def test_nonbattle_spell_without_user_skips_locked():
+def test_nonbattle_spell_same_name_user_also_locked():
+    # 「その魔物の術」依名稱判定(card-effects「『〇〇の術』的判定」):同名的另一隻也不能使用該名稱的戰術
     g = mk(book("M-023", "S-041"))
     first = g.state.players[0].slots[0]
-    give(g, 0, "M-023")
+    second = give(g, 0, "M-023")
     g.state.players[0].mp = 5
     to_battle(g)
     lock(g, 0, first)
-    submit(g, {"type": "use_book_card", "player": 0, "page": 2})          # 由未被封鎖的另一隻使用
-    assert 2 in g.state.players[0].used_nonbattle_pages
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2, "slot_uid": second.uid}) == "spell.mamodo_locked"
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 2}) == "spell.mamodo_locked"
 
 
 # ---------------------------------------------------------------- 快照的可使用魔物

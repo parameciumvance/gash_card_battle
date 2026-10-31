@@ -7,7 +7,7 @@ from ...state import (
 from .. import registry as reg
 from ..tree import (
     AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage, SlotsForBookPartner,
-    AttackByFamilyWithTarget, RestrictOpponentSlotThisBattle, ScheduleBattleLock, ScheduleOnAttack,
+    AttackByFamily, BoundOpponentSlotOnField, RestrictOpponentSlotThisBattle, ScheduleBattleLock, ScheduleOnAttack,
     All, AllowAttrSpellsThisTurn, Bound, EffectOptions, ReduceOpponentMp, TotalPowerWhenBattlingWith, AllowProtectWithOpponentMamodo, CanNegateOpponentSpell, Choose,
     DiscardChosenPartner, DiscardTopMamodoCard, DoubleAttackDamage, GainMp,
     GainMpWhenOpponentUsesEvent, GuardOwnMpThisTurn, HasOptions, IncreaseAttackDamage,
@@ -22,7 +22,7 @@ from ..tree import (
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
-# 「某魔物の術 / 某魔物による」類效果以「使用戰術的魔物」判定,指令戰術由該魔物使用時也適用。
+# 「某魔物の術」:戰術屬於該魔物,或由該魔物使用(card-effects「『〇〇の術』的判定」);「某魔物による」以攻擊的魔物判定。
 
 # 對手回合的「次のバトル」是對手攻擊,一定沒有效果:限自己的回合(P-007 攻防都有作用,不限制)
 reg.activated("P-001", mode="discard", timing="nonbattle", own_turn=True,
@@ -139,7 +139,7 @@ reg.action_discard("P-038", "partner")
 reg.activated("P-040", mode="discard", timing="battle", condition=CanNegateOpponentSpell("any"),
               effect=NegateOpponentSpell("any"))
 
-# P-042 / P-043「『ダニー』の術や『魔物の効果』で攻撃」:該家族魔物的戰術或魔物效果攻擊(以攻擊的魔物判斷,同 P-001);
+# P-042 / P-043「『ダニー』の術や『魔物の効果』で攻撃」:「ダニー」の術(同 P-001)或 ダニー 的魔物效果攻擊;
 # 對手回合的下一場戰鬥是對手攻擊,限自己的回合
 reg.activated("P-042", mode="discard", timing="nonbattle", own_turn=True,
               effect=ScheduleBattleLock(mamodo="ダニー", flags=(NO_PARTNER_EFFECTS, NO_EVENTS)))
@@ -150,18 +150,19 @@ reg.activated("P-043", mode="declare", timing="nonbattle", own_turn=True, condit
     OpponentMamodo(), bind="target", prompt="pick_opponent_mamodo",
     then=ScheduleOnAttack(target="target"),
 ))
-reg.on_attack("P-043", when=AttackByFamilyWithTarget(mamodo="ウォンレイ"), effect=Choose(
+# 「選んだ魔物の防御の術」依選定時的名稱判定(選定的魔物離場仍有效);「かばう」的限制要那一隻在場
+reg.on_attack("P-043", when=AttackByFamily(mamodo="ウォンレイ"), effect=Choose(
     EffectOptions((("no_defense_spell", "opponent_no_defense_spell", None),
-                   ("no_protect", "opponent_no_protect", None))),
+                   ("no_protect", "opponent_no_protect", BoundOpponentSlotOnField()))),
     bind="mode", prompt="pick_effect",
     then=When(
         Bound("mode", "no_defense_spell"),
-        then=RestrictOpponentSlotThisBattle(flag=NO_DEFENSE_SPELL_SLOT),
+        then=RestrictOpponentSlotThisBattle(flag=NO_DEFENSE_SPELL_SLOT, by_name=True),
         otherwise=RestrictOpponentSlotThisBattle(flag=NO_PROTECT_SLOT),
     ),
 ))
 
-# Ex-007 / 010 / 011 / 012:下一場戰鬥中該家族的戰術 1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
+# Ex-007 / 010 / 011 / 012:下一場戰鬥中「該魔物の術」1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
 # 攻防都有作用,不限自己的回合(同 P-007)
 reg.activated("Ex-007", mode="discard", timing="nonbattle",
               effect=ScheduleNextSpellBonus(mamodo="ガッシュ・ベル", base_zero=True))

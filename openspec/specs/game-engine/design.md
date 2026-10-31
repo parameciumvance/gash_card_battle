@@ -25,20 +25,20 @@
 
 ## 戰鬥開始與待命表
 
-- `_start_battle` 在戰鬥開始確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、使用魔物家族 `mamodo_name`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
+- `_start_battle` 在戰鬥開始確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、攻擊戰術的名稱集合 `spell_names`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
 - 戰鬥開始時消耗的待命由 `BATTLE_START_STANDBYS` 表驅動,依表的順序消耗,每個發 `standby_resolved`:
 
 | 待命 | 適用條件 | 套用 |
 |---|---|---|
-| `spell_bonus`(M-008、P-007) | 戰術;`mamodo` 為 None 或等於使用魔物家族;可選者須選擇使用 | 攻擊戰術魔力加值 |
-| `attack_undefendable`(S-019、S-026、P-001、M-054) | `mamodo` 為 None;或戰術且等於使用魔物家族;`slot_uid` 指定時限以那隻魔物的戰術攻擊 | 攻擊不可被防禦 |
-| `battle_lock`(P-042) | 攻擊魔物的家族(`AttackStart.family`,魔物效果攻擊也有)等於 `mamodo` | 本場戰鬥對手的限制(`flags`) |
+| `spell_bonus`(M-008、P-007) | 戰術;`mamodo` 為 None 或是「mamodo の術」(`AttackStart.spell_of`);可選者須選擇使用 | 攻擊戰術魔力加值 |
+| `attack_undefendable`(S-019、S-026、P-001、M-054) | `mamodo` 為 None;或是「mamodo の術」(M-054 記這隻魔物的名稱) | 攻擊不可被防禦 |
+| `battle_lock`(P-042) | 「mamodo の術」或 mamodo 的魔物效果攻擊(`AttackStart.by`) | 本場戰鬥對手的限制(`flags`) |
 | `no_protect_book`(E-013) | 都適用 | 本場不能保護魔書 |
 | `injure_instead`(S-057) | 戰術 | 獲勝改為負傷對手魔物 |
-| `redirect_damage`(P-022) | 戰術且等於使用魔物家族 | 傷害改給指定的對手魔物 |
+| `redirect_damage`(P-022) | 「mamodo の術」 | 傷害改給指定的對手魔物 |
 
 - 效果文寫「術」的待命只適用於戰術攻擊;魔物效果攻擊(M-027)不消耗它們,留到下一場戰鬥。
-- 套用函式的簽名是 `(game, battle, sb)`。`AttackStart` 另帶攻擊的魔物 `slot_uid` 與家族 `family`(`mamodo_name` 只在戰術攻擊時有值,供「術」的待命判斷)。
+- 套用函式的簽名是 `(game, battle, sb)`。`AttackStart` 另帶攻擊的魔物 `slot_uid` 與家族 `family`;`spell_names` 只在戰術攻擊時有值,是戰術的對應魔物與攻擊的魔物的名稱(card-effects「『〇〇の術』的判定」),供「術」的待命判斷。
 - **攻擊時要做決策的待命**(M-055 / P-043):待命種類 `on_attack`,由 `reg.on_attack(number, when=..., effect=...)` 登記條件與效果樹。戰鬥開始時(套用完上表後)條件成立者標記 `armed`;`_attack_declare_continue` 先逐一執行標記的效果樹(可建立決策),樹尾的 `ContinueAttackDeclaration` 回到 `_attack_declare_continue`,全部完成才進入 `_ask_injure_target` 與宣告時效果。攻擊已被無效(M-055 反面)時不再執行剩下的。條件不成立的待命照 `next_battle` 的規則在戰鬥結束時移除。M-055 正面時設定 `injure_instead` / `injure_target`,所以之後不再詢問對象。
 - **新增作用於下一場戰鬥的待命**:在表加一列,寫明對戰術攻擊與魔物效果攻擊是否適用;`tests/test_battle_start_characterization.py` 以期望檔鎖定兩種攻擊在各待命下的事件序列,刻意改變行為時以 `GOLDEN_UPDATE=1` 重新產生並說明。
 

@@ -105,7 +105,7 @@ def _spell_users(game: Game, p: int, page: int, card) -> list[dict]:
     """可使用此戰術的自己場上魔物(持有者私有):依引擎的相容判定,附依該魔物計算的費用與是否被
     指定魔物的封鎖擋下(E-024 / S-074 / E-043)。"""
     return [{"slot_uid": s.uid, "cost": spell_cost(game, p, page, card, slot=s),
-             "locked": spell_block(game, p, s) == "spell.mamodo_locked"}
+             "locked": spell_block(game, p, s, card=card) == "spell.mamodo_locked"}
             for s in game.state.players[p].slots
             if card.is_command_spell or _spell_usable_by(game, p, s, card)]
 
