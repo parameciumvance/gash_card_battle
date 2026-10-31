@@ -55,6 +55,21 @@
 - **WHEN** 核對某卡的 `name_ja` 與 `data/cards_ja.csv` 對應列的 `name_ja` 不一致
 - **THEN** `cards.zh-TW.json` 的 `name_ja` MUST 更正為與 `data/cards_ja.csv` 一致
 
+### Requirement: 卡片效果文直譯
+`data/cards.zh-TW.json` 與 `data/cards.en.json` 的效果文(`effect`)SHALL 是 `effect_ja` 的直譯。翻譯 MUST NOT 依實作改寫,MUST NOT 加入日文沒有的條件、對象或結果,也 MUST NOT 省略日文有的條件與措辭(次數、選擇者、「できる」、時效、括號註記)。卡名、戰術名與效果名(`attr`)依使用者校對的代理版譯名，不在此限。簡體中文隨繁中轉換。
+
+#### Scenario: 不加入日文沒有的條件
+- **WHEN** 檢視 M-005(日文「このバトル中、この魔物の『魔物の効果』や術のダメージを1ふやす」)的繁中效果文
+- **THEN** 譯文是「本場戰鬥中」此魔物的「魔物的效果」與戰術的傷害 +1,不含「此魔物進行攻擊」之類的條件
+
+#### Scenario: 主詞依日文
+- **WHEN** 檢視 M-001(日文「自分が攻撃するバトル中、この魔物の魔力を+1000する」)的繁中效果文
+- **THEN** 條件是「自己攻擊的戰鬥中」,不是「此魔物進行攻擊的戰鬥中」
+
+#### Scenario: 保留可選與次數的措辭
+- **WHEN** 檢視 M-008 與 M-012 的繁中效果文
+- **THEN** M-008 寫出「可以」以「原本」費用減 1 使用、魔力不低於 0;M-012 寫出重擲「1枚」硬幣
+
 ### Requirement: 預組魔書資料
 `data/decks/` 的每個預組 SHALL 以 32 個頁位依序對應卡號,並記錄來源:`level1.json` 由 `ref/raw/deck/level1.txt` 轉換;`level2.json`、`gash-nakama.json`、`zeon.json` 依 atwiki 構築済み魔本頁(「黒き魔界よりの使者」pages/2054、「ガッシュ・ベルと仲間達」pages/2056、「ゼオンと最凶魔物達」pages/2057)的頁序。載入時 MUST 驗證構築合法性(32 頁全滿、第 1 頁魔物、最後一頁戰術、中級 12 頁後、上級 22 頁後、同號 ≤4、魔物 ≤8、不含尚未開放的卡)且每個卡號存在於 cards.json。每個預組 SHALL 有 `name_key`,其名稱在四種語言的介面字典中都有翻譯。
 
