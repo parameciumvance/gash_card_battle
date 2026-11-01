@@ -12,6 +12,7 @@ from ..tree import (
     NextStartPhase, Standby, StealOpponentMp, AddSelfPowerWhenAttacking, All, AlwaysImmune,
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
     SetSelfPowerToChosenThisTurn,
+    AttachOpponentPartnerToSelf, OpponentDiscardedPartner,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
     DiscardedCardsToReturn, DiscardFromOpponentBook, GainMp, HasOptions, ImmuneToAttackDamage,
@@ -250,6 +251,14 @@ reg.activated("M-056", mode="mp", mp_cost=1, timing="nonbattle", own_turn=True, 
 reg.activated("M-057", mode="mp", mp_cost=2, timing="battle", condition=OpponentIsAttacking(), effect=Coin(
     count=1, on=HeadsAtLeast(1),
     then=NegateAttack(),
+))
+
+# M-058:「自分は、この魔物の術を使えない」是卡片規則;借來的搭檔離場時回到對手的捨て札(engine.discard_attached_partner)
+reg.no_own_spells("M-058")
+reg.activated("M-058", mode="mp", mp_cost=3, timing="nonbattle",
+              condition=All(SelfHasNoPartner(), HasOptions(OpponentDiscardedPartner())), effect=Choose(
+    OpponentDiscardedPartner(), bind="choice", prompt="pick_partner_in_discard",
+    then=AttachOpponentPartnerToSelf(),
 ))
 
 # M-059:負傷不是傷害(不能保護、不看不受傷害)

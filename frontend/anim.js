@@ -279,9 +279,9 @@ const Anim = (() => {
       if (tray) marks.trayRect[p] = tray.getBoundingClientRect();
     }
     for (const ev of events) {
-      if (ev.type === "card_played") {
-        const zone = zoneOf(ev.player);
-        const el = zone && zone.querySelector(`.book-pages [data-card="${ev.card}"]`);
+      if (ev.type === "card_played") {           // 起點:魔書頁;自棄牌區上場時是那一方(借來的搭檔為持有者)的棄牌區
+        const zone = zoneOf(ev.from_discard ? ev.owner ?? ev.player : ev.player);
+        const el = zone && zone.querySelector(ev.from_discard ? ".discard-btn" : `.book-pages [data-card="${ev.card}"]`);
         marks.cardSrc[ev.seq] = (el || null) && el.getBoundingClientRect();
       }
       if (ev.type === "mamodo_discarded" || ev.type === "mamodo_injured") {
@@ -324,8 +324,8 @@ const Anim = (() => {
         return hitFlash(ev);
       case "mamodo_discarded":
         return flyToDiscard(ev.player, ev.cards[ev.cards.length - 1], marks.slotRect[ev.seq]);
-      case "card_discarded":
-        return flyToDiscard(ev.player, ev.card, marks.discardSrc[ev.seq]);
+      case "card_discarded":                    // 借來的搭檔(owner)進持有者的棄牌區
+        return flyToDiscard(ev.owner ?? ev.player, ev.card, marks.discardSrc[ev.seq]);
     }
   }
 

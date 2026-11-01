@@ -580,6 +580,8 @@
   "product.file-1": "FILE:1 Zatch Bell & Ponygon",
   "builder.filter.none_title": "None (Command SPELLs)",
   "ui.slot.empty_mamodo": "MAMODO",
+  "ui.slot.borrowed": "Borrowed",
+  "ui.slot.borrowed_title": "Borrowed from the opponent; returns to the opponent's discard pile when it leaves",
   "ui.slot.empty_partner": "Partner",
   "anim.coin.heads": "H",
   "anim.coin.tails": "T",

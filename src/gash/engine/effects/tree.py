@@ -737,6 +737,26 @@ class OpponentMamodo:
 
 
 @dataclass(frozen=True)
+class OpponentDiscardedPartner:
+    """對手捨て札的搭檔卡,不需對應魔物;自己場上已有同名搭檔的除外(同名搭檔同場限 1 張)(M-058)。"""
+
+    @staticmethod
+    def _targets(game, player) -> list[dict]:
+        from ..engine import same_name_in_play
+        opp = 1 - player
+        return [discard_option(opp, i, number) for i, number in enumerate(game.state.players[opp].discard)
+                if game.db[number].type == PARTNER and not same_name_in_play(game, player, game.db[number])]
+
+    def options(self, game, ctx) -> list[dict]:
+        return self._targets(game, ctx["player"])
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {t["value"] for t in self._targets(game, ctx["player"])}:
+            raise IllegalCommand("choose.invalid", "須選擇對手棄牌區的搭檔卡")
+
+
+@dataclass(frozen=True)
 class PartnerDiscardedThisTurn:
     """棄牌堆中本回合入墓的搭檔卡,且其家族魔物在場上尚有空位(尚未裝備搭檔)。"""
 
@@ -1444,6 +1464,27 @@ class GainMpPerHeads(Effect):
         from ..engine import gain_mp
         amount = sum(ctx["results"]) * self.per_head
         gain_mp(rt.game, rt.batch, ctx["player"], amount, ctx["source"], by=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class AttachOpponentPartnerToSelf(Effect):
+    """把 Choose(OpponentDiscardedPartner()) 選中的對手捨て札的搭檔裝在這隻魔物上,持有者記為對手
+    (離場時回到對手的捨て札),並觸發其登場效果(M-058)。"""
+    index: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        game = rt.game
+        player = ctx["player"]
+        opp = 1 - player
+        slot = game.state.slot_by_uid(player, ctx.get("self_slot", -1))
+        if slot is None or slot.partner is not None:     # 場面已變化,防禦性放棄
+            return True
+        number = game.state.players[opp].discard.pop(ctx[self.index.name])
+        slot.partner, slot.partner_owner = number, opp
+        game.emit(rt.batch, "card_played", player=player, card=number, slot=slot.uid,
+                  zone="partner", from_discard=True, owner=opp)
+        run_on_play(game, rt.batch, player, slot, number)
         return True
 
 

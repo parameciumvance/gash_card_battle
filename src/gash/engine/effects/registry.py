@@ -162,6 +162,9 @@ IGNORE_SPELL_BLOCK: set[str] = set()
 # 不能保護的魔物(「かばうことができる」時也不能;M-051)
 CANNOT_PROTECT: set[str] = set()
 
+# 卡片規則「自分は、この魔物の術を使えない」:在場時不能使用「這隻魔物の術」(M-058;engine.spell_block 依名稱判定)
+NO_OWN_SPELLS: set[str] = set()
+
 # 此卡在場上時,對手使用事件卡的費用增加量(M-040)
 OPPONENT_EVENT_COST: dict[str, int] = {}
 
@@ -516,6 +519,11 @@ def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_tur
 def ignore_spell_block(number: str):
     """「術を使えない」時,「這隻魔物の術」(名稱,含其他魔物使用的與這隻使用的戰術)仍可使用(M-038)。"""
     IGNORE_SPELL_BLOCK.add(number)
+
+
+def no_own_spells(number: str):
+    """卡片規則「自分は、この魔物の術を使えない」(M-058):不是限制效果,「魔物の効果を使えない」時仍適用。"""
+    NO_OWN_SPELLS.add(number)
 
 
 def cannot_protect(number: str):

@@ -580,6 +580,8 @@
   "product.file-1": "FILE:1 ガッシュベル＆ウマゴン",
   "builder.filter.none_title": "なし(コマンドの術)",
   "ui.slot.empty_mamodo": "魔物",
+  "ui.slot.borrowed": "借用",
+  "ui.slot.borrowed_title": "相手から借りたカード。場を離れると相手の捨て札にもどる",
   "ui.slot.empty_partner": "パートナー",
   "anim.coin.heads": "表",
   "anim.coin.tails": "裏",

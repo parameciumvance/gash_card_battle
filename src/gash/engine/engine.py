@@ -188,8 +188,11 @@ def spell_block(game: Game, player: int, slot: MamodoSlot | None, *, attack: boo
                 card: CardDef | None = None, defense: bool = False) -> str | None:
     """「術を使えない」:player 以 slot 使用戰術 card 被擋時回傳錯誤碼,否則 None。
     限定魔物的限制以名稱判定(card-effects「『〇〇の術』的判定」):戰術屬於該名稱,或由該名稱的魔物使用;
-    card 未指定時只看使用者。「M-038 的戰術」(reg.IGNORE_SPELL_BLOCK)不受限。defense 時另看 P-043。"""
+    card 未指定時只看使用者。「M-038 的戰術」(reg.IGNORE_SPELL_BLOCK)不受限。defense 時另看 P-043。
+    M-058 的卡片規則(reg.NO_OWN_SPELLS)不是限制效果,不受「魔物の効果を使えない」影響。"""
     names = spell_names(game, card, slot)
+    if any(s.top in reg.NO_OWN_SPELLS and family(game, s) in names for s in game.state.players[player].slots):
+        return "spell.restricted"                                         # M-058 的卡片規則
     if any(s.top in reg.IGNORE_SPELL_BLOCK and family(game, s) in names for s in game.state.players[player].slots):
         return None
     for m in _restrictions(game, player):
@@ -525,6 +528,20 @@ def to_discard(ps: PlayerState, number: str) -> None:
     ps.discarded_this_turn.append(number)
 
 
+def discard_attached_partner(game: Game, batch: list[dict] | None, player: int, slot: MamodoSlot,
+                             reason: str) -> str:
+    """把 player 的 slot 所裝的搭檔棄掉,進持有者的捨て札(M-058 借來的搭檔進對手的,
+    game-engine「場上卡片的持有者」)。batch 為 None 時不發事件(還原時補回,事件已在當時發出)。"""
+    number = slot.partner
+    owner = player if slot.partner_owner is None else slot.partner_owner
+    slot.partner = slot.partner_owner = None
+    to_discard(game.state.players[owner], number)
+    if batch is not None:
+        game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason=reason,
+                  slot=slot.uid, owner=owner)
+    return number
+
+
 # ---------------------------------------------------------------- 指令入口
 
 def submit(game: Game, command: dict) -> list[dict]:
@@ -698,10 +715,7 @@ def _use_action_effect(game: Game, batch: list[dict], player: int, command: dict
     if what == "top":
         _detach_top(game, batch, player, slot, reason="action")
     else:
-        slot.partner = None
-        to_discard(st.players[player], number)
-        game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason="action",
-                  slot=slot.uid)
+        discard_attached_partner(game, batch, player, slot, reason="action")
 
 
 def _require_open_page(game: Game, player: int, page) -> str:
@@ -830,10 +844,7 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     pay_mp(game, batch, player, spec.mp_cost, f"ability:{number}")
     if spec.mode == "discard":
         if zone == "partner":
-            slot.partner = None
-            to_discard(st.players[player], number)
-            game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason="cost",
-                      slot=slot.uid)
+            discard_attached_partner(game, batch, player, slot, reason="cost")
         else:   # 魔物卡「このカードを捨て札にする」:此魔物(連同疊放與搭檔)入墓(M-033)
             _discard_slot(game, batch, player, slot, reason="cost")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone=zone)
@@ -2412,8 +2423,7 @@ def _replay_coin_journal(game: Game, journal) -> None:
         elif kind == "discard_partner":
             slot = st.slot_by_uid(player, entry[2])
             if slot is not None and slot.partner:
-                to_discard(ps, slot.partner)
-                slot.partner = None
+                discard_attached_partner(game, None, player, slot, reason="coin")
 
 
 def _redo_event(game: Game, batch: list[dict], offer: dict, number: str, slot_uid: int, spec: dict) -> None:
@@ -2683,9 +2693,7 @@ def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, 
     for number in reversed(slot.stack):
         to_discard(ps, number)
     if slot.partner:
-        to_discard(ps, slot.partner)
-        game.emit(batch, "card_discarded", player=player, card=slot.partner, zone="partner", reason="attached",
-                  slot=slot.uid)
+        discard_attached_partner(game, batch, player, slot, reason="attached")
     game.emit(batch, "mamodo_discarded", player=player, slot=slot.uid,
               cards=list(slot.stack), reason=reason)
     for number in slot.stack:
@@ -2978,10 +2986,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     for m in [m for m in st.modifiers if m.kind == "discard_partner_at_turn_end"]:
         slot = st.slot_by_uid(m.target_player, m.target_slot)
         if slot is not None and slot.partner == m.data.get("card"):
-            slot.partner = None
-            to_discard(st.players[m.target_player], m.data["card"])
-            game.emit(batch, "card_discarded", player=m.target_player, card=m.data["card"], zone="partner",
-                      reason="turn_end", slot=slot.uid)
+            discard_attached_partner(game, batch, m.target_player, slot, reason="turn_end")
     # 時效到期與回合收尾
     st.modifiers = [m for m in st.modifiers if not _expires_now(m, st.turn_no)]
     st.standby = [s for s in st.standby

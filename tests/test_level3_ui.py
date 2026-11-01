@@ -327,3 +327,17 @@ def test_jammer_options_named_when_multiple(page):
     single = page.evaluate("choiceLabel({value: 'M-032', label: 'jammer_use', card: 'E-018', jammer: 'M-032', "
                            "named: false, discard: true, cost: 0}, [])")
     assert single.startswith("棄掉這張卡")
+
+
+def test_borrowed_partner_badge(page):
+    # battle-ui「借來的搭檔標記」:M-058 借來的對手的搭檔有「借用」小標記,其他搭檔沒有
+    p = start(page)
+    page.evaluate("""(p) => {
+        S = {...S, players: S.players.map((x, i) => ({...x, slots: x.slots.map((s, j) => j !== 0 ? s :
+          {...s, partner: 'P-002', partner_owner: i === p ? 1 - p : null, partner_ability: null})}))};
+        render();
+    }""", p)
+    mine = page.locator(f'[data-zone-kind="partner"][data-slot-uid="{page.evaluate("(p) => S.players[p].slots[0].uid", p)}"]')
+    other = page.locator(f'[data-zone-kind="partner"][data-slot-uid="{page.evaluate("(p) => S.players[1 - p].slots[0].uid", p)}"]')
+    assert mine.locator(".borrowed-badge").inner_text() == "借用"
+    assert other.locator(".borrowed-badge").count() == 0

@@ -264,15 +264,10 @@ def partner_discard_guarded(game, player, slot) -> bool:
 
 def discard_partner(game, batch, player, slot, source):
     """把場上魔物所裝的搭檔卡棄掉。"""
-    from ..engine import to_discard
+    from ..engine import discard_attached_partner
     if not slot.partner:
         return None
-    number = slot.partner
-    slot.partner = None
-    to_discard(game.state.players[player], number)
-    game.emit(batch, "card_discarded", player=player, card=number, zone="partner", reason=source,
-              slot=slot.uid)
-    return number
+    return discard_attached_partner(game, batch, player, slot, reason=source)
 
 
 # ---------------------------------------------------------------- 「自分の魔本をめくる/もどす」効果(P-010/P-018 條款)

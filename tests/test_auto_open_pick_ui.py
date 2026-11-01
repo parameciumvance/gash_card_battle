@@ -129,6 +129,87 @@ def test_discarded_partner_flies_to_discard_pile(browser, server):  # noqa: F811
     assert not errors
 
 
+def test_borrowed_partner_flies_to_owner_discard_pile(browser, server):  # noqa: F811
+    # M-058 借來的搭檔離場時進持有者(對手)的捨て札:飛向對手的棄牌區
+    context, page, errors = motion_page(browser, server)
+    tp, _ = start_as(page, "all")
+    res = page.evaluate("""async () => {
+        const me = S.turn_player, opp = 1 - me, s = S.players[me].slots[0];
+        S = {...S, players: S.players.map((ps, i) => i !== me ? ps
+            : {...ps, slots: ps.slots.map((x) => x.uid === s.uid ? {...x, partner: 'P-002', partner_owner: opp} : x)})};
+        render();
+        const after = {...S, players: S.players.map((ps, i) =>
+            i === opp ? {...ps, discard: [...ps.discard, 'P-002']}
+            : {...ps, slots: ps.slots.map((x) => ({...x, partner: null, partner_owner: null}))})};
+        applyPayload({state: after, actor: me, events: [{type: 'card_discarded', player: me, owner: opp,
+            card: 'P-002', zone: 'partner', reason: 'cost', slot: s.uid, seq: animSeq}]});
+        await Anim.idle();
+        const ghost = document.querySelector('#anim-overlay .fx-to-discard[data-card="P-002"]');
+        const center = (p) => {
+            const r = document.querySelector(`.player-zone[data-player="${p}"] .discard-btn`).getBoundingClientRect();
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        };
+        const g = ghost && {x: parseFloat(ghost.style.left) + parseFloat(ghost.style.width) / 2,
+                            y: parseFloat(ghost.style.top) + parseFloat(ghost.style.height) / 2};
+        return {ghost: g, own: center(me), owner: center(opp)};
+    }""")
+    g = res["ghost"]
+    assert g is not None
+    dist = lambda c: abs(c["x"] - g["x"]) + abs(c["y"] - g["y"])  # noqa: E731
+    assert dist(res["owner"]) < 2 and dist(res["own"]) > 50                    # 目的地是持有者的棄牌區
+    context.close()
+    assert not errors
+
+
+FROM_DISCARD = """async (borrowed) => {
+    // 搭檔自棄牌區上場(E-011 / E-022;M-058 借用時是對手的棄牌區):飛卡的起點是那一方的棄牌區
+    const me = S.turn_player, opp = 1 - me, src = borrowed ? opp : me, s = S.players[me].slots[0];
+    S = {...S, players: S.players.map((ps, i) => i !== src ? ps : {...ps, discard: [...ps.discard, 'P-002']})};
+    render();
+    const after = {...S, players: S.players.map((ps, i) => {
+        let x = i === src ? {...ps, discard: ps.discard.slice(0, -1)} : ps;
+        if (i === me) x = {...x, slots: x.slots.map((y) => y.uid === s.uid
+            ? {...y, partner: 'P-002', partner_owner: borrowed ? opp : null} : y)};
+        return x;
+    })};
+    const ev = {type: 'card_played', player: me, card: 'P-002', slot: s.uid, zone: 'partner',
+                from_discard: true, seq: animSeq};
+    if (borrowed) ev.owner = opp;
+    const center = (r) => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
+    const pile = (p) => center(document.querySelector(`.player-zone[data-player="${p}"] .discard-btn`)
+        .getBoundingClientRect());
+    const piles = {src: pile(src), other: pile(1 - src)};
+    let start = null;                             // 飛卡加入時的位置(之後同步改成終點)
+    const ov = document.getElementById('anim-overlay'), append = ov.appendChild;
+    ov.appendChild = function (g) {
+        if (!start && g.classList.contains('fx-fly-card'))
+            start = {x: parseFloat(g.style.left) + parseFloat(g.style.width) / 2,
+                     y: parseFloat(g.style.top) + parseFloat(g.style.height) / 2};
+        return append.call(this, g);
+    };
+    applyPayload({state: after, actor: me, events: [ev]});
+    await Anim.idle();
+    delete ov.appendChild;
+    return {start, ...piles};
+}"""
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("borrowed", [False, True])
+def test_partner_from_discard_flies_from_discard_pile(browser, server, borrowed):  # noqa: F811
+    context, page, errors = motion_page(browser, server)
+    start_as(page, "all")
+    res = page.evaluate(FROM_DISCARD, borrowed)
+    s = res["start"]
+    assert s is not None
+    dist = lambda c: abs(c["x"] - s["x"]) + abs(c["y"] - s["y"])  # noqa: E731
+    assert dist(res["src"]) < 2 and dist(res["other"]) > 50
+    context.close()
+    assert not errors
+
+
 def test_auto_open_waits_even_when_batch_arrives_twice(browser, server):  # noqa: F811
     # 同一批事件經 HTTP 回應與 WS 推送各到一次:第二次沒有新事件,也不能提早開啟
     context, page, errors = motion_page(browser, server)

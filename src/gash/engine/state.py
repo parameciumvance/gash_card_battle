@@ -91,6 +91,7 @@ class MamodoSlot:
     stack: list[str]            # 疊放的魔物卡號,最上層生效
     injured: bool = False
     partner: str | None = None
+    partner_owner: int | None = None   # 搭檔的持有者(M-058 借來的對手的搭檔);None 為魔物槽的玩家
     column: int | None = None   # 場上欄位(0–2,由左至右);只表示位置,不影響規則
 
     @property

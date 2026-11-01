@@ -34,11 +34,16 @@ def test_season3_cards_pending():
     from tests.test_season3_effects_3 import BATCH as BATCH3
     from tests.test_season3_effects_4 import BATCH as BATCH4
     from tests.test_season3_effects_5 import BATCH as BATCH5
+    from tests.test_season3_effects_6 import BATCH as BATCH6
     assert set(SEASON3) & pending_cards() == (set(SEASON3) - set(BATCH1) - set(BATCH2) - set(BATCH3) - set(BATCH4)
-                                              - set(BATCH5))
+                                              - set(BATCH5) - set(BATCH6))
+    assert not set(SEASON3) & pending_cards()                     # 第 3 賽季全部開放
 
 
-def test_room_with_pending_card_rejected():
+def test_room_with_pending_card_rejected(monkeypatch):
+    # 測試替身:第 3 賽季已全部開放,以 M-058 暫作尚未開放的卡
+    import gash.engine.deck as deck
+    monkeypatch.setattr(deck, "pending_cards", lambda: frozenset({"M-058"}))
     pages = list(load_deck(DATA_DIR / "decks/level1.json", card_db()).pages)
     pages[20] = "M-058"
     res = TestClient(app).post("/api/rooms", json={"mode": "online", "deck": {"pages": pages}})

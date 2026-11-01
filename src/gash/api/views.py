@@ -57,6 +57,7 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "top": slot.top,
         "injured": slot.injured,
         "partner": slot.partner,
+        "partner_owner": slot.partner_owner,   # 借來的搭檔(M-058)的持有者;None 為魔物槽的玩家
         "power": power,
         "power_breakdown": power_items,   # 逐項加總等於 power(公開)
         # 失效中的常駐效果:頂層與搭檔中被「使えない」擋下者與限制來源(限制是公開的)

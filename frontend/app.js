@@ -1522,6 +1522,13 @@ function renderFieldBlock(p, ps, isTop) {
         const pt = partnerEl(p, slot);
         pt.dataset.slotUid = slot.uid;
         pt.dataset.zoneKind = "partner";
+        if (slot.partner_owner != null && slot.partner_owner !== p) {   // M-058 借來的對手的搭檔
+          const tag = document.createElement("span");
+          tag.className = "borrowed-badge";
+          tag.textContent = t("ui.slot.borrowed");
+          tag.title = t("ui.slot.borrowed_title");
+          pt.appendChild(tag);
+        }
         partnerCell.appendChild(pt);
       } else {
         partnerCell.appendChild(emptyFrame(t("ui.slot.empty_partner"), true));

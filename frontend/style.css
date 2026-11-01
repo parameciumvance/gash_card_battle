@@ -203,6 +203,11 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   width: var(--card-w); height: 100%;
 }
 .empty-frame.small { font-size: 10px; }
+.borrowed-badge {
+  position: absolute; top: 2px; left: 2px; z-index: 2; pointer-events: none;
+  background: #3a1d4a; color: #f0d8ff; border: 1px solid #b07ad0; border-radius: 6px;
+  font-size: 10px; line-height: 1; padding: 2px 4px;
+}
 .stack-badge {
   position: absolute; left: 6px; top: 5px; z-index: 3;
   background: var(--gold); color: #3a2a08; font-weight: bold;

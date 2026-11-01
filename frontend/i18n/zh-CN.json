@@ -580,6 +580,8 @@
   "product.file-1": "FILE:1 贾修・贝尔&小马怪",
   "builder.filter.none_title": "无(指令战术)",
   "ui.slot.empty_mamodo": "魔物栏",
+  "ui.slot.borrowed": "借用",
+  "ui.slot.borrowed_title": "借自对手的卡,离场时回到对手的弃牌区",
   "ui.slot.empty_partner": "搭档",
   "anim.coin.heads": "正",
   "anim.coin.tails": "反",
