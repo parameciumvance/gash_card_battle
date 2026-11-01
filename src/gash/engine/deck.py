@@ -22,6 +22,7 @@ BOOK_SIZE = 32
 INTERMEDIATE_MIN_PAGE = 12
 SUPERIOR_MIN_PAGE = 22
 MAX_COPIES = 4
+MAX_PR_COPIES = 1
 MAX_MAMODO = 8
 
 
@@ -64,6 +65,8 @@ def validate_deck(pages: list[str], db: dict[str, CardDef], season: int | None =
     for number, count in Counter(pages).items():
         if count > MAX_COPIES:
             raise DeckError("deck.max_copies", f"同編號 {number} 超過 {MAX_COPIES} 張({count} 張)")
+        if number.startswith("PR-") and count > MAX_PR_COPIES:   # 大會規則:プロモーションカードは1種類につき1枚まで
+            raise DeckError("deck.pr_copies", f"PR 卡 {number} 只能放 {MAX_PR_COPIES} 張({count} 張)")
     mamodo_count = sum(1 for n in pages if db[n].type == MAMODO)
     if mamodo_count > MAX_MAMODO:
         raise DeckError("deck.max_mamodo", f"魔物卡超過 {MAX_MAMODO} 張({mamodo_count} 張)")

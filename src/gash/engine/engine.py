@@ -659,7 +659,7 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
         raise IllegalCommand("flip.too_far", "不能翻超過魔書最後一頁")
     if count:
         ps.pos += 2 * count
-        gained = 2 * count
+        gained = 0 if st.turn_no == 1 else 2 * count   # 大會規則:先攻の1ターン目はページをめくってもMPを増やせない
         ps.mp += gained
         ps.start_phase_mp_gain = gained   # P-035
         game.emit(batch, "pages_flipped", player=player, count=count, pos=ps.pos, mp_gained=gained)

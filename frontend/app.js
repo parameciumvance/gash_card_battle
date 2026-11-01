@@ -2164,6 +2164,7 @@ function actionSummary(awaited, timing) {
 function actionHints(awaited, timing) {
   if (S.pending && timing !== "end") return ["hint.pending"];
   if (timing === "nonbattle") return awaited === S.turn_player ? HINTS.nonbattle_turn : HINTS.nonbattle_other;
+  if (timing === "start" && S.turn_no === 1) return ["hint.start_first"];   // 大會規則:先攻第 1 回合翻頁不得 MP
   return HINTS[timing] || [];
 }
 const HINTS = {
@@ -2251,7 +2252,8 @@ function renderActionBar() {
       const n = ((bookBrowsable(tp) ? browseStart(tp) : null) ?? pos) - pos;
       const count = n / 2;
       if (count >= 0 && count <= maxFlip) {
-        addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp: 2 * count }),
+        const mp = S.turn_no === 1 ? 0 : 2 * count;   // 大會規則:先攻第 1 回合翻頁不得 MP(game-engine「開始階段翻頁」)
+        addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp }),
           () => send({ type: "flip_pages", player: tp, count }), true);
       } else {
         const hint = document.createElement("span");
@@ -2911,6 +2913,7 @@ const RULE_LINKS = {
   "timing.effects": "battle",
   "timing.end": "advanced",
   "hint.start": "turn",
+  "hint.start_first": "turn",
   "hint.play": "actions",
   "hint.field_effect": "actions",
   "hint.own_turn_cards": "actions",

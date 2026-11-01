@@ -47,6 +47,19 @@
       ]
     },
     {
+      "id": "deck",
+      "title": "Building a Spell Book",
+      "blocks": [
+        {"list": [
+          "A Spell Book has exactly 32 pages, with 1 card on each page.",
+          "Page 1 must be a MAMODO card and the last page (page 32) must be a SPELL card.",
+          "Intermediate cards must be on page 12 or later, and superior cards on page 22 or later.",
+          "Up to 4 cards with the same card number; promo cards (card numbers starting with PR-) are limited to 1 per card number.",
+          "Up to 8 MAMODO cards in total."
+        ]}
+      ]
+    },
+    {
       "id": "setup",
       "title": "Setup",
       "blocks": [
@@ -63,7 +76,7 @@
       "blocks": [
         {"p": "Players take turns. The player whose turn it is is the “turn player”. Each turn goes through the START PHASE, BATTLE PHASE and END PHASE in order."},
         {"list": [
-          "START PHASE: the turn player turns 0–3 pages of their Spell Book (one page is one pair of pages), getting MP +2 for each, and cannot turn past the last page. Afterwards, effects and STANDBY effects that trigger in the START PHASE resolve.",
+          "START PHASE: the turn player turns 0–3 pages of their Spell Book (one page is one pair of pages), getting MP +2 for each, and cannot turn past the last page; however, turning pages in the first player's first turn gives no MP. Afterwards, effects and STANDBY effects that trigger in the START PHASE resolve.",
           "BATTLE PHASE: players act alternately (see “What you can do in the BATTLE PHASE”). When both players pass in a row while not in BATTLE, the BATTLE PHASE ends.",
           "END PHASE: effects that trigger in the END PHASE resolve; if you have no MAMODO in play, the no-MAMODO procedure happens (see “Advanced rules”). Finally the turn player must turn 1 page of their Spell Book, gets MP +2, and the opponent's turn begins."
         ]}

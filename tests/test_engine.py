@@ -57,6 +57,7 @@ def test_illegal_command_rejected_state_unchanged():
 def test_flip_pages_gains_mp():
     g = mk()
     tp = turn_of(g)
+    g.state.turn_no = 3          # 先攻第 1 回合翻頁不得 MP(大會規則,見 tests/test_tournament_rules.py)
     events = submit(g, {"type": "flip_pages", "player": tp, "count": 2})
     assert g.state.players[tp].mp == 6  # 2 + 2*2
     assert g.state.players[tp].pos == 6

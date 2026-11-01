@@ -76,7 +76,7 @@ def test_token_identity_overrides_payload():
     tokens = {0: t0, 1: t1}
     # 回合玩家的 token + payload 冒名對手 → 仍以 token 身分處理(成功)
     body = cmd(code, tokens[tp], {"type": "flip_pages", "player": 1 - tp, "count": 1})
-    assert body["state"]["players"][tp]["mp"] == 4
+    assert body["state"]["players"][tp]["pos"] == 4      # 翻的是回合玩家的魔書(先攻第 1 回合翻頁不得 MP,以頁數判斷)
     # 非回合玩家的 token 翻頁 → 被拒(身分來自 token)
     res = client.post(f"/api/rooms/{code}/commands",
                       headers={"X-Player-Token": tokens[1 - tp]},

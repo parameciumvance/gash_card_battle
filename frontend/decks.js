@@ -127,6 +127,7 @@ function validateDeckPages(pages) {
   for (const num of pages) if (num) counts[num] = (counts[num] || 0) + 1;
   for (const [num, n] of Object.entries(counts)) {
     if (n > 4) errors.push({ key: "deck.err.max_copies", params: { card: num, n } });
+    else if (n > 1 && num.startsWith("PR-")) errors.push({ key: "deck.err.pr_copies", params: { card: num, n } });   // 大會規則
   }
   const mamodo = pages.filter((c) => c && CARDS[c].type === "mamodo").length;
   if (mamodo > 8) errors.push({ key: "deck.err.max_mamodo", params: { n: mamodo } });

@@ -81,6 +81,16 @@ def test_hint_details_toggle_is_remembered(page):
     assert "防(D)" in details and "宣告攻擊" not in details
 
 
+def test_start_hint_follows_first_turn_rule(page):
+    # 先攻第 1 回合翻頁不得 MP(大會規則):開始階段的詳細提示不寫「每張 MP +2」
+    start_as(page, "all")
+    page.evaluate("localStorage.setItem('gash-action-hints', 'shown'); render()")
+    details = page.locator("#action-bar .hint-details").text_content()
+    assert "先攻第 1 回合" in details and "每張 MP +2" not in details
+    page.evaluate("S = {...S, turn_no: 3}; render()")
+    assert "每張 MP +2" in page.locator("#action-bar .hint-details").text_content()
+
+
 GLOW_SETUP = """async (me) => {
     const token = SESSION.tokens[me];
     const headers = {'X-Player-Token': token, 'Content-Type': 'application/json'};
