@@ -178,13 +178,32 @@ def test_events_hidden_when_mamodo_picked_with_other_types(builder):
     assert pool_numbers(builder) == cards_where(builder, "c.type === 'spell' && c.related_mamodo === 'ガッシュ・ベル'")
 
 
+@pytest.mark.parametrize("group,key", [("mamodo", "ブラゴ"), ("product", "level-2"), ("season", "1")])
+def test_click_selected_again_cancels(builder, group, key):
+    # 單選組再點一次已選取的項目:取消選擇(與點「全部」相同),網格收起
+    everything = pool_numbers(builder)
+    pick(builder, group, key)
+    assert pool_numbers(builder) != everything
+    pick(builder, group, key)
+    assert pool_numbers(builder) == everything
+    assert tile(builder, group, key).get_attribute("aria-pressed") == "false"
+    assert panel(builder, group).locator(".filter-all").get_attribute("aria-pressed") == "true"
+    assert panel(builder, group).is_hidden()
+
+
+def test_all_button_is_large(builder):
+    menu(builder, "product").click()
+    box = panel(builder, "product").locator(".filter-all").bounding_box()
+    assert box["height"] >= 40
+
+
 # ---------------------------------------------------------------- 網格內容與順序
 
 def test_product_rows_skip_reprints(builder):
     menu(builder, "product").click()
     rows = panel(builder, "product").locator(".filter-row").evaluate_all(
         "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
-    has_open = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => openCards().some((c) => c.sets.includes(k))))",
+    has_open = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => openCards().some((c) => productHas(c, k))))",
                                 SEASON_ROWS)
     assert rows == [r for r in has_open if r]                                  # 只列有開放卡片的產品
     captions = panel(builder, "product").locator(".filter-caption").all_text_contents()
@@ -205,7 +224,7 @@ SEASON_ROWS = [
     ["level-1"],
     ["level-2", "mahon-file", "ex-sheet-1"],
     ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
-    ["promo"],
+    ["ex", "promo"],
 ]
 
 
@@ -213,7 +232,7 @@ def test_product_rows_by_season_when_all_open(browser, server):
     context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
     menu(page, "product").click()
     assert product_rows(page) == SEASON_ROWS
-    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "promo"):
+    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "ex", "promo"):
         assert tile(page, "product", code).locator("img").count() == 1, code
         assert tile(page, "product", code).locator(".filter-caption").inner_text() == page.evaluate(f"t('product.{code}')")
     context.close()
@@ -254,6 +273,29 @@ def test_pick_promo_shows_only_pr_cards(browser, server):
     numbers = pool_numbers(page)
     assert numbers and all(n.startswith("PR-") for n in numbers)
     assert numbers == cards_where(page, "c.sets.includes('promo')")
+    context.close()
+    assert not errors
+
+
+def test_pick_ex_shows_all_ex_cards(browser, server):
+    # Ex 卡:卡號 Ex- 開頭的所有卡(跨魔本拡張シート LEVEL:1 / LEVEL:2)
+    context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
+    pick(page, "product", "ex")
+    numbers = pool_numbers(page)
+    assert numbers and numbers == cards_where(page, "c.number.startsWith('Ex-')")
+    assert cards_where(page, "c.sets.includes('ex-sheet-1')")[0] in numbers
+    assert cards_where(page, "c.sets.includes('ex-sheet-2')")[0] in numbers
+    summary = menu(page, "product").locator(".filter-summary .filter-caption")
+    assert summary.inner_text() == page.evaluate("t('product.ex')")
+    context.close()
+    assert not errors
+
+
+def test_ex_and_promo_side_by_side(browser, server):
+    context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
+    menu(page, "product").click()
+    tops = [tile(page, "product", k).bounding_box()["y"] for k in ("ex", "promo")]
+    assert tops[0] == tops[1]
     context.close()
     assert not errors
 

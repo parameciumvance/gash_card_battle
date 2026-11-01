@@ -1188,7 +1188,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   background: var(--panel); border: 1px solid var(--panel-line); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
 }
-.pool-filters .filter-all { padding: 4px 12px; margin-bottom: 8px; }
+/* 「全部」比網格項目大,方便取消選擇;需蓋過上面以 id 選取的通用按鈕樣式 */
+:is(#pool-filters, #cheat-filters) .filter-all { min-height: 40px; min-width: 104px; padding: 8px 20px; margin-bottom: 8px; font-size: 15px; font-weight: bold; }
 .pool-filters .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
 .pool-filters .filter-grid .filter-tile { display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
 .pool-filters .mamodo-icon { width: 100%; aspect-ratio: 412 / 388; border-radius: 4px; }

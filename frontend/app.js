@@ -3607,10 +3607,15 @@ function mamodoFilterItems() {
     label: familyLabel(reps[fam] && TEXT[reps[fam]] ? TEXT[reps[fam]].name : fam) }));
 }
 
+// 卡片是否屬於產品:「ex」是依卡號前綴的虛擬產品(Ex- 開頭的所有卡,跨各魔本拡張シート)
+function productHas(def, code) {
+  return code === "ex" ? def.number.startsWith("Ex-") : (def.sets || []).includes(code);
+}
+
 // 產品網格的各排:依設定檔,只列有開放卡片的產品(再收錄產品不在設定檔中,不列出)
 function productFilterRows() {
-  const present = new Set(openCards().flatMap((c) => c.sets || []));
-  return (FILTER_CFG.products || []).map((row) => row.filter((code) => present.has(code)))
+  const cards = openCards();
+  return (FILTER_CFG.products || []).map((row) => row.filter((code) => cards.some((c) => productHas(c, code))))
     .filter((row) => row.length);
 }
 
@@ -3623,7 +3628,7 @@ function poolCardMatches(def, filters) {
   if (filters.ftypes.size && !filters.ftypes.has(def.type)) return false;
   if (filters.fmamodo && !mamodoFilterPaused(filters)
       && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
-  if (filters.fproduct && !(def.sets || []).includes(filters.fproduct)) return false;
+  if (filters.fproduct && !productHas(def, filters.fproduct)) return false;
   if (filters.fseason) {
     const season = cardSeason(def.number);
     if (season === null || season > Number(filters.fseason)) return false;
@@ -3673,8 +3678,10 @@ function renderCardPoolFilters(holder, filters, onChange) {
     face.push(el("span", "filter-caption", item.label));
     return face;
   };
+  // 再點一次已選取的項目:取消選擇(與點「全部」相同)
   const choose = (group, key) => {
-    filters[groups[group].key] = key;
+    const field = groups[group].key;
+    filters[field] = filters[field] === key ? null : key;
     filters.fopen = null;
     sync(); onChange();
     menus[group].btn.focus();
