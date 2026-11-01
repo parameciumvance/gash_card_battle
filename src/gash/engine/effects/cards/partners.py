@@ -209,6 +209,9 @@ reg.activated("Ex-033", mode="discard", timing="nonbattle", effect=Choose(
     ),
 ))
 
+# Ex-034:ジャマー;對手使用事件卡後,還原並令對手追加 3 重新解決(付不起時無效、MP 變 0)
+reg.jammer("Ex-034", on="event", discard_self=True, redo_cost=3)
+
 reg.activated("Ex-035", mode="discard", timing="nonbattle",
               effect=ScheduleNextSpellBonus(mamodo="ブラゴ", base_delta=-5))
 

@@ -368,12 +368,14 @@ def _reflip_slot(game, player, coins, card=None):
     return next((s for s in _reflip_slots(game, player, coins) if card is None or s.top == card), None)
 
 
-def _use_reflip(game, batch, player, slot):
-    """支付重擲的 MP、記錄使用次數並發出使用事件。"""
+def _use_reflip(game, batch, player, slot, journal=None):
+    """支付重擲的 MP、記錄使用次數並發出使用事件。journal 不為 None 時記下消耗(M-065 無效還原後補回)。"""
     from ..engine import _mark_used, pay_mp
     mp_cost, _ = reg.COIN_REFLIP_COST.get(slot.top, (0, 1))
     pay_mp(game, batch, player, mp_cost, f"mamodo:{slot.top}")
     _mark_used(game.state.players[player], f"mamodo:{slot.top}")
+    if journal is not None:
+        journal += [["used", player, f"mamodo:{slot.top}"], ["mp", player, -mp_cost]]
     game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
 
 
@@ -510,7 +512,7 @@ def _opp_coin_redo(game, batch, value, data):
     if value is not None:
         _check_subphase_choice(game, value, data)
         opp = data["coin_turn"]
-        _use_reflip(game, batch, opp, _reflip_slot(game, opp, "opponent"))
+        _use_reflip(game, batch, opp, _reflip_slot(game, opp, "opponent"), data.get("journal"))
         _reflip_one(game, batch, data, value)
     game.state.pending = None
     _next_turn(data, used=value is not None)
@@ -529,6 +531,8 @@ def _coin_confirm(game, batch, value, data):
         if what == "heads":
             _card, slot, zone = next(x for x in _set_heads_sources(game, player) if x[0] == card)
             game.emit(batch, "ability_used", player=player, card=card, slot=slot.uid, zone=zone)
+            if data.get("journal") is not None:
+                data["journal"].append(["discard_partner" if zone == "partner" else "discard_slot", player, slot.uid])
             if zone == "partner":
                 discard_partner(game, batch, player, slot, card)
             else:
@@ -537,7 +541,7 @@ def _coin_confirm(game, batch, value, data):
             game.emit(batch, "coin_set", player=player, index=index, result="heads", card=card,
                       source=data["source"])
         else:
-            _use_reflip(game, batch, player, _reflip_slot(game, player, "self", card))
+            _use_reflip(game, batch, player, _reflip_slot(game, player, "self", card), data.get("journal"))
             _reflip_one(game, batch, data, index)
     game.state.pending = None
     _next_turn(data, used=value is not None)

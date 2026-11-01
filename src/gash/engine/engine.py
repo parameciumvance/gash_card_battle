@@ -530,7 +530,28 @@ def to_discard(ps: PlayerState, number: str) -> None:
 def submit(game: Game, command: dict) -> list[dict]:
     batch = _submit(game, command)
     _run_deferred_effects(game, batch)
+    if command.get("type") != "choose":
+        _record_action(game, batch, command)
     return batch
+
+
+def _record_action(game: Game, batch: list[dict], command: dict) -> None:
+    """行動(非 choose 的指令)處理完:累計 action_seq,並記下行動者這次以效果使自己增加的 MP(Ex-025「直後」)。
+    開始階段的翻頁與開始階段效果不是行動的效果,不記。"""
+    st = game.state
+    st.action_seq += 1
+    player = command.get("player")
+    if command.get("type") == "flip_pages" or player not in (0, 1):
+        return
+    gain = sum(e["delta"] for e in batch if e["type"] == "mp_changed" and e["player"] == player and e["delta"] > 0)
+    if gain > 0:
+        st.players[player].last_effect_mp_gain = {"amount": gain, "seq": st.action_seq}
+
+
+def opponent_just_gained_mp(game: Game, player: int) -> int:
+    """對手上一個行動以效果使自己增加的 MP;那之後已有其他行動時為 0(Ex-025)。"""
+    rec = game.state.players[1 - player].last_effect_mp_gain
+    return rec["amount"] if rec and rec["seq"] == game.state.action_seq else 0
 
 
 def _run_deferred_effects(game: Game, batch: list[dict]) -> None:
@@ -817,12 +838,13 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
             _discard_slot(game, batch, player, slot, reason="cost")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone=zone)
     # ジャマー(M-026):對手可能在此效果結束後使其無效 → 先存效果解決前的快照(費用已付)
-    snapshot = (copy.deepcopy(st) if zone == "mamodo" and _jammer_holder(game, 1 - player)
-                else None)
+    # M-065:任何效果使對手 MP 減少時也可能回應
+    ons = ("mamodo_effect",) if zone == "mamodo" else ()
+    snapshot = _jammer_snapshot(game, player, ons)
+    start = len(batch)
     spec.handler(game, batch, player, slot)
     _check_victory(game, batch)
-    if snapshot is not None:
-        _queue_jammer(game, batch, 1 - player, number, snapshot)
+    _queue_action_jammer(game, batch, player, number, snapshot, ons, start)
 
 
 def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: bool) -> None:
@@ -856,7 +878,10 @@ def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: 
     borrow.data["used"] = True
     game.emit(batch, "ability_used", player=player, card=number, slot=None, zone="borrowed",
               via=borrow.source)
+    snapshot = _jammer_snapshot(game, player, ())   # M-065:借用的搭檔效果使對手 MP 減少時
+    start = len(batch)
     spec.handler(game, batch, player, None)
+    _queue_action_jammer(game, batch, player, number, snapshot, (), start)
     _check_victory(game, batch)
 
 
@@ -895,11 +920,11 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         pay_mp(game, batch, player, cost, f"event:{number}")
         game.emit(batch, "book_card_used", player=player, card=number, page=page)
         # ジャマー(M-032):對手可能在此事件卡結束後使其無效 → 先存解決前的快照(費用與使用次數已記)
-        snapshot = copy.deepcopy(st) if _jammer_holder(game, 1 - player, "event") else None
+        snapshot = _jammer_snapshot(game, player, ("event",))
+        start = len(batch)
         handler(game, batch, player, page)
         _check_victory(game, batch)
-        if snapshot is not None:
-            _queue_jammer(game, batch, 1 - player, number, snapshot, on="event")
+        _queue_action_jammer(game, batch, player, number, snapshot, ("event",), start, page=page)
     elif card.type == SPELL:
         if card.effect_icon != "nonbattle":
             raise IllegalCommand("spell.not_nonbattle", "此戰術卡沒有非戰鬥圖示")
@@ -939,8 +964,11 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         _record_spell_attr(game, player, card)
         pay_mp(game, batch, player, cost, f"spell:{number}")
         game.emit(batch, "book_card_used", player=player, card=number, page=page, mamodo=user.top)
+        snapshot = _jammer_snapshot(game, player, ())   # M-065:非戰鬥戰術使對手 MP 減少時
+        start = len(batch)
         handler(game, batch, player)
         _check_victory(game, batch)
+        _queue_action_jammer(game, batch, player, number, snapshot, (), start)
     else:
         raise IllegalCommand("book.not_usable", "此卡不能留在魔書中使用")
 
@@ -2097,25 +2125,70 @@ reg.CHOICE_RESOLVERS["injure_instead_target"] = _injure_instead_resolver
 # 輪到誰行動、pass 次數、戰鬥中的效果輪替等流程狀態維持目前的值。
 
 def _jammer_holder(game: Game, player: int, on: str = "mamodo_effect"):
-    """player 場上可用、回應 on 動作(mamodo_effect / event)的ジャマー:(卡號, slot, spec);沒有則 None。"""
+    """player 場上可用、回應 on 動作(mamodo_effect / event / mp_reduced)的ジャマー:(卡號, slot, spec);
+    沒有則 None。魔物卡受「魔物の効果を使えない」、搭檔卡(Ex-034)受「パートナーの効果を使えない」限制;
+    spec 附 zone("mamodo" / "partner")。"""
+    return next(_jammer_holders(game, player, on), None)
+
+
+def _jammer_holders(game: Game, player: int, on: str):
+    """player 場上所有可用、回應 on 動作的ジャマー (卡號, slot, spec),依場上順序。"""
     ps = game.state.players[player]
     for slot in ps.slots:
-        spec = reg.JAMMER.get(slot.top)
-        if spec is None or spec["on"] != on:
-            continue
-        if (f"mamodo:{slot.top}" in ps.used_abilities or ps.mp < spec["mp_cost"]
-                or mamodo_effect_block(game, player, slot)):
-            continue
-        return slot.top, slot, spec
+        for zone, number in (("mamodo", slot.top), ("partner", slot.partner)):
+            spec = reg.JAMMER.get(number) if number else None
+            if spec is None or spec["on"] != on:
+                continue
+            if spec["per_turn"] is not None and uses_this_turn(ps, f"{zone}:{number}") >= spec["per_turn"]:
+                continue
+            if ps.mp < spec["mp_cost"]:
+                continue
+            if (mamodo_effect_block(game, player, slot) if zone == "mamodo"
+                    else restricted(game, player, NO_PARTNER_EFFECTS)):
+                continue
+            yield number, slot, {**spec, "zone": zone}
+
+
+def _offered_jammers(game: Game, offer: dict) -> list:
+    """這次可提供的ジャマー:offer 的各種回應(ons)的持有者,依種類、場上順序;同一卡號只列一次。"""
+    out, seen = [], set()
+    for on in offer.get("ons") or [offer.get("on", "mamodo_effect")]:
+        for holder in _jammer_holders(game, offer["player"], on):
+            if holder[0] not in seen:
+                seen.add(holder[0])
+                out.append(holder)
+    return out
+
+
+def _jammer_snapshot(game: Game, player: int, ons: tuple[str, ...]):
+    """player 的行動開始前:對手有可能回應(ons 或 mp_reduced)的ジャマー時存快照(費用已付),否則 None。"""
+    if any(_jammer_holder(game, 1 - player, on) for on in (*ons, "mp_reduced")):
+        return copy.deepcopy(game.state)
     return None
 
 
+def _queue_action_jammer(game: Game, batch: list[dict], player: int, number: str, snapshot,
+                         ons: tuple[str, ...], start: int, **extra) -> None:
+    """player 的行動(number)解決後:依序提供對手回應 ons 的ジャマー;這個行動使對手的 MP 實際減少時
+    (batch[start:] 中有對手的 mp_changed 負值)再加 mp_reduced(M-065)。"""
+    if snapshot is None:
+        return
+    reduced = any(e["type"] == "mp_changed" and e["player"] == 1 - player and e["delta"] < 0
+                  for e in batch[start:])
+    ons = tuple(ons) + (("mp_reduced",) if reduced else ())
+    if ons:
+        _queue_jammer(game, batch, 1 - player, number, snapshot, ons=ons, **extra)
+
+
 def _queue_jammer(game: Game, batch: list[dict], player: int, negated: str, snapshot,
-                  on: str = "mamodo_effect") -> None:
+                  on: str = "mamodo_effect", ons: tuple[str, ...] | None = None, **extra) -> None:
+    """排定ジャマー的詢問:ons 依序嘗試(前一個沒有可用的持有者或玩家選擇不使用時,換下一個)。"""
     st = game.state
     if st.phase == GAME_OVER or (snapshot.battle is None) != (st.battle is None):
         return  # 遊戲結束,或效果使戰鬥開始 / 結束:不提供無效化(避免復活已結束的戰鬥)
-    game.jammer = {"player": player, "negated": negated, "snapshot": snapshot, "on": on}
+    ons = list(ons if ons is not None else (on,))
+    game.jammer = {"player": player, "negated": negated, "snapshot": snapshot, "on": ons[0],
+                   "ons": ons, **extra}
     _offer_jammer_if_ready(game, batch)
 
 
@@ -2124,18 +2197,20 @@ def _offer_jammer_if_ready(game: Game, batch: list[dict]) -> None:
     st = game.state
     if game.jammer is None or st.pending is not None:
         return
-    on = game.jammer.get("on", "mamodo_effect")
-    if st.phase == GAME_OVER or _jammer_holder(game, game.jammer["player"], on) is None:
+    holders = [] if st.phase == GAME_OVER else _offered_jammers(game, game.jammer)
+    if not holders:
         offer, game.jammer = game.jammer, None
         if "battle_side" in offer and st.phase != GAME_OVER:
             _battle_jammer_done(game, batch, offer["battle_side"])
         return
+    # 多張可用時同時提供(使用者 2026-11-01):每張一個選項,值為卡號;只有一張時對話框的來源卡為它
     player, negated = game.jammer["player"], game.jammer["negated"]
-    number, _slot, spec = _jammer_holder(game, player, on)
-    options = [{"value": None, "label": "skip"},
-               {"value": True, "label": "jammer_use", "card": negated,
-                "cost": spec["mp_cost"], "discard": spec["discard_self"]}]
-    st.pending = PendingChoice(kind="jammer_negate", player=player, source=number,
+    options = [{"value": None, "label": "skip"}] + [
+        {"value": number, "label": "jammer_use", "card": negated, "jammer": number, "named": len(holders) > 1,
+         "cost": spec["mp_cost"], "discard": spec["discard_self"], "coin": spec["coin"], "redo": spec["redo_cost"]}
+        for number, _slot, spec in holders]
+    st.pending = PendingChoice(kind="jammer_negate", player=player,
+                               source=holders[0][0] if len(holders) == 1 else None,
                                options=options, data={"negated": negated})
     game.emit(batch, "choice_required", kind="jammer_negate", player=player, options=options)
 
@@ -2214,9 +2289,17 @@ def _battle_jammer_use(game: Game, batch: list[dict], offer: dict) -> None:
 
 
 def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
-    if value is not True and value is not None:
-        raise IllegalCommand("choose.invalid", "須選擇是否使用")
     offer = game.jammer
+    if value is not None and offer is not None and "battle_side" not in offer:
+        # 選項值為ジャマー的卡號;True 為第一個可用的(相容舊的指令)
+        holders = _offered_jammers(game, offer)
+        chosen = holders[0] if value is True and holders else next((h for h in holders if h[0] == value), None)
+        if chosen is None:
+            raise IllegalCommand("choose.invalid", "無效的ジャマー選擇")
+        offer["on"] = chosen[2]["on"]
+        offer["chosen"] = chosen[0]
+    elif value is not True and value is not None and (offer is None or "battle_side" not in offer):
+        raise IllegalCommand("choose.invalid", "須選擇是否使用")
     if offer is not None and "battle_side" in offer:
         if value is None:
             _battle_jammer_done(game, batch, offer["battle_side"])
@@ -2229,10 +2312,13 @@ def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
         game.jammer = None
         return
     player = offer["player"]
-    holder = _jammer_holder(game, player, offer.get("on", "mamodo_effect"))
+    holder = next((h for h in _offered_jammers(game, offer) if h[0] == offer.get("chosen")), None)
     if holder is None:
         raise IllegalCommand("choose.invalid", "目前無法使用此效果")
     number, slot, spec = holder
+    if spec["coin"] or spec["redo_cost"] is not None:
+        _special_jammer_use(game, batch, offer, number, slot, spec)
+        return
     st = game.state
     slot_uid = slot.uid
     # 連鎖:無效化本身是「魔物の効果」,對手可再以回應魔物效果的ジャマー(M-026)使它失效
@@ -2254,11 +2340,106 @@ def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
             _discard_slot(game, batch, player, restored, reason="cost")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot_uid, zone="mamodo")
     game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
+    _jammer_action_taken(game, player)
     if chain is not None:
         game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect"}
 
 
 reg.CHOICE_RESOLVERS["jammer_negate"] = _jammer_resolver
+
+
+def _jammer_action_taken(game: Game, player: int) -> None:
+    """非戰鬥中使用ジャマー是使用者自己的行動(官方規則書第 39 頁「その直後の自分のアクションでジャマー効果を使い」):
+    用完後行動權換給對手,連續 pass 歸零。戰鬥中的ジャマー在攻防宣告的流程裡,不改行動輪替。"""
+    st = game.state
+    if st.battle is None:
+        st.action_player = 1 - player
+        st.consecutive_passes = 0
+
+
+def _special_jammer_use(game: Game, batch: list[dict], offer: dict, number: str, slot: MamodoSlot,
+                        spec: dict) -> None:
+    """擲硬幣的ジャマー(M-065)與重新解決的ジャマー(Ex-034)。"""
+    st = game.state
+    player, zone = offer["player"], spec["zone"]
+    game.jammer = None
+    if spec["per_turn"] is not None:
+        _mark_used(st.players[player], f"{zone}:{number}")
+    pay_mp(game, batch, player, spec["mp_cost"], f"ability:{number}")
+    game.emit(batch, "ability_used", player=player, card=number, slot=slot.uid, zone=zone)
+    _jammer_action_taken(game, player)
+    if spec["redo_cost"] is not None:
+        _redo_event(game, batch, offer, number, slot.uid, spec)
+        return
+    # M-065:擲硬幣;快照放在 game.jammer_coin,擲硬幣子階段的消耗記在 journal,還原後補回
+    from .effects.primitives import flip_coins
+    game.jammer_coin = offer
+    flip_coins(game, batch, player, 1, number, "jammer_coin", data={"journal": []})
+
+
+def _jammer_coin_resolver(game: Game, batch: list[dict], results, data) -> None:
+    """M-065 擲幣的結果:正面時使對手的行動無效(還原到行動之前,補回擲硬幣子階段的消耗)。"""
+    offer, game.jammer_coin = game.jammer_coin, None
+    if offer is None or not any(results):
+        return
+    st = game.state
+    player = offer["player"]
+    number = data["source"]
+    # 連鎖:無效化本身是「魔物の効果」,對手可再以 M-026 使它失效 → 以目前(未還原)的狀態當快照
+    chain = copy.deepcopy(st) if _jammer_holder(game, 1 - player) is not None else None
+    _restore_effect_state(st, offer["snapshot"])
+    _replay_coin_journal(game, data.get("journal", ()))
+    game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
+    if chain is not None:
+        game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect"}
+
+
+reg.CHOICE_RESOLVERS["jammer_coin"] = _jammer_coin_resolver
+
+
+def _replay_coin_journal(game: Game, journal) -> None:
+    """還原後補回擲硬幣子階段的消耗(重擲的使用次數與 MP、改成正面時棄掉的卡);事件已在當時發出,不再發。"""
+    st = game.state
+    for entry in journal:
+        kind, player = entry[0], entry[1]
+        ps = st.players[player]
+        if kind == "used":
+            _mark_used(ps, entry[2])
+        elif kind == "mp":
+            ps.mp += entry[2]
+        elif kind == "discard_slot":
+            _discard_jammer_silently(st, player, entry[2])
+        elif kind == "discard_partner":
+            slot = st.slot_by_uid(player, entry[2])
+            if slot is not None and slot.partner:
+                to_discard(ps, slot.partner)
+                slot.partner = None
+
+
+def _redo_event(game: Game, batch: list[dict], offer: dict, number: str, slot_uid: int, spec: dict) -> None:
+    """Ex-034:還原到事件卡解決之前,對手再支付 redo_cost 並重新解決(不再詢問ジャマー);付不起時無效、MP 變 0。"""
+    st = game.state
+    player = offer["player"]
+    opp = 1 - player
+    _restore_effect_state(st, offer["snapshot"])
+    restored = st.slot_by_uid(player, slot_uid)
+    if spec["discard_self"] and restored is not None:   # 費用在還原之後支付,不會被還原回場上
+        if spec["zone"] == "partner":
+            from .effects.primitives import discard_partner
+            discard_partner(game, batch, player, restored, number)
+        else:
+            _discard_slot(game, batch, player, restored, reason="cost")
+    ps = st.players[opp]
+    if ps.mp >= spec["redo_cost"]:
+        pay_mp(game, batch, opp, spec["redo_cost"], f"ability:{number}")
+        game.emit(batch, "effect_redone", player=player, source=number, card=offer["negated"])
+        reg.EVENT[offer["negated"]](game, batch, opp, offer.get("page"))
+        _check_victory(game, batch)
+        return
+    if ps.mp:
+        delta, ps.mp = -ps.mp, 0
+        game.emit(batch, "mp_changed", player=opp, delta=delta, mp=0, reason=f"ability:{number}")
+    game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
 
 
 def _end_battle(game: Game, batch: list[dict]) -> None:

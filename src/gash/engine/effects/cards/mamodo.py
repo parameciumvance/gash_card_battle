@@ -19,7 +19,7 @@ from ..tree import (
     OpponentBookCards, OpponentInjuredMamodo, OpponentMpAtLeast, OpponentOpenPagesLackDefenseSpell,
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
-    OwnOtherMamodo, OwnSideInBattle, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway,
+    OpponentJustGainedMp, GainMpAsOpponentJustGained, OwnOtherMamodo, OwnSideInBattle, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway,
     ReduceOpponentMp, Ref, RestrictOpponent, ScheduleFreeSpell, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
     ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
     SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies,
@@ -296,6 +296,8 @@ reg.activated("M-064", mode="discard", timing="nonbattle", per_game=True, condit
     then=AddPower(amount=2000, duration=DUR_GAME, target=Ref("slot")),
 ))
 
+# M-065:ジャマー;對手的行動使自己的 MP 實際減少時詢問,擲硬幣正面才無效;每個這樣的行動 1 次,每回合不限次數
+reg.jammer("M-065", on="mp_reduced", per_turn=None, coin=True)
 reg.partner_discard_guard("M-066")
 
 reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
@@ -320,6 +322,10 @@ reg.activated("Ex-003", mode="declare", timing="nonbattle", per_game=True, effec
         then=DiscardFromOpponentBook(),
     ),
 )))
+
+# Ex-025「直後に使う」:對手的上一個行動以效果增加了 MP,且之後沒有其他行動
+reg.activated("Ex-025", mode="declare", timing="any", condition=OpponentJustGainedMp(),
+              effect=GainMpAsOpponentJustGained())
 
 # Ex-026 的重擲在擲硬幣子階段中詢問,每次付 MP 1、每回合 2 次
 reg.coin_reflip("Ex-026", coins="self", mp_cost=1, per_turn=2)

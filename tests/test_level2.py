@@ -1002,7 +1002,7 @@ def test_m026_offered_right_after_opponent_mamodo_effect_and_negates_it():
     g, mp0 = _jammer_battle()
     st = g.state
     assert st.pending.kind == "jammer_negate" and st.pending.player == 1
-    assert [o["value"] for o in st.pending.options] == [None, True]      # 第一個是「不使用」
+    assert [o["value"] for o in st.pending.options] == [None, "M-026"]   # 第一個是「不使用」,其餘的值為ジャマー卡號
     assert _m017_boost_active(g)
     events = submit(g, {"type": "choose", "player": 1, "value": True})
     assert not _m017_boost_active(g)                                     # 效果被還原
@@ -1080,7 +1080,7 @@ def test_m026_waits_for_opponent_effect_choices_then_restores():
     submit(g, {"type": "choose", "player": 1, "value": True})
     b = st.slot_by_uid(1, b.uid)
     assert b.partner == "P-002" and "P-002" not in st.players[1].discard
-    assert st.players[0].mp == 10 - 5 and st.action_player == 1
+    assert st.players[0].mp == 10 - 5 and st.action_player == 0   # ジャマー是玩家 1 的行動(官方規則書第 39 頁)
 
 
 def test_m026_not_offered_for_partner_effects():

@@ -316,3 +316,14 @@ def test_used_effect_buttons_disabled(page):
         return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons[0].reason;
     }""", p)
     assert reason == "一場遊戲限 1 次,已使用"
+
+
+def test_jammer_options_named_when_multiple(page):
+    # 多張ジャマー同時提供時,選項前面加上ジャマー的卡名
+    start(page)
+    label = page.evaluate("choiceLabel({value: 'M-065', label: 'jammer_use', card: 'E-018', jammer: 'M-065', "
+                          "named: true, coin: true, cost: 0}, [])")
+    assert label.startswith(page.evaluate("cname('M-065')")) and "擲硬幣" in label
+    single = page.evaluate("choiceLabel({value: 'M-032', label: 'jammer_use', card: 'E-018', jammer: 'M-032', "
+                           "named: false, discard: true, cost: 0}, [])")
+    assert single.startswith("棄掉這張卡")

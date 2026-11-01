@@ -83,7 +83,12 @@ negated                                                                ← 無�
 - 規則出處:官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,印刷頁碼)第 42 頁「『無効にする』と『使えない』」;atwiki 規則頁「1アクションを使って」與「ジャマー効果は相手が直前でおこなったアクションを取り消し、無効にする」。
 - `use_action_effect`:非戰鬥中的一般行動(戰鬥開始確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
 - 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
-- 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。「使えない」是事先作用的限制,`mamodo_effect_block` / `restricted(NO_PARTNER_EFFECTS)` 也用來讓常駐效果失效。
+- 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。
+- ジャマー的種類(`reg.jammer(..., on=)`):`mamodo_effect`(M-026)、`event`(M-032 / Ex-034)、`mp_reduced`(M-065,對手的行動使持有者的 MP 實際減少)。持有者可以是魔物或搭檔(`_jammer_holder` 看 `slot.top` 與 `slot.partner`,搭檔受 `NO_PARTNER_EFFECTS`);`per_turn` 為 None 時不限次數。對手的每個行動(事件卡、魔物 / 搭檔的啟動效果、借用的搭檔效果、非戰鬥戰術)開始前,對手有任何可能回應的ジャマー時存快照(`_jammer_snapshot`),解決後 `_queue_action_jammer` 排定:該行動對應的種類,加上 `mp_reduced`(只在 batch 中有對手的 `mp_changed` 負值時);所有可用的持有者在同一個決策中同時列出(`_offered_jammers`,選項值為ジャマー卡號)。戰術獲勝時的效果不是行動,不詢問。
+- 擲硬幣的ジャマー(M-065):選擇使用後擲幣(擲硬幣子階段照常),快照暫存在 `game.jammer_coin`;正面時還原,再以擲幣資料中的 `journal` 補回擲硬幣子階段的消耗(重擲的次數與 MP、改成正面時棄掉的卡),否則還原會把這些消耗一起退回。
+- 重新解決的ジャマー(Ex-034,`redo_cost`):還原到事件卡解決前、棄掉 Ex-034,對手 MP ≥ 3 時支付並重新執行事件卡的 handler(不再存快照、不再詢問ジャマー,發 `effect_redone`);不足時事件卡無效、對手 MP 設為 0。
+- 使用ジャマー是使用者自己的行動(官方規則書第 39 頁,印刷頁碼):非戰鬥中用完後 `_jammer_action_taken` 把行動權換給對手、連續 pass 歸零;不使用時不變。原本 M-026 / M-032 用完後行動權留在使用者身上,season3-effects-5 抽查時使用者指出(Ex-034),確認規則書後一併修正。
+- 「直後」(Ex-025):`GameState.action_seq` 在每個非 `choose` 的指令後 +1;行動者在這個行動中以效果使自己增加的 MP(`mp_changed` 正值,翻頁不算)記在 `PlayerState.last_effect_mp_gain`。紀錄放在 `PlayerState`,ジャマー還原時一起還原。「使えない」是事先作用的限制,`mamodo_effect_block` / `restricted(NO_PARTNER_EFFECTS)` 也用來讓常駐效果失效。
 - `card_effect_blocked(game, player, slot, number)`:常駐效果的共用判斷(搭檔看 `NO_PARTNER_EFFECTS`,魔物看 `mamodo_effect_block`),各常駐登記的消費端與 `_dispatch_triggers`、`run_on_play` 呼叫它;不在 registry 包裝,因為 `STATIC_POWER` 的 fn 收的是被加成的魔物,只有消費端知道來源魔物。專用規則另有 `RULE_ON_PLAY` / `RULE_SPELL_COMPAT`,不經過它。
 
 ## 結束階段的效果、事件卡上限與不能攻擊

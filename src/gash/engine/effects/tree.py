@@ -2484,6 +2484,17 @@ class DeferOnOpponentTurnBack(Effect):
 
 
 @dataclass(frozen=True)
+class GainMpAsOpponentJustGained(Effect):
+    """自己的 MP 增加對手上一個行動以效果增加的量(Ex-025「その効果でふえたMPと同じ数だけ」)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp, opponent_just_gained_mp
+        gain_mp(rt.game, rt.batch, ctx["player"], opponent_just_gained_mp(rt.game, ctx["player"]),
+                ctx["source"], by=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
 class DamageOpponentBook(Effect):
     """戰鬥外對對手魔書造成 amount 傷害,走一般的保護流程(P-041)。"""
     amount: int = 1
@@ -2878,6 +2889,15 @@ class OwnSideInBattle:
         if b is None:
             return False
         return (b.attacker if self.side == "attack" else b.defender) == player
+
+
+@dataclass(frozen=True)
+class OpponentJustGainedMp:
+    """對手的上一個行動以效果使自己的 MP 增加,且之後沒有其他行動(Ex-025「直後に使う」)。"""
+
+    def __call__(self, game, player, slot) -> bool:
+        from ..engine import opponent_just_gained_mp
+        return opponent_just_gained_mp(game, player) > 0
 
 
 @dataclass(frozen=True)

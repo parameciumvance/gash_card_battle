@@ -2401,7 +2401,12 @@ function choiceLabel(opt, results) {
     case "pay_reflip": return t("choice.pay_reflip");
     case "stop": return t("choice.stop");
     case "skip": return t("choice.skip");
-    case "jammer_use": return t(opt.discard ? "choice.jammer_use.discard" : "choice.jammer_use", { card: cname(opt.card) });
+    case "jammer_use": {   // 多張ジャマー可用時同時列出(named):前面加上ジャマー的卡名
+      const text = t(opt.redo ? "choice.jammer_use.redo" : opt.coin ? "choice.jammer_use.coin"
+        : opt.discard ? "choice.jammer_use.discard" : "choice.jammer_use",
+      { card: cname(opt.card), cost: opt.cost, redo: opt.redo });
+      return opt.named ? t("choice.jammer_use.named", { jammer: cname(opt.jammer), text }) : text;
+    }
     case "set_heads": return opt.card ? t("choice.set_heads.card", { card: cname(opt.card), n: opt.coin + 1 })
       : t("choice.set_heads", { n: opt.coin + 1 });
     case "end_phase_effect": return t("choice.end_phase_effect", { card: cname(opt.card) });
@@ -3300,6 +3305,7 @@ function logLine(ev) {
     case "modifier_added": return t("log.modifier_added", { card: cname(ev.source) || ev.source });
     case "effect_applied": return t("log.effect_applied", { source: cname(ev.source) || ev.source });
     case "effect_negated": return t("log.effect_negated", { ...P, source: cname(ev.source), card: cname(ev.negated) });
+    case "effect_redone": return t("log.effect_redone", { ...P, source: cname(ev.source), card: cname(ev.card) });
     case "battle_ended": return t("log.battle_ended");
     case "choice_required": return t("log.choice_required", P);
     case "book_revealed": return t("log.book_revealed", P);

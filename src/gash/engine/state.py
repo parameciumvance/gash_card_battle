@@ -147,6 +147,8 @@ class PlayerState:
     dealt_damage_this_turn: bool = False
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
     spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
+    # 最近一次自己的行動以效果使自己增加的 MP 與當時的 action_seq(Ex-025「直後」);ジャマー還原時一併還原
+    last_effect_mp_gain: dict | None = None
 
     def open_pages(self) -> list[int]:
         """目前翻開、且卡片仍在魔書中的頁碼。"""
@@ -212,6 +214,7 @@ class GameState:
     modifiers: list[Modifier] = field(default_factory=list)
     standby: list[Standby] = field(default_factory=list)
     battle_phase_acted: bool = False      # 本回合戰鬥階段中已有行動(PR-005「バトルフェイズの一番最初」)
+    action_seq: int = 0                   # 已處理的行動(非 choose 的指令)數;「直後」的判斷用(Ex-025)
     winner: int | None = None
     end_reason: str | None = None
     _uid_seq: int = 0
@@ -249,6 +252,8 @@ class Game:
     _trigger_depth: int = 0
     # 待提供的ジャマー回應(M-026):{"player", "negated", "snapshot"};snapshot 為效果解決前的 GameState
     jammer: dict | None = None
+    # 擲硬幣的ジャマー(M-065)擲幣中:待無效的行動(含快照);擲硬幣子階段結束後的 callback 取用
+    jammer_coin: dict | None = None
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}
