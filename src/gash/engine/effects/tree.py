@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ..cards import PARTNER
+from ..cards import EVENT, PARTNER
 from ..state import (
     DUR_TURN, DUR_UNTIL_END_NEXT_TURN, MAMODO_LOCKED, NO_ATTACK, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT,
     NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS,
@@ -460,6 +460,22 @@ class OwnBookPartnerNamed:
         from ..engine import IllegalCommand
         if value not in {o["value"] for o in self.options(game, ctx)}:
             raise IllegalCommand("choose.invalid", "須選擇魔書中對應的搭檔卡")
+
+
+@dataclass(frozen=True)
+class OwnBookEvents:
+    """自己魔書中(尚未離開的)事件卡頁,任意頁(Ex-037)。選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        ps = game.state.players[ctx["player"]]
+        return [page_option(ctx["player"], p, ps.card_at(p))
+                for p in range(1, 33)
+                if p not in ps.consumed_pages and game.db[ps.card_at(p)].type == EVENT]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔書中的事件卡")
 
 
 @dataclass(frozen=True)
@@ -2391,6 +2407,96 @@ class ScheduleSpellFromAnyPage(Effect):
 
 
 @dataclass(frozen=True)
+class ScheduleAnyPageUse(Effect):
+    """[待命] 本回合一次,可從自己魔書翻開的頁以外使用(engine._spell_any_page_standby):
+    mamodo + by_name 為「X の術」(依名稱判定),exclude_last 排除最後一頁,events 也允許事件卡(P-037);
+    any_spell + attack_only 為任何攻擊戰術,只限下一場戰鬥(PR-006)。"""
+    mamodo: str = ""
+    by_name: bool = False
+    exclude_last: bool = False
+    events: bool = False
+    any_spell: bool = False
+    attack_only: bool = False
+    next_battle: bool = False
+
+    def run(self, rt, ctx, path):
+        data = {k: v for k, v in (("mamodo", self.mamodo), ("by_name", self.by_name),
+                                  ("exclude_last", self.exclude_last), ("events", self.events),
+                                  ("any_spell", self.any_spell), ("attack_only", self.attack_only)) if v}
+        if self.next_battle:
+            data["expires"] = "next_battle"
+        schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
+                         data=data)
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleEventFromChosenPage(Effect):
+    """[待命] 本回合一次,可從 page 綁定那一頁使用該事件卡,費用 +cost_delta(Ex-037「本来より1高いコスト」)。
+    那一頁翻開時照原本的費用使用(不經過待命)。"""
+    page: Ref = Ref("page")
+    cost_delta: int = 0
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
+                         data={"event_page": ctx[self.page.name], "cost_delta": self.cost_delta})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleFreeSpell(Effect):
+    """[待命] 本回合一次,「この魔物」的戰術中實際費用 max_cost 以下的可以費用 0 使用(PR-001)。
+    名稱在使用時記下,依「『〇〇の術』的判定」;宣告符合條件的戰術時詢問(engine._ask_spell_free)。"""
+    max_cost: int = 0
+
+    def run(self, rt, ctx, path):
+        slot = rt.game.state.slot_by_uid(ctx["player"], ctx["self_slot"])
+        schedule_standby(rt.game, rt.batch, kind="spell_free", source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": family(rt.game, slot), "max_cost": self.max_cost})
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleAttackSpellBoost(Effect):
+    """[待命] 本回合下一場戰鬥的攻擊戰術魔力 +power、傷害 +damage(【ステイ】,PR-006);魔物效果攻擊不適用。"""
+    power: int = 0
+    damage: int = 0
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="attack_spell_boost", source=ctx["source"], owner=ctx["player"],
+                         data={"power": self.power, "damage": self.damage, "expires": "next_battle"})
+        return True
+
+
+@dataclass(frozen=True)
+class DeferOnOpponentTurnBack(Effect):
+    """觸發器:對手實際回翻對手自己的魔書時(回翻 0 張不發事件),把這張卡的 deferred 效果排到目前的行動與
+    決策都解決之後執行(engine._run_deferred_effects;P-041)。"""
+
+    def run(self, rt, ctx, path):
+        ev = ctx["event"]
+        if ev.get("player") == 1 - ctx["player"] and ev.get("count", 0) < 0:
+            schedule_standby(rt.game, rt.batch, kind="deferred", source=ctx["source"], owner=ctx["player"],
+                             data={"effect_id": f"{ctx['source']}:deferred",
+                                   "ctx": {"player": ctx["player"], "source": ctx["source"],
+                                           "self_slot": ctx["self_slot"]}})
+        return True
+
+
+@dataclass(frozen=True)
+class DamageOpponentBook(Effect):
+    """戰鬥外對對手魔書造成 amount 傷害,走一般的保護流程(P-041)。"""
+    amount: int = 1
+
+    def run(self, rt, ctx, path):
+        from ..engine import _start_damage
+        player = ctx["player"]
+        _start_damage(rt.game, rt.batch, [{"kind": "book", "player": 1 - player, "amount": self.amount}],
+                      {"cause": "effect", "source": ctx["source"], "source_player": player, "amount": self.amount})
+        return True
+
+
+@dataclass(frozen=True)
 class TurnOpponentPagesPerMamodoCardDiscarded(Effect):
     """觸發器:對手每有 1 張魔物卡入墓,翻對手魔書 1 張(P-013)。
     事件 mamodo_discarded(整隻魔物入墓)依其中的魔物卡張數計;card_discarded(疊放頂層單獨入墓、
@@ -3675,6 +3781,11 @@ def register_event(number: str, tree: Effect):
     def handler(game, batch, player, page):
         run_effect(game, batch, effect_id, {"player": player, "page": page, "source": number})
     return handler
+
+
+def register_deferred(number: str, tree: Effect) -> str:
+    """觸發器延後執行的效果(DeferOnOpponentTurnBack 排定;P-041)。ctx 同觸發器(不含 event)。"""
+    return _install(number, "deferred", tree)
 
 
 def register_spell_nonbattle(number: str, tree: Effect):

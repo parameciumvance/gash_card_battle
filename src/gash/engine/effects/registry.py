@@ -125,11 +125,13 @@ JAMMER: dict[str, dict] = {}
 # 戰術卡每張每回合可用次數: 場上魔物卡號 -> fn(game, player, spell_card) -> int | None(None=不影響;M-024)
 SPELL_USE_LIMIT: dict[str, Callable] = {}
 
-# 擲幣重擲(M-012 / M-019): 場上魔物卡號 -> "self"(重擲自己擲的硬幣)/ "opponent"(令對手重擲);
+# 擲幣重擲(M-012 / M-019 / Ex-026): 場上魔物卡號 -> "self"(重擲自己擲的硬幣)/ "opponent"(令對手重擲);
 # 只在擲硬幣子階段(primitives.flip_coins)中詢問,不能主動宣告
 COIN_REFLIP: dict[str, str] = {}
+# 擲幣重擲的費用與每回合次數: 卡號 -> (mp_cost, per_turn)(Ex-026 為 (1, 2);未登記為 (0, 1))
+COIN_REFLIP_COST: dict[str, tuple[int, int]] = {}
 
-# 把自己擲的 1 枚硬幣改成正面(M-034,棄掉自己);只在擲硬幣子階段中詢問
+# 把自己擲的 1 枚硬幣改成正面(M-034 魔物、P-039 搭檔,棄掉這張卡);只在擲硬幣子階段中詢問
 COIN_SET_HEADS: set[str] = set()
 
 # 魔物效果攻擊(M-027): 卡號 -> {"mp_cost": int, "power": int, "damage": int}
@@ -428,19 +430,28 @@ def jammer(number: str, *, mp_cost: int = 0, discard_self: bool = False, on: str
     JAMMER[number] = {"mp_cost": mp_cost, "discard_self": discard_self, "on": on}
 
 
-def coin_reflip(number: str, *, coins: str):
-    """擲幣重擲(「魔物の効果」,每回合一次):coins="self" 重擲自己擲的 1 枚,"opponent" 令對手重擲。
+def coin_reflip(number: str, *, coins: str, mp_cost: int = 0, per_turn: int = 1):
+    """擲幣重擲(「魔物の効果」):coins="self" 重擲自己擲的 1 枚,"opponent" 令對手重擲;每次支付 mp_cost,
+    每回合 per_turn 次(Ex-026「MPを1へらす→…1ターンに2回まで」)。
     擲幣後由引擎在擲硬幣子階段中詢問,不能主動宣告(不登記為 activated)。"""
     if coins not in ("self", "opponent"):
         raise ValueError(f"{number} 的 coin_reflip coins 須為 self / opponent")
     if number in COIN_REFLIP:
         raise ValueError(f"{number} 的 coin_reflip 已登記")
     COIN_REFLIP[number] = coins
+    COIN_REFLIP_COST[number] = (mp_cost, per_turn)
 
 
 def coin_set_heads(number: str):
-    """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在擲硬幣子階段中詢問(M-034)。"""
+    """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在擲硬幣子階段中詢問。魔物卡(M-034)為
+    「魔物の効果」,搭檔卡(P-039)為「パートナーの効果」。"""
     COIN_SET_HEADS.add(number)
+
+
+def deferred(number: str, *, effect):
+    """觸發器排到目前的行動與決策都解決之後才執行的效果(P-041:持有者的選擇與傷害)。"""
+    from . import tree
+    tree.register_deferred(number, effect)
 
 
 def treated_as(number: str, name: str):

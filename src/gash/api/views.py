@@ -119,16 +119,28 @@ def _condition_ok(game: Game, p: int, card) -> bool:
 
 
 def _any_page_spells(game: Game, p: int) -> list[dict]:
-    """待命允許從魔書任意頁使用的戰術(P-015):翻開的頁與已離開魔書的頁除外。"""
+    """待命允許從魔書翻開的頁以外使用的戰術與事件卡(P-015 / P-037 / Ex-037 / PR-006):翻開的頁與已離開魔書的頁除外。
+    事件卡的費用含待命的增減(Ex-037 +1)。"""
     ps = game.state.players[p]
     out = []
     for page in range(1, BOOK_SIZE + 1):
-        if page in ps.open_pages() or not _spell_any_page_standby(game, p, page):
+        sb = None if page in ps.open_pages() else _spell_any_page_standby(game, p, page)
+        if sb is None:
             continue
         card = game.db[ps.card_at(page)]
-        cost, items = spell_cost_breakdown(game, p, page, card)
-        out.append({"page": page, "card": card.number, "cost": cost, "cost_breakdown": items,
-                    "users": _spell_users(game, p, page, card)})
+        entry = {"page": page, "card": card.number}
+        if card.type == "event":
+            cost, items = event_cost_breakdown(game, p, card)
+            delta = sb.data.get("cost_delta", 0)
+            if delta:
+                items = items + [{"kind": "any_page_cost", "source": sb.source, "amount": delta}]
+            entry.update(cost=cost + delta, cost_breakdown=items, condition_ok=_condition_ok(game, p, card))
+        else:
+            entry["cost"], entry["cost_breakdown"] = spell_cost_breakdown(game, p, page, card)
+            entry["users"] = _spell_users(game, p, page, card)
+            if card.effect_icon == "nonbattle":
+                entry["condition_ok"] = _condition_ok(game, p, card)
+        out.append(entry)
     return out
 
 

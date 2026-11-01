@@ -1590,6 +1590,18 @@ def test_choice_kinds_have_no_card_numbers():
     assert kinds and not [k for k in kinds if re.search(r"[empsEMPS]-?\d{3}", k)]
 
 
+def test_choice_titles_are_generic():
+    # AGENTS.md:決策種類依選擇的內容命名;對話框會另外顯示來源卡,標題不寫卡片專屬的說明
+    # (卡名《》、具體數值),否則被其他卡沿用時會顯示錯誤的說明(PR-001 曾顯示 M-008 的文字)
+    import re
+    root = EFFECTS_DIR.parents[3]
+    for lang in ("zh-TW", "en", "ja"):
+        titles = json.loads((root / "frontend" / "i18n" / f"{lang}.json").read_text(encoding="utf-8"))
+        specific = {k: v for k, v in titles.items()
+                    if k.startswith("choice.title.") and re.search(r"《|“|[+\-]\d|\d{3,}", v)}
+        assert specific == {}, lang
+
+
 def test_every_choice_kind_has_i18n_title():
     root = EFFECTS_DIR.parents[3]
     titles = json.loads((root / "frontend" / "i18n" / "zh-TW.json").read_text(encoding="utf-8"))

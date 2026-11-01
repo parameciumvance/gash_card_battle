@@ -7,7 +7,7 @@ from ...state import (
 from .. import registry as reg
 from ..tree import (
     GuardBookAndNamedMamodo, LockOpponentMamodoPerHeads, OpponentMamodoCount, OpponentUsedAttrLastTurn,
-    RestrictOwnNamedSpells, opponent_has_mamodo,
+    RestrictOwnNamedSpells, ScheduleAnyPageUse, ScheduleAttackSpellBoost, opponent_has_mamodo,
     AddSpellPowerPerHeads, AddSpellSelfBonus, CounterBookDamage, EndBattleWithoutCounter, TurnPagesForward, AddAttackSelfBonus, AddDefenseSelfBonus, AddPowerToAllOpponentMamodo,
     AdjustDefenseDamage, All, Always, AttachPartnerFromDiscard, AnyOf, AttackBookDamage, BattleRemembered, Bound, CanStackFromBook, Choose,
     Coin, DamageBonusIfAttackTotalAtLeast, DamageOpponentBookOutsideBattle, DamageOpponentBookAndAllMamodo, DisableProtection,
@@ -509,6 +509,12 @@ reg.spell_nonbattle("Ex-044", when=opponent_has_mamodo, effect=Coin(
     count=OpponentMamodoCount(), on=Always(),
     then=LockOpponentMamodoPerHeads(duration=DUR_UNTIL_END_NEXT_TURN),
 ))
+
+# PR-006:下一場戰鬥的攻擊戰術可從任意頁使用;加成不論來自哪一頁,魔物效果攻擊沒有加成
+reg.spell_nonbattle("PR-006", effect=Sequence(steps=(
+    ScheduleAnyPageUse(any_spell=True, attack_only=True, next_battle=True),
+    ScheduleAttackSpellBoost(power=3000, damage=1),
+)))
 
 # PR-009:限制與不受傷害分開管理(P-034 / E-036 只移除「術を使えない」)
 reg.spell_nonbattle("PR-009", effect=Sequence(steps=(

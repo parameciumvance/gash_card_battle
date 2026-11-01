@@ -19,6 +19,8 @@ from ..tree import (
     ScheduleRedirectDamage, ScheduleSpellFromAnyPage, Sequence, SetPowerZeroThisTurn,
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
     TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
+    DamageChosenOpponentMamodo, DamageOpponentBook, DeferOnOpponentTurnBack, OwnBookAtLastPage, OwnBookEvents,
+    ScheduleAnyPageUse, ScheduleEventFromChosenPage,
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
@@ -134,10 +136,32 @@ reg.activated("P-036", mode="discard", timing="nonbattle",
     ),
 ))
 
+# P-037「『ブラゴ』の術」依「〇〇の術」的判定(名稱);戰術與事件卡合計 1 次,最後一頁除外
+reg.activated("P-037", mode="discard", timing="nonbattle", condition=OwnBookAtLastPage(),
+              effect=ScheduleAnyPageUse(mamodo="ブラゴ", by_name=True, exclude_last=True, events=True))
+
 reg.opponent_event_lock("P-038")
 reg.action_discard("P-038", "partner")
+# P-039 的「改成正面」在擲硬幣子階段中詢問(「パートナーの効果」),不由玩家主動宣告
+reg.coin_set_heads("P-039")
 reg.activated("P-040", mode="discard", timing="battle", condition=CanNegateOpponentSpell("any"),
               effect=NegateOpponentSpell("any"))
+
+# P-041:對手實際回翻時,持有者的選擇與傷害排到對手的效果解決之後;兩者都是傷害,可以保護
+reg.trigger("P-041", "pages_turned", effect=DeferOnOpponentTurnBack())
+reg.deferred("P-041", effect=Choose(
+    EffectOptions((("book", "damage_book", None), ("mamodo", "damage_mamodo", OpponentMamodo()))),
+    bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "book"),
+        then=DamageOpponentBook(amount=1),
+        otherwise=Choose(
+            OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+            then=DamageChosenOpponentMamodo(),
+        ),
+    ),
+))
+reg.action_discard("P-041", "partner")
 
 # P-042 / P-043「『ダニー』の術や『魔物の効果』で攻撃」:「ダニー」の術(同 P-001)或 ダニー 的魔物效果攻擊;
 # 對手回合的下一場戰鬥是對手攻擊,限自己的回合
@@ -190,3 +214,12 @@ reg.activated("Ex-035", mode="discard", timing="nonbattle",
 
 reg.static_total_power("Ex-036", value=TotalPowerWhenBattlingWith(name="ウォンレイ", amount=2000))
 reg.action_discard("Ex-036", "partner")
+
+# Ex-037:選定的事件卡在翻開的頁上時照原本的費用使用;魔書中沒有事件卡時沒有效果
+reg.activated("Ex-037", mode="discard", timing="nonbattle", effect=When(
+    HasOptions(OwnBookEvents()),
+    then=Choose(
+        OwnBookEvents(), bind="page", prompt="pick_event_in_own_book",
+        then=ScheduleEventFromChosenPage(cost_delta=1),
+    ),
+))

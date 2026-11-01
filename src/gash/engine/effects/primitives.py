@@ -346,20 +346,34 @@ def choose_or_auto(game, batch, *, kind, player, options, data=None, source=None
 
 # ---------------------------------------------------------------- 互動式硬幣
 
-def _reflip_slot(game, player, coins):
-    """player 場上可用的擲幣重擲魔物槽(coins:"self" 重擲自己擲的 / "opponent" 令對手重擲);沒有時 None。
-    重擲是「魔物の効果」:每回合一次,受「魔物の効果」全體限制(E-025)與個別封鎖(E-024)。"""
-    from ..engine import mamodo_effect_block
+def _reflip_slots(game, player, coins):
+    """player 場上可用的擲幣重擲魔物槽(coins:"self" 重擲自己擲的 / "opponent" 令對手重擲),依場上順序。
+    重擲是「魔物の効果」:受「魔物の効果」全體限制(E-025)與個別封鎖(E-024);每回合次數與 MP 依登記
+    (M-012 / M-019 免費 1 次、Ex-026 MP 1 共 2 次)。"""
+    from ..engine import mamodo_effect_block, uses_this_turn
     ps = game.state.players[player]
-    return next((s for s in ps.slots
-                 if reg.COIN_REFLIP.get(s.top) == coins
-                 and f"mamodo:{s.top}" not in ps.used_abilities
-                 and not mamodo_effect_block(game, player, s)), None)
+    out = []
+    for s in ps.slots:
+        if reg.COIN_REFLIP.get(s.top) != coins:
+            continue
+        mp_cost, per_turn = reg.COIN_REFLIP_COST.get(s.top, (0, 1))
+        if (uses_this_turn(ps, f"mamodo:{s.top}") < per_turn and ps.mp >= mp_cost
+                and not mamodo_effect_block(game, player, s)):
+            out.append(s)
+    return out
+
+
+def _reflip_slot(game, player, coins, card=None):
+    """可用的重擲魔物槽;card 指定時只找那張卡。沒有時 None。"""
+    return next((s for s in _reflip_slots(game, player, coins) if card is None or s.top == card), None)
 
 
 def _use_reflip(game, batch, player, slot):
-    """記錄使用擲幣重擲(每回合一次)並發出使用事件。"""
-    game.state.players[player].used_abilities.add(f"mamodo:{slot.top}")
+    """支付重擲的 MP、記錄使用次數並發出使用事件。"""
+    from ..engine import _mark_used, pay_mp
+    mp_cost, _ = reg.COIN_REFLIP_COST.get(slot.top, (0, 1))
+    pay_mp(game, batch, player, mp_cost, f"mamodo:{slot.top}")
+    _mark_used(game.state.players[player], f"mamodo:{slot.top}")
     game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
 
 
@@ -386,22 +400,58 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
     _coin_subphase(game, batch, data)
 
 
-def _set_heads_slot(game, player):
-    """player 場上可用的「把自己擲的硬幣改成正面」魔物槽(M-034;魔物の効果,受限制);沒有時 None。"""
-    from ..engine import mamodo_effect_block
-    return next((s for s in game.state.players[player].slots
-                 if s.top in reg.COIN_SET_HEADS and not mamodo_effect_block(game, player, s)), None)
+def _set_heads_sources(game, player):
+    """player 場上可用的「把自己擲的硬幣改成正面」來源 (卡號, 魔物槽, zone):魔物卡(M-034,「魔物の効果」)
+    與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。"""
+    from ..engine import mamodo_effect_block, restricted
+    from ..state import NO_PARTNER_EFFECTS
+    out, seen = [], set()
+    for s in game.state.players[player].slots:
+        if s.top in reg.COIN_SET_HEADS and s.top not in seen and not mamodo_effect_block(game, player, s):
+            out.append((s.top, s, "mamodo"))
+            seen.add(s.top)
+        if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen
+                and not restricted(game, player, NO_PARTNER_EFFECTS)):
+            out.append((s.partner, s, "partner"))
+            seen.add(s.partner)
+    return out
 
 
 def _flipper_options(game, player, results):
-    """擲幣者的機會:不使用;M-012 可用時每枚可重擲;M-034 可用時每枚反面可改成正面。沒有可用效果時 None。"""
+    """擲幣者的機會:不使用;可用的重擲(M-012 / Ex-026)每枚可重擲;改成正面(M-034 / P-039)每枚反面可改。
+    選項都附來源卡號 card;值是 _coin_value(第一個免費的重擲與魔物的改成正面維持舊格式)。沒有可用效果時 None。"""
     options = [{"value": None, "label": "keep"}]
-    if _reflip_slot(game, player, "self") is not None:
-        options += [{"value": i, "label": "reflip"} for i in range(len(results))]
-    if _set_heads_slot(game, player) is not None:
-        options += [{"value": f"heads:{i}", "label": "set_heads", "coin": i}
+    seen = set()
+    for s in _reflip_slots(game, player, "self"):
+        if s.top in seen:
+            continue
+        seen.add(s.top)
+        mp_cost, _ = reg.COIN_REFLIP_COST.get(s.top, (0, 1))
+        options += [{"value": _coin_value("reflip", s.top, i), "label": "reflip", "coin": i, "card": s.top,
+                     "mp": mp_cost} for i in range(len(results))]
+    for card, _s, zone in _set_heads_sources(game, player):
+        options += [{"value": _coin_value("heads", card, i, zone), "label": "set_heads", "coin": i, "card": card}
                     for i, r in enumerate(results) if not r]
     return options if len(options) > 1 else None
+
+
+def _coin_value(what, card, index, zone="mamodo"):
+    """擲幣選項的值:M-012 類(免費、每回合 1 次)重擲為第幾枚的數字,魔物的改成正面(M-034)為 "heads:{i}";
+    其他來源帶卡號("reflip:{卡號}:{i}"、"heads:{卡號}:{i}"),同時有多個來源時才分得開。"""
+    if what == "reflip":
+        return index if reg.COIN_REFLIP_COST.get(card, (0, 1)) == (0, 1) else f"reflip:{card}:{index}"
+    return f"heads:{index}" if zone == "mamodo" else f"heads:{card}:{index}"
+
+
+def _parse_coin_value(game, player, value):
+    """擲幣選項的值 → (種類, 來源卡號, 第幾枚)。"""
+    if isinstance(value, int):
+        return "reflip", next(s.top for s in _reflip_slots(game, player, "self")
+                              if reg.COIN_REFLIP_COST.get(s.top, (0, 1)) == (0, 1)), value
+    parts = value.split(":")
+    if len(parts) == 2:
+        return "heads", next(c for c, _s, z in _set_heads_sources(game, player) if z == "mamodo"), int(parts[1])
+    return parts[0], parts[1], int(parts[2])
 
 
 def _opponent_options(game, player, results):
@@ -469,22 +519,26 @@ def _opp_coin_redo(game, batch, value, data):
 
 @reg.choice_resolver("coin_confirm")
 def _coin_confirm(game, batch, value, data):
-    """擲幣者的機會:不使用,M-012 重擲選定的 1 枚,或 M-034 把選定的反面改成正面。"""
+    """擲幣者的機會:不使用、重擲選定的 1 枚(M-012 / Ex-026),或把選定的反面改成正面(M-034 棄掉自己、
+    P-039 棄掉這張搭檔)。"""
     from ..engine import _discard_slot
     player = data["flipper"]
     if value is not None:
         _check_subphase_choice(game, value, data)
-        if isinstance(value, str):   # M-034:棄掉自己,把指定的反面硬幣改成正面
-            index = int(value.split(":")[1])
-            slot = _set_heads_slot(game, player)
-            game.emit(batch, "ability_used", player=player, card=slot.top, slot=slot.uid, zone="mamodo")
-            _discard_slot(game, batch, player, slot, reason="cost")
+        what, card, index = _parse_coin_value(game, player, value)
+        if what == "heads":
+            _card, slot, zone = next(x for x in _set_heads_sources(game, player) if x[0] == card)
+            game.emit(batch, "ability_used", player=player, card=card, slot=slot.uid, zone=zone)
+            if zone == "partner":
+                discard_partner(game, batch, player, slot, card)
+            else:
+                _discard_slot(game, batch, player, slot, reason="cost")
             data["results"][index] = True
-            game.emit(batch, "coin_set", player=player, index=index, result="heads", card=slot.top,
+            game.emit(batch, "coin_set", player=player, index=index, result="heads", card=card,
                       source=data["source"])
         else:
-            _use_reflip(game, batch, player, _reflip_slot(game, player, "self"))
-            _reflip_one(game, batch, data, value)
+            _use_reflip(game, batch, player, _reflip_slot(game, player, "self", card))
+            _reflip_one(game, batch, data, index)
     game.state.pending = None
     _next_turn(data, used=value is not None)
     _coin_subphase(game, batch, data)

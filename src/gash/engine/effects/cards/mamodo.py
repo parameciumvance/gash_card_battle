@@ -20,7 +20,7 @@ from ..tree import (
     OpponentPartneredMamodo, OwnBookAtLastPage, OwnBookPartnerNamed, OwnEarlierPages,
     OwnEmptyBookPages, OwnMamodo, OwnMamodoAtLeast, OwnMamodoPowerBonus, OwnMpAtMost, OwnOpenPages,
     OwnOtherMamodo, OwnSideInBattle, PeekOpponentOpenPages, PreventDamageToSelf, ProtectAnyway,
-    ReduceOpponentMp, Ref, RestrictOpponent, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
+    ReduceOpponentMp, Ref, RestrictOpponent, ScheduleFreeSpell, ReturnDiscardToBook, RevealOpponentBook, ScheduleNextSpellBonus,
     ScheduleSkipEndFlip, ScheduleSpellFromNextSpreads, SelfHasNoPartner, SelfHasPartner,
     SelfInjured, SelfPowerBonus, Sequence, SpellUsesPerTurnWhileCopies,
     SwapBookPages, TurnPagesForward, When,
@@ -321,6 +321,9 @@ reg.activated("Ex-003", mode="declare", timing="nonbattle", per_game=True, effec
     ),
 )))
 
+# Ex-026 的重擲在擲硬幣子階段中詢問,每次付 MP 1、每回合 2 次
+reg.coin_reflip("Ex-026", coins="self", mp_cost=1, per_turn=2)
+
 # Ex-027「そうしたなら」:實際減少的量才增加(對手 MP 0 或被 P-021 擋下時不增加)
 reg.activated("Ex-027", mode="declare", timing="nonbattle", own_turn=True, effect=StealOpponentMp(amount=1))
 
@@ -335,6 +338,8 @@ reg.activated("Ex-032", mode="mp", mp_cost=2, timing="nonbattle",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
 
+# PR-001「この魔物の術」依名稱(離場後換另一隻ガッシュ・ベル也適用);「コスト3まで」為實際費用,追加費用照付
+reg.activated("PR-001", mode="declare", timing="nonbattle", per_game=True, effect=ScheduleFreeSpell(max_cost=3))
 reg.activated("PR-002", mode="mp", mp_cost=3, timing="nonbattle",
               effect=AddPower(amount=2000, duration=DUR_TURN, target=Ref("self_slot")))
 

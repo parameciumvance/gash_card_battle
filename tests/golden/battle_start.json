@@ -341,7 +341,9 @@
     "kind": "spell_discount",
     "options": [
      {
+      "cost": 1,
       "label": "spell_discount_use",
+      "power": -1000,
       "value": true
      },
      {
@@ -444,7 +446,9 @@
     "kind": "spell_discount",
     "options": [
      {
+      "cost": 1,
       "label": "spell_discount_use",
+      "power": -1000,
       "value": true
      },
      {

@@ -145,8 +145,8 @@ def test_extra_cost_buttons(page):
     assert sent(page) == [{"type": "choose", "player": p, "value": 4}]
 
 
-def test_any_page_spell_buttons_per_page(page):
-    # M-037:範圍內有多張可用的戰術時,每一頁各一個按鈕(標出頁碼),按下開該頁的放大檢視
+def test_any_page_cards_single_button(page):
+    # 從翻開的頁以外可用的卡有多張時(M-037 / P-037),行動列只放一個按鈕,按下開魔書網格
     p = start(page)
     page.evaluate("""(p) => {
         const users = [{slot_uid: S.players[p].slots[0].uid, cost: 2}];
@@ -156,11 +156,10 @@ def test_any_page_spell_buttons_per_page(page):
         render();
     }""", p)
     buttons = page.locator("#action-bar button", has_text="從魔書使用")
-    assert buttons.count() == 2
-    assert "第 7 頁" in buttons.nth(1).text_content()
-    buttons.nth(1).click()
-    assert page.locator("#zoom-overlay").is_visible()
-    assert page.evaluate("ZOOM.ctx.kind === 'any_page' && ZOOM.ctx.page") == 7
+    assert buttons.count() == 1
+    assert "2 張可用" in buttons.first.text_content()
+    buttons.first.click()
+    assert page.locator("#book-review-overlay").is_visible()
 
 
 def test_s098_target_shown_in_log_and_effects(page):

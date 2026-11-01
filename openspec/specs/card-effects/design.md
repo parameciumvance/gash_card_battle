@@ -22,6 +22,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 ### 可選的減費(M-008)
 
 - 宣告戰術(攻擊或防禦)時,若減費可用且付得起原價,建立 `spell_discount` 決策,之後才續行宣告(`_open_battle_in` / `_finish_defense_declaration`)。決定記在宣告資料的 `discount`,開戰付費時依此計算。
+- `spell_discount` 的標題是通用的「是否以較低的費用使用此戰術?」,減多少與魔力變化由選項的 `cost` / `power` 帶出,來源卡為待命的來源(M-008)。原本標題寫死 M-008《策士》的說明,season3-effects-4 的 PR-001 沿用時顯示了錯誤的文字;`tests/test_effect_tree.py::test_choice_titles_are_generic` 檢查決策標題不含卡名與具體數值。
 - `spell_cost(..., discount=False)` 不計可選的減費。可選的待命在 `data["optional"]` 標記。
 - 戰術的魔力加減只作用在戰術本身、不低於 0(`_side_total`)。
 
@@ -190,6 +191,23 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - 從魔書放出:`PlayableOnOwnOpenPages`(E-044,依 `play_block`)+ `OwnPageIsPartner` 分支;`DeployableMamodoInOwnBook(no_stack=, pair=)`(Ex-046);`OwnMamodoToDiscardKeepingField` / `DeployableAfterDiscard` / `can_discard_or_deploy`(M-062);`AttachablePartnerPagesInOwnBook(excluding_self=True)`(P-036 以棄掉後的場面判斷使用條件)。
 - 其他:`OpponentBookCards(None, restricting=True)`(E-045)、`OpponentOpenPagesHaveEvent`(Ex-045)、`OpponentBookAtLastPage`(M-063)、`DiscardThisEventFromBook`(PR-007)。
 
+### 從翻開的頁以外使用(任意頁待命)
+
+- 待命 `spell_any_page` 由 `engine._spell_any_page_standby(game, player, page, slot, use)` 判斷,`use` 區分攻擊 / 防禦 / 非戰鬥 / 事件卡:`spell_name`(P-015 / P-025)、`mamodo` + `pages`(M-037,看對應魔物)、`mamodo` + `by_name`(P-037,依「〇〇の術」的判定,`exclude_last`、`events`)、`event_page` + `cost_delta`(Ex-037)、`any_spell` + `attack_only`(PR-006)。使用魔物決定後再以 slot 檢查一次;從翻開的頁以外使用時才消耗待命。
+- 事件卡從其他頁使用時,每回合張數、使用時機與使用條件照常檢查,費用加上 `cost_delta`。快照的 `any_page_spells` 也列出事件卡,前端沿用翻開的頁的按鈕。
+
+### 費用 0 的待命(PR-001)
+
+- 待命 `spell_free`(`mamodo` 為使用時的名稱、`max_cost`)。宣告戰術時在 M-008 的減費詢問之後詢問(`_ask_spell_free`,決策 `spell_free`、選項 `spell_free_use`,來源卡為 PR-001;`spell_discount` 的標題是 M-008 專用的說明,不沿用),非戰鬥戰術使用時同樣詢問(`_ask_free_nonbattle`)。判斷用實際費用(含增減,不含追加費用),費用歸 0 時追加費用照付;付不起原價時直接使用。
+
+### 延後到效果解決後的觸發(P-041)
+
+- 觸發器在 `emit` 中同步執行,需要玩家決策的觸發效果不能在別人的效果中途建立決策。`DeferOnOpponentTurnBack` 只排定待命 `deferred`,`engine.submit` 在指令處理完、沒有待決事項與待詢問的ジャマー時執行(`reg.deferred` 登記的效果樹)。被ジャマー無效而還原狀態時,待命一起消失。
+
+### 擲硬幣子階段的來源
+
+- 重擲 `reg.coin_reflip(number, coins, mp_cost, per_turn)`(Ex-026:MP 1、每回合 2 次,次數以 `used_abilities` 計);改成正面 `reg.coin_set_heads` 魔物(M-034)與搭檔(P-039)都適用,各受對應的「使えない」。選項附來源卡號;M-012 / M-034 維持原本的決策值,新增來源的值帶卡號(`"reflip:Ex-026:0"`、`"heads:P-039:0"`)。
+
 ## 行為決定與理由
 
 以下「相關規格」除非另外註明,皆指 `card-effects` › 需求「第二彈 68 種卡全數可用」下的情境。修改相關卡片前先看這裡;要改變 `Confirmed` 或 `Project Decision` 的決定,須先與專案負責人確認。
@@ -328,14 +346,15 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 **相關規格:** 情境「回翻依實際張數」
 
-**決定:** 在第一頁使用 E-005 擲得正正時不回翻,也不算用過「回翻自己魔書」的效果,之後仍可使用 P-018。
+**決定:** 在第一頁使用 E-005 擲得正正時不回翻,也不算用過「回翻自己魔書」的效果,之後仍可使用 P-018。P-041「相手が相手自身の魔本をもどす効果をつかうたびに」同樣只在實際回翻 1 張以上時觸發。
 
 **理由:** 沒有發生回翻。P-018 本身則依「限制卡本身算 1 次」另外計算。
 
 **依據:**
-- E-005、P-018 效果文
+- E-005、P-018、P-041 效果文
+- 專案負責人確認(2026-10-31,season3-effects-4)
 
-**確認狀態:** `Inferred`
+**確認狀態:** `Confirmed`
 
 ### P-013 依魔物卡張數翻頁
 
@@ -936,3 +955,23 @@ S-069 正面時的「相手の魔本にダメージ」改為傷害宣告時選�
 - 2026-11-01 explore 中專案負責人決定(對象未指定的傷害、S-070 選魔書也不改變)
 
 **確認狀態:** `Project Decision`
+
+### 第 3 賽季第 4 批的解讀
+
+**相關規格:** `card-effects` › 需求「本回合從任意頁使用戰術或事件卡(P-037 / Ex-037)」「這隻魔物的戰術以費用 0 使用(PR-001)」「下一場戰鬥從任意頁使用攻擊戰術(PR-006)」「對手回翻魔書時造成傷害(P-041)」「把自己擲的硬幣改成正面」「キャンチョメ的解讀」
+
+**決定:**
+- PR-001:宣告符合條件的戰術時詢問,不使用時保留;「コスト3まで」指實際費用;實際費用與費用 0 都不含追加費用;「この魔物の術」依「〇〇の術」的判定以名稱判定,PR-001 離場後換另一隻ガッシュ・ベル也適用;「術1つ」也包含非戰鬥戰術。
+- P-037:「『ブラゴ』の術」依名稱判定(其他魔物使用的ブラゴ戰術、ブラゴ使用的指令戰術都算);戰術與事件卡合計 1 次,最後一頁除外。
+- P-037 / Ex-037:從其他頁使用事件卡時,使用時機與條件照常;Ex-037 選定的事件卡在翻開的頁上時照原本的費用使用。
+- PR-006:攻擊戰術不論來自哪一頁都加成;魔物效果攻擊沒有加成,待命隨那一場戰鬥結束。
+- P-041:實際回翻才觸發;兩個效果由持有者選,都可以保護;持有者的選擇排到對手的效果解決之後。
+- Ex-026:同 M-012,可重擲自己擲的任一枚,每次付 MP 1、每回合 2 次。
+
+**理由:** 依各卡效果文。PR-001 的追加費用依 atwiki Ex-007 卡頁引用的 Ex-011 裁定「追加でふやすコストは０にはなりません」;「この魔物の術」與「『ブラゴ』の術」依 spell-ownership 的聯集規則。PR-001 包含非戰鬥戰術是因為效果文寫「術1つ」,沒有限定戰鬥。P-041 的「ダメージなので、『かばう』ことができる」明寫可以保護。
+
+**依據:**
+- 各卡日文效果文;atwiki Ex-007 卡頁(Ex-011 裁定);這 7 張的卡頁沒有 FAQ
+- 2026-10-31 / 11-01 explore 中專案負責人確認
+
+**確認狀態:** `Project Decision`(P-041 兩個效果都可以保護為效果文明寫;PR-001 包含非戰鬥戰術、P-041 延後到效果解決後為 `Inferred`)

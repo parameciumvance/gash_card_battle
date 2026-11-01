@@ -1835,17 +1835,11 @@ function abilityUsableNow(p, ab, used) {
 }
 
 // P-015:從魔書任意頁宣告攻擊(條件與翻開頁的攻擊按鈕相同,使用魔物的選擇也相同)
+// 待命允許從翻開的頁以外使用的卡(P-015 / P-037 / Ex-037 / PR-006):按鈕與翻開的頁相同(攻擊、事件卡、非戰鬥戰術),
+// 能不能用由引擎判斷;按下時先關閉魔書網格,使用魔物的選擇才看得到
 function anyPageButtons(p, entry) {
-  if (!iControl(p) || p !== S.turn_player || S.battle || S.battle_in || !canActNow(p)) return [];
-  const u = spellUsable(p, entry, true);
-  return [{
-    label: t("ui.attack"), primary: true, disabled: !u.ok, reason: u.reason,
-    onclick: () => {
-      closeBookReview();   // 網格在選擇視窗之上:先關閉,使用魔物的選擇才看得到
-      pickSpellUser(p, entry,
-        (uid) => send({ type: "declare_attack", player: p, page: entry.page, slot_uid: uid }));
-    },
-  }];
+  if (!iControl(p)) return [];
+  return pageButtons(p, entry).map((b) => ({ ...b, onclick: () => { closeBookReview(); b.onclick(); } }));
 }
 
 // E-010:玩家 p 本回合借用且尚未使用的搭檔效果(作用中效果中的 borrow_partner);沒有則 null
@@ -2275,14 +2269,9 @@ function renderActionBar() {
       // P-015:待命允許從魔書任意頁使用的戰術,在可宣告攻擊時從魔書網格使用
       const anyPage = S.players[awaited].any_page_spells || [];
       if (anyPage.length && awaited === S.turn_player && !S.battle && !S.battle_in) {
-        if (anyPage.length === 1) {
-          addBtn(t("ui.any_page_spell", { card: cname(anyPage[0].card) }), () => showBookReview(awaited));
-        } else {   // M-037:範圍內有多張可用時,每一頁各一個按鈕,直接開該頁的放大檢視
-          for (const entry of anyPage) {
-            addBtn(t("ui.any_page_spell_page", { card: cname(entry.card), page: entry.page }),
-              () => zoom(entry.card, { kind: "any_page", p: awaited, page: entry.page }));
-          }
-        }
+        // 只放一個按鈕開魔書網格,可用的頁在網格上標示(P-037 可用的卡很多,每頁一個按鈕會塞滿行動列)
+        addBtn(anyPage.length === 1 ? t("ui.any_page_spell", { card: cname(anyPage[0].card) })
+          : t("ui.any_page_cards", { n: anyPage.length }), () => showBookReview(awaited));
       }
     }
   }
@@ -2400,8 +2389,10 @@ function choiceLabel(opt, results) {
     case "no_protect": return t("choice.no_protect");
     case "keep": return t("choice.keep");
     case "reflip": {
-      const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
-      return t("choice.reflip", { n: opt.value + 1, face });
+      const n = opt.coin ?? opt.value;   // 選項附來源卡(M-012 / Ex-026)時以 coin 為第幾枚
+      const face = results[n] ? t(`ui.coin_face.${results[n]}`) : "";
+      if (!opt.card) return t("choice.reflip", { n: n + 1, face });
+      return t(opt.mp ? "choice.reflip.paid" : "choice.reflip.card", { card: cname(opt.card), mp: opt.mp, n: n + 1, face });
     }
     case "opp_reflip": {
       const face = results[opt.value] ? t(`ui.coin_face.${results[opt.value]}`) : "";
@@ -2411,9 +2402,11 @@ function choiceLabel(opt, results) {
     case "stop": return t("choice.stop");
     case "skip": return t("choice.skip");
     case "jammer_use": return t(opt.discard ? "choice.jammer_use.discard" : "choice.jammer_use", { card: cname(opt.card) });
-    case "set_heads": return t("choice.set_heads", { n: opt.coin + 1 });
+    case "set_heads": return opt.card ? t("choice.set_heads.card", { card: cname(opt.card), n: opt.coin + 1 })
+      : t("choice.set_heads", { n: opt.coin + 1 });
     case "end_phase_effect": return t("choice.end_phase_effect", { card: cname(opt.card) });
-    case "spell_discount_use": return t("choice.spell_discount_use");
+    case "spell_discount_use": return t("choice.spell_discount_use", { cost: opt.cost, power: signed(opt.power) });
+    case "spell_free_use": return t("choice.spell_free_use");
     case "s043_fuse": return t("choice.s043_fuse");
     case "s043_split": return t("choice.s043_split");
     case "heal_injured": return t("choice.heal_injured");
