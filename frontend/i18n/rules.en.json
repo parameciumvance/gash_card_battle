@@ -60,6 +60,19 @@
       ]
     },
     {
+      "id": "seasons",
+      "title": "Seasons",
+      "blocks": [
+        {"p": "A game can be set to a season (Season 1, 2 or 3). Which cards are available in each season is decided by card-number ranges, and a later season includes every card of the earlier ones."},
+        {"list": [
+          "A card belongs to the earliest season that includes it; a Spell Book's season is the season of its latest card (shown as “Usable from Season N” next to the Spell Book name in the deck builder).",
+          "In a room or table set to a season, both players' Spell Books may only use cards available in that season, preset decks included.",
+          "The table below lists the available card-number ranges for each season and the products added in that season (reprint products excluded)."
+        ]},
+        {"seasons": true}
+      ]
+    },
+    {
       "id": "setup",
       "title": "Setup",
       "blocks": [
@@ -159,6 +172,11 @@
       ]
     }
   ],
+  "seasons": {
+    "season": "Season",
+    "products": "New products",
+    "note": "{card} belongs to Season {n} and cannot be selected yet."
+  },
   "figure": {
     "title": "Example card",
     "missing": "Card art is not installed, so the icons are shown as text below.",

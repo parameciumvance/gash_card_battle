@@ -449,7 +449,15 @@ function applySeasonLimits() {
 }
 
 function renderSeasonSelect(id) {
-  document.getElementById(`${id}-label`).textContent = t("ui.season.label");
+  const label = document.getElementById(`${id}-label`);
+  label.textContent = t("ui.season.label");
+  const help = document.createElement("button");   // 開啟規則頁的賽季段落(各賽季的卡號範圍與產品)
+  help.type = "button";
+  help.className = "season-help";
+  help.textContent = "?";
+  help.title = help.ariaLabel = t("ui.season.help");
+  help.onclick = (e) => { e.preventDefault(); openRules("seasons"); };
+  label.appendChild(help);
   const sel = document.getElementById(id);
   sel.innerHTML = "";
   for (const n of SEASONS.selectable) {
@@ -3040,6 +3048,56 @@ function renderRuleIcons(body) {
   return wrap;
 }
 
+// 賽季表:依 data/seasons.json 與卡片資料產生(battle-ui「規則頁的賽季段落」),補卡或調整範圍不必改內容檔
+const SEASON_PREFIXES = ["M", "S", "P", "E", "PR", "Ex"];
+
+// 產品的賽季:收錄卡中最晚的卡的賽季;虛擬產品(Ex 卡、特典カード)跨賽季,範圍由 Ex、PR 欄表示
+function productSeasons() {
+  const out = {};
+  for (const code of (FILTER_CFG.products || []).flat()) {
+    if (code === "ex" || code === "promo") continue;
+    let max = null;
+    for (const c of Object.values(CARDS)) {
+      if (!(c.sets || []).includes(code)) continue;
+      const season = cardSeason(c.number);
+      if (season !== null) max = Math.max(max || 0, season);
+    }
+    if (max !== null) (out[max] = out[max] || []).push(code);
+  }
+  return out;
+}
+
+function renderRuleSeasons() {
+  const labels = RULES.seasons;
+  const ids = Object.keys(SEASONS.seasons).map(Number).sort((a, b) => a - b);
+  const prefixes = [...SEASON_PREFIXES];
+  for (const id of ids) for (const k of Object.keys(SEASONS.seasons[id])) if (!prefixes.includes(k)) prefixes.push(k);
+  const products = productSeasons();
+  const wrap = el("div", "rules-seasons");
+  const table = el("table");
+  const headRow = el("tr");
+  for (const h of [labels.season, ...prefixes, labels.products]) headRow.appendChild(el("th", null, h));
+  table.appendChild(el("thead")).appendChild(headRow);
+  const tbody = table.appendChild(el("tbody"));
+  for (const id of ids) {
+    const tr = el("tr");
+    tr.dataset.season = String(id);
+    tr.appendChild(el("th", null, t("ui.season.n", { n: id })));
+    for (const k of prefixes) {
+      const max = SEASONS.seasons[id][k];
+      tr.appendChild(el("td", "range", max ? `001–${String(max).padStart(3, "0")}` : "—"));
+    }
+    tr.appendChild(el("td", "products", (products[id] || []).map((code) => t(`product.${code}`)).join(t("ui.sep.list"))));
+    tbody.appendChild(tr);
+  }
+  wrap.appendChild(table);
+  const later = Object.entries(SEASONS.special || {}).filter(([, n]) => !SEASONS.selectable.includes(n));
+  for (const [card, n] of later) {
+    wrap.appendChild(el("p", "rules-season-note", labels.note.replace("{card}", card).replace("{n}", n)));
+  }
+  return wrap;
+}
+
 function buildRules() {
   const body = document.getElementById("rules-body");
   const toc = document.getElementById("rules-toc");
@@ -3064,6 +3122,7 @@ function buildRules() {
       }
       if (block.figure) box.appendChild(renderRuleFigure(body));
       if (block.icons) box.appendChild(renderRuleIcons(body));
+      if (block.seasons) box.appendChild(renderRuleSeasons());
     }
     body.appendChild(box);
   }
@@ -3912,6 +3971,8 @@ function renderBookGrid(grid, renderSlot) {
 function renderValidation() {
   // 魔書名稱旁的「第 N 賽季起」(deck-builder「魔書的賽季標示」):只是資訊,不影響合法性提示
   const tag = document.getElementById("builder-season");
+  tag.title = t("ui.season.help");
+  tag.onclick = () => openRules("seasons");         // 查閱各賽季的範圍(deck-builder「魔書的賽季標示」)
   const season = deckSeason(B.deck.pages);
   tag.classList.toggle("hidden", season === null || !Number.isFinite(season));
   tag.textContent = season === null || !Number.isFinite(season) ? "" : t("ui.season.from", { n: season });

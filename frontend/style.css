@@ -697,6 +697,14 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .icon-crop { display: block; width: 46px; background-repeat: no-repeat; border-radius: 4px; }
 .icon-fallback { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 6px;
   background: var(--btn-bg); border: 1px solid var(--btn-line); white-space: nowrap; }
+.rules-seasons { overflow-x: auto; max-width: 100%; }
+.rules-seasons table { border-collapse: collapse; font-size: 13px; }
+.rules-seasons th, .rules-seasons td { border: 1px solid var(--btn-line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.rules-seasons td.range { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rules-seasons td.products { min-width: 180px; }
+.rules-seasons tbody th { white-space: nowrap; }
+.rules-season-note { font-size: 12px; color: var(--ink-dim); margin-top: 6px; }
+.season-help { margin-left: 6px; padding: 0 7px; min-height: 0; font-size: 11px; border-radius: 50%; line-height: 16px; }
 #action-bar .rule-link { margin-left: 6px; padding: 0 7px; min-height: 0; font-size: 11px; border-radius: 50%; }
 #timing-track .step { cursor: pointer; }
 @media (max-width: 700px) {
@@ -1151,7 +1159,9 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   border: 1px solid var(--btn-line); background: #1c2333; color: var(--ink);
 }
 #builder-name { width: 180px; }
-#builder-season { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--btn-line); color: var(--ink); white-space: nowrap; }
+#builder-season { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--btn-line); background: var(--btn-bg); color: var(--ink); white-space: nowrap; }
+#builder-season { cursor: pointer; }
+#builder-season:hover { border-color: var(--gold-soft); }
 
 #builder-main { flex: 1; display: flex; min-height: 0; }
 #builder-pool {

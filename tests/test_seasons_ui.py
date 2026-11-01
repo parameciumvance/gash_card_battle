@@ -30,7 +30,7 @@ def test_season_limits_npc_deck_menus(page):
         for preset, season in (("level2", 2), ("gash-nakama", 3), ("zeon", 3)):
             opt = option(page, sel, f"preset:{preset}")
             assert opt.is_disabled()
-            assert opt.inner_text().endswith(f"(第 {season} 賽季起)")
+            assert opt.inner_text().endswith(f"(第 {season} 賽季起可用)")
     assert option(page, "#deck-npc", "preset:level1").inner_text().find("賽季") == -1
 
 
@@ -86,7 +86,7 @@ def test_join_mode_has_no_season_and_shows_room_season_on_reject(page, server):
     page.click('#friend-mode button[data-mode="join"]')
     assert page.locator("#season-friend").is_hidden()
     assert not option(page, "#deck-friend", "preset:zeon").is_disabled()       # 加入模式不依賽季禁用
-    assert option(page, "#deck-friend", "preset:zeon").inner_text().endswith("(第 3 賽季起)")
+    assert option(page, "#deck-friend", "preset:zeon").inner_text().endswith("(第 3 賽季起可用)")
     page.select_option("#deck-friend", "preset:zeon")
     page.fill("#join-code", room["code"])
     page.click("#friend-submit")

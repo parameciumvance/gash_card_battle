@@ -99,6 +99,7 @@ def test_rules_have_same_sections(lang):
         assert [list(b) for b in os_["blocks"]] == [list(b) for b in bs["blocks"]], bs["id"]
     assert set(other["figure"]["marks"]) == set(base["figure"]["marks"])
     assert set(other) == set(base) and set(other["figure"]) == set(base["figure"])
+    assert set(other["seasons"]) == set(base["seasons"])                 # 賽季表的標籤
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -330,3 +331,11 @@ def test_tts_ex_numbers_map_to_atwiki_spelling():
     tts = load_tts_names()
     assert tts["Ex-001"]["name"] and "EX-001" not in tts
     assert tts["M-001"]["name"] == "Zatch Bell"
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_feedback_button_matches_dialog_title(lang):
+    # 頂欄的回報按鈕與對話框標題、首頁入口用同一個詞(按鈕是簡稱時要包含在標題裡)
+    d = load(f"{lang}.json")
+    assert d["ui.feedback.toggle"] in d["ui.feedback.title"]
+    assert d["ui.landing.feedback"] == d["ui.feedback.title"]

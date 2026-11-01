@@ -469,11 +469,11 @@ def test_deck_season_tag(builder):
     builder.evaluate("""async () => {
         B.deck.pages = await fetchPresetPages('level1'); B.selected = null; builderMutated();
     }""")
-    assert tag.inner_text() == "第 1 賽季起"
+    assert tag.inner_text() == "第 1 賽季起可用"
     assert builder.locator("#builder-validation .ok").is_visible()
     builder.locator('#book-grid .page-slot[data-page="25"]').click()
     builder.locator("#pool-grid .card", has=builder.locator(".cnum", has_text="M-030")).first.click()
     builder.wait_for_function("B.deck.pages[25] === 'M-030'")
-    assert tag.inner_text() == "第 2 賽季起"
+    assert tag.inner_text() == "第 2 賽季起可用"
     assert builder.locator("#builder-validation .ok").is_visible()               # 沒有新的違規
     assert builder.locator("#builder-validation .err").count() == 0
