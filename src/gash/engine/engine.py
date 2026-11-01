@@ -805,6 +805,60 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
         run_on_play(game, batch, player, target, number)
 
 
+_ABILITY_ERRORS = {
+    "partner_restricted": lambda: IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效"),
+    "mamodo_locked": lambda: IllegalCommand("ability.mamodo_locked", "此魔物的效果目前不能使用"),
+    "mamodo_restricted": lambda: IllegalCommand("ability.mamodo_restricted", "此魔物的效果目前不能使用"),
+    "timing_battle": lambda: IllegalCommand("ability.timing", "此效果只能在戰鬥中使用"),
+    "timing_nonbattle": lambda: IllegalCommand("ability.timing", "此效果不能在戰鬥中使用"),
+    "own_turn": lambda: IllegalCommand("ability.timing", "此效果只能在自己的回合使用"),
+    "used": lambda: IllegalCommand("ability.used", "此效果本回合已使用過"),
+    "per_game": lambda: IllegalCommand("ability.per_game", "此效果一場遊戲只能使用 1 次"),
+    "mp": lambda: IllegalCommand("ability.mp", "MP 不足"),
+    "condition": lambda: IllegalCommand("ability.condition", "不符合此效果的使用條件"),
+}
+
+
+def ability_block(game: Game, player: int, zone: str, slot: MamodoSlot | None, number: str | None,
+                  *, in_battle: bool | None = None) -> str | None:
+    """場上卡(zone "mamodo" / "partner")或借用的搭檔效果("borrowed",slot 為 None)的啟動效果目前不能使用的原因代碼;
+    可以使用或沒有啟動效果時為 None。順序與指令的檢查相同,不含行動權。in_battle 省略時依目前是否在戰鬥中。"""
+    spec = reg.ACTIVATED.get(number) if number else None
+    if spec is None:
+        return None
+    st = game.state
+    ps = st.players[player]
+    if in_battle is None:
+        in_battle = st.battle is not None
+    if zone in ("partner", "borrowed") and restricted(game, player, NO_PARTNER_EFFECTS):
+        return "partner_restricted"
+    if zone == "mamodo":
+        block = mamodo_effect_block(game, player, slot)
+        if block:
+            return block
+    if spec.timing == "battle" and not in_battle:
+        return "timing_battle"
+    if spec.timing == "nonbattle" and in_battle:
+        return "timing_nonbattle"
+    if spec.own_turn and player != st.turn_player:
+        return "own_turn"
+    if zone != "borrowed":   # 借用的效果有自己的使用標記
+        if f"{zone}:{number}" in ps.used_abilities:
+            return "used"
+        if spec.per_game and number in ps.used_per_game:
+            return "per_game"
+    if ps.mp < spec.mp_cost:
+        return "mp"
+    if spec.condition and not spec.condition(game, player, slot):
+        return "condition"
+    return None
+
+
+def _raise_ability_block(code: str | None) -> None:
+    if code:
+        raise _ABILITY_ERRORS[code]()
+
+
 def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict, in_battle: bool) -> None:
     st = game.state
     zone = command.get("zone")
@@ -817,27 +871,8 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     spec = reg.ACTIVATED.get(number)
     if spec is None:
         raise IllegalCommand("ability.none", f"{number} 沒有可啟動的效果")
-    if zone == "partner" and restricted(game, player, NO_PARTNER_EFFECTS):
-        raise IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效")
-    block = mamodo_effect_block(game, player, slot) if zone == "mamodo" else None
-    if block:
-        raise IllegalCommand(f"ability.{block}", "此魔物的效果目前不能使用")
-    if spec.timing == "battle" and not in_battle:
-        raise IllegalCommand("ability.timing", "此效果只能在戰鬥中使用")
-    if spec.timing == "nonbattle" and in_battle:
-        raise IllegalCommand("ability.timing", "此效果不能在戰鬥中使用")
-    if spec.own_turn and player != st.turn_player:
-        raise IllegalCommand("ability.timing", "此效果只能在自己的回合使用")
-    # 以卡號為 key:棄掉後重新放出相同編號的卡,該回合仍不可使用其效果
-    key = f"{zone}:{number}"
-    if key in st.players[player].used_abilities:
-        raise IllegalCommand("ability.used", "此效果本回合已使用過")
-    if spec.per_game and number in st.players[player].used_per_game:
-        raise IllegalCommand("ability.per_game", "此效果一場遊戲只能使用 1 次")
-    if st.players[player].mp < spec.mp_cost:
-        raise IllegalCommand("ability.mp", "MP 不足")
-    if spec.condition and not spec.condition(game, player, slot):
-        raise IllegalCommand("ability.condition", "不符合此效果的使用條件")
+    _raise_ability_block(ability_block(game, player, zone, slot, number, in_battle=in_battle))
+    key = f"{zone}:{number}"   # 以卡號為 key:棄掉後重新放出相同編號的卡,該回合仍不可使用其效果
     st.players[player].used_abilities.add(key)
     if spec.per_game:
         st.players[player].used_per_game.add(number)
@@ -873,18 +908,7 @@ def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: 
     spec = reg.ACTIVATED.get(number)
     if spec is None:
         raise IllegalCommand("ability.none", f"{number} 沒有可啟動的效果")
-    if restricted(game, player, NO_PARTNER_EFFECTS):
-        raise IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效")
-    if spec.timing == "battle" and not in_battle:
-        raise IllegalCommand("ability.timing", "此效果只能在戰鬥中使用")
-    if spec.timing == "nonbattle" and in_battle:
-        raise IllegalCommand("ability.timing", "此效果不能在戰鬥中使用")
-    if spec.own_turn and player != st.turn_player:
-        raise IllegalCommand("ability.timing", "此效果只能在自己的回合使用")
-    if st.players[player].mp < spec.mp_cost:
-        raise IllegalCommand("ability.mp", "MP 不足")
-    if spec.condition and not spec.condition(game, player, None):
-        raise IllegalCommand("ability.condition", "不符合此效果的使用條件")
+    _raise_ability_block(ability_block(game, player, "borrowed", None, number, in_battle=in_battle))
     pay_mp(game, batch, player, spec.mp_cost, f"ability:{number}")
     borrow.data["used"] = True
     game.emit(batch, "ability_used", player=player, card=number, slot=None, zone="borrowed",

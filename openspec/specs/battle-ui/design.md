@@ -274,6 +274,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 事件卡:依「自己的回合 / 對手的回合」圖示與是否回合玩家。
   - 魔物卡不判斷場上是否已滿:M-007 / M-010 / M-027 可疊放,前端無從得知,以伺服器為準。
 
+## 停用按鈕的原因(disabled-reasons)
+
+- 放大檢視的停用按鈕一律附原因(`.zoom-reason`,在按鈕旁;觸控沒有 hover)。新手回饋:賈修的效果在非戰鬥時灰掉卻沒有說明。
+- 啟動效果:`abilityUsableNow(p, ab, used, block)` 先看快照的 `ability_block`(`ABILITY_BLOCK_KEYS` 對應文字,MP 帶數值),再看時機(`waitReason`:等待決策 → 開始階段 → 戰鬥中未到效果步驟 → 不是自己的行動),最後退回規格判斷(沒有 `ability_block` 時)。卡的固定限制(只能戰鬥中等)優先於時機,玩家先知道卡的用法。
+- MP 不足統一用 `ui.spell.mp`(「MP 不足(目前 m,需要 n)」,`mpReason`),效果、魔物效果攻擊 / 防禦、事件卡與戰術一致。
+- 翻開頁:`pageButtons` 沒有任何按鈕、不是防禦步驟的防方時,以 `idlePageButton` 加主要動作的停用按鈕(放出 / 使用 / 攻擊 / 防禦,原因見 change design D4)。原本「不可行動時無按鈕」,點開也看不出為什麼不能用;使用者選擇顯示停用按鈕(Confirmed)。發光只看啟用的按鈕,盤面不變。
+
 ## 終局(endgame-clarity)
 
 - **魔書進度**:`pos > book_size` 時區塊標題的魔書進度整段換成「魔書耗盡」(`ui.book_exhausted`),不接在「魔書」之後,避免「魔書 魔書耗盡」。

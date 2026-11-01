@@ -103,7 +103,13 @@ def test_nonbattle_no_actions_outside_window(page, window):
       if(window==='no_priority') S.action_player=1-p;
       CARDS['S-026'].ad='AD'; renderZoom();
     }""", window)
-    assert page.locator('#zoom-actions button').count() == 0
+    buttons = page.locator('#zoom-actions button')
+    if window in ('battle', 'no_control'):       # 防禦宣告中的防方、非操作方:沒有按鈕
+        assert buttons.count() == 0
+    else:                                         # 現在不能用:停用按鈕附原因(battle-ui「停用按鈕的原因」)
+        assert buttons.count() == 1 and buttons.is_disabled()
+        reason = {'battle_in': 'ui.why.in_battle', 'pending': 'ui.why.pending', 'no_priority': 'ui.why.not_your_action'}
+        assert page.locator('#zoom-actions .zoom-reason').inner_text() == page.evaluate(f"t('{reason[window]}')")
 
 
 def test_battle_command_spells_and_events(page):

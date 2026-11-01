@@ -96,6 +96,7 @@ negated                                                                ← 無�
 - 規則出處:規則頁「エンドフェイズ」:「１、効果の解決」(結束階段的常駐效果與待命,「複数の効果が重なっているときには、ターンプレイヤーが解決の順番を決めることができます」,之後是魔物消失處理)→「２、ページをめくる」。
 - `_end_phase` → `_resolve_end_phase_effects`:收集 M-047 的 `scheduled_detach`、E-041 的 `end_phase_turn_opponent`、E-042 的 `end_phase_discard`;2 個以上時建立決策 `end_phase_order`(回合玩家,選項值為收集順序的索引,每次重新收集),只剩 1 個直接解決;全部解決後才 `_continue_end_phase`(魔物消失處理 → 強制翻頁 → E-038 → S-090 的搭檔 → 時效到期)。E-038 在強制翻頁之後是既有的偏差(todo)。
 - 強制翻頁無頁可翻(endgame-clarity):`pos + 2 > BOOK_SIZE`(已翻開最後一頁)時直接 `_game_over(book_out)`,不改 `pos`、`mp`,不發 `pages_flipped`。原本先翻頁、MP +2、發事件後才以 `book_exhausted()` 判負,勝負相同但記錄像是翻頁成功又輸了(新手回饋)。M-030 的 `skip_end_flip` 待命在這之前消耗,照舊可以避免。`end_flip_loses(game, player)` 以同一條件(加上未結束、是回合玩家、沒有自己的 `skip_end_flip`)供快照使用。
+- 啟動效果的使用可否(disabled-reasons):`ability_block(game, player, zone, slot, number, in_battle=)` 依指令原本的順序回傳第一個不符合的代碼(搭檔效果失效 → 魔物效果被封鎖 → 時機 → 自己的回合 → 本回合已用 → 一場限 1 次 → MP → 使用條件);`_use_field_ability` / `_use_borrowed_effect` 共用,以 `_ABILITY_ERRORS` 對回錯誤碼與訊息(值寫成 `IllegalCommand(...)`,錯誤碼掃描測試才找得到)。
 - 事件卡上限:`events_used_this_turn` 與 `event_limit`(持續效果 `event_limit` 可提高)。
 - 不能攻擊:限制旗標 `no_attack`,`_declare_attack` 對戰術與魔物效果攻擊都檢查(`attack.restricted`);不在可移除的分類中。
 - E-038 的 MP 增加(`end_phase_mp` 待命)也在結束階段效果中解決(強制翻頁之前),與其他效果一起由回合玩家排序。

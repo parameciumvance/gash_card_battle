@@ -1762,7 +1762,7 @@ function slotButtons(p, slot) {
   const ab = slot.ability;
   if (ab && iControl(p)) {
     const label = ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
-    const usable = abilityUsableNow(p, ab, slot.ability_used);
+    const usable = abilityUsableNow(p, ab, slot.ability_used, slot.ability_block);
     buttons.push({
       label, disabled: !usable.ok, reason: usable.reason,
       onclick: () => send({ type: "use_field_ability", player: p, zone: "mamodo", slot_uid: slot.uid }),
@@ -1772,7 +1772,7 @@ function slotButtons(p, slot) {
   if (slot.mamodo_attack && iControl(p) && p === S.turn_player && canActNow(p)) {
     const spec = slot.mamodo_attack;
     const blocked = usedReason(slot.mamodo_attack_used)
-      || (S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null);
+      || (S.players[p].mp < spec.mp_cost ? mpReason(p, spec.mp_cost) : null);
     buttons.push({
       label: t("ui.mamodo_attack", { power: spec.power, dam: spec.damage }),
       primary: true, disabled: !!blocked, reason: blocked,
@@ -1785,7 +1785,7 @@ function slotButtons(p, slot) {
     const spec = slot.mamodo_defense;
     const blocked = S.battle.attack_undefendable ? t("ui.undefendable")
       : usedReason(slot.mamodo_defense_used)
-      || (S.players[p].mp < spec.mp_cost ? `MP < ${spec.mp_cost}` : null);
+      || (S.players[p].mp < spec.mp_cost ? mpReason(p, spec.mp_cost) : null);
     buttons.push({
       label: t("ui.mamodo_defense", { power: spec.power }),
       primary: true, disabled: !!blocked, reason: blocked,
@@ -1826,7 +1826,7 @@ function partnerButtons(p, slot) {
   if (ab && iControl(p)) {
     const label = ab.mode === "discard" ? t("ui.ability_discard")
       : ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
-    const usable = abilityUsableNow(p, ab, slot.partner_ability_used);
+    const usable = abilityUsableNow(p, ab, slot.partner_ability_used, slot.partner_ability_block);
     buttons.push({
       label, disabled: !usable.ok, reason: usable.reason,
       onclick: () => send({ type: "use_field_ability", player: p, zone: "partner", slot_uid: slot.uid }),
@@ -1858,18 +1858,46 @@ function usedReason(used) {
   return used === "game" ? t("ui.ability.used_game") : used ? t("ui.ability.used_turn") : null;
 }
 
-function abilityUsableNow(p, ab, used) {
-  if (usedReason(used)) return { ok: false, reason: usedReason(used) };
-  if (S.pending || S.phase !== "battle") return { ok: false };
+// 快照的效果使用可否(battle-api「效果的使用可否快照」)對應的原因文字;MP 另帶數值
+const ABILITY_BLOCK_KEYS = {
+  partner_restricted: "error.ability.partner_restricted", mamodo_locked: "error.ability.mamodo_locked",
+  mamodo_restricted: "error.ability.mamodo_restricted", timing_battle: "ui.why.battle_only",
+  timing_nonbattle: "ui.why.nonbattle_only", own_turn: "ui.ability.own_turn_only", used: "ui.ability.used_turn",
+  per_game: "ui.ability.used_game", condition: "error.ability.condition",
+};
+
+function mpReason(p, cost) { return t("ui.spell.mp", { mp: S.players[p].mp, cost }); }
+
+// 卡本身能用、但現在不是時機:說明什麼時候才能用(效果按鈕)
+function waitReason() {
+  if (S.pending) return t("ui.why.pending");
+  if (S.phase !== "battle") return t("ui.why.start");
+  if (S.battle && S.battle.step !== "effects") return t("ui.why.effects_step");
+  return t("ui.why.not_your_action");
+}
+
+// 翻開頁的放出、使用、攻擊在現在不能用的原因(只在非戰鬥中、輪到自己時可用)
+function nonbattleWaitReason() {
+  if (S.pending) return t("ui.why.pending");
+  if (S.phase !== "battle") return t("ui.why.start");
+  if (S.battle || S.battle_in) return t("ui.why.in_battle");
+  return t("ui.why.not_your_action");
+}
+
+// block:快照的使用可否(持有者才有;undefined 時退回以已使用與規格判斷)。卡本身的原因優先,其次是時機
+function abilityUsableNow(p, ab, used, block) {
+  if (block) return { ok: false, reason: block === "mp" ? mpReason(p, ab.mp_cost) : t(ABILITY_BLOCK_KEYS[block]) };
+  if (block === undefined && usedReason(used)) return { ok: false, reason: usedReason(used) };
+  if (S.pending || S.phase !== "battle") return { ok: false, reason: waitReason() };
   if (S.battle) {
-    if (ab.timing === "nonbattle") return { ok: false };
-    if (S.battle.step !== "effects" || S.battle.effect_turn !== p) return { ok: false };
+    if (ab.timing === "nonbattle") return { ok: false, reason: t("ui.why.nonbattle_only") };
+    if (S.battle.step !== "effects" || S.battle.effect_turn !== p) return { ok: false, reason: waitReason() };
   } else {
-    if (ab.timing === "battle") return { ok: false };
-    if (S.battle_in ? p !== 1 - S.battle_in.attacker : S.action_player !== p) return { ok: false };
+    if (ab.timing === "battle") return { ok: false, reason: t("ui.why.battle_only") };
+    if (S.battle_in ? p !== 1 - S.battle_in.attacker : S.action_player !== p) return { ok: false, reason: waitReason() };
   }
   if (ab.own_turn && S.turn_player !== p) return { ok: false, reason: t("ui.ability.own_turn_only") };
-  if (ab.mp_cost > S.players[p].mp) return { ok: false, reason: `MP < ${ab.mp_cost}` };
+  if (ab.mp_cost > S.players[p].mp) return { ok: false, reason: mpReason(p, ab.mp_cost) };
   return { ok: true };
 }
 
@@ -1890,10 +1918,7 @@ function borrowedButtons(p, borrow) {
   if (!iControl(p) || !borrow.ability) return [];
   const restricted = (S.effects || []).some((e) => e.kind === "restriction"
     && e.flag === "no_partner_effects" && e.target_player === p);
-  let usable = abilityUsableNow(p, borrow.ability);
-  if (!usable.ok && !usable.reason && !S.pending && S.phase === "battle") {
-    usable = { ok: false, reason: t("error.ability.timing") };   // 時機不符(戰鬥中 / 非戰鬥)
-  }
+  let usable = abilityUsableNow(p, borrow.ability, undefined, S.players[p].borrowed_block);
   if (usable.ok && restricted) usable = { ok: false, reason: t("error.ability.partner_restricted") };
   return [{
     label: t("ui.use_borrowed"), primary: true, disabled: !usable.ok, reason: usable.reason,
@@ -1920,7 +1945,7 @@ function pageButtons(p, entry) {
       const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
       const blocked = ps.events_exhausted ? t("ui.used")
         : entry.condition_ok === false ? t("ui.condition")
-        : cost > ps.mp ? `MP < ${cost}`
+        : cost > ps.mp ? mpReason(p, cost)
         : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
         : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
       buttons.push({
@@ -1948,8 +1973,13 @@ function pageButtons(p, entry) {
     }
   }
 
-  if (!S.pending && S.battle && S.battle.step === "defense"
-      && p === 1 - S.battle.attacker && iControl(p)) {
+  const defenseStep = !S.pending && S.battle && S.battle.step === "defense" && p === 1 - S.battle.attacker;
+  if (!buttons.length && !defenseStep && iControl(p)) {   // 現在不能用:主要動作以停用按鈕附原因呈現,不使卡片發光
+    const idle = idlePageButton(p, def);
+    if (idle) buttons.push({ ...idle, primary: true, disabled: true, onclick: () => {} });
+  }
+
+  if (defenseStep && iControl(p)) {
     const u = spellUsable(p, entry, false);
     if (["D", "AD"].includes(def.ad) && def.type === "spell" && def.effect_icon !== "nonbattle") {
       const blocked = S.battle.attack_undefendable ? t("ui.undefendable") : (u.ok ? null : u.reason);
@@ -1963,6 +1993,19 @@ function pageButtons(p, entry) {
   }
 
   return buttons;
+}
+
+// 翻開頁現在不能用時的主要動作與原因(battle-ui「停用按鈕的原因」)
+function idlePageButton(p, def) {
+  if (def.type === "mamodo" || def.type === "partner") return { label: t("ui.play"), reason: nonbattleWaitReason() };
+  if (def.type === "event" || (def.type === "spell" && def.effect_icon === "nonbattle")) {
+    return { label: t("ui.use_event"), reason: nonbattleWaitReason() };
+  }
+  if (def.type !== "spell") return null;
+  if (["A", "AD"].includes(def.ad) && p === S.turn_player) return { label: t("ui.attack"), reason: nonbattleWaitReason() };
+  if (["D", "AD"].includes(def.ad)) return { label: t("ui.defend"), reason: t("ui.why.defend_only") };
+  if (def.ad === "A") return { label: t("ui.attack"), reason: t("ui.why.attack_own_turn") };
+  return null;
 }
 
 function openPageEl(p, entry) {

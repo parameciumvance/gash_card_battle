@@ -99,7 +99,7 @@ def test_battle_timing_borrow_disabled_outside_battle(page):
     borrow_button(page).click()
     use = page.locator("#zoom-actions button", has_text="使用")
     assert use.is_disabled()
-    assert "時機" in page.locator("#zoom-actions").inner_text()
+    assert "只能在戰鬥中使用" in page.locator("#zoom-actions").inner_text()
 
 
 def test_e021_effect_choice_labels(page):

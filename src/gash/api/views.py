@@ -9,7 +9,7 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, attack_undefendable, effect_block_sources, end_flip_loses,
+    _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses,
     event_cost_breakdown,
     event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
     side_breakdown, spell_block, spell_cost, spell_cost_breakdown, uses_this_turn,
@@ -46,12 +46,12 @@ def _used(ps, key: str, number, per_game: bool = False):
     return "turn" if f"{key}:{number}" in ps.used_abilities else False
 
 
-def _slot_view(game: Game, player: int, slot) -> dict:
+def _slot_view(game: Game, player: int, slot, viewer=None) -> dict:
     from ..engine.effects import registry as reg
     ps = game.state.players[player]
     top_spec, partner_spec = reg.ACTIVATED.get(slot.top), reg.ACTIVATED.get(slot.partner)
     power, power_items = power_breakdown(game, player, slot)
-    return {
+    view = {
         "uid": slot.uid,
         "column": slot_columns(game.state.players[player].slots)[slot.uid],   # 場上欄位(公開)
         "stack": list(slot.stack),
@@ -77,6 +77,18 @@ def _slot_view(game: Game, player: int, slot) -> dict:
         "mamodo_attack_used": _attack_used(ps, slot.top),
         "mamodo_defense_used": _used(ps, "mamodo_defense", slot.top),
     }
+    if can_see_player(viewer, player):   # 效果的使用可否(使用條件可能看非公開資訊,只給持有者)
+        view["ability_block"] = ability_block(game, player, "mamodo", slot, slot.top)
+        view["partner_ability_block"] = ability_block(game, player, "partner", slot, slot.partner)
+    return view
+
+
+def _borrowed_block(game: Game, p: int):
+    """本回合借用且尚未使用的搭檔效果(E-010)目前不能使用的原因代碼;沒有借用時 None。"""
+    st = game.state
+    borrow = next((m for m in st.modifiers if m.kind == "borrow_partner" and m.owner == p
+                   and m.active(st.turn_no) and not m.data.get("used")), None)
+    return ability_block(game, p, "borrowed", None, borrow.data["card"]) if borrow else None
 
 
 def _attack_used(ps, number):
@@ -179,7 +191,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "book_size": BOOK_SIZE,
         "open_pages": open_pages,
         "consumed_pages": sorted(ps.consumed_pages),
-        "slots": [_slot_view(game, p, s) for s in ps.slots],
+        "slots": [_slot_view(game, p, s, viewer) for s in ps.slots],
         "discard": list(ps.discard),
         "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
         "events_exhausted": ps.events_used_this_turn >= event_limit(game, p),   # 本回合事件卡已達上限(E-029 可提高)
@@ -190,6 +202,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         view["book"] = list(ps.book)
         view["any_page_spells"] = _any_page_spells(game, p)
         view["used_nonbattle_pages"] = sorted(ps.used_nonbattle_pages)
+        view["borrowed_block"] = _borrowed_block(game, p)
     return view
 
 

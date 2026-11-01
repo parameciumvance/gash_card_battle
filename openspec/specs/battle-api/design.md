@@ -12,6 +12,7 @@
 以下欄位對所有視角相同,因為內容本來就是公開資訊:
 
 - `consecutive_passes`:非戰鬥中雙方連續 pass 的次數(引擎判斷結束戰鬥階段用的同一個值),供回合轉盤顯示「再 pass 就換人」;pass 是公開的行動結果。戰鬥效果步驟的 `effect_passes` 不送。
+- 持有者私有的 `ability_block` / `partner_ability_block` / `borrowed_block`(disabled-reasons):引擎 `ability_block` 的原因代碼,與 `use_field_ability` / `use_borrowed_effect` 共用同一個函式(指令把代碼對回原本的錯誤碼,三種時機都是 `ability.timing`)。使用條件可能看非公開資訊(例如自己的魔書),所以只給持有者,比照 `play_block`。不含行動權:前端另外依時機說明。
 - 玩家的 `end_flip_loses`:本回合結束時強制翻頁會落敗(引擎 `end_flip_loses`),由翻開的頁與作用中的待命算出,都是公開資訊。放在伺服器而不讓前端從 `pos` 與 `effects` 推算,是為了規則只有一處,之後有新的跳過翻頁效果時不會漏改前端。
 - 玩家的 `pos`:夾在 `BOOK_SIZE + 2`;超過 `BOOK_SIZE` 表示魔書耗盡,前端顯示「魔書耗盡」而不是頁碼。
 - `pending.info`:決策的公開脈絡(擲幣結果、保護決策的目前這份傷害,見 `game-engine/design.md`「中途決策」)。傷害本來就是公開的(攻擊、戰術、傷害值都已公開),所以保護決策的內容對所有視角相同。`pending.data` 永遠不送。

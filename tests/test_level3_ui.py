@@ -115,7 +115,7 @@ def test_event_cost_from_snapshot(page):
     }""", p)
     assert page.locator("#zoom-card .val-badge.val-cost").inner_text() == "3"
     use = page.locator("#zoom-actions button", has_text="使用")
-    assert use.is_disabled() and "MP < 3" in page.locator("#zoom-actions").inner_text()
+    assert use.is_disabled() and "MP 不足（目前 2，需要 3）" in page.locator("#zoom-actions").inner_text()
 
 
 def test_revealed_opponent_pages_show_faces(page):
@@ -304,7 +304,7 @@ def test_used_effect_buttons_disabled(page):
         S = {...S, phase: 'battle', turn_player: p, action_player: p, battle: null, battle_in: null, pending: null,
              players: S.players.map((x, i) => i !== p ? x : {...x, mp: 10, slots: x.slots.map((s, j) => j !== 0 ? s :
                {...s, ability: {mode: 'mp', mp_cost: 1, timing: 'nonbattle', own_turn: false, per_game: false},
-                ability_used: 'turn', mamodo_attack: {mp_cost: 1, power: 5000, damage: 2},
+                ability_used: 'turn', ability_block: 'used', mamodo_attack: {mp_cost: 1, power: 5000, damage: 2},
                 mamodo_attack_used: 'turn'})})};
         render();
         return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons
@@ -313,6 +313,7 @@ def test_used_effect_buttons_disabled(page):
     assert result == [[True, "本回合已使用"], [True, "本回合已使用"]]
     reason = page.evaluate("""(p) => {
         S.players[p].slots[0].ability_used = 'game';
+        S.players[p].slots[0].ability_block = 'per_game';
         return zoomActions({kind: 'slot', p, uid: S.players[p].slots[0].uid}).buttons[0].reason;
     }""", p)
     assert reason == "一場遊戲限 1 次,已使用"
