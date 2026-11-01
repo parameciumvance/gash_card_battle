@@ -1299,11 +1299,11 @@ class MakeAttackUndefendable(Effect):
 
 @dataclass(frozen=True)
 class ScheduleInjureInsteadNextWin(Effect):
-    """[待命] 本回合下一場戰鬥獲勝時,改為負傷對手 1 隻魔物代替魔書傷害(S-057)。"""
+    """[待命] 本回合下一場戰鬥,沒有指定對象的傷害改為傷害對手 1 隻魔物(S-057);那一場不適用時也用掉。"""
 
     def run(self, rt, ctx, path):
         schedule_standby(rt.game, rt.batch, kind="injure_instead",
-                         source=ctx["source"], owner=ctx["player"])
+                         source=ctx["source"], owner=ctx["player"], data={"expires": "next_battle"})
         return True
 
 
@@ -2561,11 +2561,15 @@ class GrantGuardImmune(Effect):
 
 @dataclass(frozen=True)
 class AttackBookDamage(Effect):
-    """攻擊方獲勝的結算:以攻擊的傷害對防方魔書造成傷害(須搭配 on_win_owns_damage;S-069 / S-070)。"""
+    """攻擊方獲勝的結算:以攻擊的傷害對防方魔書造成傷害(須搭配 on_win_owns_damage;S-069 / S-070)。
+    S-057 的待命生效時改為傷害宣告時選定的對手魔物(S-069)。"""
 
     def run(self, rt, ctx, path):
-        from ..engine import attack_book_damage
-        attack_book_damage(rt.game, rt.batch)
+        from ..engine import _injure_instead_of_damage, attack_book_damage
+        if rt.game.state.battle.data.get("injure_instead"):
+            _injure_instead_of_damage(rt.game, rt.batch)
+        else:
+            attack_book_damage(rt.game, rt.batch)
         return True
 
 
@@ -3122,9 +3126,10 @@ class AttackWithOwnBookDamageSpell:
     戰術攻擊,且對手場上有魔物(M-055)。簽名 fn(game, standby, attack)。"""
 
     def __call__(self, game, sb, a) -> bool:
+        from ..engine import damages_opponent_book
         spell = a.started.get("spell")
         return (a.spell_of(sb.data.get("self_mamodo"))
-                and "相手の魔本にダメージ" in game.db[spell].effect_ja
+                and damages_opponent_book(game.db[spell])
                 and bool(game.state.players[1 - sb.owner].slots))
 
 

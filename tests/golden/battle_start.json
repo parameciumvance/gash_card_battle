@@ -527,7 +527,6 @@
       "source": "TEST"
      }
     ],
-    "injure_instead": true,
     "injure_target": 2,
     "no_protect": [
      1
@@ -575,11 +574,6 @@
     "card": "E-013",
     "kind": "no_protect",
     "type": "standby_resolved"
-   },
-   {
-    "card": "S-057",
-    "kind": "injure_instead",
-    "type": "standby_resolved"
    }
   ],
   "mp": 17,
@@ -595,6 +589,10 @@
    [
     "attack_undefendable",
     "P-001"
+   ],
+   [
+    "injure_instead",
+    "S-057"
    ]
   ]
  }

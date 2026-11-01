@@ -292,10 +292,16 @@ def forbid_protection(battle: BattleState, player: int) -> None:
         players.append(player)
 
 
-def spell_deals_damage(number: str) -> bool:
-    """這張攻擊戰術本來會造成傷害(S-057:卡頁 FAQ A2);S-019 / S-020 這類獲勝時只發生效果的不算。"""
-    rider = reg.SPELL_RIDERS.get(number)
-    return not (rider and rider.no_book_damage)
+def damages_opponent_book(card) -> bool:
+    """效果文有「相手の魔本にダメージ」的戰術(M-055 的「『相手の魔本にダメージをあたえる』効果の術」)。"""
+    return "相手の魔本にダメージ" in (card.effect_ja or "")
+
+
+def spell_has_untargeted_damage(card) -> bool:
+    """S-057 會改變的傷害:沒有指定對象的「相手の魔本にダメージ」。已指定對象的(S-036 / S-101「選んだ魔物すべて」、
+    S-058 / S-064「相手の魔物1体を選び」、選擇效果時已選了對象的 S-070)與沒有傷害的(S-019 / S-020,卡頁 FAQ A2)不算。"""
+    rider = reg.SPELL_RIDERS.get(card.number)
+    return damages_opponent_book(card) and not (rider and rider.chooses_damage_target)
 
 
 def _protect_anyway(game: Game, player: int, slot: MamodoSlot) -> bool:
@@ -1283,6 +1289,7 @@ class AttackStart:
     is_spell: bool                    # 以戰術攻擊(「術」相關的待命只適用於戰術)
     spell_names: frozenset = frozenset()   # 攻擊戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」)
     discount: bool = False            # 選擇使用 M-008 的可選減費
+    untargeted_damage: bool = False   # 攻擊戰術有沒有指定對象的傷害(S-057 會改變)
     slot_uid: int | None = None       # 攻擊的魔物
     family: str | None = None         # 攻擊的魔物的家族,魔物效果攻擊也有(P-042「『ダニー』の術や『魔物の効果』」)
 
@@ -1317,6 +1324,7 @@ def _prepare_spell_attack(game: Game, batch: list[dict], bi: dict) -> AttackStar
         battle={"attack_page": page, "attack_spell": number, "attack_slot": slot_uid},
         data=_extra_cost_data("attack", number, extra), started={"spell": number, "slot": slot_uid}, is_spell=True,
         spell_names=spell_names(game, card, using_slot), discount=discount,
+        untargeted_damage=spell_has_untargeted_damage(card),
         slot_uid=slot_uid, family=family(game, slot) if slot else None)
 
 
@@ -1379,9 +1387,8 @@ BATTLE_START_STANDBYS = (
     ("battle_lock", lambda sb, a: a.by(sb.data.get("mamodo")), _apply_battle_lock),
     # E-013:本場戰鬥中,使用者的對手不能保護(魔書與魔物的傷害)
     ("no_protect", lambda sb, a: True, _apply_no_protect),
-    # S-057:下一張本來會造成傷害的攻擊戰術,獲勝改為傷害對手 1 隻魔物(卡頁 FAQ A2:沒有傷害的戰術不改變)
-    ("injure_instead", lambda sb, a: a.is_spell and spell_deals_damage(a.battle["attack_spell"]),
-     _apply_injure_instead),
+    # S-057:下一場戰鬥的攻擊戰術,沒有指定對象的傷害改為傷害對手 1 隻魔物(已指定對象與沒有傷害的不改變)
+    ("injure_instead", lambda sb, a: a.untargeted_damage, _apply_injure_instead),
     # P-022:以「指定魔物の術」攻擊時,傷害改給指定的對手魔物
     ("redirect_damage", lambda sb, a: a.spell_of(sb.data.get("mamodo")),
      _apply_redirect_damage),

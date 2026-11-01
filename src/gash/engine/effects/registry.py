@@ -63,6 +63,7 @@ class SpellRider:
     on_win_owns_damage: bool = False      # on_win 自行呼叫 _start_damage 處理完整傷害流程,呼叫後不再執行預設分支(S-036)
     damage_cap: int | None = None         # 傷害上限(S-032/S-034)
     injure_instead: bool = False          # 獲勝時負傷對手魔物代替魔書傷害(S-058)
+    chooses_damage_target: bool = False   # 傷害對象由使用者選擇效果時決定,S-057 不改變(S-070)
     on_defense_damaged: Callable | None = None  # 以此戰術防禦卻被造成傷害後 fn(game, batch, defender, amount)
     damage_bonus: Callable | None = None  # 依合計魔力調整傷害 fn(game, battle) -> int(S-042)
     damage_regardless: bool = False       # 不論魔力勝負都造成攻擊的傷害(攻擊被無效時除外)(S-100)

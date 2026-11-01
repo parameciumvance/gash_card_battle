@@ -252,7 +252,7 @@ reg.spell_rider("S-069", on_declare=When(
 ), on_win_owns_damage=True)
 
 # 「次の効果の1つを使う」:攻擊宣告時由攻擊方選擇魔書傷害或對手魔物傷害(選魔物時一併選哪一隻;
-# 對手沒有魔物時只有魔書);獲勝時依宣告時的選擇結算
+# 對手沒有魔物時只有魔書);獲勝時依宣告時的選擇結算。選擇時已明確選了對象,S-057 不改變
 reg.spell_rider("S-070", on_declare=Choose(
     EffectOptions((("book", "damage_book", None), ("mamodo", "damage_mamodo", OpponentMamodo()))),
     bind="mode", prompt="pick_effect",
@@ -270,7 +270,7 @@ reg.spell_rider("S-070", on_declare=Choose(
     BattleRemembered(key="effect_mode", value="book"),
     then=AttackBookDamage(),
     otherwise=InjureOpponentMamodoInstead(),
-), on_win_owns_damage=True)
+), on_win_owns_damage=True, chooses_damage_target=True)
 
 # 「自分の『ダニー』を『健康状態』にする」:沒有負傷的ダニー也可使用(比照 E-040),只是沒有效果
 reg.spell_nonbattle("S-072", effect=HealOwnFamily(family="ダニー"))

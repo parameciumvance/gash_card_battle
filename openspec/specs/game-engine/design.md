@@ -34,7 +34,7 @@
 | `attack_undefendable`(S-019、S-026、P-001、M-054) | `mamodo` 為 None;或是「mamodo の術」(M-054 記這隻魔物的名稱) | 攻擊不可被防禦 |
 | `battle_lock`(P-042) | 「mamodo の術」或 mamodo 的魔物效果攻擊(`AttackStart.by`) | 本場戰鬥對手的限制(`flags`) |
 | `no_protect`(E-013) | 都適用 | 本場使用者的對手不能保護(魔書與魔物的傷害) |
-| `injure_instead`(S-057) | 本來會造成傷害的戰術(`engine.spell_deals_damage`) | 獲勝改為傷害對手魔物 |
+| `injure_instead`(S-057) | 有沒有指定對象之傷害的戰術(`AttackStart.untargeted_damage`,`engine.spell_has_untargeted_damage`) | 獲勝時該傷害改為傷害對手魔物;自行處理傷害的戰術由 `AttackBookDamage` 改變(S-069) |
 | `redirect_damage`(P-022) | 「mamodo の術」 | 傷害改給指定的對手魔物 |
 
 - 效果文寫「術」的待命只適用於戰術攻擊;魔物效果攻擊(M-027)不消耗它們,留到下一場戰鬥。

@@ -115,6 +115,7 @@ def test_golden_covers_expected_consumption():
     assert ("spell_bonus", "P-007") in left["spell_gash"]                 # フェイン限定,賈修攻擊不適用
     assert ("attack_undefendable", "P-001") not in left["spell_gash"]
     assert ("attack_undefendable", "P-001") in left["spell_zeon"]
+    assert ("injure_instead", "S-057") in left["spell_zeon"]               # S-058 已指定對象,S-057 不改變
     assert ("spell_bonus", "M-008") in left["spell_sugina_optional_not_chosen"]
     assert ("spell_bonus", "M-008") not in left["spell_sugina_optional_chosen"]
     mamodo = left["mamodo_attack"]
