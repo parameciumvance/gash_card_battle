@@ -102,3 +102,14 @@ def test_level3_starter_presets():
         assert decks[deck_id]["name_key"] == f"deck.{deck_id}"
         pages = json.loads((appmod.DECKS_DIR / f"{deck_id}.json").read_text(encoding="utf-8"))["pages"]
         assert len(pages) == 32 and pages[0] == first and pages[-1] == last
+
+
+def test_reference_decks():
+    # 使用者提供的第 2 賽季參考牌組:通過構築驗證、出現在清單、名稱有 name_key、賽季為 2
+    _rescan()
+    decks = {d["id"]: d for d in client.get("/api/decks").json()["decks"]}
+    for deck_id, first, last in (("ref-zeon-baltro-s2", "M-029", "S-049"), ("ref-brago-s2", "M-011", "S-036")):
+        assert decks[deck_id]["name_key"] == f"deck.{deck_id}"
+        assert decks[deck_id]["season"] == 2
+        pages = json.loads((appmod.DECKS_DIR / f"{deck_id}.json").read_text(encoding="utf-8"))["pages"]
+        assert len(pages) == 32 and pages[0] == first and pages[-1] == last

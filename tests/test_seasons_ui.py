@@ -55,7 +55,8 @@ def test_random_npc_candidates_follow_season(page):
     body = req.value.post_data_json
     mine = page.evaluate("DeckStore.list().find(d => d.name === 'mine').pages")
     assert body["season"] == 2
-    assert body["npc_decks"] == [{"preset": "level1"}, {"preset": "level2"}, {"pages": mine}]
+    assert body["npc_decks"] == [{"preset": "level1"}, {"preset": "level2"}, {"preset": "ref-brago-s2"},
+                                 {"preset": "ref-zeon-baltro-s2"}, {"pages": mine}]
     page.wait_for_function("SESSION && SESSION.mode === 'npc' && R && R.season === 2")
 
 

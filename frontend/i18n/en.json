@@ -726,6 +726,8 @@
   "deck.level2": "LEVEL:2 Messenger from the Dark Mamodo World",
   "deck.gash-nakama": "Zatch Bell and His Friends",
   "deck.zeon": "Zeno and the Most Powerful Mamodo",
+  "deck.ref-zeon-baltro-s2": "Reference Deck - Zeno & Baltro S2",
+  "deck.ref-brago-s2": "Reference Deck - Brago S2",
   "error.ability.condition": "The conditions for this effect are not met",
   "error.ability.mamodo_locked": "This MAMODO's effects are sealed this turn",
   "error.ability.mamodo_restricted": "MAMODO card effects are lost this turn",

@@ -726,6 +726,8 @@
   "deck.level2": "LEVEL:2 黒き魔界よりの使者",
   "deck.gash-nakama": "ガッシュ・ベルと仲間達",
   "deck.zeon": "ゼオンと最凶魔物達",
+  "deck.ref-zeon-baltro-s2": "参考デッキ-ゼオン・バルトロS2",
+  "deck.ref-brago-s2": "参考デッキ-ブラゴS2",
   "error.ability.condition": "この効果を使う条件を満たしていない",
   "error.ability.mamodo_locked": "この魔物の効果はこのターン封じられている",
   "error.ability.mamodo_restricted": "このターン、魔物の効果はなくなっている",

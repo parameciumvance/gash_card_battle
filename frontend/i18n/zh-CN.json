@@ -726,6 +726,8 @@
   "deck.level2": "LEVEL:2 来自黑色魔界的使者",
   "deck.gash-nakama": "贾修・贝尔与伙伴们",
   "deck.zeon": "杰昂与最凶恶的魔物们",
+  "deck.ref-zeon-baltro-s2": "参考牌组-杰昂巴尔多罗S2",
+  "deck.ref-brago-s2": "参考牌组-布拉葛S2",
   "error.ability.condition": "不符合此效果的使用条件",
   "error.ability.mamodo_locked": "此魔物的效果本回合被封锁",
   "error.ability.mamodo_restricted": "魔物卡效果本回合失效",
