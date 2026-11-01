@@ -281,6 +281,11 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - MP 不足統一用 `ui.spell.mp`(「MP 不足(目前 m,需要 n)」,`mpReason`),效果、魔物效果攻擊 / 防禦、事件卡與戰術一致。
 - 翻開頁:`pageButtons` 沒有任何按鈕、不是防禦步驟的防方時,以 `idlePageButton` 加主要動作的停用按鈕(放出 / 使用 / 攻擊 / 防禦,原因見 change design D4)。原本「不可行動時無按鈕」,點開也看不出為什麼不能用;使用者選擇顯示停用按鈕(Confirmed)。發光只看啟用的按鈕,盤面不變。
 
+## 戰術的預估合計魔力(spell-power-preview)
+
+- `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`;段落後註明「不含宣告時與戰鬥中的效果」。新手回饋希望宣告前就能估算合計魔力。
+- `pickSpellUser` 的魔物附註有預估時為「合計 N・費用 M」(`ui.spell_user_note`)。
+
 ## 指令送出中(command-busy)
 
 - `send()` 期間 `SENDING` > 0,`<body>` 加 `sending`:CSS 對行動欄、決策對話框、放大檢視的按鈕與 `.pickable` 設 `pointer-events: none`。以 CSS 一處涵蓋,不逐一改 `disabled`(入口多、每次重繪重建,漏改就失效);鍵盤等 CSS 擋不到的途徑由 `send()` 開頭的檢查擋下。新手回饋:回應前畫面不變,以為沒按到又按一次,第二次被拒並跳錯誤。

@@ -970,6 +970,19 @@ function zoomDetails(num, ctx) {
   if (entry && entry.cost_breakdown && entry.cost !== def.cost) {
     sections.push(breakdown(t("ui.zoom.cost_detail", { n: entry.cost }), entry.cost_breakdown));
   }
+  // 攻防戰術的預估合計魔力(宣告時,不含宣告時與戰鬥中的效果):可用魔物一隻時一段,兩隻以上各一段
+  const previews = entry && iControl(ctx.p) ? (entry.users || []).filter((u) => u.power !== undefined) : [];
+  for (const u of previews) {
+    const user = ps.slots.find((x) => x.uid === u.slot_uid);
+    sections.push(breakdown(previews.length === 1 ? t("ui.zoom.power_preview", { n: u.power })
+      : t("ui.zoom.power_preview_of", { card: user ? cname(user.top) : "", n: u.power }), u.power_breakdown));
+  }
+  if (previews.length) {
+    const note = document.createElement("div");
+    note.className = "info-empty";
+    note.textContent = t("ui.zoom.power_preview_note");
+    sections.push(note);
+  }
   const blocked = slot ? (slot.blocked_effects || []).filter((b) => b.card === num) : [];
   if (blocked.length) {
     sections.push(infoSection(t("ui.effect_blocked.title"), blocked.map((b) => infoRow(
@@ -1158,7 +1171,8 @@ function pickSpellUser(p, entry, cb) {
   startLocalPick({
     player: p, title, source: entry.card, onpick: cb,
     options: new Map(users.map((u) => [u.slot_uid,
-      { selectable: u.selectable, note: t("ui.cost", { n: u.cost }), reason: u.reason }])),
+      { selectable: u.selectable, reason: u.reason,
+        note: u.power === undefined ? t("ui.cost", { n: u.cost }) : t("ui.spell_user_note", { power: u.power, cost: u.cost }) }])),
   });
 }
 

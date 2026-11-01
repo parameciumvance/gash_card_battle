@@ -1905,6 +1905,19 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     return _negate(total, items, negated, negated_by)
 
 
+def spell_power_preview(game: Game, player: int, slot: MamodoSlot, number: str, side: str) -> tuple[int, list[dict]]:
+    """player 以 slot 使用戰術 number 宣告攻擊(side "attack")或防禦("defense")時的預估合計魔力與明細。
+    以不掛到狀態上的假設戰鬥呼叫 side_breakdown:與魔力勝負同一個計算,但不含宣告時與戰鬥中的效果
+    (戰鬥開始時才生效的待命加成、追加費用、擲硬幣、對手的效果)。"""
+    if side == "attack":
+        battle = BattleState(attacker=player, step=STEP_DEFENSE, attack_page=None, attack_spell=number,
+                             attack_slot=slot.uid)
+    else:
+        battle = BattleState(attacker=1 - player, step=STEP_EFFECTS, attack_page=None, attack_spell=None,
+                             attack_slot=-1, defense_spell=number, defense_slot=slot.uid, defense_declared=True)
+    return side_breakdown(game, battle, side)
+
+
 def _field_cards(game: Game, player: int, table: dict) -> list[tuple[str, MamodoSlot]]:
     """player 場上(魔物頂層與搭檔)登記在 table 的常駐效果卡:[(卡號, 所在 slot)];同卡號多張各列一次,
     被「使えない」擋下的不列。"""

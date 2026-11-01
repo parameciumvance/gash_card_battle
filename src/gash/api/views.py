@@ -12,7 +12,7 @@ from ..engine.engine import (
     _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses,
     event_cost_breakdown,
     event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
-    side_breakdown, spell_block, spell_cost, spell_cost_breakdown, uses_this_turn,
+    side_breakdown, spell_block, spell_cost, spell_power_preview, spell_cost_breakdown, uses_this_turn,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
 
@@ -117,11 +117,27 @@ def _in_use_pages(game: Game, p: int) -> set[int]:
 
 def _spell_users(game: Game, p: int, page: int, card) -> list[dict]:
     """可使用此戰術的自己場上魔物(持有者私有):依引擎的相容判定,附依該魔物計算的費用與是否被
-    指定魔物的封鎖擋下(E-024 / S-074 / E-043)。"""
-    return [{"slot_uid": s.uid, "cost": spell_cost(game, p, page, card, slot=s),
-             "locked": spell_block(game, p, s, card=card) == "spell.mamodo_locked"}
-            for s in game.state.players[p].slots
-            if card.is_command_spell or _spell_usable_by(game, p, s, card)]
+    指定魔物的封鎖擋下(E-024 / S-074 / E-043);攻防戰術另附宣告時的預估合計魔力與明細。"""
+    side = _preview_side(game, p, card)
+    users = []
+    for s in game.state.players[p].slots:
+        if not (card.is_command_spell or _spell_usable_by(game, p, s, card)):
+            continue
+        user = {"slot_uid": s.uid, "cost": spell_cost(game, p, page, card, slot=s),
+                "locked": spell_block(game, p, s, card=card) == "spell.mamodo_locked"}
+        if side:
+            user["power"], user["power_breakdown"] = spell_power_preview(game, p, s, card.number, side)
+        users.append(user)
+    return users
+
+
+def _preview_side(game: Game, p: int, card) -> str | None:
+    """預估合計魔力以哪一方計算:只有攻擊圖示為攻擊、只有防禦圖示為防禦,攻防兩用依是否回合玩家;非戰鬥戰術 None。"""
+    if card.effect_icon == "nonbattle" or card.ad not in ("A", "D", "AD"):
+        return None
+    if card.ad == "AD":
+        return "attack" if p == game.state.turn_player else "defense"
+    return "attack" if card.ad == "A" else "defense"
 
 
 def _condition_ok(game: Game, p: int, card) -> bool:
