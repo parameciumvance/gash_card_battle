@@ -1,5 +1,36 @@
 {
   "releases": [
+  {
+    "version": "v1.3.0",
+    "date": "2026-11-01",
+    "title": "LEVEL:3 Supreme Power of the Golden Spell",
+    "items": [
+      {"kind": "new", "text": "All 102 cards of LEVEL:3 Supreme Power of the Golden Spell are now available, with the two series-3 starter decks \"Zatch Bell and His Friends\" and \"Zeno and the Most Powerful Mamodo\""},
+      {"kind": "new", "text": "Season 3 cards are available: LIMITED EDITION I, Spell Book File Vol. 2, Special Box, Spell Book Expansion Sheet LEVEL:1 / LEVEL:2 (Ex cards) and Promo cards, 95 cards in all"},
+      {"kind": "new", "text": "Match seasons: choose Season 1 / 2 / 3 when creating a room and both Spell Books are checked against it; the Rules page \"Seasons\" section lists each season's card numbers and products"},
+      {"kind": "new", "text": "Tables: 5 fixed tables let you play other players without sharing a room code, with a rematch option after the game"},
+      {"kind": "new", "text": "Tournament rules: the first player's Start Phase page turns on turn 1 give no MP; only one copy of each PR card number is allowed"},
+      {"kind": "new", "text": "Result panel: at the end of a game it shows the result, the reason, the number of turns and pages left; rematch an NPC or play again in Free Investigation"},
+      {"kind": "new", "text": "Last-page warning: when your Spell Book is on its last page you are warned that ending the turn loses the game, and the Pass button says so"},
+      {"kind": "new", "text": "Disabled buttons explain why (only during a battle, only on your action, not enough MP and so on); actions you cannot take now are shown with the reason"},
+      {"kind": "new", "text": "Estimated total Power for spells: the card view lists the MAMODO and spell Power, and choosing a user shows \"Total · Cost\""},
+      {"kind": "new", "text": "\"Processing…\" appears right after you act, so actions are not sent twice"},
+      {"kind": "new", "text": "Spotlight on the card behind an effect, Power and Cost breakdowns, and markers for STAY effects that cannot be used"},
+      {"kind": "new", "text": "The deck builder's card pool uses an icon filter bar for type, MAMODO, product and season"},
+      {"kind": "new", "text": "Return to a game in progress from the home page; click the title to go home"},
+      {"kind": "new", "text": "Two Season 2 reference decks: Reference Deck - Zeno & Baltro S2 and Reference Deck - Brago S2"},
+      {"kind": "change", "text": "Chinese card texts were re-translated directly from the Japanese effect texts"},
+      {"kind": "change", "text": "After a coin flip, the flipper and then the opponent decide in turn whether to use effects that change the result"},
+      {"kind": "change", "text": "Power and Cost are shown as badges on the card, the card number moved to the lower right; \"MAMODO-effect attack / defense\" is the term used everywhere"},
+      {"kind": "change", "text": "Decks are labeled \"Usable from Season N\""},
+      {"kind": "change", "text": "First-time visitors no longer see the release notes pop up"},
+      {"kind": "fix", "text": "Ending the turn on the last page now loses immediately without first logging a page turn and MP +2; the page count no longer goes past 32; the reason names the loser"},
+      {"kind": "fix", "text": "Several LEVEL:1 / 2 cards were fixed to follow the Japanese text and FAQ (M-001 / M-010 / M-017 work in any battle where you attack or defend, M-005, M-031, what cannot be protected, and more)"},
+      {"kind": "fix", "text": "Targets and coin flips of attack and defense effects are decided at declaration; \"X's spell\" is judged by MAMODO name; S-057 only changes damage that has no chosen target"},
+      {"kind": "fix", "text": "STAY effects stop working while they \"cannot be used\"; whether a card can be played and MAMODO-effect attack / defense limits are checked by the game, and the buttons are disabled"},
+      {"kind": "fix", "text": "The NPC re-declares its attack correctly after an interrupt; a new room starts with an empty log; the hint next to the turn dial no longer pushes the buttons"}
+    ]
+  },
     {
       "version": "v1.0.0",
       "date": "2026-10-11",
