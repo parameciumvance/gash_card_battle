@@ -457,7 +457,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #turn-dial .dial-center[data-phase="nonbattle"] { background: #47d65c; }
 #turn-dial .dial-center[data-phase="battle"] { background: #ff3b30; color: #fff; }
 #turn-dial.instant, .motion-off #turn-dial { transition: none; }
-#turn-cluster .turn-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 170px; }
+/* 提示欄固定寬度:pass 提示出現、消失或長短改變時,行動選項不被推動(文字在欄內換行) */
+#turn-cluster .turn-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 170px; flex-shrink: 0; }
 /* 「行動玩家」:三角形指向等待輸入的一方(上方玩家朝上,下方玩家朝下) */
 #acting-pointer { display: flex; flex-direction: column; align-items: center; }
 #acting-pointer::after, #acting-pointer.up::before {
@@ -1325,7 +1326,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #action-bar { gap: 6px; padding: 8px 10px; }
   #turn-dial .dial-tab-text { font-size: 10px; padding: 1px 5px; }
   #turn-dial .dial-center { font-size: 11px; }
-  #turn-cluster .turn-side { max-width: 84px; }
+  #turn-cluster .turn-side { width: 84px; }
   #dial-note { font-size: 10px; }
   #timing-track { font-size: 11px; gap: 2px; }
   #timing-track .step { padding: 1px 5px; }

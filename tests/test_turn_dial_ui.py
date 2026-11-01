@@ -197,3 +197,16 @@ def test_dial_text_fits_in_each_language(page):
     page.evaluate("setLang('en')")
     page.wait_for_function("document.querySelector('#turn-dial .dial-center').textContent === 'BATTLE'")
     assert page.evaluate(FITS)["fits"]
+
+
+def test_dial_note_does_not_move_action_buttons(page):
+    # battle-ui「回合轉盤的 pass 傾斜」:提示出現時,行動欄的選項按鈕不移動
+    tp, me = start_as(page, "all")
+    send(page, tp, {"type": "flip_pages", "count": 0})
+    pass_x = "() => document.querySelector('#action-bar button.noted, #action-main button').getBoundingClientRect().left"
+    page.wait_for_function("document.querySelector('#action-main button') !== null")
+    before = page.evaluate(pass_x)
+    send(page, tp, {"type": "pass"})
+    page.wait_for_function("S.consecutive_passes === 1")
+    assert dial(page)["note"] != ""
+    assert page.evaluate(pass_x) == before
