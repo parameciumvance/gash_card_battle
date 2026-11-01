@@ -277,6 +277,7 @@ function applyPayload(body) {
   played.then(() => {
     pickOpenNotBefore = Math.max(pickOpenNotBefore, performance.now() + settle);
     setTimeout(autoOpenPick, Math.max(0, pickOpenNotBefore - performance.now()));
+    setTimeout(maybeShowResult, settle);
   });
 }
 
@@ -377,6 +378,7 @@ function setConn(ok) {
 
 function show(sectionId) {
   if (sectionId !== "layout") closeCheat();
+  if (sectionId !== "layout" && INFO && INFO.kind === "result") closeInfo();   // 結算面板只屬於對局畫面
   for (const id of ["landing", "setup", "tables", "waiting", "layout", "builder"]) {
     document.getElementById(id).classList.toggle("hidden", id !== sectionId);
   }
@@ -481,13 +483,21 @@ function nameVal(id) {
   return v || null;
 }
 
+// 這次載入中最後一次以設定頁開局的設定(NPC 對戰、本機測試),結算面板的再戰沿用;重新整理後沒有
+let LAST_SETUP = null;
+
 async function startLocal() {
+  return startLocalWith({ mode: "local", season: selectedSeason("season-local"),
+    decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")],
+    names: [nameVal("name-local-0"), nameVal("name-local-1")] });
+}
+
+async function startLocalWith(payload) {
   const body = await api("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "local", season: selectedSeason("season-local"),
-      decks: [deckPayload("deck-local-0"), deckPayload("deck-local-1")],
-      names: [nameVal("name-local-0"), nameVal("name-local-1")] }),
+    body: JSON.stringify(payload),
   });
+  LAST_SETUP = payload;
   SESSION = { code: body.code, mode: "local", viewer: "all",
               tokens: { 0: body.player_tokens[0], 1: body.player_tokens[1] } };
   saveSession();
@@ -515,11 +525,16 @@ async function startNpc() {
   } else {
     payload.npc_deck = deckPayload("deck-npc-opp");
   }
+  return startNpcWith(payload);
+}
+
+async function startNpcWith(payload) {
   try {
     const body = await api("/api/rooms", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    LAST_SETUP = payload;
     SESSION = { code: body.code, mode: "npc", viewer: 0, tokens: { me: body.player_token } };
     saveSession();
     history.replaceState(null, "", `/?room=${body.code}`);
@@ -1392,6 +1407,7 @@ function renderTopbar() {
   effectsToggle.classList.toggle("hidden", !(SESSION && S));
   effectsToggle.textContent = t("ui.effects.toggle", { n: S && S.effects ? S.effects.length : 0 });
   if (INFO && INFO.kind === "effects") renderEffectsInfo();   // 開啟中的清單隨狀態刷新
+  if (INFO && INFO.kind === "result") renderResultInfo();
   const cheatToggle = document.getElementById("cheat-toggle");
   cheatToggle.textContent = t("ui.cheat.toggle");
   cheatToggle.classList.toggle("hidden", !canCheat());
@@ -1421,8 +1437,15 @@ function renderTopbar() {
   const acting = document.getElementById("acting-info");
   if (S.phase === "game_over") {
     acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
-      t("ui.paren", { text: t(`ui.reason.${S.end_reason}`) }) +
+      t("ui.paren", { text: endReasonText(S.winner, S.end_reason) }) +
       (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
+    if (SESSION && RESULT_SEEN === SESSION.code && !(INFO && INFO.kind === "result")) {   // 關閉結算面板後可重新開啟
+      const reopen = document.createElement("button");
+      reopen.className = "result-reopen";
+      reopen.textContent = t("ui.result.reopen");
+      reopen.onclick = showResult;
+      acting.appendChild(reopen);
+    }
   } else if (S.pending) {
     const results = (S.pending.info && S.pending.info.results) || [];
     acting.textContent = (iControl(S.pending.player)
@@ -1467,7 +1490,8 @@ function renderPlayerZone(zone, p, isTop) {
   rest.className = "pz-head-rest";
   rest.innerHTML =
     `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
-    `<span class="book-progress">${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}</span>` +
+    `<span class="book-progress">${ps.pos > ps.book_size ? t("ui.book_exhausted")
+      : `${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}`}</span>` +
     (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "") +
     `<span class="discard-btn">${t("ui.discard", { n: ps.discard.length })}</span>`;
   rest.querySelector(".discard-btn").onclick = () => showDiscard(p);
@@ -2194,8 +2218,13 @@ function renderActionBar() {
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
-  if (S && S.phase === "game_over" && tableChoiceShown()) bar.appendChild(tableChoiceEl());
   if (!S || S.phase === "game_over") return;
+  if (iControl(S.turn_player) && S.players[S.turn_player].end_flip_loses) {   // 最後一對頁:回合結束就落敗
+    const warn = document.createElement("span");
+    warn.className = "end-flip-warning";
+    warn.textContent = t("ui.end_flip_warning");
+    bar.appendChild(warn);
+  }
   const timing = currentTiming();
   const awaited = awaitedPlayer();
   const mine = awaited !== null && iControl(awaited);
@@ -2275,7 +2304,11 @@ function renderActionBar() {
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
+      // 非戰鬥中對手已 pass 一次:回合玩家再 pass 就結束戰鬥階段,在最後一對頁時會落敗
+      const endsTurnAndLoses = timing !== "effects" && !S.battle && !S.battle_in && awaited === S.turn_player
+        && S.consecutive_passes === 1 && S.players[awaited].end_flip_loses;
       const passNote = timing === "effects" ? "ui.pass_note.battle"
+        : endsTurnAndLoses ? "ui.pass_note.end_flip_loses"
         : awaited === S.turn_player ? "ui.pass_note.own_turn" : "ui.pass_note.opp_turn";
       addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }), false, t(passNote));
       const borrow = borrowedEffect(awaited);        // E-010:借來的搭檔效果(該搭檔離場也在)
@@ -2666,7 +2699,13 @@ function maybeShowRelease() {
   if (!RELEASES || releasePopped) return;
   const latest = RELEASES[0];
   let seen = null;
-  try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) { /* 無法存取:視為未確認 */ }
+  try {
+    seen = localStorage.getItem(RELEASE_SEEN_KEY);
+    if (seen === null) {             // 新訪客:不先看更新紀錄,記為已確認最新一版
+      localStorage.setItem(RELEASE_SEEN_KEY, latest.version);
+      return;
+    }
+  } catch (_) { /* 無法存取:視為未確認 */ }
   if (seen === latest.version) return;
   releasePopped = true;
   showInfo("release-latest", t("ui.release.latest", { version: latest.version }), [releaseBlock(latest)]);
@@ -2713,8 +2752,10 @@ function showPeek(peeks) {
 }
 
 function closeInfo() {
+  const wasResult = INFO && INFO.kind === "result";
   INFO = null;
   document.getElementById("info-overlay").classList.add("hidden");
+  if (wasResult) renderTopbar();   // 顯示重新開啟結算面板的按鈕
 }
 document.getElementById("info-overlay").onclick = (e) => {
   if (e.target.id === "info-overlay") closeInfo();
@@ -3379,7 +3420,7 @@ function logLine(ev) {
     case "choice_required": return t("log.choice_required", P);
     case "book_revealed": return t("log.book_revealed", P);
     case "pages_peeked": return t("log.pages_peeked", P);
-    case "game_ended": return t("log.game_ended", { player: pname(ev.winner), reason: t(`ui.reason.${ev.reason}`) });
+    case "game_ended": return t("log.game_ended", { player: pname(ev.winner), reason: endReasonText(ev.winner, ev.reason) });
     default: return null;
   }
 }
@@ -4318,6 +4359,83 @@ async function leaveTableWaiting() {
   try { localStorage.removeItem(`gash-room-${SESSION.code}`); } catch (_) { /* 忽略 */ }
   leaveRoom();
   openTables();
+}
+
+// 勝負原因點名敗方(頂欄、行動記錄、結算面板共用)
+function endReasonText(winner, reason) {
+  return t(`ui.reason.${reason}`, { player: pname(1 - winner) });
+}
+
+// 結算面板:每個房間在終局演出後自動跳出一次;關閉後由頂欄的「結算」重新開啟
+let RESULT_SEEN = null;
+
+function maybeShowResult() {
+  if (!SESSION || !S || S.phase !== "game_over" || RESULT_SEEN === SESSION.code) return;
+  if (document.getElementById("layout").classList.contains("hidden")) return;   // 已進入等待畫面等其他畫面
+  showResult();
+}
+
+function showResult() {
+  RESULT_SEEN = SESSION.code;
+  showInfo("result", t("ui.result.title"), []);
+  renderResultInfo();
+  renderTopbar();
+}
+
+function renderResultInfo() {
+  if (!S || S.phase !== "game_over") { closeInfo(); return; }
+  const v = myViewer();
+  const head = document.createElement("p");
+  head.className = "result-head";
+  head.textContent = v === 0 || v === 1 ? t(S.winner === v ? "ui.result.win" : "ui.result.lose")
+    : t("ui.winner", { player: pname(S.winner) });
+  if (v === 0 || v === 1) head.classList.add(S.winner === v ? "win" : "lose");
+  const lines = [endReasonText(S.winner, S.end_reason), t("ui.result.turns", { n: S.turn_no })];
+  if (R && R.npc && R.npc.deck) lines.push(t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }));
+  const info = document.createElement("div");
+  info.className = "result-info";
+  for (const text of lines) {
+    const line = document.createElement("p");
+    line.textContent = text;
+    info.appendChild(line);
+  }
+  for (const p of [0, 1]) {
+    const ps = S.players[p];
+    const line = document.createElement("p");
+    line.className = "result-player";
+    line.textContent = t("ui.result.player", { player: pname(p), pages: Math.max(0, ps.book_size - ps.pos),
+      mamodo: ps.slots.length });
+    info.appendChild(line);
+  }
+  const actions = document.createElement("div");
+  actions.className = "result-actions";
+  if (tableChoiceShown()) {
+    actions.appendChild(tableChoiceEl());
+  } else {
+    const rematch = LAST_SETUP && LAST_SETUP.mode === SESSION.mode && (v === 0 || v === "all");
+    if (rematch) actions.appendChild(resultButton(t(SESSION.mode === "npc" ? "ui.result.rematch" : "ui.result.again"),
+      true, startRematch));
+    actions.appendChild(resultButton(t("ui.result.home"), !rematch, leaveRoom));
+  }
+  document.getElementById("info-body").replaceChildren(head, info, actions);
+}
+
+function resultButton(label, primary, onclick) {
+  const btn = document.createElement("button");
+  btn.textContent = label;
+  if (primary) btn.className = "primary";
+  btn.onclick = onclick;
+  return btn;
+}
+
+// 再戰 / 再來一場:離開目前的房間,以上一次的開局設定開新局(NPC 隨機牌組由伺服器重新抽選)
+async function startRematch() {
+  const setup = LAST_SETUP;
+  closeInfo();
+  wsWanted = false;
+  if (ws) ws.close();
+  if (setup.mode === "npc") await startNpcWith(setup);
+  else await startLocalWith(setup);
 }
 
 // 牌桌對局結束後:對局雙方選擇再戰 / 離開

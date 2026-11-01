@@ -9,7 +9,8 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, attack_undefendable, effect_block_sources, event_cost_breakdown,
+    _spell_any_page_standby, _spell_usable_by, attack_undefendable, effect_block_sources, end_flip_loses,
+    event_cost_breakdown,
     event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
     side_breakdown, spell_block, spell_cost, spell_cost_breakdown, uses_this_turn,
 )
@@ -182,6 +183,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "discard": list(ps.discard),
         "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
         "events_exhausted": ps.events_used_this_turn >= event_limit(game, p),   # 本回合事件卡已達上限(E-029 可提高)
+        "end_flip_loses": end_flip_loses(game, p),   # 本回合結束時強制翻頁會落敗(公開)
     }
     # 己方完整魔書只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):

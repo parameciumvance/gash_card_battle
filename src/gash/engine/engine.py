@@ -2953,6 +2953,14 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
                     discard_partner(game, batch, player, slot, source)
 
 
+def end_flip_loses(game: Game, player: int) -> bool:
+    """回合玩家 player 本回合結束時強制翻頁會落敗:已翻開最後一頁且沒有「本回合結束不翻魔書」的待命(M-030)。"""
+    st = game.state
+    return (st.phase != GAME_OVER and st.turn_player == player
+            and st.players[player].pos + 2 > BOOK_SIZE
+            and not any(s.kind == "skip_end_flip" and s.owner == player for s in st.standby))
+
+
 def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     """結束階段可能被魔物消失處理的選擇中斷,以 stage 續行(0=回合玩家, 1=非回合玩家, 2=收尾)。"""
     st = game.state
@@ -2973,15 +2981,12 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     else:
         # 強制翻頁 +2 MP
         ps = st.players[st.turn_player]
-        if ps.pos + 2 > BOOK_SIZE + 2:
+        if ps.pos + 2 > BOOK_SIZE:   # 已翻開最後一頁、沒有下一張可翻:直接敗北,不翻頁、不加 MP
             _game_over(game, batch, winner=1 - st.turn_player, reason="book_out")
             return
         ps.pos += 2
         ps.mp += 2
         game.emit(batch, "pages_flipped", player=st.turn_player, count=1, pos=ps.pos, mp_gained=2, forced=True)
-        if ps.book_exhausted():
-            _game_over(game, batch, winner=1 - st.turn_player, reason="book_out")
-            return
     # S-090:「このターンが終わると捨て札になる」的搭檔(那時仍裝在那隻魔物上才棄掉)
     for m in [m for m in st.modifiers if m.kind == "discard_partner_at_turn_end"]:
         slot = st.slot_by_uid(m.target_player, m.target_slot)

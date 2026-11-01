@@ -155,7 +155,7 @@ def seat_two(browser, server):
     finish_game(server, code, [a.evaluate("SESSION.tokens.me"), b.evaluate("SESSION.tokens.me")])
     for p in (a, b):
         p.wait_for_function("S && S.phase === 'game_over'")
-        p.wait_for_selector(".table-choice")
+        p.wait_for_selector("#info-overlay:not(.hidden) .table-choice")
     return n, code, (ca, a), (cb, b)
 
 

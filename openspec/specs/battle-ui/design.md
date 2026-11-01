@@ -135,7 +135,8 @@
   - 不由 commit 訊息產生:commit 寫給開發者看,更新內容寫給玩家看;GitHub Release 只能放一種語言,不適合當來源。
 - **載入**:`loadLanguage()` 與規則頁一起載入目前語言,失敗改用繁中,都失敗時 `RELEASES` 為 null(入口隱藏、不跳出)。
 - **跳出**:掛在 `show("landing")`。`gash-release-seen` 不等於最新一版就以資訊面板(`showInfo`,kind `release-latest`)顯示最新一版,關閉鈕改為「確認」,按了才寫入;點遮罩關閉不寫入。`releasePopped` 讓同一次載入只跳一次(在首頁與設定頁之間來回時不重複)。
-  - 只比較是否等於最新一版,不解析版本號大小:記錄不存在、是舊版或格式不明都一律跳出。新玩家也會看到最新一版,作為功能介紹。
+  - 只比較是否等於最新一版,不解析版本號大小:是舊版或格式不明都一律跳出。
+  - 記錄不存在(新訪客)時不跳出,直接寫入最新一版(endgame-clarity)。原本新玩家也會看到最新一版當作功能介紹,但新手回饋指出第一次進站先讀很長的更新紀錄沒有幫助(Confirmed,使用者採納);讀取失敗(無法儲存)時照舊視為未確認。
   - 經房號連結、觀戰、重連進入的畫面不經過 `show("landing")`,自然不跳出;`show()` 切到其他畫面時關閉開啟中的更新內容面板,對局中不會留著。
 - **全部歷史**:首頁版本號旁的 `#release-open`(kind `release-history`),列出全部版本,只有「關閉」。版本號這一行 `#landing-version-line` 放在免責聲明 `#landing-disclaimer` 之外(同一個 `#landing-foot` 內),免責聲明本身不含按鈕或入口。
 - **瀏覽器測試**:共用的 `browser` fixture(`tests/test_cheat_editor.py`)為每個 context 預設把 repo 中最新一版記為已確認(只在尚未記錄時寫入),否則首頁的跳出面板會擋住其他測試的操作;更新內容的測試以 route 換成固定資料,並自行設定或清除已確認的版本。
@@ -272,6 +273,17 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 搭檔卡:對應魔物須在場上且未裝搭檔。
   - 事件卡:依「自己的回合 / 對手的回合」圖示與是否回合玩家。
   - 魔物卡不判斷場上是否已滿:M-007 / M-010 / M-027 可疊放,前端無從得知,以伺服器為準。
+
+## 終局(endgame-clarity)
+
+- **魔書進度**:`pos > book_size` 時區塊標題的魔書進度整段換成「魔書耗盡」(`ui.book_exhausted`),不接在「魔書」之後,避免「魔書 魔書耗盡」。
+- **勝負原因**:`endReasonText(winner, reason)` 以 `ui.reason.*` 的 `{player}` 帶入敗方(`1 - winner`)的 `pname`;頂欄、行動記錄、結算面板共用。原本「對手魔書無法再翻頁」是勝方視角,敗方與觀戰者看到時讀不通(新手回饋)。
+- **最後一對頁警示**:`renderActionBar` 在 `iControl(turn_player)` 且快照 `end_flip_loses` 時放 `.end-flip-warning`(佔滿一行,紅底);觀戰者與對手不顯示。Pass 的附註在「非戰鬥、輪到回合玩家、`consecutive_passes === 1`」時換成 `ui.pass_note.end_flip_loses`(此時 pass 就結束戰鬥階段)。對手 pass 結束回合使自己落敗的情況,由警示本身說明。
+- **結算面板**:用資訊對話框(`showInfo`,kind `result`),狀態更新時由 `renderTopbar` 重繪(牌桌對方的選擇會變)。
+  - 時機:`applyPayload` 在演出與飛卡特效結束後呼叫 `maybeShowResult`;`RESULT_SEEN` 記住已自動跳出的房號,同一局只跳一次,接回已結束的房間也會跳出。只在對局畫面顯示:`show()` 切到其他畫面時關閉,`maybeShowResult` 在對局畫面隱藏時不跳出(牌桌對方離開、自己成為開桌者進入等待畫面時,舊的終局快照還在)。
+  - 關閉後頂欄勝負文字旁出現 `.result-reopen`「結算」重新開啟。
+  - 內容只用快照:勝利 / 落敗(玩家視角)或「{玩家} 獲勝」(本機、觀戰)、原因、回合數、雙方剩餘頁數(`book_size - pos`,下限 0)與場上魔物數、NPC 牌組。「關鍵戰鬥」不做:要挑出關鍵的一場需另訂標準,行動記錄已可點開每場魔力勝負(Confirmed,使用者同意)。
+  - 按鈕:`LAST_SETUP` 記住這次載入中最後一次 `startNpcWith` / `startLocalWith` 的開局 payload(只在記憶體),模式相同且是玩家(NPC 視角 0、本機 all)時提供「再戰」/「再來一場」,以同一個 payload 開新房(NPC 隨機牌組送的是候選清單,伺服器重新抽選);沒有就只有「返回首頁」(`leaveRoom`)。牌桌改放既有的 `tableChoiceEl`,動作列不再顯示。朋友對戰的再戰需要雙方同意與新房流程,不在範圍內(Confirmed)。
 
 ## 規則頁
 

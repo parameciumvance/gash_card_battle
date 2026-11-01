@@ -26,7 +26,8 @@ RELEASES = {
 }
 
 
-def open_page(browser, server, *, locale="zh-TW", seen=None, path="/"):  # noqa: F811
+def open_page(browser, server, *, locale="zh-TW", seen="v0.9.2", path="/"):  # noqa: F811
+    """seen:已確認的版本(預設為較舊的 v0.9.2);None 表示從沒確認過任何一版的新訪客。"""
     context = browser.new_context(viewport={"width": 1280, "height": 900}, locale=locale)
     context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
     # 第一次載入時設定(或清除)已確認的版本,蓋過共用 fixture 的預設;重新整理不再覆蓋
@@ -72,6 +73,20 @@ def test_confirm_stops_popup_until_newer_release(browser, server):  # noqa: F811
     assert not errors
 
 
+def test_new_visitor_is_not_shown_release(browser, server):  # noqa: F811
+    context, page, errors = open_page(browser, server, seen=None)
+    page.wait_for_selector("#landing:not(.hidden)")
+    page.wait_for_timeout(300)
+    assert page.locator(POPUP).count() == 0
+    assert page.evaluate("localStorage.getItem('gash-release-seen')") == "v0.10.0"   # 記為已確認最新一版
+    page.reload()
+    page.wait_for_selector("#landing:not(.hidden)")
+    page.wait_for_timeout(300)
+    assert page.locator(POPUP).count() == 0
+    context.close()
+    assert not errors
+
+
 def test_older_confirmed_version_pops_up_again(browser, server):  # noqa: F811
     context, page, errors = open_page(browser, server, seen="v0.9.3")
     page.wait_for_selector(POPUP)
@@ -85,7 +100,7 @@ def test_closing_without_confirm(browser, server):  # noqa: F811
     page.wait_for_selector(POPUP)
     page.mouse.click(5, 300)                                               # 點遮罩關閉,沒有按確認
     assert page.locator(POPUP).count() == 0
-    assert page.evaluate("localStorage.getItem('gash-release-seen')") is None
+    assert page.evaluate("localStorage.getItem('gash-release-seen')") == "v0.9.2"
     page.evaluate("openSetup('npc')")
     page.evaluate("show('landing')")
     page.wait_for_timeout(200)
@@ -100,7 +115,7 @@ def test_room_link_does_not_pop_up_until_back_to_landing(browser, server):  # no
     context, page, errors = open_page(browser, server, seen="v0.10.0")
     page.evaluate("startLocal()")
     page.wait_for_function("S && S.phase === 'start'")
-    page.evaluate("localStorage.removeItem('gash-release-seen')")
+    page.evaluate("localStorage.setItem('gash-release-seen', 'v0.9.3')")
     page.reload()                                                          # 網址帶 ?room=,直接回到對局
     page.wait_for_function("S && !document.getElementById('layout').classList.contains('hidden')")
     page.wait_for_timeout(300)
