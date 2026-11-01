@@ -227,15 +227,46 @@ async function api(path, opts = {}) {
   return body;
 }
 
+// 指令送出中(battle-ui「指令送出中」):body.sending 由 CSS 擋住對局操作入口;超過 SENDING_NOTE_MS 才顯示「處理中…」
+const SENDING_NOTE_MS = 200;
+let SENDING = 0;
+let sendingNoteTimer = null;
+
+function setSending(on) {
+  SENDING = Math.max(0, SENDING + (on ? 1 : -1));
+  document.body.classList.toggle("sending", SENDING > 0);
+  clearTimeout(sendingNoteTimer);
+  sendingNoteTimer = null;
+  if (SENDING > 0) sendingNoteTimer = setTimeout(() => { sendingNoteTimer = null; renderSendingNote(); }, SENDING_NOTE_MS);
+  else renderSendingNote();
+}
+
+function renderSendingNote() {
+  const bar = document.getElementById("action-main");
+  let note = bar.querySelector(".sending-note");
+  if (SENDING > 0 && !note) {
+    note = document.createElement("span");
+    note.className = "sending-note";
+    note.textContent = t("ui.sending");
+    bar.prepend(note);
+  } else if (SENDING === 0 && note) {
+    note.remove();
+  }
+}
+
 async function send(command) {
+  if (SENDING) return;   // 送出中不再送(鍵盤等 CSS 擋不到的途徑)
+  setSending(true);
   try {
     const body = await api(`/api/rooms/${SESSION.code}/commands`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Player-Token": tokenFor(command) },
       body: JSON.stringify({ command }),
     });
+    setSending(false);
     applyPayload(body);
   } catch (err) {
+    setSending(false);
     toast(t("ui.error", { msg: err.message }));
   }
 }
@@ -2261,6 +2292,7 @@ function renderActionBar() {
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
+  if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
   if (!S || S.phase === "game_over") return;
   if (iControl(S.turn_player) && S.players[S.turn_player].end_flip_loses) {   // 最後一對頁:回合結束就落敗
     const warn = document.createElement("span");

@@ -281,6 +281,12 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - MP 不足統一用 `ui.spell.mp`(「MP 不足(目前 m,需要 n)」,`mpReason`),效果、魔物效果攻擊 / 防禦、事件卡與戰術一致。
 - 翻開頁:`pageButtons` 沒有任何按鈕、不是防禦步驟的防方時,以 `idlePageButton` 加主要動作的停用按鈕(放出 / 使用 / 攻擊 / 防禦,原因見 change design D4)。原本「不可行動時無按鈕」,點開也看不出為什麼不能用;使用者選擇顯示停用按鈕(Confirmed)。發光只看啟用的按鈕,盤面不變。
 
+## 指令送出中(command-busy)
+
+- `send()` 期間 `SENDING` > 0,`<body>` 加 `sending`:CSS 對行動欄、決策對話框、放大檢視的按鈕與 `.pickable` 設 `pointer-events: none`。以 CSS 一處涵蓋,不逐一改 `disabled`(入口多、每次重繪重建,漏改就失效);鍵盤等 CSS 擋不到的途徑由 `send()` 開頭的檢查擋下。新手回饋:回應前畫面不變,以為沒按到又按一次,第二次被拒並跳錯誤。
+- 「處理中…」(`.sending-note`,`ui.sending`)在送出 200 毫秒後才放進行動欄,避免快速回應時閃現;行動欄重建時若已過延遲則保留。回應或錯誤時(含連線失敗)一律解除。
+- 只包對局指令;金手指有自己的 `CHEAT.busy`,建房、牌桌選擇不變。
+
 ## 終局(endgame-clarity)
 
 - **魔書進度**:`pos > book_size` 時區塊標題的魔書進度整段換成「魔書耗盡」(`ui.book_exhausted`),不接在「魔書」之後,避免「魔書 魔書耗盡」。

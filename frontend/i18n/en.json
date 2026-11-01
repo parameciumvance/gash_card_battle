@@ -31,6 +31,7 @@
   "ui.flip_0": "Turn none",
   "ui.flip_browse_hint": "Use ← → to choose the pages to turn to (up to {max})",
   "ui.pass": "Pass",
+  "ui.sending": "Processing…",
   "ui.pass_note.own_turn": "Take no more actions this turn",
   "ui.pass_note.opp_turn": "Take no action on opponent's turn",
   "ui.pass_note.battle": "Use no BATTLE effect",

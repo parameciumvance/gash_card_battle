@@ -31,6 +31,7 @@
   "ui.flip_0": "不翻頁",
   "ui.flip_browse_hint": "用左右鍵選擇要翻到的頁(最多翻 {max} 張)",
   "ui.pass": "Pass",
+  "ui.sending": "處理中…",
   "ui.pass_note.own_turn": "不進行自己回合行動",
   "ui.pass_note.opp_turn": "不進行對手回合行動",
   "ui.pass_note.battle": "不使用戰鬥中效果",
