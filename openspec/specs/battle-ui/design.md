@@ -138,6 +138,7 @@
   - 只比較是否等於最新一版,不解析版本號大小:是舊版或格式不明都一律跳出。
   - 記錄不存在(新訪客)時不跳出,直接寫入最新一版(endgame-clarity)。原本新玩家也會看到最新一版當作功能介紹,但新手回饋指出第一次進站先讀很長的更新紀錄沒有幫助(Confirmed,使用者採納);讀取失敗(無法儲存)時照舊視為未確認。
   - 經房號連結、觀戰、重連進入的畫面不經過 `show("landing")`,自然不跳出;`show()` 切到其他畫面時關閉開啟中的更新內容面板,對局中不會留著。
+- **圖片**(release-images):每一版可加 `images`(`src` 為前端靜態檔、`alt` 依語言),`releaseBlock` 在標題下方以格線縮圖(`minmax(92px, 1fr)`,高 90px、`object-fit: contain`)顯示,下方 `figcaption` 寫說明;`onerror` 移除圖片只留說明。四語的圖片檔由 `release_shape` 一併比對,說明可不同。v1.3.0 用卡池篩選的產品圖(`frontend/products/`)放第 3 賽季新增的產品。
 - **全部歷史**:首頁版本號旁的 `#release-open`(kind `release-history`),列出全部版本,只有「關閉」。版本號這一行 `#landing-version-line` 放在免責聲明 `#landing-disclaimer` 之外(同一個 `#landing-foot` 內),免責聲明本身不含按鈕或入口。
 - **瀏覽器測試**:共用的 `browser` fixture(`tests/test_cheat_editor.py`)為每個 context 預設把 repo 中最新一版記為已確認(只在尚未記錄時寫入),否則首頁的跳出面板會擋住其他測試的操作;更新內容的測試以 route 換成固定資料,並自行設定或清除已確認的版本。
 

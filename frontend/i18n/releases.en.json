@@ -4,6 +4,15 @@
     "version": "v1.3.0",
     "date": "2026-11-01",
     "title": "LEVEL:3 Supreme Power of the Golden Spell",
+    "images": [
+      {"src": "/static/products/level-3.webp", "alt": "LEVEL:3 Supreme Power of the Golden Spell"},
+      {"src": "/static/products/cardset-gash-nakama.webp", "alt": "Zatch Bell and His Friends"},
+      {"src": "/static/products/cardset-zeon.webp", "alt": "Zeno and the Most Powerful Mamodo"},
+      {"src": "/static/products/limited-1.webp", "alt": "LIMITED EDITION I"},
+      {"src": "/static/products/special-box.webp", "alt": "Special Box"},
+      {"src": "/static/products/mahon-file-2.webp", "alt": "Spell Book File Vol. 2"},
+      {"src": "/static/products/ex-sheet-2.webp", "alt": "Spell Book Expansion Sheet LEVEL:2"}
+    ],
     "items": [
       {"kind": "new", "text": "All 102 cards of LEVEL:3 Supreme Power of the Golden Spell are now available, with the two series-3 starter decks \"Zatch Bell and His Friends\" and \"Zeno and the Most Powerful Mamodo\""},
       {"kind": "new", "text": "Season 3 cards are available: LIMITED EDITION I, Spell Book File Vol. 2, Special Box, Spell Book Expansion Sheet LEVEL:1 / LEVEL:2 (Ex cards) and Promo cards, 95 cards in all"},

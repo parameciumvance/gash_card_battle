@@ -4,6 +4,15 @@
     "version": "v1.3.0",
     "date": "2026-11-01",
     "title": "LEVEL:3 金色の超呪文",
+    "images": [
+      {"src": "/static/products/level-3.webp", "alt": "LEVEL:3 金色の超呪文"},
+      {"src": "/static/products/cardset-gash-nakama.webp", "alt": "ガッシュ・ベルと仲間達"},
+      {"src": "/static/products/cardset-zeon.webp", "alt": "ゼオンと最凶魔物達"},
+      {"src": "/static/products/limited-1.webp", "alt": "LIMITED EDITION Ⅰ"},
+      {"src": "/static/products/special-box.webp", "alt": "スペシャルボックス"},
+      {"src": "/static/products/mahon-file-2.webp", "alt": "魔本ファイル 第2弾"},
+      {"src": "/static/products/ex-sheet-2.webp", "alt": "魔本拡張シート LEVEL:2"}
+    ],
     "items": [
       {"kind": "new", "text": "第3弾「LEVEL:3 金色の超呪文」の全102枚が使用可能に。第3シリーズの構築済み魔本「ガッシュ・ベルと仲間達」「ゼオンと最凶魔物達」を追加"},
       {"kind": "new", "text": "シーズン3のカードを追加:LIMITED EDITION Ⅰ、魔本ファイル 第2弾、スペシャルボックス、魔本拡張シート LEVEL:1 / LEVEL:2(Exカード)、特典カードの計95枚"},

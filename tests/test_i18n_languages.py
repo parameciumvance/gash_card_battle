@@ -125,8 +125,9 @@ RELEASE_KINDS = {"new", "fix", "change"}
 
 
 def release_shape(data):
-    """不需翻譯的部分:版本、日期、標題有無、各條目分類。"""
-    return [(r["version"], r["date"], "title" in r, [i["kind"] for i in r["items"]]) for r in data["releases"]]
+    """不需翻譯的部分:版本、日期、標題有無、各條目分類、圖片檔。"""
+    return [(r["version"], r["date"], "title" in r, [i["kind"] for i in r["items"]],
+             [img["src"] for img in r.get("images", [])]) for r in data["releases"]]
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -135,7 +136,10 @@ def test_releases_are_well_formed(lang):
     assert set(data) == {"releases"} and data["releases"]
     versions = []
     for r in data["releases"]:
-        assert set(r) <= {"version", "date", "title", "items"}, r
+        assert set(r) <= {"version", "date", "title", "items", "images"}, r
+        for img in r.get("images", []):                                  # 圖片:前端靜態檔,說明依語言
+            assert set(img) == {"src", "alt"} and img["alt"].strip(), img
+            assert img["src"].startswith("/static/") and (I18N.parent / img["src"][len("/static/"):]).is_file(), img
         m = VERSION_RE.match(r["version"])
         assert m, r["version"]
         versions.append(tuple(int(x) for x in m.groups()))

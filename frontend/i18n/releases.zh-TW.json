@@ -4,6 +4,15 @@
     "version": "v1.3.0",
     "date": "2026-11-01",
     "title": "LEVEL:3 金色的超咒文",
+    "images": [
+      {"src": "/static/products/level-3.webp", "alt": "LEVEL:3 金色的超咒文"},
+      {"src": "/static/products/cardset-gash-nakama.webp", "alt": "賈修・貝爾與夥伴們"},
+      {"src": "/static/products/cardset-zeon.webp", "alt": "傑昂與最兇惡的魔物們"},
+      {"src": "/static/products/limited-1.webp", "alt": "LIMITED EDITION Ⅰ"},
+      {"src": "/static/products/special-box.webp", "alt": "SPECIAL BOX"},
+      {"src": "/static/products/mahon-file-2.webp", "alt": "魔書卡本 第二彈"},
+      {"src": "/static/products/ex-sheet-2.webp", "alt": "魔書擴充片 LEVEL:2"}
+    ],
     "items": [
       {"kind": "new", "text": "第三彈「LEVEL:3 金色的超咒文」全部 102 張卡開放,並新增第三系列預組「賈修・貝爾與夥伴們」「傑昂與最兇惡的魔物們」"},
       {"kind": "new", "text": "第 3 賽季卡片開放:LIMITED EDITION Ⅰ、魔書卡本 第二彈、SPECIAL BOX、魔書擴充片 LEVEL:1 / LEVEL:2(Ex 卡)與特典卡,共 95 張"},

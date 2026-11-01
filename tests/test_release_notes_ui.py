@@ -13,6 +13,8 @@ POPUP = "#info-overlay:not(.hidden)"
 RELEASES = {
     "zh-TW": {"releases": [
         {"version": "v0.10.0", "date": "2026-10-08",
+         "images": [{"src": "/static/products/level-3.webp", "alt": "LEVEL:3 金色的超咒文"},
+                    {"src": "/static/products/missing.webp", "alt": "缺圖的產品"}],
          "items": [{"kind": "new", "text": "對局加入音效"}, {"kind": "fix", "text": "魔書網格對齊"}]},
         {"version": "v0.9.3", "date": "2026-10-06", "items": [{"kind": "change", "text": "圖片顯示速度優化"}]},
         {"version": "v0.9.2", "date": "2026-10-06", "title": "公開上線", "items": []},
@@ -162,5 +164,21 @@ def test_release_in_japanese(browser, server, locale):  # noqa: F811
     page.wait_for_selector(POPUP)
     assert lines(page) == ["[新機能] 効果音を追加", "[修正] 魔本の表示を整列"]
     assert page.locator("#info-close").text_content() == "確認"
+    context.close()
+    assert not errors
+
+
+def test_release_images(browser, server):  # noqa: F811
+    context, page, errors = open_page(browser, server)
+    page.wait_for_selector(POPUP)
+    figs = page.locator("#info-body .release-images figure")
+    assert figs.count() == 2
+    assert figs.locator("figcaption").all_text_contents() == ["LEVEL:3 金色的超咒文", "缺圖的產品"]
+    first = figs.nth(0).locator("img")
+    assert first.get_attribute("src") == "/static/products/level-3.webp" and first.get_attribute("alt") == "LEVEL:3 金色的超咒文"
+    page.wait_for_function("document.querySelector('#info-body .release-images img').naturalWidth > 0")
+    page.wait_for_function("!document.querySelectorAll('#info-body .release-images figure')[1].querySelector('img')")
+    assert page.locator("#info-body .release-images figure").nth(1).locator("figcaption").is_visible()   # 缺圖只留名稱
+    assert page.locator("#info-body .release").first.locator(".release-images + ul").count() == 1        # 圖在條目之前
     context.close()
     assert not errors

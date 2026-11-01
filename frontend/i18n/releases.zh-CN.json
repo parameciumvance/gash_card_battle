@@ -4,6 +4,36 @@
       "version": "v1.3.0",
       "date": "2026-11-01",
       "title": "LEVEL:3 金色的超咒文",
+      "images": [
+        {
+          "src": "/static/products/level-3.webp",
+          "alt": "LEVEL:3 金色的超咒文"
+        },
+        {
+          "src": "/static/products/cardset-gash-nakama.webp",
+          "alt": "贾修・贝尔与伙伴们"
+        },
+        {
+          "src": "/static/products/cardset-zeon.webp",
+          "alt": "杰昂与最凶恶的魔物们"
+        },
+        {
+          "src": "/static/products/limited-1.webp",
+          "alt": "LIMITED EDITION Ⅰ"
+        },
+        {
+          "src": "/static/products/special-box.webp",
+          "alt": "SPECIAL BOX"
+        },
+        {
+          "src": "/static/products/mahon-file-2.webp",
+          "alt": "魔书卡本 第二弹"
+        },
+        {
+          "src": "/static/products/ex-sheet-2.webp",
+          "alt": "魔书扩充片 LEVEL:2"
+        }
+      ],
       "items": [
         {
           "kind": "new",

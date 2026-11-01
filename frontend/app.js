@@ -2772,6 +2772,23 @@ function releaseBlock(r) {
   date.textContent = r.date;
   h.append(ver, date);
   sec.appendChild(h);
+  if (r.images && r.images.length) {   // 圖片(例如新產品):一列縮圖,下方寫說明;載入失敗只留說明
+    const row = document.createElement("div");
+    row.className = "release-images";
+    for (const image of r.images) {
+      const fig = document.createElement("figure");
+      const img = document.createElement("img");
+      img.src = image.src;
+      img.alt = image.alt;
+      img.loading = "lazy";
+      img.onerror = () => img.remove();
+      const cap = document.createElement("figcaption");
+      cap.textContent = image.alt;
+      fig.append(img, cap);
+      row.appendChild(fig);
+    }
+    sec.appendChild(row);
+  }
   if (r.items.length) {
     const ul = document.createElement("ul");
     for (const item of r.items) {

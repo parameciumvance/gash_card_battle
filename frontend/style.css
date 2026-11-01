@@ -1408,3 +1408,8 @@ body.sending #action-main button, body.sending #dialog-overlay button, body.send
 body.sending .pickable { pointer-events: none; }
 body.sending #action-main button, body.sending #zoom-actions button { opacity: .6; }
 .sending-note { font-size: 13px; color: var(--glow); font-weight: bold; }
+/* 更新內容的圖片:一列縮圖(統一高度),下方說明 */
+.release-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px 8px; margin: 6px 0 8px; }
+.release-images figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.release-images img { height: 90px; width: 100%; object-fit: contain; border-radius: 4px; }
+.release-images figcaption { font-size: 11px; color: var(--ink-dim); text-align: center; line-height: 1.3; }
