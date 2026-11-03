@@ -5,6 +5,7 @@
 
 Run: python -m pytest tests/test_choice_ui.py -q
 """
+import pytest
 
 PROMPT = "#action-bar .choice-prompt"
 
@@ -29,7 +30,8 @@ def sent(page):
 
 
 def pick_in_zoom(page):
-    button = page.locator("#zoom-actions button", has_text="選擇")
+    """點了可選的卡後,在卡片行動選單按「選擇」(battle-ui「卡片行動選單」)。"""
+    button = page.locator("#card-menu button", has_text="選擇")
     assert button.count() == 1
     button.click()
 
@@ -106,8 +108,9 @@ def test_protect_targets_on_board_and_no_protect_button(page):
                        "options": [{"value": None, "label": "no_protect"}] + slot_options(p, uids[1:], top)})
     assert "pickable" not in (page.locator(f'[data-zone-kind="mamodo"][data-slot-uid="{uids[0]}"]').get_attribute("class") or "")
     page.locator(f'[data-zone-kind="mamodo"][data-slot-uid="{uids[0]}"]').click()                 # 非目標:可查閱,沒有選擇
-    assert page.locator("#zoom-overlay").is_visible()
-    assert page.locator("#zoom-actions button", has_text="選擇").count() == 0
+    assert page.locator("#card-menu:not(.hidden), #zoom-overlay:not(.hidden)").count() == 1
+    assert page.locator("#card-menu button, #zoom-actions button", has_text="選擇").count() == 0
+    page.keyboard.press("Escape")
     page.evaluate("closeZoom()")
     page.locator(f"{PROMPT} .choice-options button", has_text="不保護").click()
     assert sent(page) == [{"type": "choose", "player": p, "value": None}]
@@ -217,8 +220,10 @@ def test_discard_pick(page):
     assert "pickable" in cards.nth(1).get_attribute("class")
     assert "pickable" not in (cards.nth(0).get_attribute("class") or "")
     cards.nth(1).click()
+    assert page.locator("#dialog-overlay").is_visible()                   # 棄牌區留著,選單在其上
     pick_in_zoom(page)
     assert sent(page) == [{"type": "choose", "player": p, "value": 1}]
+    assert page.locator("#dialog-overlay").is_hidden()
 
 
 # ---------------------------------------------------------------- 決策期間查閱、非決策者、退回
@@ -256,3 +261,27 @@ def test_unmapped_card_option_listed_in_prompt(page):
     assert cards.count() == 2
     cards.nth(1).click()
     assert sent(page) == [{"type": "choose", "player": p, "value": 43}]
+
+
+@pytest.mark.parametrize("how", ["backdrop", "button", "escape"])
+def test_discard_view_can_be_closed(page, how):
+    p = start(page)
+    page.evaluate("(p) => { S.players[p].discard = ['S-029', 'P-011']; render(); showDiscard(p); }", p)
+    page.wait_for_selector("#dialog-overlay:not(.hidden)")
+    if how == "backdrop":
+        page.mouse.click(5, 300)
+    elif how == "button":
+        page.locator("#dialog-options button", has_text="關閉").click()
+    else:
+        page.keyboard.press("Escape")
+    assert page.locator("#dialog-overlay").is_hidden()
+
+
+def test_choice_dialog_is_not_dismissed_by_backdrop(page):
+    p = start(page)
+    set_pending(page, {"kind": "coin_confirm", "player": p, "source": None,
+                       "options": [{"value": True, "label": "reflip"}, {"value": False, "label": "keep"}]})
+    page.evaluate("(p) => showDialog('x', [{label: 'a', onpick: () => {}}])", p)
+    page.mouse.click(5, 300)
+    page.keyboard.press("Escape")
+    assert page.locator("#dialog-overlay").is_visible()

@@ -858,9 +858,101 @@ function cardEl(num, opts = {}) {
     el.appendChild(btn);
   }
 
-  el.onclick = () => zoom(num, opts.zoomCtx);
+  if (opts.zoomCtx) el._ctxKey = JSON.stringify(opts.zoomCtx);   // 重繪後以此找回卡片行動選單的錨點
+  el.onclick = () => openCardMenu(el, num, opts.zoomCtx);
   return el;
 }
+
+// ---------------------------------------------------------------- 卡片行動選單
+
+// 點卡時在卡旁列出這張卡現在的行動(與放大檢視同一套按鈕)與「詳情」;沒有行動的卡直接開放大檢視
+let CARD_MENU = null;   // { num, ctx, key }
+
+function cardMenuButtons(ctx) {
+  const r = zoomActions(ctx);
+  if (r.gone) return null;
+  return PICK && PICK.local ? pickButtons(ctx) : [...pickButtons(ctx), ...(r.buttons || [])];
+}
+
+function openCardMenu(el, num, ctx) {
+  const buttons = ctx ? cardMenuButtons(ctx) : null;
+  if (!buttons || !buttons.length) { zoom(num, ctx); return; }
+  CARD_MENU = { num, ctx, key: JSON.stringify(ctx) };
+  renderCardMenu(el, buttons);
+}
+
+function renderCardMenu(anchor, buttons) {
+  let menu = document.getElementById("card-menu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "card-menu";
+    document.body.appendChild(menu);
+  }
+  const { num, ctx } = CARD_MENU;
+  menu.replaceChildren();
+  for (const b of [...buttons, { label: t("ui.details"), details: true }]) {
+    const row = document.createElement("div");
+    row.className = "card-menu-item";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = b.label;
+    if (b.primary) btn.classList.add("primary");
+    if (b.disabled) {
+      btn.disabled = true;
+      if (b.reason) {
+        const why = document.createElement("span");
+        why.className = "card-menu-reason";
+        why.textContent = b.reason;
+        row.append(btn, why);
+      }
+    } else {
+      btn.onclick = () => { closeCardMenu(); if (b.details) zoom(num, ctx); else b.onclick(); };
+    }
+    if (!row.contains(btn)) row.prepend(btn);
+    menu.appendChild(row);
+  }
+  menu.classList.remove("hidden");
+  placeCardMenu(menu, anchor);
+}
+
+// 貼著卡片下方置中;下方放不下改在上方;左右與上下都夾在畫面內 8px
+function placeCardMenu(menu, anchor) {
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth, h = menu.offsetHeight, gap = 6, m = 8;
+  let top = r.bottom + gap;
+  if (top + h > innerHeight - m) top = r.top - h - gap;
+  top = Math.max(m, Math.min(top, innerHeight - h - m));
+  const left = Math.max(m, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - m));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function closeCardMenu() {
+  CARD_MENU = null;
+  const menu = document.getElementById("card-menu");
+  if (menu) menu.classList.add("hidden");
+}
+
+// 狀態更新後依新狀態重算;卡片離場、找不到錨點或已沒有行動時關閉
+function refreshCardMenu() {
+  if (!CARD_MENU) return;
+  const buttons = cardMenuButtons(CARD_MENU.ctx);
+  const anchor = [...document.querySelectorAll(".card")].find((el) => el._ctxKey === CARD_MENU.key);
+  if (!buttons || !buttons.length || !anchor) { closeCardMenu(); return; }
+  renderCardMenu(anchor, buttons);
+}
+
+// 點選單以外關閉(點另一張有 ctx 的卡由它自己換選單);Esc 只關選單,不傳給其他視窗
+document.addEventListener("click", (ev) => {
+  if (!CARD_MENU || ev.target.closest("#card-menu")) return;
+  const card = ev.target.closest(".card");
+  if (card && card._ctxKey) return;
+  closeCardMenu();
+}, true);
+document.addEventListener("keydown", (ev) => {
+  if (CARD_MENU && ev.key === "Escape") { ev.stopImmediatePropagation(); ev.preventDefault(); closeCardMenu(); }
+}, true);
+addEventListener("resize", closeCardMenu);
 
 // 把元素內文字中出現的卡名包成可點 span(開純展示檢視)。
 // 以 splitText 做 DOM 分割,不拼 HTML;找不到片段即跳過(退回純文字)。
@@ -914,6 +1006,7 @@ function valueChange(base, current, lowerIsGood) {
 }
 
 function zoom(num, ctx) {
+  closeCardMenu();
   ZOOM = { num, ctx: ctx || null };
   renderZoom();
 }
@@ -1208,6 +1301,7 @@ function render() {
   renderActionBar();
   if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔書網格依新狀態重繪(決策結束時不再可選)
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
+  refreshCardMenu();
 }
 
 // log 抽屜頁籤(窄螢幕):點擊展開/收合;收合時由 CSS 只顯示最新 4 條
@@ -2419,8 +2513,10 @@ function renderActionBar() {
 
 // ---------------------------------------------------------------- 決策對話框
 
-function showDialog(title, options, sourceNum = null, notes = []) {
+// dismissable:檢視用的視窗(棄牌區),可點空白、按 Esc 或「關閉」關掉;決策對話框不能隨手關閉
+function showDialog(title, options, sourceNum = null, notes = [], { dismissable = false } = {}) {
   const overlay = document.getElementById("dialog-overlay");
+  overlay.dataset.dismissable = dismissable ? "1" : "";
   document.getElementById("dialog-title").textContent = title;
   const notesEl = document.getElementById("dialog-notes");   // 決策的公開脈絡(如目前擲幣結果)
   notesEl.replaceChildren(...notes.map((text) => {
@@ -2446,7 +2542,11 @@ function showDialog(title, options, sourceNum = null, notes = []) {
   const holder = document.getElementById("dialog-options");
   holder.innerHTML = "";
   for (const opt of options) {
-    if (opt.cardNum) {
+    if (opt.cardNum && opt.keepOpen) {   // 棄牌區:視窗留著,點卡開行動選單(選擇後由 choosePick 關閉)或放大檢視
+      const el = cardEl(opt.cardNum, { small: true, zoomCtx: opt.ctx });
+      if (opt.pickable) el.classList.add("pickable");
+      holder.appendChild(el);
+    } else if (opt.cardNum) {
       const el = cardEl(opt.cardNum, { small: true });
       if (opt.pickable) el.classList.add("pickable");
       el.onclick = () => { overlay.classList.add("hidden"); opt.onpick(); };
@@ -2458,8 +2558,28 @@ function showDialog(title, options, sourceNum = null, notes = []) {
       holder.appendChild(btn);
     }
   }
+  if (dismissable && options.some((o) => o.cardNum)) {
+    const close = document.createElement("button");
+    close.className = "dialog-close";
+    close.textContent = t("ui.close");
+    close.onclick = closeDismissableDialog;
+    holder.appendChild(close);
+  }
   overlay.classList.remove("hidden");
 }
+
+function closeDismissableDialog() {
+  const overlay = document.getElementById("dialog-overlay");
+  if (overlay.dataset.dismissable) overlay.classList.add("hidden");
+}
+document.getElementById("dialog-overlay").addEventListener("click", (ev) => {
+  if (ev.target.id === "dialog-overlay") closeDismissableDialog();
+});
+document.addEventListener("keydown", (ev) => {
+  const overlay = document.getElementById("dialog-overlay");
+  if (ev.key === "Escape" && !overlay.classList.contains("hidden") && overlay.dataset.dismissable
+      && document.getElementById("zoom-overlay").classList.contains("hidden")) closeDismissableDialog();
+});
 
 // ---------------------------------------------------------------- 決策:在原位置選擇
 
@@ -2576,6 +2696,7 @@ function choiceLabel(opt, results) {
 
 function choosePick(value) {
   if (BOOK_VIEW !== null) closeBookReview();   // 從魔書網格選完就關閉,回到場面
+  document.getElementById("dialog-overlay").classList.add("hidden");   // 從棄牌區選完也關閉
   if (PICK && PICK.local) {                    // 前端的場上選擇:交給發起者,不送 choose
     const onpick = LOCAL_PICK.onpick;
     LOCAL_PICK = null;
@@ -3322,12 +3443,12 @@ function showDiscard(p) {
   showDialog(pname(p) + t("ui.sep.meta") + t("ui.discard", { n: ps.discard.length }),
     ps.discard.length
       ? ps.discard.map((num, index) => {
-        const ctx = { kind: "pick", zone: "discard", p, index };   // 決策目標:放大檢視提供「選擇」
+        const ctx = { kind: "pick", zone: "discard", p, index };   // 決策目標:卡片行動選單提供「選擇」
         const target = pickValue(ctx) !== undefined;
-        return { cardNum: num, pickable: target, onpick: () => zoom(num, target ? ctx : undefined) };
+        return { cardNum: num, pickable: target, ctx: target ? ctx : undefined, keepOpen: true };
       })
       : [{ label: t("ui.close"), onpick: () => {} }],
-    hint ? hint.source : null, hint ? [hint.title] : []);
+    hint ? hint.source : null, hint ? [hint.title] : [], { dismissable: true });
 }
 
 // 查閱魔書:對頁網格呈現 32 頁,標示當前翻開 / 已離場 / 已用戰術頁。

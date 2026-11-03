@@ -120,7 +120,7 @@ def test_book_pick_target_selectable_while_browsing(page):
     card = page.locator(f'.book-block[data-book-block="{tp}"] .book-pages [data-page="{target}"]')
     assert "pickable" in card.get_attribute("class")
     card.click()
-    page.locator("#zoom-actions button", has_text="選擇").click()
+    page.locator("#card-menu button", has_text="選擇").click()
     assert page.evaluate("window.__sent") == [{"type": "choose", "player": tp, "value": target}]
 
 

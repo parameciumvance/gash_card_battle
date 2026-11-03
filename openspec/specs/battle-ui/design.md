@@ -282,6 +282,14 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - MP 不足統一用 `ui.spell.mp`(「MP 不足(目前 m,需要 n)」,`mpReason`),效果、魔物效果攻擊 / 防禦、事件卡與戰術一致。
 - 翻開頁:`pageButtons` 沒有任何按鈕、不是防禦步驟的防方時,以 `idlePageButton` 加主要動作的停用按鈕(放出 / 使用 / 攻擊 / 防禦,原因見 change design D4)。原本「不可行動時無按鈕」,點開也看不出為什麼不能用;使用者選擇顯示停用按鈕(Confirmed)。發光只看啟用的按鈕,盤面不變。
 
+## 卡片行動選單(card-action-menu)
+
+- 新手回饋:每次「點卡 → 全畫面放大檢視 → 按動作」打斷操作。explore 比較其他卡牌遊戲後,使用者選擇點卡時在卡旁跳出動作選單(點一下的意義固定為「叫出這張卡能做的事」,不依模式改變),寬螢幕的詳情面板另做(Confirmed)。
+- 單一入口:`cardEl` 的點擊呼叫 `openCardMenu(el, num, ctx)`,按鈕與放大檢視同一套(`pickButtons` + `zoomActions`),最後加「詳情」;沒有按鈕時直接 `zoom`。卡片元素記下 `_ctxKey`(ctx 的 JSON),`render()` 結束時 `refreshCardMenu` 依它找回錨點並重算,找不到或沒有按鈕就關閉。
+- 位置:`position: fixed`,卡片下方置中,放不下改上方,四邊夾在畫面內 8px;z-index 57(魔書網格 55 之上、放大檢視開啟時關閉選單)。點選單外(點另一張有 ctx 的卡除外)、Esc(capture,不傳給魔書網格等)、視窗縮放、執行行動、開放大檢視時關閉。
+- 棄牌區視窗:可選的卡改帶 ctx 走選單,視窗保持開著;`choosePick` 送出後一併關閉決策對話框(與魔書網格相同)。原本棄牌區沒有關閉方式,靠「點任何卡就關閉」;改為保持開著後,`showDialog` 加 `dismissable`(棄牌區用):點空白、Esc(放大檢視未開時)或「關閉」按鈕關閉。決策對話框不加,避免誤關。使用者抽查時發現點空白不會關閉。
+- 停用原因以小字寫在選單按鈕下方;預估合計魔力等明細只在放大檢視。
+
 ## 戰術的預估合計魔力(spell-power-preview)
 
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`;段落後註明「不含宣告時與戰鬥中的效果」。新手回饋希望宣告前就能估算合計魔力。

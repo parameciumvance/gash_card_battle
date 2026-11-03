@@ -67,9 +67,9 @@ def pickable_uids(page):
 
 
 def pick_on_field(page, uid):
-    """場上選擇:點開發光的魔物,在放大檢視按「選擇」。"""
+    """場上選擇:點發光的魔物,在卡片行動選單按「選擇」。"""
     slot_card(page, uid).click()
-    page.locator("#zoom-actions button", has_text="選擇").click()
+    page.locator("#card-menu button", has_text="選擇").click()
 
 
 # ---------------------------------------------------------------- 攻擊 / 防禦的使用魔物
@@ -82,8 +82,8 @@ def test_two_users_pick_zeon(page):
     assert pickable_uids(page) == sorted([slots["M-001"], slots["M-029"]])
     assert page.locator("#action-bar .choice-prompt").count() == 1
     slot_card(page, slots["M-029"]).click()
-    assert "費用" in page.locator("#zoom-actions").inner_text()
-    page.locator("#zoom-actions button", has_text="選擇").click()
+    assert "費用" in page.locator("#card-menu").inner_text()
+    page.locator("#card-menu button", has_text="選擇").click()
     page.wait_for_function("S.battle_in")
     assert page.evaluate("S.battle_in.slot") == slots["M-029"]
 
@@ -100,9 +100,9 @@ def test_field_pick_cancel_and_unselectable(page):
     page.locator("#zoom-actions button", has_text="攻擊").click()
     assert pickable_uids(page) == sorted([slots["M-001"], slots["M-029"]])
     slot_card(page, 901).click()
-    assert page.locator("#zoom-actions button", has_text="選擇").is_disabled()
-    assert "本回合不能使用戰術" in page.locator("#zoom-actions").inner_text()
-    page.evaluate("closeZoom()")
+    assert page.locator("#card-menu button", has_text="選擇").is_disabled()
+    assert "本回合不能使用戰術" in page.locator("#card-menu").inner_text()
+    page.keyboard.press("Escape")
     page.locator("#action-bar .choice-prompt button", has_text="取消").click()
     assert pickable_uids(page) == [] and page.locator("#action-bar .choice-prompt").count() == 0
     assert sent(page) == []
@@ -238,7 +238,7 @@ def test_any_page_spell_entry(page):
     cell = page.locator('#book-review-grid .review-cell[data-page="20"]')
     assert "pickable" in cell.get_attribute("class")
     cell.locator(".card").click()
-    page.locator("#zoom-actions button", has_text="攻擊").click()
+    page.locator("#card-menu button", has_text="攻擊").click()
     assert page.locator("#book-review-overlay").is_hidden()                   # 網格關閉,回到場上選
     pick_on_field(page, b)
     assert sent(page) == [{"type": "declare_attack", "player": tp, "page": 20, "slot_uid": b}]
@@ -257,7 +257,7 @@ def test_any_page_spell_while_browsing(page):
     card = page.locator(f'.book-block[data-book-block="{tp}"] .book-pages [data-page="20"]')
     assert "pickable" in card.get_attribute("class")
     card.click()
-    page.locator("#zoom-actions button", has_text="攻擊").click()
+    page.locator("#card-menu button", has_text="攻擊").click()
     assert sent(page) == [{"type": "declare_attack", "player": tp, "page": 20, "slot_uid": slots["M-001"]}]
 
 
