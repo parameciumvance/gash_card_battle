@@ -1,6 +1,18 @@
 {
   "releases": [
   {
+    "version": "v1.3.1",
+    "date": "2026-11-04",
+    "items": [
+      {"kind": "new", "text": "You can forfeit a game: press \"Forfeit\" at the top and confirm, and your opponent wins"},
+      {"kind": "new", "text": "When your opponent stops responding (repeated timeouts or disconnected), you are told and can end the game or keep waiting"},
+      {"kind": "change", "text": "When neither player responds, the room is closed and the table is freed"},
+      {"kind": "fix", "text": "Fixed refreshing turning you into your opponent when both players use tabs of the same browser"},
+      {"kind": "fix", "text": "Fixed being sent home on an unstable connection with no way back to the game while the table kept your name; failed connections now retry automatically"},
+      {"kind": "fix", "text": "Fixed the connection dropping after the game was idle for a while"}
+    ]
+  },
+  {
     "version": "v1.3.0",
     "date": "2026-11-03",
     "title": "LEVEL:3 Supreme Power of the Golden Spell",

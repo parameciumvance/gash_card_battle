@@ -2906,6 +2906,32 @@ function releaseBlock(r) {
   return sec;
 }
 
+// "v1.3.1" → [1, 3, 1];看不懂時 null
+function parseVersion(v) {
+  const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(v || "");
+  return m ? m.slice(1).map(Number) : null;
+}
+
+function versionCompare(a, b) {
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
+}
+
+// 跳出的版本:最新一版所屬的版本線(主.次版號相同)中還沒確認過的,由舊到新(功能版在上、維修版依序在下);
+// 已確認的版本看不懂時整條版本線都顯示
+function popupReleases(seen) {
+  const latest = RELEASES[0];
+  const lv = parseVersion(latest.version);
+  if (!lv) return [latest];
+  const sv = parseVersion(seen);
+  const line = RELEASES.filter((r) => {
+    const v = parseVersion(r.version);
+    return v && v[0] === lv[0] && v[1] === lv[1] && (!sv || versionCompare(v, sv) > 0);
+  });
+  line.sort((a, b) => versionCompare(parseVersion(a.version), parseVersion(b.version)));
+  return line.length ? line : [latest];
+}
+
 function maybeShowRelease() {
   if (!RELEASES || releasePopped) return;
   const latest = RELEASES[0];
@@ -2919,7 +2945,7 @@ function maybeShowRelease() {
   } catch (_) { /* 無法存取:視為未確認 */ }
   if (seen === latest.version) return;
   releasePopped = true;
-  showInfo("release-latest", t("ui.release.latest", { version: latest.version }), [releaseBlock(latest)]);
+  showInfo("release-latest", t("ui.release.latest", { version: latest.version }), popupReleases(seen).map(releaseBlock));
   const confirm = document.getElementById("info-close");
   confirm.textContent = t("ui.release.confirm");
   confirm.onclick = () => {
