@@ -732,6 +732,8 @@ function goHome() {
 }
 
 function leaveRoom() {
+  DETAIL = null;
+  DETAIL_HOVER = null;
   closeCheat();
   closeInfo();
   wsWanted = false;
@@ -859,7 +861,8 @@ function cardEl(num, opts = {}) {
   }
 
   if (opts.zoomCtx) el._ctxKey = JSON.stringify(opts.zoomCtx);   // 重繪後以此找回卡片行動選單的錨點
-  el.onclick = () => openCardMenu(el, num, opts.zoomCtx);
+  el._num = num;   // 詳情面板的懸停以此取得卡號(卡背沒有)
+  el.onclick = () => { setDetail(num, opts.zoomCtx); openCardMenu(el, num, opts.zoomCtx); };
   return el;
 }
 
@@ -927,6 +930,85 @@ function placeCardMenu(menu, anchor) {
   menu.style.top = `${top}px`;
 }
 
+// 疊放中的魔物疊在下方的卡(由上而下);放大檢視與詳情面板共用,onpick 決定點了之後怎麼看
+function stackListEl(slot, onpick) {
+  const box = document.createElement("div");
+  box.className = "zoom-stack";
+  box.onclick = (ev) => ev.stopPropagation();
+  const head = document.createElement("div");
+  head.className = "zoom-stack-title";
+  head.textContent = t("ui.stack_under");
+  const row = document.createElement("div");
+  row.className = "zoom-stack-cards";
+  for (const num of slot.stack.slice(0, -1).reverse()) {
+    const el = cardEl(num, { small: true });
+    el.dataset.card = num;
+    el.onclick = (ev) => { ev.stopPropagation(); onpick(num); };
+    row.appendChild(el);
+  }
+  box.append(head, row);
+  return box;
+}
+
+// ---------------------------------------------------------------- 寬螢幕的卡片詳情面板
+
+// 右欄上方:顯示懸停中(DETAIL_HOVER)或選定(DETAIL)的卡的卡面與放大檢視的明細,沒有行動按鈕;窄螢幕由 CSS 隱藏
+let DETAIL = null;         // { num, ctx }
+let DETAIL_HOVER = null;
+
+function setDetail(num, ctx) {
+  DETAIL = { num, ctx: ctx || null };
+  renderDetailPanel();
+}
+
+function renderDetailPanel() {
+  const panel = document.getElementById("detail-panel");
+  const shown = DETAIL_HOVER || DETAIL;
+  if (shown && shown.ctx && S && zoomActions(shown.ctx).gone) shown.ctx = null;   // 離開原位置:只留卡面
+  if (!shown || !S) {
+    const hint = document.createElement("div");
+    hint.className = "detail-hint";
+    hint.textContent = t("ui.detail.placeholder");
+    panel.replaceChildren(hint);
+    return;
+  }
+  const { num, ctx } = shown;
+  const opts = { fullName: true };
+  const ps = ctx ? S.players[ctx.p] : null;
+  const slot = ctx && (ctx.kind === "slot" || ctx.kind === "partner") ? ps.slots.find((x) => x.uid === ctx.uid) : null;
+  if (ctx && ctx.kind === "slot" && slot && slot.top === num) opts.power = slot.power;
+  const entry = ctx && ctx.kind === "page" ? ps.open_pages.find((e) => e.page === ctx.page)
+    : ctx && ctx.kind === "any_page" ? (ps.any_page_spells || []).find((e) => e.page === ctx.page) : null;
+  if (entry) opts.cost = entry.cost;
+  const card = cardEl(num, opts);   // 不帶 ctx:點了開放大檢視
+  const parts = [card];
+  const details = ctx ? zoomDetails(num, ctx) : null;
+  if (details) parts.push(details);
+  if (ctx && ctx.kind === "slot" && slot && slot.stack && slot.stack.length > 1) parts.push(stackListEl(slot, (n) => zoom(n)));
+  panel.replaceChildren(...parts);
+}
+
+// 懸停:盤面與行動記錄中帶卡號的元素(卡片、卡名);卡背沒有卡號,不改變面板
+for (const id of ["board", "log"]) {
+  const root = document.getElementById(id);
+  root.addEventListener("mouseover", (ev) => {
+    const el = ev.target.closest("*");
+    let node = el;
+    while (node && node !== root && node._num === undefined) node = node.parentElement;
+    const num = node && node !== root ? node._num : undefined;
+    if (num === undefined || (DETAIL_HOVER && DETAIL_HOVER.el === node)) return;
+    const key = node._ctxKey;
+    DETAIL_HOVER = { num, ctx: key ? JSON.parse(key) : null, el: node };
+    renderDetailPanel();
+  });
+  root.addEventListener("mouseout", (ev) => {
+    if (!DETAIL_HOVER || DETAIL_HOVER.el.contains(ev.relatedTarget)) return;
+    if (!DETAIL_HOVER.el.contains(ev.target)) return;
+    DETAIL_HOVER = null;
+    renderDetailPanel();
+  });
+}
+
 function closeCardMenu() {
   CARD_MENU = null;
   const menu = document.getElementById("card-menu");
@@ -972,6 +1054,7 @@ function linkCardNames(root, nums) {
       span.className = "card-ref";
       span.textContent = name;
       span.onclick = (ev) => { ev.stopPropagation(); zoom(num); };
+      span._num = num;   // 詳情面板的懸停
       target.replaceWith(span);
       break;  // 每卡只包首次出現
     }
@@ -1127,23 +1210,8 @@ function renderZoom() {
   const slot = ZOOM.ctx && ZOOM.ctx.kind === "slot"
     ? S.players[ZOOM.ctx.p].slots.find((x) => x.uid === ZOOM.ctx.uid) : null;
   if (slot && slot.stack && slot.stack.length > 1) {
-    const box = document.createElement("div");
-    box.className = "zoom-stack";
-    box.onclick = (ev) => ev.stopPropagation();
-    const head = document.createElement("div");
-    head.className = "zoom-stack-title";
-    head.textContent = t("ui.stack_under");
-    const row = document.createElement("div");
-    row.className = "zoom-stack-cards";
     const back = { num: ZOOM.num, ctx: ZOOM.ctx };
-    for (const num of slot.stack.slice(0, -1).reverse()) {
-      const el = cardEl(num, { small: true });
-      el.dataset.card = num;
-      el.onclick = (ev) => { ev.stopPropagation(); ZOOM = { num, ctx: null, back }; renderZoom(); };
-      row.appendChild(el);
-    }
-    box.append(head, row);
-    actions.appendChild(box);
+    actions.appendChild(stackListEl(slot, (num) => { ZOOM = { num, ctx: null, back }; renderZoom(); }));
   }
   const details = ZOOM.ctx && ZOOM.num ? zoomDetails(ZOOM.num, ZOOM.ctx) : null;
   if (details) actions.appendChild(details);
@@ -1302,6 +1370,7 @@ function render() {
   if (BOOK_VIEW !== null) showBookReview(BOOK_VIEW);   // 開啟中的魔書網格依新狀態重繪(決策結束時不再可選)
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
   refreshCardMenu();
+  renderDetailPanel();
 }
 
 // log 抽屜頁籤(窄螢幕):點擊展開/收合;收合時由 CSS 只顯示最新 4 條

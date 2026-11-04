@@ -32,6 +32,7 @@
   "ui.flip_browse_hint": "左右キーでめくるページを選ぶ(最大 {max} 枚)",
   "ui.pass": "パス",
   "ui.details": "詳細",
+  "ui.detail.placeholder": "カードをクリックまたはポイントすると、ここに詳細を表示",
   "ui.sending": "処理中…",
   "ui.pass_note.own_turn": "自分のターンの行動をしない",
   "ui.pass_note.opp_turn": "相手のターンの行動をしない",

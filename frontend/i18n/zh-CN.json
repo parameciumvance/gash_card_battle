@@ -32,6 +32,7 @@
   "ui.flip_browse_hint": "用左右键选择要翻到的页(最多翻 {max} 张)",
   "ui.pass": "Pass",
   "ui.details": "详情",
+  "ui.detail.placeholder": "点击或指向卡片,这里会显示详情",
   "ui.sending": "处理中…",
   "ui.pass_note.own_turn": "不进行自己回合行动",
   "ui.pass_note.opp_turn": "不进行对手回合行动",

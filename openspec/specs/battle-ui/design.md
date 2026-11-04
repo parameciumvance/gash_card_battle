@@ -288,7 +288,14 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - 單一入口:`cardEl` 的點擊呼叫 `openCardMenu(el, num, ctx)`,按鈕與放大檢視同一套(`pickButtons` + `zoomActions`),最後加「詳情」;沒有按鈕時直接 `zoom`。卡片元素記下 `_ctxKey`(ctx 的 JSON),`render()` 結束時 `refreshCardMenu` 依它找回錨點並重算,找不到或沒有按鈕就關閉。
 - 位置:`position: fixed`,卡片下方置中,放不下改上方,四邊夾在畫面內 8px;z-index 57(魔書網格 55 之上、放大檢視開啟時關閉選單)。點選單外(點另一張有 ctx 的卡除外)、Esc(capture,不傳給魔書網格等)、視窗縮放、執行行動、開放大檢視時關閉。
 - 棄牌區視窗:可選的卡改帶 ctx 走選單,視窗保持開著;`choosePick` 送出後一併關閉決策對話框(與魔書網格相同)。原本棄牌區沒有關閉方式,靠「點任何卡就關閉」;改為保持開著後,`showDialog` 加 `dismissable`(棄牌區用):點空白、Esc(放大檢視未開時)或「關閉」按鈕關閉。決策對話框不加,避免誤關。使用者抽查時發現點空白不會關閉。
-- 停用原因以小字寫在選單按鈕下方;預估合計魔力等明細只在放大檢視。
+- 停用原因以小字寫在選單按鈕下方(寬螢幕有詳情面板後仍保留);預估合計魔力等明細在放大檢視與寬螢幕的詳情面板。
+
+## 寬螢幕的卡片詳情面板(card-detail-panel)
+
+- 右欄 `#log-panel` 上方的 `#detail-panel`(`flex: 0 0 45%`,內部捲動),下方為行動記錄;`max-width: 700px` 時隱藏。固定高度而不是有卡才展開:懸停會頻繁換卡,記錄不該被推動(使用者選擇,Confirmed)。
+- 顯示 `DETAIL_HOVER ?? DETAIL`。`cardEl` 的點擊先 `setDetail(num, ctx)` 再開行動選單;懸停以 `#board` 與 `#log` 上的 `mouseover` / `mouseout` 委派,取最近帶 `_num` 的元素(卡片、`linkCardNames` 的卡名 span);卡背沒有 `_num`,不改變面板。浮層蓋住盤面時事件到不了,不需特別處理。
+- 內容:不帶 ctx 的 `cardEl`(點了直接放大檢視)、`zoomDetails(num, ctx)` 與疊放清單(`stackListEl`,與放大檢視共用,點了的看法由呼叫端決定)。`render()` 結束時重繪;`zoomActions(ctx)` 回 `gone` 時把 ctx 清為 null,只留卡面。`leaveRoom` 清空。
+- 卡旁行動選單的停用原因保留(explore 決定:原因就在按鈕旁最直接,面板也有明細)。
 
 ## 戰術的預估合計魔力(spell-power-preview)
 
