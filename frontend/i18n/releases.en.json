@@ -1,6 +1,15 @@
 {
   "releases": [
   {
+    "version": "v1.3.2",
+    "date": "2026-11-04",
+    "items": [
+      {"kind": "change", "text": "Tapping a card opens a menu beside it listing what you can do with that card; \"Details\" shows it enlarged"},
+      {"kind": "change", "text": "On wide screens, a card detail panel on the right shows a card's effect and Power breakdown when you select or hover over it"},
+      {"kind": "fix", "text": "Fixed the Discard Pile window not closing: you can now close it by tapping outside, pressing Esc, or \"Close\""}
+    ]
+  },
+  {
     "version": "v1.3.1",
     "date": "2026-11-04",
     "items": [
