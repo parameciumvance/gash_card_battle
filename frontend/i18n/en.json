@@ -516,6 +516,8 @@
   "ui.resume.home": "Back to home",
   "ui.hidden_page": "Page {n}",
   "ui.error.room_gone": "The room does not exist or has been closed",
+  "ui.reconnect.retrying": "Connection failed, retrying…",
+  "ui.reconnect.home": "Back to home",
   "ui.landing.builder": "Deck builder",
   "ui.landing.builder_desc": "Build your own 32-page Spell Book, save it and take it into games",
   "ui.deck.select": "Deck",

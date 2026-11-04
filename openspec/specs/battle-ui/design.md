@@ -310,6 +310,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - 原因:v1.3.0 只存 `localStorage`,同一個瀏覽器另一個分頁加入同一房會蓋掉,重新整理後身分變成對方(使用者回報)。限制:同一個瀏覽器兩方都在時,首頁返回 / 新分頁接回的是最後寫入的一方。
 - 測試:多分頁時背景分頁的 requestAnimationFrame 暫停,`wait_for_function` 用 `polling=100`。
 
+## 接回對局的連線失敗與心跳(fix-reconnect)
+
+- `roomGone(err)`:只有 `room.not_found` / `room.bad_token` 代表房間不在或身分無效。`api()` 收到非 JSON(代理錯誤頁)拋出不帶錯誤碼的錯誤;`fetch` 失敗原樣拋出,兩者都不刪身分。原本任何錯誤都刪身分回首頁:網路不穩或 Cloudflare 502 / 524 時,玩家回不了仍在進行的對局,牌桌也一直顯示他的名字(使用者回報)。
+- `resumeRoom` 非 `roomGone` 的錯誤:顯示 `#reconnect-overlay` 並依 `RECONNECT_DELAYS_MS`(2、4、8、15、30 秒,之後 30 秒)重試;「回首頁」停止重試、保留身分。`refreshResumeRooms` 同樣只在 `roomGone` 時移除記錄。
+- WebSocket 心跳:`onopen` 起每 25 秒送 `"ping"`,`onclose` 停止;伺服器接收迴圈本來就忽略內容。部署經 Cloudflare Tunnel,閒置的 WebSocket 約 100 秒會被切斷。
+- 測試可用 `window.__reconnectDelays`、`window.__wsHeartbeatMs` 縮短時間。
+
 ## 規則頁
 
 - **內容**:`frontend/i18n/rules.<lang>.json`,依語言分檔,結構為 `sections[{id, title, blocks}]`。block 有五種:段落 `p`、條列 `list`、範例卡 `figure`、圖示對照 `icons`、賽季表 `seasons`。渲染一律用 DOM,不拼 HTML。

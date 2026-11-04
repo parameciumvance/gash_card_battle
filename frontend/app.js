@@ -224,7 +224,14 @@ function loadSession(code) {
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
-  const body = await res.json();
+  let body;
+  try {
+    body = await res.json();
+  } catch (_) {   // 不是伺服器的回應格式(例如代理的錯誤頁):不帶錯誤碼,不會被當成房間不存在
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   if (!res.ok) {
     // 依錯誤碼以目前語言顯示;字典沒有該錯誤碼時用伺服器原文
     const code = body.detail && body.detail.code;
@@ -382,7 +389,15 @@ function openWS() {
   wsWanted = true;
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/api/rooms/${SESSION.code}/ws?token=${wsToken()}`);
-  ws.onopen = () => setConn(true);
+  const socket = ws;
+  let heartbeat = null;
+  ws.onopen = () => {
+    setConn(true);
+    // 心跳:沒有傳輸的 WebSocket 會被代理當成閒置切斷(Cloudflare 約 100 秒);伺服器忽略收到的內容
+    heartbeat = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) socket.send("ping");
+    }, window.__wsHeartbeatMs || 25000);
+  };
   ws.onmessage = (msg) => {
     const body = JSON.parse(msg.data);
     if (body.type === "welcome") {
@@ -395,6 +410,7 @@ function openWS() {
     }
   };
   ws.onclose = () => {
+    clearInterval(heartbeat);
     setConn(false);
     if (wsWanted) setTimeout(openWS, 1500);
   };
@@ -654,6 +670,36 @@ function enterSpectate(code, token) {
   openWS();
 }
 
+// 伺服器明確回應房間不存在或身分無效:只有這兩種才刪除瀏覽器記得的身分(網路或代理錯誤不算)
+function roomGone(err) {
+  return !!err && (err.code === "room.not_found" || err.code === "room.bad_token");
+}
+
+// 接回失敗時的重試間隔(毫秒);之後固定用最後一個
+const RECONNECT_DELAYS_MS = window.__reconnectDelays || [2000, 4000, 8000, 15000, 30000];
+let reconnectTimer = null;
+let reconnectAttempt = 0;
+
+function showReconnect(code) {
+  const overlay = document.getElementById("reconnect-overlay");
+  document.getElementById("reconnect-text").textContent = t("ui.reconnect.retrying");
+  const home = document.getElementById("reconnect-home");
+  home.textContent = t("ui.reconnect.home");
+  home.onclick = () => {   // 停止重試、回首頁;身分保留,之後可從首頁返回
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    overlay.classList.add("hidden");
+    SESSION = null;
+    history.replaceState(null, "", "/");
+    show("landing");
+  };
+  overlay.classList.remove("hidden");
+  const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
+  reconnectAttempt += 1;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; resumeRoom(code); }, delay);
+}
+
 async function resumeRoom(code) {
   const saved = loadSession(code);
   if (!saved) { show("landing"); return; }
@@ -674,7 +720,12 @@ async function resumeRoom(code) {
       show("layout");
       openWS();
     }
+    reconnectAttempt = 0;
+    document.getElementById("reconnect-overlay").classList.add("hidden");
   } catch (err) {
+    if (!roomGone(err)) { showReconnect(code); return; }
+    reconnectAttempt = 0;
+    document.getElementById("reconnect-overlay").classList.add("hidden");
     localStorage.removeItem(`gash-room-${code}`);
     toast(t("ui.error.room_gone"));
     history.replaceState(null, "", "/");
@@ -704,8 +755,10 @@ async function refreshResumeRooms() {
       const body = await api(`/api/rooms/${code}/state`, { headers: { "X-Player-Token": token } });
       if (body.state && body.state.phase === "game_over") return null;
       return { code, saved, body };
-    } catch (_) {
-      try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
+    } catch (err) {
+      if (roomGone(err)) {   // 網路或代理錯誤時保留記錄,這次不列出
+        try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
+      }
       return null;
     }
   }));

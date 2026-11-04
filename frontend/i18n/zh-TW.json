@@ -516,6 +516,8 @@
   "ui.resume.home": "回到首頁",
   "ui.hidden_page": "第 {n} 頁",
   "ui.error.room_gone": "房間不存在或已回收",
+  "ui.reconnect.retrying": "連線失敗,重試中…",
+  "ui.reconnect.home": "回首頁",
   "ui.landing.builder": "牌組構築",
   "ui.landing.builder_desc": "編排自己的 32 頁魔書,儲存並帶進對戰",
   "ui.deck.select": "牌組",

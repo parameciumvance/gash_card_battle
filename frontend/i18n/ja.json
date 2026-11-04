@@ -516,6 +516,8 @@
   "ui.resume.home": "トップに戻る",
   "ui.hidden_page": "{n} ページ",
   "ui.error.room_gone": "ルームが存在しないか、すでに終了しています",
+  "ui.reconnect.retrying": "接続に失敗しました。再試行中…",
+  "ui.reconnect.home": "ホームに戻る",
   "ui.landing.builder": "デッキ構築",
   "ui.landing.builder_desc": "自分の32ページの魔本を組み、保存して対戦に使う",
   "ui.deck.select": "デッキ",

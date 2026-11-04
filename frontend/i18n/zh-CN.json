@@ -516,6 +516,8 @@
   "ui.resume.home": "回到首页",
   "ui.hidden_page": "第 {n} 页",
   "ui.error.room_gone": "房间不存在或已回收",
+  "ui.reconnect.retrying": "连接失败,重试中…",
+  "ui.reconnect.home": "回首页",
   "ui.landing.builder": "牌组构筑",
   "ui.landing.builder_desc": "编排自己的 32 页魔书,保存并带进对战",
   "ui.deck.select": "牌组",
