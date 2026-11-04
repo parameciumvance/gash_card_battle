@@ -3108,6 +3108,13 @@ def _deploy_mamodo_from_page(game: Game, batch: list[dict], player: int, page: i
 
 # ---------------------------------------------------------------- 勝敗
 
+def end_game(game: Game, winner: int, reason: str) -> list[dict]:
+    """對局規則以外的結束(棄權 "forfeit"、對手沒有回應 "absent"):直接判 winner 獲勝,回傳事件。"""
+    batch: list[dict] = []
+    _game_over(game, batch, winner, reason)
+    return batch
+
+
 def _game_over(game: Game, batch: list[dict], winner: int, reason: str) -> None:
     st = game.state
     if st.phase == GAME_OVER:

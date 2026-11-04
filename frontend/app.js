@@ -200,11 +200,22 @@ function tokenFor(command) {
   return SESSION.tokens.me;
 }
 
+// 對局身分:這個分頁的身分存在 sessionStorage(每個分頁各自一份,重新整理後仍在),重新整理時優先使用;
+// localStorage 的 gash-room-<房號> 是瀏覽器記得的房間(首頁「返回進行中的對局」、新分頁開房間連結),
+// 同一個瀏覽器的另一個分頁加入同一房時會被蓋掉,所以不能當作這個分頁的身分
+const TAB_SESSION_KEY = "gash-session";
+
 function saveSession() {
-  localStorage.setItem(`gash-room-${SESSION.code}`, JSON.stringify(SESSION));
+  const raw = JSON.stringify(SESSION);
+  try { sessionStorage.setItem(TAB_SESSION_KEY, raw); } catch (_) { /* 無法儲存:退回瀏覽器記得的身分 */ }
+  localStorage.setItem(`gash-room-${SESSION.code}`, raw);
 }
 
 function loadSession(code) {
+  try {
+    const tab = JSON.parse(sessionStorage.getItem(TAB_SESSION_KEY) || "null");
+    if (tab && tab.code === code.toUpperCase()) return tab;
+  } catch (_) { /* 讀不到:用瀏覽器記得的 */ }
   const raw = localStorage.getItem(`gash-room-${code}`);
   return raw ? JSON.parse(raw) : null;
 }
@@ -213,7 +224,14 @@ function loadSession(code) {
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
-  const body = await res.json();
+  let body;
+  try {
+    body = await res.json();
+  } catch (_) {   // 不是伺服器的回應格式(例如代理的錯誤頁):不帶錯誤碼,不會被當成房間不存在
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   if (!res.ok) {
     // 依錯誤碼以目前語言顯示;字典沒有該錯誤碼時用伺服器原文
     const code = body.detail && body.detail.code;
@@ -251,6 +269,18 @@ function renderSendingNote() {
     bar.prepend(note);
   } else if (SENDING === 0 && note) {
     note.remove();
+  }
+}
+
+// 房間層級的操作(棄權、對手沒有回應時的選擇):與指令相同的回應格式
+async function roomAction(path, body = {}) {
+  try {
+    applyPayload(await api(`/api/rooms/${SESSION.code}/${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": SESSION.tokens.me },
+      body: JSON.stringify(body),
+    }));
+  } catch (err) {
+    toast(t("ui.error", { msg: err.message }));
   }
 }
 
@@ -371,7 +401,15 @@ function openWS() {
   wsWanted = true;
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/api/rooms/${SESSION.code}/ws?token=${wsToken()}`);
-  ws.onopen = () => setConn(true);
+  const socket = ws;
+  let heartbeat = null;
+  ws.onopen = () => {
+    setConn(true);
+    // 心跳:沒有傳輸的 WebSocket 會被代理當成閒置切斷(Cloudflare 約 100 秒);伺服器忽略收到的內容
+    heartbeat = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) socket.send("ping");
+    }, window.__wsHeartbeatMs || 25000);
+  };
   ws.onmessage = (msg) => {
     const body = JSON.parse(msg.data);
     if (body.type === "welcome") {
@@ -383,8 +421,17 @@ function openWS() {
       moveToTableRoom(body);    // 牌桌再戰 / 換人:改連同一桌的新房間
     }
   };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
+    clearInterval(heartbeat);
     setConn(false);
+    if (ev.code === 4404 || ev.code === 4401) {   // 房間已關閉 / 不存在:不再重連,回首頁並移除記錄
+      if (socket !== ws || !SESSION) return;
+      const code = SESSION.code;
+      try { localStorage.removeItem(`gash-room-${code}`); } catch (_) { /* 忽略 */ }
+      toast(t(ev.code === 4404 ? "ui.error.room_closed" : "ui.error.room_gone"));
+      leaveRoom();
+      return;
+    }
     if (wsWanted) setTimeout(openWS, 1500);
   };
   ws.onerror = () => ws.close();
@@ -643,6 +690,36 @@ function enterSpectate(code, token) {
   openWS();
 }
 
+// 伺服器明確回應房間不存在或身分無效:只有這兩種才刪除瀏覽器記得的身分(網路或代理錯誤不算)
+function roomGone(err) {
+  return !!err && (err.code === "room.not_found" || err.code === "room.bad_token");
+}
+
+// 接回失敗時的重試間隔(毫秒);之後固定用最後一個
+const RECONNECT_DELAYS_MS = window.__reconnectDelays || [2000, 4000, 8000, 15000, 30000];
+let reconnectTimer = null;
+let reconnectAttempt = 0;
+
+function showReconnect(code) {
+  const overlay = document.getElementById("reconnect-overlay");
+  document.getElementById("reconnect-text").textContent = t("ui.reconnect.retrying");
+  const home = document.getElementById("reconnect-home");
+  home.textContent = t("ui.reconnect.home");
+  home.onclick = () => {   // 停止重試、回首頁;身分保留,之後可從首頁返回
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    overlay.classList.add("hidden");
+    SESSION = null;
+    history.replaceState(null, "", "/");
+    show("landing");
+  };
+  overlay.classList.remove("hidden");
+  const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
+  reconnectAttempt += 1;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; resumeRoom(code); }, delay);
+}
+
 async function resumeRoom(code) {
   const saved = loadSession(code);
   if (!saved) { show("landing"); return; }
@@ -663,7 +740,12 @@ async function resumeRoom(code) {
       show("layout");
       openWS();
     }
+    reconnectAttempt = 0;
+    document.getElementById("reconnect-overlay").classList.add("hidden");
   } catch (err) {
+    if (!roomGone(err)) { showReconnect(code); return; }
+    reconnectAttempt = 0;
+    document.getElementById("reconnect-overlay").classList.add("hidden");
     localStorage.removeItem(`gash-room-${code}`);
     toast(t("ui.error.room_gone"));
     history.replaceState(null, "", "/");
@@ -693,8 +775,10 @@ async function refreshResumeRooms() {
       const body = await api(`/api/rooms/${code}/state`, { headers: { "X-Player-Token": token } });
       if (body.state && body.state.phase === "game_over") return null;
       return { code, saved, body };
-    } catch (_) {
-      try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
+    } catch (err) {
+      if (roomGone(err)) {   // 網路或代理錯誤時保留記錄,這次不列出
+        try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
+      }
       return null;
     }
   }));
@@ -734,6 +818,7 @@ function goHome() {
 function leaveRoom() {
   DETAIL = null;
   DETAIL_HOVER = null;
+  try { sessionStorage.removeItem(TAB_SESSION_KEY); } catch (_) { /* 忽略 */ }
   closeCheat();
   closeInfo();
   wsWanted = false;
@@ -1604,6 +1689,10 @@ function renderTopbar() {
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  const forfeitBtn = document.getElementById("forfeit");   // 棄權:對局中的玩家(自由調查時間除外)
+  forfeitBtn.textContent = t("ui.forfeit");
+  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && SESSION.mode !== "local"
+    && (myViewer() === 0 || myViewer() === 1)));
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
   document.getElementById("feedback-toggle").textContent = t("ui.feedback.toggle");
   const current = LANGS.find((l) => l.code === LANG);
@@ -2471,6 +2560,22 @@ function renderActionBar() {
   outer.classList.remove("mine");
   if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
   if (!S || S.phase === "game_over") return;
+  const me = myViewer();
+  if ((me === 0 || me === 1) && R && R.unresponsive && R.unresponsive[1 - me]) {   // 對手沒有回應:結束或繼續等
+    const box = document.createElement("div");
+    box.className = "absence-prompt";
+    const title = document.createElement("span");
+    title.textContent = t("ui.absence.title");
+    const end = document.createElement("button");
+    end.className = "primary";
+    end.textContent = t("ui.absence.end");
+    end.onclick = () => roomAction("absence", { action: "end" });
+    const wait = document.createElement("button");
+    wait.textContent = t("ui.absence.wait");
+    wait.onclick = () => roomAction("absence", { action: "wait" });
+    box.append(title, end, wait);
+    bar.appendChild(box);
+  }
   if (iControl(S.turn_player) && S.players[S.turn_player].end_flip_loses) {   // 最後一對頁:回合結束就落敗
     const warn = document.createElement("span");
     warn.className = "end-flip-warning";
@@ -2991,6 +3096,32 @@ function releaseBlock(r) {
   return sec;
 }
 
+// "v1.3.1" → [1, 3, 1];看不懂時 null
+function parseVersion(v) {
+  const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(v || "");
+  return m ? m.slice(1).map(Number) : null;
+}
+
+function versionCompare(a, b) {
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
+}
+
+// 跳出的版本:最新一版所屬的版本線(主.次版號相同)中還沒確認過的,由舊到新(功能版在上、維修版依序在下);
+// 已確認的版本看不懂時整條版本線都顯示
+function popupReleases(seen) {
+  const latest = RELEASES[0];
+  const lv = parseVersion(latest.version);
+  if (!lv) return [latest];
+  const sv = parseVersion(seen);
+  const line = RELEASES.filter((r) => {
+    const v = parseVersion(r.version);
+    return v && v[0] === lv[0] && v[1] === lv[1] && (!sv || versionCompare(v, sv) > 0);
+  });
+  line.sort((a, b) => versionCompare(parseVersion(a.version), parseVersion(b.version)));
+  return line.length ? line : [latest];
+}
+
 function maybeShowRelease() {
   if (!RELEASES || releasePopped) return;
   const latest = RELEASES[0];
@@ -3004,7 +3135,7 @@ function maybeShowRelease() {
   } catch (_) { /* 無法存取:視為未確認 */ }
   if (seen === latest.version) return;
   releasePopped = true;
-  showInfo("release-latest", t("ui.release.latest", { version: latest.version }), [releaseBlock(latest)]);
+  showInfo("release-latest", t("ui.release.latest", { version: latest.version }), popupReleases(seen).map(releaseBlock));
   const confirm = document.getElementById("info-close");
   confirm.textContent = t("ui.release.confirm");
   confirm.onclick = () => {
@@ -4955,6 +5086,10 @@ function renderLanding() {
     };
   }
   document.getElementById("leave-room").onclick = leaveRoom;
+  document.getElementById("forfeit").onclick = () => showDialog(t("ui.forfeit.confirm"), [
+    { label: t("ui.forfeit"), onpick: () => roomAction("forfeit") },
+    { label: t("ui.cancel"), onpick: () => {} },
+  ]);
   const title = document.getElementById("title");
   title.onclick = goHome;
   title.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); goHome(); } };

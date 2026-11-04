@@ -1436,3 +1436,19 @@ body.sending #card-menu button { pointer-events: none; opacity: .6; }
 @media (max-width: 700px) {
   #detail-panel { display: none; }
 }
+
+/* 接回對局失敗:保留身分並重試,可回首頁 */
+#reconnect-overlay { position: fixed; inset: 0; background: rgba(8, 10, 18, .72); z-index: 58;
+  display: flex; align-items: center; justify-content: center; }
+#reconnect-overlay.hidden { display: none; }
+#reconnect-dialog { background: #202a42; border: 1px solid #4a5a80; border-radius: 10px; padding: 18px 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: min(360px, 92vw); }
+#reconnect-text { font-size: 15px; color: var(--ink); text-align: center; }
+#reconnect-home { padding: 7px 18px; border-radius: 6px; cursor: pointer; min-height: 36px;
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
+
+/* 對手沒有回應:行動欄最上方的提示與選擇 */
+.absence-prompt { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;
+  font-weight: bold; color: #fff; background: rgba(176, 120, 40, .85); border: 1px solid var(--gold-soft);
+  border-radius: 6px; padding: 5px 10px; }
+#forfeit { padding: 4px 12px; border: 1px solid #7a3a3a; background: #3a1f24; color: var(--ink); border-radius: 6px; cursor: pointer; }

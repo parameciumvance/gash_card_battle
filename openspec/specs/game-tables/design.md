@@ -41,3 +41,7 @@
 **依據:** 2026-10-28 explore 中專案負責人選定(牌桌形式、5 桌、第一個入座者設定計時、結束後再戰 / 離開、保留房號約戰);斷線寬限與一律計時為該次 explore 中提議並採納。
 
 **確認狀態:** `Project Decision`
+
+## 雙方都沒有回應時空出牌桌(forfeit-and-absence)
+
+- `online-room` 的 `_close_room` 刪除房間時直接 `table.clear()`;即使沒有清,`TableStore.room_of` 也會在房間不在時把牌桌清空。棄權與「結束」造成的對局結束照一般結束處理,進入結束後選擇。

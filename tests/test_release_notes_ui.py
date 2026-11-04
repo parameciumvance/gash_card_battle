@@ -28,8 +28,9 @@ RELEASES = {
 }
 
 
-def open_page(browser, server, *, locale="zh-TW", seen="v0.9.2", path="/"):  # noqa: F811
-    """seen:已確認的版本(預設為較舊的 v0.9.2);None 表示從沒確認過任何一版的新訪客。"""
+def open_page(browser, server, *, locale="zh-TW", seen="v0.9.2", path="/", releases=None):  # noqa: F811
+    """seen:已確認的版本(預設為較舊的 v0.9.2);None 表示從沒確認過任何一版的新訪客。
+    releases:換成別組測試資料(各語言共用)。"""
     context = browser.new_context(viewport={"width": 1280, "height": 900}, locale=locale)
     context.add_init_script("localStorage.setItem('gash-spotlight', 'off')")
     # 第一次載入時設定(或清除)已確認的版本,蓋過共用 fixture 的預設;重新整理不再覆蓋
@@ -37,7 +38,7 @@ def open_page(browser, server, *, locale="zh-TW", seen="v0.9.2", path="/"):  # n
     context.add_init_script(f"if (!sessionStorage.getItem('seeded')) {{ {value}; sessionStorage.setItem('seeded', '1'); }}")
     lang = "ja" if locale == "ja" else "zh-TW"
     context.route("**/static/i18n/releases.*.json", lambda route: route.fulfill(
-        status=200, content_type="application/json", body=json.dumps(RELEASES[lang], ensure_ascii=False)))
+        status=200, content_type="application/json", body=json.dumps(releases or RELEASES[lang], ensure_ascii=False)))
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -180,5 +181,43 @@ def test_release_images(browser, server):  # noqa: F811
     page.wait_for_function("!document.querySelectorAll('#info-body .release-images figure')[1].querySelector('img')")
     assert page.locator("#info-body .release-images figure").nth(1).locator("figcaption").is_visible()   # 缺圖只留名稱
     assert page.locator("#info-body .release").first.locator(".release-images + ul").count() == 1        # 圖在條目之前
+    context.close()
+    assert not errors
+
+
+PATCHED = {"releases": [
+    {"version": "v0.10.2", "date": "2026-10-12", "items": [{"kind": "fix", "text": "修正二"}]},
+    {"version": "v0.10.1", "date": "2026-10-10", "items": [{"kind": "fix", "text": "修正一"}]},
+    {"version": "v0.10.0", "date": "2026-10-08", "title": "功能版", "items": [{"kind": "new", "text": "新功能"}]},
+    {"version": "v0.9.3", "date": "2026-10-06", "items": [{"kind": "change", "text": "舊的調整"}]},
+]}
+
+
+def popup_versions(page):
+    page.wait_for_selector(POPUP)
+    return page.locator("#info-body .release h4 > span:first-child").all_text_contents()
+
+
+@pytest.mark.parametrize("seen,expected", [
+    ("v0.9.3", ["v0.10.0 功能版", "v0.10.1", "v0.10.2"]),     # 功能版沒讀過:功能版在上,維修版依序在下
+    ("v0.10.0", ["v0.10.1", "v0.10.2"]),                       # 功能版讀過:只有沒讀過的維修版
+    ("v0.10.1", ["v0.10.2"]),
+    ("garbage", ["v0.10.0 功能版", "v0.10.1", "v0.10.2"]),     # 記錄看不懂:同一條版本線都顯示
+])
+def test_patch_releases_follow_feature_release(browser, server, seen, expected):  # noqa: F811
+    context, page, errors = open_page(browser, server, seen=seen, releases=PATCHED)
+    assert popup_versions(page) == expected
+    assert "v0.10.2" in page.locator("#info-title").text_content()
+    page.locator("#info-close").click()
+    assert page.evaluate("localStorage.getItem('gash-release-seen')") == "v0.10.2"
+    context.close()
+    assert not errors
+
+
+def test_latest_patch_seen_does_not_pop(browser, server):  # noqa: F811
+    context, page, errors = open_page(browser, server, seen="v0.10.2", releases=PATCHED)
+    page.wait_for_selector("#landing:not(.hidden)")
+    page.wait_for_timeout(300)
+    assert page.locator(POPUP).count() == 0
     context.close()
     assert not errors

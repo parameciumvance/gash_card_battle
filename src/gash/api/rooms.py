@@ -58,6 +58,13 @@ class Room:
     npc: NpcSeat | None = None                    # NPC 房的 NPC 座位
     table: int | None = None                      # 牌桌的房間:桌號(不能用房號加入,見 tables.py)
     season: int = 3                               # 賽季:雙方魔書都依此驗證(card-data「賽季定義」)
+    # 對手沒有回應(online-room「對手沒有回應」):各座位連續被逾時代打的次數、對方選「繼續等」時的基準,
+    # 沒有連線的開始時刻與「繼續等」的時刻;unresponsive 為推導結果(公開)
+    timeout_streak: list = field(default_factory=lambda: [0, 0])
+    streak_base: list = field(default_factory=lambda: [0, 0])
+    absent_since: dict = field(default_factory=dict)
+    wait_from: dict = field(default_factory=dict)
+    unresponsive: list = field(default_factory=lambda: [False, False])
 
     def viewer_of(self, token: str):
         """token → viewer(0/1/"spectator");本機模式玩家 token 仍對映到各自 index。"""

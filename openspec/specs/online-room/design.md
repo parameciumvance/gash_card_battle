@@ -136,3 +136,8 @@ _drive_npc(room):
 
 牌桌(`game-tables`)底下的每一局是一間普通的線上房,只多 `Room.table`(桌號):加入端點看到它就回 409 `room.table_only`,牌桌的房間只能經牌桌入座。再戰或換人時牌桌建立新房間,經舊房間的 WebSocket 送 `table_moved`(見 `game-tables/design.md`);房間本身的計時、逾時代打、重連、觀戰都沿用。
 
+## 棄權與對手沒有回應(forfeit-and-absence)
+
+- 棄權與沒有回應不是遊戲規則的勝負,由房間層判定,引擎只提供 `end_game(game, winner, reason)`(原因 `forfeit` / `absent`)。端點 `/forfeit`、`/absence` 走與指令相同的房間鎖、推送與回應格式。
+- 判定(`check_absence`,每秒的計時迴圈;只處理兩位真人的 online 房,含牌桌):房間記 `timeout_streak`(逾時代打 +1、自己送指令歸零)、`streak_base`(對方選繼續等時的次數)、`absent_since`、`wait_from`。計時房連續逾時 2 次(1 次可能只是長考),不計時房輪到時斷線 60 秒。結果公開為 `room.unresponsive`,改變時推送。
+- 雙方都沒有回應(計時房雙方連續逾時 ≥2,不看繼續等的基準;不計時房雙方斷線 60 秒):`_close_room` 刪除房間、清空牌桌、以 4404 關閉連線。原本逾時只代打、不判負,雙方都離開的對局會被一直代打,牌桌一直被佔(使用者要求)。

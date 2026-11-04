@@ -135,7 +135,7 @@
   - 不由 commit 訊息產生:commit 寫給開發者看,更新內容寫給玩家看;GitHub Release 只能放一種語言,不適合當來源。
 - **載入**:`loadLanguage()` 與規則頁一起載入目前語言,失敗改用繁中,都失敗時 `RELEASES` 為 null(入口隱藏、不跳出)。
 - **跳出**:掛在 `show("landing")`。`gash-release-seen` 不等於最新一版就以資訊面板(`showInfo`,kind `release-latest`)顯示最新一版,關閉鈕改為「確認」,按了才寫入;點遮罩關閉不寫入。`releasePopped` 讓同一次載入只跳一次(在首頁與設定頁之間來回時不重複)。
-  - 只比較是否等於最新一版,不解析版本號大小:是舊版或格式不明都一律跳出。
+  - 是否跳出只比較是否等於最新一版;跳出哪些版本由 `popupReleases` 解析版本號決定:最新一版所屬版本線(主.次版號相同)中比已確認版本新的,由舊到新(功能版在上、維修版在下),已確認版本看不懂時整條版本線都列,不跨版本線(release-1.3.1,使用者要求維修版接在沒讀過的功能版之下)。
   - 記錄不存在(新訪客)時不跳出,直接寫入最新一版(endgame-clarity)。原本新玩家也會看到最新一版當作功能介紹,但新手回饋指出第一次進站先讀很長的更新紀錄沒有幫助(Confirmed,使用者採納);讀取失敗(無法儲存)時照舊視為未確認。
   - 經房號連結、觀戰、重連進入的畫面不經過 `show("landing")`,自然不跳出;`show()` 切到其他畫面時關閉開啟中的更新內容面板,對局中不會留著。
 - **圖片**(release-images):每一版可加 `images`(`src` 為前端靜態檔、`alt` 依語言),`releaseBlock` 在標題下方以格線縮圖(`minmax(92px, 1fr)`,高 90px、`object-fit: contain`)顯示,下方 `figcaption` 寫說明;`onerror` 移除圖片只留說明。四語的圖片檔由 `release_shape` 一併比對,說明可不同。v1.3.0 用卡池篩選的產品圖(`frontend/products/`)放第 3 賽季新增的產品。
@@ -318,6 +318,26 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 關閉後頂欄勝負文字旁出現 `.result-reopen`「結算」重新開啟。
   - 內容只用快照:勝利 / 落敗(玩家視角)或「{玩家} 獲勝」(本機、觀戰)、原因、回合數、雙方剩餘頁數(`book_size - pos`,下限 0)與場上魔物數、NPC 牌組。「關鍵戰鬥」不做:要挑出關鍵的一場需另訂標準,行動記錄已可點開每場魔力勝負(Confirmed,使用者同意)。
   - 按鈕:`LAST_SETUP` 記住這次載入中最後一次 `startNpcWith` / `startLocalWith` 的開局 payload(只在記憶體),模式相同且是玩家(NPC 視角 0、本機 all)時提供「再戰」/「再來一場」,以同一個 payload 開新房(NPC 隨機牌組送的是候選清單,伺服器重新抽選);沒有就只有「返回首頁」(`leaveRoom`)。牌桌改放既有的 `tableChoiceEl`,動作列不再顯示。朋友對戰的再戰需要雙方同意與新房流程,不在範圍內(Confirmed)。
+
+## 分頁的對局身分(fix-session-identity)
+
+- 身分(房號、座位、token)寫入 `sessionStorage["gash-session"]`(分頁各自一份、重新整理後仍在)與 `localStorage["gash-room-<房號>"]`(瀏覽器記得的房間);`loadSession(code)` 先用分頁身分(同一房時),否則用 `localStorage`。`leaveRoom` 清除分頁身分。
+- 原因:v1.3.0 只存 `localStorage`,同一個瀏覽器另一個分頁加入同一房會蓋掉,重新整理後身分變成對方(使用者回報)。限制:同一個瀏覽器兩方都在時,首頁返回 / 新分頁接回的是最後寫入的一方。
+- 測試:多分頁時背景分頁的 requestAnimationFrame 暫停,`wait_for_function` 用 `polling=100`。
+
+## 接回對局的連線失敗與心跳(fix-reconnect)
+
+- `roomGone(err)`:只有 `room.not_found` / `room.bad_token` 代表房間不在或身分無效。`api()` 收到非 JSON(代理錯誤頁)拋出不帶錯誤碼的錯誤;`fetch` 失敗原樣拋出,兩者都不刪身分。原本任何錯誤都刪身分回首頁:網路不穩或 Cloudflare 502 / 524 時,玩家回不了仍在進行的對局,牌桌也一直顯示他的名字(使用者回報)。
+- `resumeRoom` 非 `roomGone` 的錯誤:顯示 `#reconnect-overlay` 並依 `RECONNECT_DELAYS_MS`(2、4、8、15、30 秒,之後 30 秒)重試;「回首頁」停止重試、保留身分。`refreshResumeRooms` 同樣只在 `roomGone` 時移除記錄。
+- WebSocket 心跳:`onopen` 起每 25 秒送 `"ping"`,`onclose` 停止;伺服器接收迴圈本來就忽略內容。部署經 Cloudflare Tunnel,閒置的 WebSocket 約 100 秒會被切斷。
+- 測試可用 `window.__reconnectDelays`、`window.__wsHeartbeatMs` 縮短時間。
+
+## 棄權與對手沒有回應(forfeit-and-absence)
+
+- 頂欄「棄權」(`#forfeit`,離開房間旁):玩家視角、對局中、非自由調查時間才顯示;以決策對話框確認(可取消),經 `roomAction("forfeit")` 送出。
+- `R.unresponsive[對手]` 時行動欄最上方 `.absence-prompt`:「結束對局(判對手落敗)」「繼續等」,與輪到誰無關都顯示。
+- WebSocket 以 4404(房間已關閉)或 4401(房間不存在 / 身分無效)關閉時不重連,移除記錄、`leaveRoom`、提示;4401 原本會無限重連。
+- 勝負原因 `ui.reason.forfeit` / `ui.reason.absent` 點名敗方(`endReasonText`)。
 
 ## 規則頁
 
