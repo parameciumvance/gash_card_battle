@@ -278,7 +278,9 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   border: 2px solid #6b5b3e; cursor: pointer; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 2px;
   transition: transform .15s, box-shadow .15s;
+  -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;   /* 長按看詳情,不出瀏覽器的選單或選取 */
 }
+.card img { -webkit-touch-callout: none; -webkit-user-drag: none; }
 .card:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 14px rgba(0,0,0,.5), 0 0 10px rgba(255,209,102,.35);

@@ -1,6 +1,13 @@
 {
   "releases": [
   {
+    "version": "v1.3.3",
+    "date": "2026-11-04",
+    "items": [
+      {"kind": "change", "text": "On phones, press and hold a card to see its details directly; on computers, right-click it"}
+    ]
+  },
+  {
     "version": "v1.3.2",
     "date": "2026-11-04",
     "items": [

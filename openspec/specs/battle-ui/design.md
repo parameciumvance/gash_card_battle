@@ -297,6 +297,12 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - 內容:不帶 ctx 的 `cardEl`(點了直接放大檢視)、`zoomDetails(num, ctx)` 與疊放清單(`stackListEl`,與放大檢視共用,點了的看法由呼叫端決定)。`render()` 結束時重繪;`zoomActions(ctx)` 回 `gone` 時把 ctx 清為 null,只留卡面。`leaveRoom` 清空。
 - 卡旁行動選單的停用原因保留(explore 決定:原因就在按鈕旁最直接,面板也有明細)。
 
+## 長按看詳情(card-long-press)
+
+- 使用者回饋:有行動的卡點一下先出選單,手機(沒有詳情面板)看詳情要點兩下。比較其他卡牌遊戲(Hearthstone、Legends of Runeterra、MTG Arena、Master Duel 普遍「點一下操作、長按看詳情」)後採長按,點一下與選單的「詳情」不變(Confirmed)。
+- `bindLongPress(el, num, ctx)`(`cardEl` 中,構築器的卡除外):非滑鼠的 `pointerdown` 起算 450ms,`pointermove` 超過 10px、`pointerup` / `pointercancel` / `pointerleave` 取消;觸發時關閉選單、`setDetail` 並 `zoom`。放開後的 click 以捕獲階段 `stopImmediatePropagation` 吞掉(另設的 `onclick` 也不觸發),標記在下一次 `pointerdown` 重設。
+- `contextmenu` 一律 `preventDefault`;來自滑鼠時直接放大(右鍵),觸控交給計時避免開兩次。`.card` 設 `user-select: none` 與 `-webkit-touch-callout: none`(iOS 專用,Chromium 測不到,需實機確認)。
+
 ## 戰術的預估合計魔力(spell-power-preview)
 
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`;段落後註明「不含宣告時與戰鬥中的效果」。新手回饋希望宣告前就能估算合計魔力。

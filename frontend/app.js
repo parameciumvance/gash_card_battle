@@ -948,7 +948,39 @@ function cardEl(num, opts = {}) {
   if (opts.zoomCtx) el._ctxKey = JSON.stringify(opts.zoomCtx);   // 重繪後以此找回卡片行動選單的錨點
   el._num = num;   // 詳情面板的懸停以此取得卡號(卡背沒有)
   el.onclick = () => { setDetail(num, opts.zoomCtx); openCardMenu(el, num, opts.zoomCtx); };
+  if (!opts.detail) bindLongPress(el, num, opts.zoomCtx);
   return el;
+}
+
+// 長按(觸控)或右鍵(滑鼠)直接開放大檢視,略過行動選單;移動超過門檻視為捲動而取消,
+// 長按後放開的 click 被吞掉(另外設定的 onclick 也不觸發),不出瀏覽器的長按選單
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_MOVE = 10;
+function bindLongPress(el, num, ctx) {
+  let timer = null, start = null, pointer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  const open = () => { closeCardMenu(); setDetail(num, ctx); zoom(num, ctx); };
+  el.addEventListener("pointerdown", (ev) => {
+    pointer = ev.pointerType;
+    el._longPressed = false;
+    cancel();
+    if (ev.pointerType === "mouse") return;
+    start = [ev.clientX, ev.clientY];
+    timer = setTimeout(() => { timer = null; el._longPressed = true; open(); }, LONG_PRESS_MS);
+  });
+  el.addEventListener("pointermove", (ev) => {
+    if (timer && Math.hypot(ev.clientX - start[0], ev.clientY - start[1]) > LONG_PRESS_MOVE) cancel();
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave"]) el.addEventListener(type, cancel);
+  el.addEventListener("click", (ev) => {
+    if (!el._longPressed) return;
+    el._longPressed = false;
+    ev.stopImmediatePropagation();
+  }, true);
+  el.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    if ((ev.pointerType || pointer) === "mouse") open();
+  });
 }
 
 // ---------------------------------------------------------------- 卡片行動選單
