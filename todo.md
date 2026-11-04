@@ -1,9 +1,10 @@
+- released level 3/16
 - history
 - 教學
 - 遊戲內回報(意見回報方案 B):對局中直接送出,自動附上快照與事件記錄,由 VPS 轉成 GitHub issue 或 Discord;防濫用(限流、Turnstile)
 - NPC 決策移出事件迴圈:`_drive_npc` 在主事件迴圈上同步執行 `decide` 的模擬,NPC 思考時所有房間的指令與推送都會卡住,同時有多場 NPC 對戰時延遲會先出現在這裡。改用 process pool(`run_in_executor`)執行;比負載平衡便宜,單一行程就能撐更多。房間狀態在單一行程記憶體(見 Dockerfile),不能直接開多 worker / replica;單機真的不夠時再考慮依房號分片
 - 累積人次(需要持久儲存;首頁對戰中人數已完成)
-- 關卡挑戰
+- 關卡挑戰/衛冕戰
 - 測試留下的房間要能關閉/放棄
 - 芭莉盾翻頁時機 S-104檢視時機 古蘭庫時機
 - AI NPC
