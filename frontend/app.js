@@ -272,6 +272,18 @@ function renderSendingNote() {
   }
 }
 
+// 房間層級的操作(棄權、對手沒有回應時的選擇):與指令相同的回應格式
+async function roomAction(path, body = {}) {
+  try {
+    applyPayload(await api(`/api/rooms/${SESSION.code}/${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": SESSION.tokens.me },
+      body: JSON.stringify(body),
+    }));
+  } catch (err) {
+    toast(t("ui.error", { msg: err.message }));
+  }
+}
+
 async function send(command) {
   if (SENDING) return;   // 送出中不再送(鍵盤等 CSS 擋不到的途徑)
   setSending(true);
@@ -409,9 +421,17 @@ function openWS() {
       moveToTableRoom(body);    // 牌桌再戰 / 換人:改連同一桌的新房間
     }
   };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     clearInterval(heartbeat);
     setConn(false);
+    if (ev.code === 4404 || ev.code === 4401) {   // 房間已關閉 / 不存在:不再重連,回首頁並移除記錄
+      if (socket !== ws || !SESSION) return;
+      const code = SESSION.code;
+      try { localStorage.removeItem(`gash-room-${code}`); } catch (_) { /* 忽略 */ }
+      toast(t(ev.code === 4404 ? "ui.error.room_closed" : "ui.error.room_gone"));
+      leaveRoom();
+      return;
+    }
     if (wsWanted) setTimeout(openWS, 1500);
   };
   ws.onerror = () => ws.close();
@@ -1506,6 +1526,10 @@ function renderTopbar() {
   const leave = document.getElementById("leave-room");
   leave.textContent = t("ui.leave");
   leave.classList.toggle("hidden", !SESSION);
+  const forfeitBtn = document.getElementById("forfeit");   // 棄權:對局中的玩家(自由調查時間除外)
+  forfeitBtn.textContent = t("ui.forfeit");
+  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && SESSION.mode !== "local"
+    && (myViewer() === 0 || myViewer() === 1)));
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
   document.getElementById("feedback-toggle").textContent = t("ui.feedback.toggle");
   const current = LANGS.find((l) => l.code === LANG);
@@ -2373,6 +2397,22 @@ function renderActionBar() {
   outer.classList.remove("mine");
   if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
   if (!S || S.phase === "game_over") return;
+  const me = myViewer();
+  if ((me === 0 || me === 1) && R && R.unresponsive && R.unresponsive[1 - me]) {   // 對手沒有回應:結束或繼續等
+    const box = document.createElement("div");
+    box.className = "absence-prompt";
+    const title = document.createElement("span");
+    title.textContent = t("ui.absence.title");
+    const end = document.createElement("button");
+    end.className = "primary";
+    end.textContent = t("ui.absence.end");
+    end.onclick = () => roomAction("absence", { action: "end" });
+    const wait = document.createElement("button");
+    wait.textContent = t("ui.absence.wait");
+    wait.onclick = () => roomAction("absence", { action: "wait" });
+    box.append(title, end, wait);
+    bar.appendChild(box);
+  }
   if (iControl(S.turn_player) && S.players[S.turn_player].end_flip_loses) {   // 最後一對頁:回合結束就落敗
     const warn = document.createElement("span");
     warn.className = "end-flip-warning";
@@ -4830,6 +4870,10 @@ function renderLanding() {
     };
   }
   document.getElementById("leave-room").onclick = leaveRoom;
+  document.getElementById("forfeit").onclick = () => showDialog(t("ui.forfeit.confirm"), [
+    { label: t("ui.forfeit"), onpick: () => roomAction("forfeit") },
+    { label: t("ui.cancel"), onpick: () => {} },
+  ]);
   const title = document.getElementById("title");
   title.onclick = goHome;
   title.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); goHome(); } };

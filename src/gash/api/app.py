@@ -23,7 +23,7 @@ from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
 from ..engine.seasons import deck_season, default_season, selectable_seasons
-from ..engine.engine import IllegalCommand, new_game, submit
+from ..engine.engine import IllegalCommand, end_game, new_game, submit
 from ..engine.state import BOOK_SIZE, GAME_OVER
 from ..npc import LEVELS as NPC_LEVELS
 from ..npc import decide, submit_ranked
@@ -166,6 +166,7 @@ def _room_meta(room: Room, viewer) -> dict:
         "npc": _npc_meta(room),
         "table": _table_meta(room),
         "season": room.season,
+        "unresponsive": list(room.unresponsive),   # 公開:哪一方目前被判定沒有回應
     }
 
 
@@ -526,6 +527,7 @@ async def post_command(code: str, body: CommandBody,
             raise HTTPException(400, detail={"code": exc.code, "message": str(exc)})
         room.touch()
         room.reset_deadline()
+        _note_action(room, viewer)
     await _broadcast(room, events, actor=viewer)
     _kick_npc(room)
     ev = _effective_viewer(room, viewer)
@@ -831,6 +833,121 @@ async def check_tables(now: float | None = None, notify: bool = True) -> None:
                 await _settle_table(table, room, now, notify=notify)
 
 
+# ---------------------------------------------------------------- 棄權與對手沒有回應(online-room)
+
+ABSENT_SECONDS = 60          # 不計時房:輪到的一方斷線這麼久視為沒有回應;雙方都斷線這麼久關閉房間
+UNRESPONSIVE_TIMEOUTS = 2    # 計時房:連續被逾時代打這麼多次視為沒有回應
+
+
+class AbsenceBody(BaseModel):
+    action: str
+
+
+def _note_action(room: Room, player) -> None:
+    """玩家自己送出指令:他不再算沒有回應(連續逾時、繼續等的基準都歸零)。"""
+    if player in (0, 1):
+        room.timeout_streak[player] = 0
+        room.streak_base[player] = 0
+        room.wait_from.pop(player, None)
+        room.unresponsive[player] = False
+
+
+def _player_room(code: str, token: str | None) -> tuple[Room, int]:
+    room, viewer = _resolve(code, token)
+    if viewer == "spectator":
+        raise HTTPException(403, detail={"code": "room.spectator", "message": "觀戰者不能操作"})
+    if room.game is None:
+        raise HTTPException(409, detail={"code": "room.waiting", "message": "等待對手加入"})
+    if room.game.state.phase == GAME_OVER:
+        raise HTTPException(409, detail={"code": "room.game_over", "message": "對局已結束"})
+    return room, viewer
+
+
+@app.post("/api/rooms/{code}/forfeit")
+async def forfeit(code: str, x_player_token: str | None = Header(default=None)):
+    """棄權:對手獲勝。本機房(一人操作雙方)不提供。"""
+    room, viewer = _player_room(code, x_player_token)
+    if room.mode == "local":
+        raise HTTPException(409, detail={"code": "room.local_forfeit", "message": "自由調查時間不能棄權"})
+    async with _lock(room.code):
+        events = end_game(room.game, 1 - viewer, "forfeit")
+        room.touch()
+        room.reset_deadline()
+    await _broadcast(room, events, actor=viewer)
+    return {"actor": viewer, "events": filter_events(events, viewer), **_state_payload(room, viewer)}
+
+
+@app.post("/api/rooms/{code}/absence")
+async def absence(code: str, body: AbsenceBody, x_player_token: str | None = Header(default=None)):
+    """對手沒有回應時:end = 結束對局(對手判負,原因 absent);wait = 繼續等(之後再次符合條件才再問)。"""
+    room, viewer = _player_room(code, x_player_token)
+    opp = 1 - viewer
+    if body.action not in ("end", "wait"):
+        raise HTTPException(422, detail={"code": "room.bad_absence", "message": "action 須為 end 或 wait"})
+    if not room.unresponsive[opp]:
+        raise HTTPException(409, detail={"code": "room.opponent_responsive", "message": "對手沒有被判定為沒有回應"})
+    async with _lock(room.code):
+        if body.action == "end":
+            events = end_game(room.game, viewer, "absent")
+            room.reset_deadline()
+        else:
+            events = []
+            room.streak_base[opp] = room.timeout_streak[opp]
+            room.wait_from[opp] = time.time()
+            room.unresponsive[opp] = False
+        room.touch()
+    await _broadcast(room, events, actor=viewer)
+    return {"actor": viewer, "events": filter_events(events, viewer), **_state_payload(room, viewer)}
+
+
+def _absent_for(room: Room, seat: int, now: float) -> float:
+    """seat 沒有連線的秒數(選了繼續等之後從那時重新算);有連線時為 0。"""
+    if seat not in room.absent_since:
+        return 0.0
+    return now - max(room.absent_since[seat], room.wait_from.get(seat, 0.0))
+
+
+async def check_absence(now: float | None = None) -> None:
+    """計時迴圈呼叫(兩位真人玩家的線上房、對局中):更新沒有連線的時刻與沒有回應的判定;
+    雙方都沒有回應時關閉房間(牌桌隨之空出)。"""
+    now = now if now is not None else time.time()
+    for room in list(store.rooms.values()):
+        if room.mode != "online" or room.game is None or room.game.state.phase == GAME_OVER:
+            continue
+        seats = {viewer for _ws, viewer in room.sockets if viewer in (0, 1)}
+        for seat in (0, 1):
+            if seat in seats:
+                room.absent_since.pop(seat, None)
+            else:
+                room.absent_since.setdefault(seat, now)
+        if room.timer_seconds:
+            both = all(room.timeout_streak[s] >= UNRESPONSIVE_TIMEOUTS for s in (0, 1))
+            flags = [room.timeout_streak[s] - room.streak_base[s] >= UNRESPONSIVE_TIMEOUTS for s in (0, 1)]
+        else:
+            awaited = awaited_player(room.game)
+            both = all(s in room.absent_since and now - room.absent_since[s] >= ABSENT_SECONDS for s in (0, 1))
+            flags = [s == awaited and _absent_for(room, s, now) >= ABSENT_SECONDS for s in (0, 1)]
+        if both:
+            await _close_room(room)
+            continue
+        if flags != room.unresponsive:
+            room.unresponsive = flags
+            await _broadcast(room, [])
+
+
+async def _close_room(room: Room) -> None:
+    """關閉房間:刪除房間(牌桌的房間不在時牌桌隨之空出),並以 4404 關閉仍連著的 WebSocket。"""
+    store.rooms.pop(room.code, None)
+    table = TABLES.table_of_room(room.code)
+    if table is not None:
+        table.clear()
+    for ws, _viewer in list(room.sockets):
+        try:
+            await ws.close(code=4404)
+        except Exception:
+            pass
+
+
 # ---------------------------------------------------------------- 逾時代打
 
 async def _fire_due_timeouts(now: float | None = None) -> None:
@@ -854,6 +971,8 @@ async def _fire_due_timeouts(now: float | None = None) -> None:
                 continue
             for ev in events:
                 ev["timeout"] = True  # 事件標記逾時(回放一致)
+            if player in (0, 1):
+                room.timeout_streak[player] += 1
             room.touch()
             room.reset_deadline()
         await _broadcast(room, events, actor=player)
@@ -872,6 +991,10 @@ async def _timeout_loop() -> None:
             await check_tables()
         except Exception:
             _log.exception("牌桌檢查失敗")
+        try:
+            await check_absence()
+        except Exception:
+            _log.exception("沒有回應的檢查失敗")
 
 
 # ---------------------------------------------------------------- NPC 驅動

@@ -317,6 +317,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - WebSocket 心跳:`onopen` 起每 25 秒送 `"ping"`,`onclose` 停止;伺服器接收迴圈本來就忽略內容。部署經 Cloudflare Tunnel,閒置的 WebSocket 約 100 秒會被切斷。
 - 測試可用 `window.__reconnectDelays`、`window.__wsHeartbeatMs` 縮短時間。
 
+## 棄權與對手沒有回應(forfeit-and-absence)
+
+- 頂欄「棄權」(`#forfeit`,離開房間旁):玩家視角、對局中、非自由調查時間才顯示;以決策對話框確認(可取消),經 `roomAction("forfeit")` 送出。
+- `R.unresponsive[對手]` 時行動欄最上方 `.absence-prompt`:「結束對局(判對手落敗)」「繼續等」,與輪到誰無關都顯示。
+- WebSocket 以 4404(房間已關閉)或 4401(房間不存在 / 身分無效)關閉時不重連,移除記錄、`leaveRoom`、提示;4401 原本會無限重連。
+- 勝負原因 `ui.reason.forfeit` / `ui.reason.absent` 點名敗方(`endReasonText`)。
+
 ## 規則頁
 
 - **內容**:`frontend/i18n/rules.<lang>.json`,依語言分檔,結構為 `sections[{id, title, blocks}]`。block 有五種:段落 `p`、條列 `list`、範例卡 `figure`、圖示對照 `icons`、賽季表 `seasons`。渲染一律用 DOM,不拼 HTML。
