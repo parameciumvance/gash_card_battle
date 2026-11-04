@@ -200,11 +200,22 @@ function tokenFor(command) {
   return SESSION.tokens.me;
 }
 
+// 對局身分:這個分頁的身分存在 sessionStorage(每個分頁各自一份,重新整理後仍在),重新整理時優先使用;
+// localStorage 的 gash-room-<房號> 是瀏覽器記得的房間(首頁「返回進行中的對局」、新分頁開房間連結),
+// 同一個瀏覽器的另一個分頁加入同一房時會被蓋掉,所以不能當作這個分頁的身分
+const TAB_SESSION_KEY = "gash-session";
+
 function saveSession() {
-  localStorage.setItem(`gash-room-${SESSION.code}`, JSON.stringify(SESSION));
+  const raw = JSON.stringify(SESSION);
+  try { sessionStorage.setItem(TAB_SESSION_KEY, raw); } catch (_) { /* 無法儲存:退回瀏覽器記得的身分 */ }
+  localStorage.setItem(`gash-room-${SESSION.code}`, raw);
 }
 
 function loadSession(code) {
+  try {
+    const tab = JSON.parse(sessionStorage.getItem(TAB_SESSION_KEY) || "null");
+    if (tab && tab.code === code.toUpperCase()) return tab;
+  } catch (_) { /* 讀不到:用瀏覽器記得的 */ }
   const raw = localStorage.getItem(`gash-room-${code}`);
   return raw ? JSON.parse(raw) : null;
 }
@@ -732,6 +743,7 @@ function goHome() {
 }
 
 function leaveRoom() {
+  try { sessionStorage.removeItem(TAB_SESSION_KEY); } catch (_) { /* 忽略 */ }
   closeCheat();
   closeInfo();
   wsWanted = false;

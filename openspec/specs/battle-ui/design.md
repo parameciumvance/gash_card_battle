@@ -304,6 +304,12 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
   - 內容只用快照:勝利 / 落敗(玩家視角)或「{玩家} 獲勝」(本機、觀戰)、原因、回合數、雙方剩餘頁數(`book_size - pos`,下限 0)與場上魔物數、NPC 牌組。「關鍵戰鬥」不做:要挑出關鍵的一場需另訂標準,行動記錄已可點開每場魔力勝負(Confirmed,使用者同意)。
   - 按鈕:`LAST_SETUP` 記住這次載入中最後一次 `startNpcWith` / `startLocalWith` 的開局 payload(只在記憶體),模式相同且是玩家(NPC 視角 0、本機 all)時提供「再戰」/「再來一場」,以同一個 payload 開新房(NPC 隨機牌組送的是候選清單,伺服器重新抽選);沒有就只有「返回首頁」(`leaveRoom`)。牌桌改放既有的 `tableChoiceEl`,動作列不再顯示。朋友對戰的再戰需要雙方同意與新房流程,不在範圍內(Confirmed)。
 
+## 分頁的對局身分(fix-session-identity)
+
+- 身分(房號、座位、token)寫入 `sessionStorage["gash-session"]`(分頁各自一份、重新整理後仍在)與 `localStorage["gash-room-<房號>"]`(瀏覽器記得的房間);`loadSession(code)` 先用分頁身分(同一房時),否則用 `localStorage`。`leaveRoom` 清除分頁身分。
+- 原因:v1.3.0 只存 `localStorage`,同一個瀏覽器另一個分頁加入同一房會蓋掉,重新整理後身分變成對方(使用者回報)。限制:同一個瀏覽器兩方都在時,首頁返回 / 新分頁接回的是最後寫入的一方。
+- 測試:多分頁時背景分頁的 requestAnimationFrame 暫停,`wait_for_function` 用 `polling=100`。
+
 ## 規則頁
 
 - **內容**:`frontend/i18n/rules.<lang>.json`,依語言分檔,結構為 `sections[{id, title, blocks}]`。block 有五種:段落 `p`、條列 `list`、範例卡 `figure`、圖示對照 `icons`、賽季表 `seasons`。渲染一律用 DOM,不拼 HTML。
