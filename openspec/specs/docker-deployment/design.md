@@ -55,3 +55,17 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 - **WebSocket**:`uvicorn[standard]` 每 20 秒送一次 ping,閒置中的對局連線不會被切斷;萬一被切斷,前端會自動重連。
 - **連線端 IP**:`app` 看到的來源都是 `cloudflared` 容器。目前沒有功能使用玩家 IP,所以沒有開啟 uvicorn 的 `--proxy-headers`;之後若需要(例如依 IP 限流),應改讀 Cloudflare 的 `CF-Connecting-IP`。
 - **HTTP 導向 HTTPS**:由 Cloudflare 的 Always Use HTTPS(或只針對此網域的 Redirect Rule)負責,不在 repo 的設定裡。前端依頁面協定選擇 `ws` / `wss`,分享連結取自 `location.origin`,所以應用程式不需要知道自己的公開網址。
+
+## 維運腳本(`tools/vps.py`)
+
+開發移回本機後,VPS 只跑正式站;補卡圖、發布 / 撤下公告、查看狀態改由本機的 `tools/vps.py` 經 ssh 執行(2026-11-05,`vps-ops-script`)。
+
+- **連線**:`ssh -o BatchMode=yes <GASH_VPS> "cd <GASH_VPS_DIR> && docker compose ..."`,預設 `dev@dev-vps`、`/opt/gash-card-battle`。`dev-vps` 走 Tailscale SSH,由 tailnet ACL 授權,repo 與 dev container 都不放 ssh 金鑰。BatchMode 讓 ssh 不會停下來問密碼或主機金鑰——互動提示會吃掉 stdin 上串流的資料。
+  - 這與「CI 不持有能連進 VPS 的憑證」不衝突:腳本只在維護者本機、以維護者的 tailnet 身分執行,CI 仍然碰不到 VPS。
+- **進容器操作 volume**:一律 `docker compose exec -T app`,不依賴 volume 在主機上的路徑(`/var/lib/docker/volumes/...` 需要 root)。`app` 以 root 執行、映像檔有 `tar`。
+- **串流,不留暫存檔**:卡圖由本機打成 tar 寫進 ssh 的 stdin,容器內 `tar -x`(擁有者設為 1000:1000,與 `cards/` 目錄相同);公告以 `cat > announcement.json.tmp && mv` 替換。暫存檔與目標在同一個目錄,`mv` 是原子的,伺服器每次請求即時讀檔也不會讀到一半。原本的 `scp` 到 `/tmp` 再 `docker compose cp` 要兩次連線並留下暫存檔,保留在 README 作為備案。
+- **卡圖只比對檔名**:換圖用 `--force <卡號>`。每次比對雜湊要在遠端讀 300 多個檔案,卡圖很少換,不值得。只在 VPS 上的卡不刪。
+- **公告驗證與伺服器共用**:`src/gash/announcement.py` 的 `parse_announcement` 同時給 `read_announcement`(伺服器)與腳本使用,兩邊對「會不會顯示」的判定不會分歧。`announcement_warnings` 的提醒(缺語言、佔位文字、與 `zh-TW` 相同、`until` 沒有時區)只在發布前使用,不影響伺服器。
+  - 理由:10/12 的公告 `zh-CN` 是 `"123"`、`en` / `ja` 是 `"..."`,格式合法、伺服器照樣顯示;格式錯誤或 `until` 已過時伺服器默默視為沒有公告,發布的人不會知道。
+  - 腳本因此要 import `gash`,只能在裝好專案的環境執行;與 `tools/release_notes.py`(CI 裸跑、只用標準函式庫)不同。
+- **發布後確認**:查詢公開網域的 `/api/announcement` 比對 `id`,同時確認了檔案位置、伺服器讀檔、通道與 Cloudflare。`/api/*` 不是 Cloudflare 預設快取的副檔名。

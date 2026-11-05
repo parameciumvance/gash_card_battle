@@ -273,6 +273,27 @@ scp /tmp/gash-rollback/* youruser@your-vps-ip:/opt/gash-card-battle/
 docker compose up -d --remove-orphans
 ```
 
+### 維運腳本(`tools/vps.py`)
+
+補卡圖、發布 / 撤下維護公告、查看正式站狀態,都在**本機**用 `tools/vps.py` 完成,不必登入 VPS。
+腳本經 ssh 進 VPS 部署目錄執行 `docker compose exec -T app ...`,資料從 ssh 的 stdin 串流進容器,
+VPS 上不留暫存檔,也不讀 `.env`、不重啟容器。
+
+```bash
+python tools/vps.py status                    # 線上版本、容器狀態、卡圖張數、目前公告(唯讀)
+python tools/vps.py cards                     # 只上傳 VPS 上沒有的卡圖
+python tools/vps.py cards --force M-001 S-026 # 換圖:覆蓋重傳這幾張
+python tools/vps.py announce announcement.json   # 驗證 → 列出訊息與提醒 → 詢問 → 發布 → 確認生效
+python tools/vps.py announce --clear          # 撤下
+```
+
+- ssh 目標預設 `dev@dev-vps`(Tailscale SSH,不需要金鑰),可用環境變數 `GASH_VPS` 覆蓋;
+  部署目錄 `GASH_VPS_DIR`(預設 `/opt/gash-card-battle`);確認用的公開網址 `GASH_PUBLIC_URL`
+  (預設 `https://card-battle.zatchholic.com`)。
+- ssh 以 BatchMode 執行,不會停下來問密碼或主機金鑰;第一次從新的環境連線時,先手動 `ssh dev@dev-vps` 一次接受主機金鑰。
+- 公告的驗證與伺服器共用(`src/gash/announcement.py`),要在裝好專案的環境(dev container)執行。
+- 腳本不能用時(例如 ssh 連不上),改用下面各節的手動指令。
+
 ### 卡圖
 
 `docker-compose.yml` 已經預留一個 volume(`card-assets`)掛到 `GASH_ASSETS_DIR`
@@ -288,36 +309,38 @@ docker compose up -d --remove-orphans
 
    ```bash
    python tools/download_images.py    # 產出 frontend/assets/cards/*.webp,支援續抓(需先裝 .[dev])
-   ssh youruser@your-vps-ip mkdir -p /tmp/cards
-   scp frontend/assets/cards/*.webp youruser@your-vps-ip:/tmp/cards/
    ```
 
-2. **(VPS)複製進 `app` 容器的 volume**(在 `/opt/gash-card-battle` 目錄下):
+2. **(本機)傳到正式站**:
 
    ```bash
-   docker compose cp /tmp/cards app:/app/assets/
+   python tools/vps.py cards          # 列出並上傳 VPS 上沒有的卡,完成後回報 VPS 上的總數
    ```
 
-   若 `/app/assets/cards` 已存在(例如補圖),改用
-   `docker compose cp /tmp/cards/. app:/app/assets/cards/`,否則會變成 `cards/cards`。
+   換了圖(同檔名、新內容)時,用 `--force <卡號> ...` 覆蓋重傳。只在 VPS 上有的卡不會被刪。
 
-3. **驗證**:
+**手動上傳(腳本不能用時)**:
 
-   ```bash
-   docker compose exec app sh -c 'ls /app/assets/cards/*.webp | wc -l'
-   ```
+```bash
+# 本機
+ssh dev@dev-vps mkdir -p /tmp/cards
+scp frontend/assets/cards/*.webp dev@dev-vps:/tmp/cards/
+# VPS(在 /opt/gash-card-battle 目錄下)
+docker compose cp /tmp/cards/. app:/app/assets/cards/    # volume 還沒有 cards/ 時改用 /tmp/cards app:/app/assets/
+docker compose exec app sh -c 'ls /app/assets/cards/*.webp | wc -l'
+rm -r /tmp/cards
+```
 
 卡圖是靜態檔,放進去後不需要重啟;若第一次放圖後網頁仍沒顯示,執行一次
 `docker compose restart app` 讓服務重新解析卡圖目錄。CI 換新映像檔、重建容器不會動到
 volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一起刪掉,要重放。
 
 **新增卡片後補圖**(例如加入第三彈 M-032〜M-053、P-020〜P-035、S-059〜S-106、E-028〜E-043):
-重跑 `download_images.py` 只會下載缺少的卡,再用步驟 2 的「補圖」指令把新的 `.webp` 複製進
-volume。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面顯示。
-資料夾中的圖換了新版時,先刪掉本機對應的 `.webp` 再重跑,否則續抓會跳過。
+重跑 `download_images.py` 只會下載缺少的卡,再執行 `python tools/vps.py cards` 補傳。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面顯示。
+資料夾中的圖換了新版時,先刪掉本機對應的 `.webp` 再重跑(否則續抓會跳過),再用 `cards --force <卡號>` 重傳。
 
 **開發環境的卡圖**:dev container 不掛正式站的 volume,讀 repo 的 `frontend/assets/`,
-`download_images.py` 抓到的新卡圖馬上看得到;正式站要補圖時,照上面步驟 1–2 傳上 VPS 再複製進 volume。
+`download_images.py` 抓到的新卡圖馬上看得到;正式站要補圖時執行 `python tools/vps.py cards`。
 
 卡圖回應帶 `Cache-Control: public, max-age=604800`,瀏覽器與 Cloudflare 邊緣都會快取 7 天。
 同檔名換內容(例如重新下載)後,到 Cloudflare 後台 Caching → Configuration → Purge Cache
@@ -325,7 +348,7 @@ volume。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面�
 
 **從舊的 `.jpg` 卡圖換成 WebP(一次性)**:服務只讀 `.webp`,所以順序是
 
-1. 依上面步驟 1–2 把 WebP 放進 volume(`/app/assets/cards` 已存在,用 `/tmp/cards/.` 那種寫法)。
+1. 依上面步驟 1–2 把 WebP 放進 volume。
    舊的 `.jpg` 先留著,換版前的服務照常讀它。
 2. 打新版 tag,等 watchtower 換上新映像檔,確認卡面正常。
 3. 刪掉舊檔:`docker compose exec app sh -c 'rm -f /app/assets/cards/*.jpg'`。
@@ -352,10 +375,27 @@ volume。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面�
 - `message`:各語言的文字,玩家的語言沒有時改用 `zh-TW`;簡中玩家沒有 `zh-CN` 時也顯示 `zh-TW`。
 - `until`(可省略):過了這個時間就不再顯示(要寫時區,沒寫視為 UTC)。
 
+**(本機)發布與撤下**:
+
 ```bash
+python tools/vps.py announce announcement.json   # 發布(或換成新的公告)
+python tools/vps.py announce --clear             # 撤下
+```
+
+發布前腳本先在本機驗證:伺服器會視為沒有公告的內容(格式錯誤、`until` 已過)直接擋下;
+缺少某種語言、像佔位文字(如 `...`、`123`)、與 `zh-TW` 相同、`until` 沒寫時區時提出提醒。
+接著列出各語言的訊息並詢問是否發布(`--yes` 略過),上傳後以公開的 `/api/announcement` 確認已生效。
+VPS 上的公告檔以同目錄的暫存檔 + `mv` 替換,伺服器不會讀到寫了一半的內容。
+
+**手動(腳本不能用時)**:
+
+```bash
+# 本機
+scp announcement.json dev@dev-vps:/tmp/
 # VPS(在 /opt/gash-card-battle 目錄下):先寫暫存檔再搬移,避免讀到寫了一半的內容
-docker compose cp announcement.json app:/app/assets/announcement.json.tmp
+docker compose cp /tmp/announcement.json app:/app/assets/announcement.json.tmp
 docker compose exec app mv /app/assets/announcement.json.tmp /app/assets/announcement.json
+rm /tmp/announcement.json
 # 撤下
 docker compose exec app rm /app/assets/announcement.json
 ```

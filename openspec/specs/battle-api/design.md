@@ -74,7 +74,8 @@
 ## 維護公告
 
 - 公告檔在卡圖目錄(`GASH_ASSETS_DIR`,部署時是 volume)下的 `announcement.json`,`read_announcement` 每次請求即時讀取:編輯或刪除檔案就能發布 / 撤下,不需重新部署或重啟(重啟會讓對局消失,公告正是為了事先提醒)。
-- 驗證:`id` 非空字串、`message` 為非空的「語言 → 文字」物件、`until`(可選)為 ISO 8601,沒有時區視為 UTC;過了 `until` 回傳 null。不合格一律回傳 null 並記警告,不讓請求失敗。
+- 驗證:`id` 非空字串、`message` 為非空的「語言 → 文字」物件、`until`(可選)為 ISO 8601,沒有時區視為 UTC;過了 `until` 回傳 null(不記警告)。其他不合格回傳 null 並記警告,不讓請求失敗。
+- 驗證規則在 `src/gash/announcement.py` 的 `parse_announcement`,伺服器與發布用的 `tools/vps.py` 共用,兩邊對「會不會顯示」的判定一致(見 `docker-deployment/design.md`「維運腳本」)。
 - 獨立端點 `GET /api/announcement`,不併入 `/api/meta`:前端每 2 分鐘查詢,端點保持輕量。`frontend/assets/template.announcement.json` 是發布用的範本(伺服器只讀 `announcement.json`)。
 
 ## 版本號

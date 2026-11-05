@@ -12,13 +12,14 @@ import mimetypes
 import random
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from ..announcement import AnnouncementError, parse_announcement
 from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
 from ..engine.deck import DeckError, load_deck, validate_deck
@@ -402,23 +403,13 @@ def read_announcement(now: datetime | None = None) -> dict | None:
     if not path.is_file():
         return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        ann_id, message, until = data["id"], data["message"], data.get("until")
-        if not isinstance(ann_id, str) or not ann_id:
-            raise ValueError("id")
-        if not isinstance(message, dict) or not message or not all(
-                isinstance(k, str) and isinstance(v, str) for k, v in message.items()):
-            raise ValueError("message")
-        if until is not None:
-            end = datetime.fromisoformat(until)
-            if end.tzinfo is None:
-                end = end.replace(tzinfo=timezone.utc)      # 沒有時區視為 UTC
-            if end <= (now or datetime.now(timezone.utc)):
-                return None
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return parse_announcement(path.read_text(encoding="utf-8"), now)
+    except AnnouncementError as exc:
+        if exc.reason != "expired":
+            logging.getLogger(__name__).warning("公告檔格式錯誤,視為沒有公告:%s", exc)
+    except OSError as exc:
         logging.getLogger(__name__).warning("公告檔格式錯誤,視為沒有公告:%s", exc)
-        return None
-    return {"id": ann_id, "message": message, "until": until}
+    return None
 
 
 @app.get("/api/announcement")
