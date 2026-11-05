@@ -316,19 +316,8 @@ volume,卡圖只需要放一次;但 `docker compose down -v` 會連 volume 一�
 volume。資料夾中沒有的卡會列進失敗清單,遊戲中以文字卡面顯示。
 資料夾中的圖換了新版時,先刪掉本機對應的 `.webp` 再重跑,否則續抓會跳過。
 
-**在 VPS 上用 dev container 開發**:開發版與正式站的卡圖分開放(合計只有數十 MB)。
-dev container 不掛正式站的 volume,讀 repo 的 `frontend/assets/`,`download_images.py`
-抓到的新卡圖馬上看得到;正式站要補圖時,因為在同一台 VPS,不用 scp,直接在主機上從 repo
-目錄複製進 volume(在 `/opt/gash-card-battle` 目錄下):
-
-```bash
-docker compose cp <repo 路徑>/frontend/assets/cards/. app:/app/assets/cards/
-```
-
-dev container 以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo`),讓在容器裡產生的
-檔案與主機使用者同擁有者;套件裝在 `/opt/venv`。若主機使用者的 uid 不是 1000,VS Code 會在
-啟動時把容器內 `dev` 的 uid 調成與主機相同。容器記憶體上限為 3 GB(另加 512 MB swap),
-避免開發環境把同一台主機上的正式站擠到 OOM。
+**開發環境的卡圖**:dev container 不掛正式站的 volume,讀 repo 的 `frontend/assets/`,
+`download_images.py` 抓到的新卡圖馬上看得到;正式站要補圖時,照上面步驟 1–2 傳上 VPS 再複製進 volume。
 
 卡圖回應帶 `Cache-Control: public, max-age=604800`,瀏覽器與 Cloudflare 邊緣都會快取 7 天。
 同檔名換內容(例如重新下載)後,到 Cloudflare 後台 Caching → Configuration → Purge Cache
@@ -421,63 +410,47 @@ docker compose exec app rm /app/assets/announcement.json
   每張非香草卡都要有依效果文寫的行為測試。
 - 效果的執行機制見 `openspec/specs/effect-tree/design.md`,卡片規則機制與效果文的解讀見 `openspec/specs/card-effects/design.md`。
 
-## 開發環境(VPS 上的 Dev Container)
+## 開發環境(本機的 Dev Container)
 
-用 VS Code 的 Remote-SSH 連到 VPS,再用 Dev Containers 開 `.devcontainer/` 的容器開發。
-容器設定 `shutdownAction: none`:關掉 VS Code 時容器不會停,下次開啟會接上執行中的容器。
-映像檔已裝 tmux 與 Claude Code CLI,可以在容器內的 tmux 裡執行 Claude 和開發伺服器,關掉 VS Code 後用手機繼續開發。
+在本機(Windows 的 WSL2)用 VS Code 的 Dev Containers 開 `.devcontainer/` 的容器開發。VPS 只跑正式站
+(見「VPS 部署」),不在上面開發。
 
-### 在容器內用 tmux 執行 Claude 與開發伺服器
+- 容器以 uid 1000 的一般使用者 `dev` 執行(可用免密碼 `sudo`),讓在容器裡產生的檔案與主機使用者同擁有者;
+  套件裝在 `/opt/venv`。若主機使用者的 uid 不是 1000,VS Code 會在啟動時把容器內 `dev` 的 uid 調成與主機相同。
+- 建立容器時會自動安裝 `.[dev]` 與 playwright 的 Chromium。`.devcontainer/` 有改動時,執行
+  「Dev Containers: Rebuild Container」重建;沒有重建的舊容器可能缺套件,瀏覽器測試會被全部略過。
+- `~/.claude` 與 `~/.config/gh` 放在 named volume,重建容器不會遺失 Claude 的資料與 `gh` 的登入。
+- git 的驗證由 VS Code 從主機轉送,不需另外設定。`gh`(查 CI 進度、Release)第一次使用前在容器內執行
+  `gh auth login`。
+- 容器設定 `shutdownAction: none`:關掉 VS Code 時容器不會停,下次開啟會接上執行中的容器。
 
-在 VS Code 的終端機(容器內)執行:
+開發伺服器在容器內執行,VS Code 會把埠自動轉送到主機,用主機的瀏覽器開 `http://127.0.0.1:8000/`:
+
+```bash
+uvicorn gash.api.app:app --reload
+```
+
+### 在容器內用 tmux 執行 Claude
+
+映像檔已裝 tmux 與 Claude Code CLI,可以在容器內的 tmux 裡執行 Claude,關掉 VS Code 後繼續執行
+(電腦要保持開機)。在 VS Code 的終端機(容器內)執行:
 
 ```bash
 tmux new -s dev                      # 視窗 0:Claude
 claude --continue                    # 接續上次的對話;進去後輸入 /remote-control 讓手機的 Claude App 連線
-
-# Ctrl+b c 開新視窗(視窗 1):開發伺服器,要監聽 0.0.0.0 才能從容器外連進來
-uvicorn gash.api.app:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 tmux 常用按鍵:`Ctrl+b d` 離開(程式繼續執行)、`Ctrl+b c` 開新視窗、`Ctrl+b 0` / `Ctrl+b 1` 切換視窗。
-不要在主機的 tmux 裡再開容器內的 tmux,兩層的前綴鍵都是 `Ctrl+b`,會互相干擾。
 
-### 從手機或其他電腦接回 tmux
-
-SSH 進 VPS 後(容器外):
+沒有開 VS Code 時,從主機(WSL)的終端機接回:
 
 ```bash
 docker ps --filter label=devcontainer.local_folder        # 找出 dev container 的 ID
-docker exec -it -u dev -e LANG=C.UTF-8 <容器 ID> tmux -u attach -t dev
+docker exec -it -u dev <容器 ID> tmux attach -t dev
 ```
-
-可以在 VPS 的 `~/.bashrc` 加別名,例如 `alias dev='docker exec -it -u dev -e LANG=C.UTF-8 <容器 ID> tmux -u attach -t dev'`。
-容器重建後 ID 會變,別名要跟著改。
-
-映像檔設定了 `LANG=C.UTF-8`;`-e LANG=C.UTF-8` 與 `tmux -u` 是給還沒重建的舊容器用的,少了它們中文會無法顯示與輸入。
-若 tmux server 是在沒有 UTF-8 locale 的環境下啟動的,加了 `-u` 仍可能異常,要 `tmux kill-server` 後在 UTF-8 環境下重開
-(會中斷 tmux 裡的程式)。
 
 `claude remote-control` 或 `/remote-control` 是否還在執行,可以用 `pgrep -af "claude remote-control"` 確認(沒有輸出代表已結束);
 命令列版按 `Ctrl+C` 結束。
-
-### 用手機瀏覽器試玩開發版(Tailscale)
-
-容器沒有發布埠。不要用 Docker 的 `-p` 對外發布:Docker 發布的埠會繞過 ufw(見「VPS 部署」)。
-手機和 VPS 都在同一個 tailnet 時,在 VPS 主機上用 `tailscale serve` 轉送到容器,只有 tailnet 內的裝置連得到:
-
-```bash
-# VPS 主機(容器外):查容器 IP
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <容器 ID>
-
-sudo tailscale serve --bg --http 8001 http://<容器 IP>:8001
-```
-
-手機開 `http://<VPS 的 Tailscale 機器名或 100.x IP>:8001`。
-
-- 加 `--bg` 的設定會一直保留(VPS 重開機後也在),`tailscale serve status` 查看,`sudo tailscale serve --http 8001 off` 關閉。
-- 容器重建或重開後 IP 可能改變,連不上時先查容器 IP,有變就用新 IP 重跑一次 `tailscale serve`。
-- 容器內的開發伺服器要開著,並監聽 `0.0.0.0:8001`(見上)。
 
 ## 測試
 

@@ -8,13 +8,14 @@
   // 關閉 VS Code 時不停止容器;重新開啟時接上運行中的容器
   "shutdownAction": "none",
 
+  // gh 的登入資訊(~/.config/gh)放在 volume,重建容器後不必重新 gh auth login
   "mounts": [
-    "source=gash-card-battle_claude-data,target=/home/dev/.claude,type=volume"
+    "source=gash-card-battle_claude-data,target=/home/dev/.claude,type=volume",
+    "source=gash-card-battle_gh-config,target=/home/dev/.config/gh,type=volume"
   ],
-  "runArgs": ["--memory=3g", "--memory-swap=3584m"],
 
   // 瀏覽器測試(tests/ 的 browser 標記)需要 playwright 的 Chromium;重建容器後一併安裝
-  "postCreateCommand": "sudo chown -R dev:dev /home/dev/.claude && pip install -e \".[dev]\" && python -m playwright install --with-deps chromium-headless-shell",
+  "postCreateCommand": "sudo chown -R dev:dev /home/dev/.claude /home/dev/.config/gh && pip install -e \".[dev]\" && python -m playwright install --with-deps chromium-headless-shell",
 
   "customizations": {
     "vscode": {

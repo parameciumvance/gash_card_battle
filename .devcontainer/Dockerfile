@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     build-essential \
     npm \
+    gh \
     sudo \
     tmux
 
@@ -25,8 +26,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && mkdir -p /home/$USERNAME/.claude \
-    && chown $USERNAME:$USERNAME /home/$USERNAME/.claude
+    && mkdir -p /home/$USERNAME/.claude /home/$USERNAME/.config/gh \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/.claude /home/$USERNAME/.config
 
 # 一般使用者無法寫入系統 site-packages,套件裝在使用者擁有的 venv
 RUN python -m venv /opt/venv && chown -R $USERNAME:$USERNAME /opt/venv
