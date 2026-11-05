@@ -303,6 +303,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - `bindLongPress(el, num, ctx)`(`cardEl` 中,構築器的卡除外):非滑鼠的 `pointerdown` 起算 450ms,`pointermove` 超過 10px、`pointerup` / `pointercancel` / `pointerleave` 取消;觸發時關閉選單、`setDetail` 並 `zoom`。放開後的 click 以捕獲階段 `stopImmediatePropagation` 吞掉(另設的 `onclick` 也不觸發),標記在下一次 `pointerdown` 重設。
 - `contextmenu` 一律 `preventDefault`;來自滑鼠時直接放大(右鍵),觸控交給計時避免開兩次。`.card` 設 `user-select: none` 與 `-webkit-touch-callout: none`(iOS 專用,Chromium 測不到,需實機確認)。
 
+## 放大檢視的關閉(zoom-close)
+
+- 新手回饋(v1.3.0):放大檢視沒有明顯的關閉鈕,Esc 也關不掉;原本只能點背景,畫面上沒有任何提示,手機上卡面幾乎滿版,背景也不好點。
+- `#zoom-close`(44×44)貼著卡面右上角的外側:寬螢幕在卡面右側、與上緣對齊,寬度 ≤420px 改在卡面右上角的正上方(卡面固定 300px,右側放不下)。不放在卡面裡,因為戰術卡卡圖右上角是費用。最初放在畫面右上角,使用者回饋寬螢幕離卡面太遠(Confirmed)。
+- `#zoom-frame`(`position: relative`)包住 `#zoom-card` 與 `#zoom-close`,按鈕以 frame 為基準定位。不能放進 `#zoom-card`:它有 `overflow-y: auto`,超出卡面的按鈕會被裁掉、點不到(測試以 `elementFromPoint` 檢查);`renderZoom` 也會清空它。四語的 `aria-label` / `title` 在 `renderZoom` 以 `t("ui.close")` 設定。點擊冒泡到 overlay 的 `closeZoom`。
+- Esc:document keydown 的 capture 監聽,放大檢視開著時 `closeZoom` 並 `stopImmediatePropagation`。一定要攔下:`#dialog-overlay`(棄牌區視窗)的 Esc 在 bubble 階段只檢查「放大檢視是否關閉」,capture 已經關掉放大檢視,不攔就會連視窗一起關;魔書翻閱的 Esc(回到目前頁)同理。卡片行動選單的 Esc 監聽也在 capture,兩者不會同時開著。
+
 ## 戰術的預估合計魔力(spell-power-preview)
 
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`;段落後註明「不含宣告時與戰鬥中的效果」。新手回饋希望宣告前就能估算合計魔力。

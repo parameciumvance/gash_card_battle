@@ -606,6 +606,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 #zoom-overlay { flex-direction: column; gap: 12px; z-index: 56; }   /* 在魔書網格之上:網格中的卡可放大選擇 */
+/* 關閉鈕:貼著卡面右上角的外側,不蓋到卡圖右上角的費用;窄螢幕右側放不下時改在卡面右上角的正上方。
+   定位在不捲動的 #zoom-frame:#zoom-card 會捲動(overflow),放在裡面會被裁掉 */
+#zoom-frame { position: relative; }
+#zoom-close { position: absolute; top: 0; left: calc(100% + 8px); width: 44px; height: 44px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--panel-line); background: #1c2438; color: var(--ink);
+  font-size: 26px; line-height: 1; cursor: pointer; }
+@media (max-width: 420px) {
+  #zoom-close { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; }
+}
+#zoom-close:hover { background: #2a3550; }
 /* 檢視內行動區:卡片實例的統一操作入口 */
 #zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
 .zoom-action { display: flex; align-items: center; gap: 8px; }
