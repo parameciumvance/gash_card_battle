@@ -204,9 +204,11 @@ watchtower 下一次輪詢(預設 5 分鐘)。
    git switch dev && git merge main      # 讓 dev 跟上 main 的合併提交
    ```
 
-推 tag 後 GitHub Actions 先以 `tools/release_notes.py check` 確認更新內容的最新一版就是
-這個 tag,再建置映像檔並推上 GHCR,最後以繁中更新內容建立 GitHub Release。可以到 repo 的
-Actions 頁面看執行進度。上線後玩家進入首頁會看到這一版的介紹(按「確認」後不再跳出)。
+推 tag 後 GitHub Actions 先對這個 commit 跑全套測試(含瀏覽器測試,約 10 分鐘),通過後以
+`tools/release_notes.py check` 確認更新內容的最新一版就是這個 tag,再建置映像檔並推上 GHCR,
+最後以繁中更新內容建立 GitHub Release;測試失敗時不建置,線上維持原版本。可以到 repo 的
+Actions 頁面看執行進度。push / PR 到 `main`、`dev` 時也會跑同一套全套測試;瀏覽器測試失敗時,
+該次執行的 artifact(`test-results`)有失敗當下的頁面截圖。上線後玩家進入首頁會看到這一版的介紹(按「確認」後不再跳出)。
 
 **忘了寫更新內容**時 CI 會在建置前失敗,線上維持原版本。補上更新內容並 push 後,刪掉
 tag 重推:

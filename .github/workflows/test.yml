@@ -1,18 +1,50 @@
 name: Test
 
+# 全套測試(含瀏覽器測試):push / PR 到 main、dev 時執行;Deploy 推 tag 時也以 workflow_call 先跑這一份,通過才建置
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
+  workflow_call:
+
+# 同一分支有新推送時取消還在跑的舊測試;被 Deploy 呼叫時 ref 是 tag,各自一組
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25   # 本機全套約 8 分鐘;不設的話卡住的瀏覽器測試要 6 小時才失敗
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12"   # 與 production 映像檔(python:3.12-slim)相同
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]"
+
+      # 瀏覽器測試需要 Chromium;沒有時 tests/conftest.py 的 browser fixture 會整批略過。
+      # 瀏覽器檔案依 playwright 版本快取;系統套件(--with-deps)每次以 apt 安裝
+      - id: pw
+        run: echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - run: python -m playwright install --with-deps chromium-headless-shell
+
       - run: pytest
+
+      # 瀏覽器測試失敗時 tests/conftest.py 會截下當時的頁面
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

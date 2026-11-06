@@ -21,6 +21,28 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.browser)
 
 
+RESULTS = ROOT / "test-results"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """瀏覽器測試本體失敗時,截下 browser 所有開著的頁面到 test-results/(CI 失敗時上傳為 artifact)。
+    此時 fixture 還沒 teardown,頁面都還開著;所有頁面都來自 browser,不必知道是哪個 fixture 建的。"""
+    outcome = yield
+    report = outcome.get_result()
+    browser = getattr(item, "funcargs", {}).get("browser")
+    if report.when != "call" or not report.failed or browser is None:
+        return
+    RESULTS.mkdir(exist_ok=True)
+    name = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in item.nodeid.split("/")[-1])
+    pages = [pg for ctx in browser.contexts for pg in ctx.pages]
+    for n, pg in enumerate(pages, 1):
+        try:
+            pg.screenshot(path=str(RESULTS / f"{name}-{n}.png"), full_page=True)
+        except Exception as exc:  # noqa: BLE001 — 截圖失敗不影響測試結果
+            item.warn(pytest.PytestWarning(f"failure screenshot failed: {exc}"))
+
+
 @pytest.fixture(scope="session")
 def server():
     with socket.socket() as sock:
