@@ -5,6 +5,7 @@ Run: python -m pytest tests/test_rules_ui.py -q
 """
 from tests.test_npc_ui import start_npc, open_npc_setup
 from tests.test_spotlight_ui import open_page
+from tests.conftest import fake_card_art
 
 CURRENT = "#rules-toc .current"
 
@@ -72,6 +73,7 @@ def test_rules_in_game_do_not_block_play(browser, server):  # noqa: F811
 
 
 def test_icons_use_installed_card_art(page):
+    fake_card_art(page)                                                       # 有卡圖時以卡圖裁切(CI 沒有真卡圖)
     page.evaluate("openRules('icons')")
     page.wait_for_function("document.querySelectorAll('#rules-body .icon-crop').length >= 5")
     assert page.locator("#rules-body .rules-figure img").count() >= 1

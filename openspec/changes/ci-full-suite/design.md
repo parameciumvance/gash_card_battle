@@ -38,6 +38,13 @@
   - 只截 `call` 階段:setup 失敗多半是伺服器或資料問題,畫面沒有參考價值。
 - `test.yml` 在失敗時(`if: failure()`)以 `actions/upload-artifact` 上傳 `test-results/`,保留 7 天。`.gitignore` 排除 `test-results/`。
 
+### 依卡圖裁切的測試改用假卡圖
+
+第一次在 CI 跑全套時,構築器篩選圖示(`test_pool_filters_ui.py` 3 項)與規則頁圖示(`test_rules_ui.py::test_icons_use_installed_card_art`)失敗:這些圖示由卡圖裁切,卡圖有版權、不進 repo,CI 上沒有,測試等不到圖示而逾時。本機會過只是因為已下載卡圖。
+- 做法:`tests/conftest.py` 的 `fake_card_art(page)` 以 `page.route` 把 `/static/assets/cards/*.webp` 改回傳產生的 465×679 WebP(Pillow,session 內只產生一次)。構築器的 `builder` fixture 與規則頁那項測試使用,有沒有真卡圖結果都一樣。缺圖時退回文字的測試照舊以 route 回 404。
+- 替代方案:沒有卡圖時略過這些測試。CI 就永遠測不到,略過數也不再只有設計上的項目。
+- 驗證:本機以 `GASH_ASSETS_DIR` 指向空資料夾跑全套(模擬 CI),2095 passed、9 skipped。
+
 ## Risks / Trade-offs
 
 - [CI 機器較慢,瀏覽器測試的時間相關斷言不穩] → 先實際跑一次觀察;若有不穩定的測試,在這個 change 內修正等待條件,不加重試掩蓋。

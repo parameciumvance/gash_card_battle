@@ -23,6 +23,22 @@ def pytest_collection_modifyitems(config, items):
 
 RESULTS = ROOT / "test-results"
 
+_FAKE_ART = None
+
+
+def fake_card_art(page):
+    """卡圖改回傳一張產生的圖片(與真卡圖同為 465×679 WebP)。卡圖有版權、不進 repo,CI 上沒有;
+    依卡圖裁切的圖示(構築器篩選、規則頁)的測試用它,有沒有安裝真卡圖結果都一樣。"""
+    global _FAKE_ART
+    if _FAKE_ART is None:
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGBA", (465, 679), (200, 120, 60, 255)).save(buf, "WEBP")
+        _FAKE_ART = buf.getvalue()
+    page.route("**/static/assets/cards/*.webp",
+               lambda route: route.fulfill(status=200, content_type="image/webp", body=_FAKE_ART))
+
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
