@@ -21,6 +21,44 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.browser)
 
 
+RESULTS = ROOT / "test-results"
+
+_FAKE_ART = None
+
+
+def fake_card_art(page):
+    """卡圖改回傳一張產生的圖片(與真卡圖同為 465×679 WebP)。卡圖有版權、不進 repo,CI 上沒有;
+    依卡圖裁切的圖示(構築器篩選、規則頁)的測試用它,有沒有安裝真卡圖結果都一樣。"""
+    global _FAKE_ART
+    if _FAKE_ART is None:
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGBA", (465, 679), (200, 120, 60, 255)).save(buf, "WEBP")
+        _FAKE_ART = buf.getvalue()
+    page.route("**/static/assets/cards/*.webp",
+               lambda route: route.fulfill(status=200, content_type="image/webp", body=_FAKE_ART))
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """瀏覽器測試本體失敗時,截下 browser 所有開著的頁面到 test-results/(CI 失敗時上傳為 artifact)。
+    此時 fixture 還沒 teardown,頁面都還開著;所有頁面都來自 browser,不必知道是哪個 fixture 建的。"""
+    outcome = yield
+    report = outcome.get_result()
+    browser = getattr(item, "funcargs", {}).get("browser")
+    if report.when != "call" or not report.failed or browser is None:
+        return
+    RESULTS.mkdir(exist_ok=True)
+    name = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in item.nodeid.split("/")[-1])
+    pages = [pg for ctx in browser.contexts for pg in ctx.pages]
+    for n, pg in enumerate(pages, 1):
+        try:
+            pg.screenshot(path=str(RESULTS / f"{name}-{n}.png"), full_page=True)
+        except Exception as exc:  # noqa: BLE001 — 截圖失敗不影響測試結果
+            item.warn(pytest.PytestWarning(f"failure screenshot failed: {exc}"))
+
+
 @pytest.fixture(scope="session")
 def server():
     with socket.socket() as sock:

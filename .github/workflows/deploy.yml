@@ -1,6 +1,7 @@
 name: Deploy
 
 # 只有打版號 tag 才建置映像檔並推上 GHCR,一般 push 不會觸碰生產環境(見 test.yml)。
+# 建置前先跑全套測試(test job),通過才建置。
 # 這個 workflow 只到「把新 image 推上 registry」為止——VPS 上的 watchtower 會自己
 # 定期偵測新版並拉取重啟,CI 完全不需要連進 VPS、不需要 SSH 金鑰或加入任何 VPN。
 # VPS 上須先完成一次性設置,見 README「VPS 部署」章節。
@@ -10,7 +11,12 @@ on:
       - "v*"
 
 jobs:
+  # 先對這個 tag 的 commit 跑全套測試(與 push 時相同的 test.yml),失敗就不建置、不建立 Release
+  test:
+    uses: ./.github/workflows/test.yml
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write   # 建立 GitHub Release
