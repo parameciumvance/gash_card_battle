@@ -1029,6 +1029,7 @@ function renderCardMenu(anchor, buttons) {
       btn.onclick = () => { closeCardMenu(); if (b.details) zoom(num, ctx); else b.onclick(); };
     }
     if (!row.contains(btn)) row.prepend(btn);
+    if (b.warning) menu.appendChild(warningEl(b.warning, "card-menu-warning"));
     menu.appendChild(row);
   }
   menu.classList.remove("hidden");
@@ -1099,6 +1100,8 @@ function renderDetailPanel() {
   if (entry) opts.cost = entry.cost;
   const card = cardEl(num, opts);   // 不帶 ctx:點了開放大檢視
   const parts = [card];
+  const warning = ctx ? pickWarning(ctx) : null;
+  if (warning) parts.push(warningEl(warning, "detail-warning"));
   const details = ctx ? zoomDetails(num, ctx) : null;
   if (details) parts.push(details);
   if (ctx && ctx.kind === "slot" && slot && slot.stack && slot.stack.length > 1) parts.push(stackListEl(slot, (n) => zoom(n)));
@@ -1359,6 +1362,7 @@ function renderZoom() {
       btn.onclick = (ev) => { ev.stopPropagation(); if (!b.keepOpen) closeZoom(); b.onclick(); };
     }
     row.prepend(btn);
+    if (b.warning) actions.appendChild(warningEl(b.warning, "zoom-warning"));
     actions.appendChild(row);
   }
   overlay.classList.remove("hidden");
@@ -2689,8 +2693,10 @@ function renderActionBar() {
       const count = n / 2;
       if (count >= 0 && count <= maxFlip) {
         const mp = S.turn_no === 1 ? 0 : 2 * count;   // 大會規則:先攻第 1 回合翻頁不得 MP(game-engine「開始階段翻頁」)
+        const loses = (S.players[tp].flip_end_loses || [])[count];   // 翻了之後本回合結束會落敗
         addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp }),
-          () => send({ type: "flip_pages", player: tp, count }), true);
+          () => send({ type: "flip_pages", player: tp, count }), true, loses ? t("ui.flip_end_loses") : undefined);
+        if (loses) bar.lastElementChild.classList.add("flip-loses");
       } else {
         const hint = document.createElement("span");
         hint.className = "flip-hint";
@@ -2948,7 +2954,25 @@ function pickButtons(ctx) {
   }
   const value = pickValue(ctx);
   if (value === undefined) return [];
-  return [{ label: t("ui.pick"), primary: true, onclick: () => choosePick(value) }];
+  return [{ label: t("ui.pick"), primary: true, warning: pickWarning(ctx), onclick: () => choosePick(value) }];
+}
+
+// 選了會離場的目標(引擎在保護選項標 leaves,見 battle-api「保護的後果預告快照」):「選擇」上方的警告
+function pickWarning(ctx) {
+  const value = pickValue(ctx);
+  if (value === undefined || !S.pending) return null;
+  const opt = (S.pending.options || []).find((o) => o.value === value);
+  if (!opt || !opt.leaves) return null;
+  const reason = opt.leave_reason === "injured" ? t("ui.leave_reason.injured")
+    : `${cname(opt.leave_reason)} ${opt.leave_reason}`;
+  return t("ui.protect_leaves", { reason });
+}
+
+function warningEl(text, cls) {
+  const el = document.createElement("div");
+  el.className = `pick-warning ${cls}`;
+  el.textContent = text;
+  return el;
 }
 
 function protectDamageText(d) {

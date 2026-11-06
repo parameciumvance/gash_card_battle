@@ -312,8 +312,15 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 
 ## 戰術的預估合計魔力(spell-power-preview)
 
-- `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`;段落後註明「不含宣告時與戰鬥中的效果」。新手回饋希望宣告前就能估算合計魔力。
+- `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`(戰術自身確定的宣告時加成也以既有的 `breakdown.spell_bonus` / `breakdown.defense_self` 顯示);段落後註明「不含擲硬幣與戰鬥中的效果」(consequence-preview 起;原為「不含宣告時與戰鬥中的效果」)。新手回饋希望宣告前就能估算合計魔力。
 - `pickSpellUser` 的魔物附註有預估時為「合計 N・費用 M」(`ui.spell_user_note`)。
+
+## 後果預告(consequence-preview)
+
+- 新手回饋(評論 8–10):資訊透明度進步了,下一步是「按下去會發生什麼」。使用者決定只提示會離場或可能敗北的後果(Confirmed)。
+- **保護**:`pickWarning(ctx)` 以 `pickValue` 找到決策選項,選項有 `leaves` 時回傳「⚠ 保護後這隻魔物會被棄掉({原因})」;原因 `injured` 為「已負傷」,卡號為「{卡名} {卡號}」。`pickButtons` 把它放在「選擇」按鈕的 `warning`,卡片行動選單(`.card-menu-warning`)與放大檢視(`.zoom-warning`)畫在按鈕上方,詳情面板(`.detail-warning`)畫在卡面下方。警告不取代「選擇」:卡片行動選單本來就要再按一次「選擇」,已經是確認點,不另加確認步驟(Confirmed)。
+- **翻頁**:開始階段的翻頁按鈕依 `flip_end_loses[張數]` 加附註「⚠ 翻頁後,本回合結束時將因無頁可翻而落敗」(`addBtn` 的兩行附註,`.flip-loses` 以危險色顯示)。
+- 不保護會使魔書耗盡的提示原本就有(「保護決策顯示傷害」),不重複。
 
 ## 指令送出中(command-busy)
 

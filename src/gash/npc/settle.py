@@ -28,7 +28,7 @@ def clone(game: Game) -> Game:
     rng = random.Random()
     rng.setstate(game.rng.getstate())
     return Game(state=copy.deepcopy(game.state), rng=rng, db=game.db,
-                jammer=copy.deepcopy(game.jammer))
+                jammer=copy.deepcopy(game.jammer), previewing=True)   # 模擬用:不算保護的後果預告
 
 
 def try_submit(game: Game, player: int, command: dict) -> bool:

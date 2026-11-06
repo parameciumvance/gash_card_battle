@@ -255,6 +255,8 @@ class Game:
     jammer: dict | None = None
     # 擲硬幣的ジャマー(M-065)擲幣中:待無效的行動(含快照);擲硬幣子階段結束後的 callback 取用
     jammer_coin: dict | None = None
+    # 後果預告用的副本(保護的後果預告):副本裡不再計算預告,避免連鎖傷害時層層複製
+    previewing: bool = False
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}

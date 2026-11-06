@@ -633,6 +633,13 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .zoom-stack-cards .card .cmeta, .zoom-stack-cards .card .ceffect, .zoom-stack-cards .card .cname-ja { display: none; }
 #zoom-actions button { flex: 1; font-size: 14px; padding: 9px 14px; min-height: 38px; }
 .zoom-reason { font-size: 12px; color: var(--danger); flex-shrink: 0; max-width: 45%; }
+/* 會離場的選擇對象(保護的後果預告):「選擇」上方的警告;卡片行動選單、放大檢視、詳情面板共用 */
+.pick-warning { font-size: 13px; font-weight: 600; color: #fff; background: var(--danger);
+  border-radius: 6px; padding: 5px 8px; line-height: 1.35; }
+.card-menu-warning { max-width: 240px; margin-bottom: 4px; }
+.detail-warning { margin: 6px 0; }
+/* 翻了之後本回合結束會落敗的翻頁按鈕 */
+#action-bar button.flip-loses .btn-note { color: var(--danger); font-weight: 700; }
 .hidden { display: none !important; }
 #dialog {
   background: #202a42; border: 1px solid #4a5a80; border-radius: 10px;
