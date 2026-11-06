@@ -1907,15 +1907,43 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
 
 def spell_power_preview(game: Game, player: int, slot: MamodoSlot, number: str, side: str) -> tuple[int, list[dict]]:
     """player 以 slot 使用戰術 number 宣告攻擊(side "attack")或防禦("defense")時的預估合計魔力與明細。
-    以不掛到狀態上的假設戰鬥呼叫 side_breakdown:與魔力勝負同一個計算,但不含宣告時與戰鬥中的效果
-    (戰鬥開始時才生效的待命加成、追加費用、擲硬幣、對手的效果)。"""
+    以不掛到狀態上的假設戰鬥呼叫 side_breakdown:與魔力勝負同一個計算,含戰術自身在宣告前就能確定的
+    宣告時加成(_declare_bonus_preview),不含擲硬幣與戰鬥中的效果(戰鬥開始時才生效的待命加成、
+    追加費用、對手的效果)。"""
     if side == "attack":
         battle = BattleState(attacker=player, step=STEP_DEFENSE, attack_page=None, attack_spell=number,
                              attack_slot=slot.uid)
     else:
         battle = BattleState(attacker=1 - player, step=STEP_EFFECTS, attack_page=None, attack_spell=None,
                              attack_slot=-1, defense_spell=number, defense_slot=slot.uid, defense_declared=True)
+    _declare_bonus_preview(game, battle, player, number, side)
     return side_breakdown(game, battle, side)
+
+
+def _declare_bonus_preview(game: Game, battle: BattleState, player: int, number: str, side: str) -> None:
+    """戰術 number 的宣告時效果樹中,宣告前就能確定的自身魔力加成,照實戰寫進假設戰鬥的明細。
+    只求值依公開狀態的條件(SideIs、OpponentUsedAttrLastTurn);擲硬幣、選擇等節點與其下的效果不走,
+    不認得的節點略過——最多少算(回到不含宣告時效果的預估),不會多算。"""
+    from .effects import tree as T
+    root = T.EFFECTS.get(f"{number}:rider.on_declare")
+    ctx = {"player": player, "side": side, "source": number}
+
+    def walk(node) -> None:
+        if isinstance(node, T.Sequence):
+            for step in node.steps:
+                walk(step)
+        elif isinstance(node, T.When):
+            if isinstance(node.cond, (T.SideIs, T.OpponentUsedAttrLastTurn)):
+                walk(node.then if node.cond.test(game, ctx) else node.otherwise)
+        elif isinstance(node, T.AddAttackSelfBonus):      # 與各節點的 run 相同的明細項
+            add_spell_power(battle, "attack", number, node.amount)
+        elif isinstance(node, T.AddDefenseSelfBonus):
+            add_spell_power(battle, "defense", number, node.amount, kind="defense_self")
+        elif isinstance(node, T.AddSpellSelfBonus):
+            add_spell_power(battle, side, number, node.amount)
+
+    if root is not None:
+        walk(root)
 
 
 def _field_cards(game: Game, player: int, table: dict) -> list[tuple[str, MamodoSlot]]:
@@ -2583,6 +2611,40 @@ def _damage_info(game: Game, item: dict) -> dict:
             "injured": bool(slot and slot.injured), "lethal": False}
 
 
+PREVIEW_SEEDS = (1, 2)
+
+
+def _mark_protect_outcomes(game: Game, receiver: int, options: list[dict]) -> None:
+    """保護的後果預告:在副本上實際以各魔物保護,確定會離場的選項加 leaves / leave_reason
+    (已負傷為 "injured",效果造成的為來源卡號)。以兩個固定種子各跑一次(不用實際的 RNG,
+    否則等於偷看接下來擲硬幣的結果),結果不同即取決於亂數,不標示。選項只給決策者(快照)。"""
+    if game.previewing:
+        return
+    for opt in options:
+        if opt.get("value") is None:
+            continue
+        results = {_protect_outcome(game, receiver, opt["value"], seed) for seed in PREVIEW_SEEDS}
+        if len(results) == 1 and (reason := results.pop()) is not None:
+            opt["leaves"], opt["leave_reason"] = True, reason
+
+
+def _protect_outcome(game: Game, receiver: int, uid: int, seed: int) -> str | None:
+    """以 uid 的魔物保護後,它離場的原因;沒有離場(或無法判定)為 None。"""
+    st = game.state
+    copy_game = Game(state=copy.deepcopy(st), rng=random.Random(seed), db=game.db,
+                     jammer=copy.deepcopy(game.jammer), jammer_coin=copy.deepcopy(game.jammer_coin),
+                     previewing=True)
+    batch: list[dict] = []   # 副本的 pending 就是這個保護決策(連同 ctx 一起複製)
+    try:
+        _handle_choose(copy_game, batch, {"value": uid})
+    except IllegalCommand:
+        return None
+    for ev in batch:
+        if ev["type"] == "mamodo_discarded" and ev.get("slot") == uid:
+            return ev.get("source") or ("injured" if ev.get("reason") == "damage" else ev.get("reason"))
+    return None
+
+
 def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> bool:
     """有可保護的魔物時建立保護決策並回傳 True。"""
     protectors = _eligible_protectors(game, item, ctx)
@@ -2602,6 +2664,7 @@ def _protect_choice(game: Game, batch: list[dict], item: dict, ctx: dict) -> boo
         options=[{"value": None, "label": "no_protect"}]
         + [slot_option(owner, s) for owner, s in protectors],
         data={"ctx": ctx}, info={"damage": _damage_info(game, item)})
+    _mark_protect_outcomes(game, receiver, game.state.pending.options)
     game.emit(batch, "choice_required", kind="protect", player=receiver, item=dict(item))
     return True
 
@@ -2717,7 +2780,8 @@ def _note_damage_dealt(game: Game, ctx: dict, receiver: int) -> None:
         game.state.players[source].dealt_damage_this_turn = True
 
 
-def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, reason: str) -> None:
+def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, reason: str,
+                  source: str | None = None) -> None:
     st = game.state
     ps = st.players[player]
     if slot not in ps.slots:
@@ -2732,7 +2796,7 @@ def _discard_slot(game: Game, batch: list[dict], player: int, slot: MamodoSlot, 
     if slot.partner:
         discard_attached_partner(game, batch, player, slot, reason="attached")
     game.emit(batch, "mamodo_discarded", player=player, slot=slot.uid,
-              cards=list(slot.stack), reason=reason)
+              cards=list(slot.stack), reason=reason, **({"source": source} if source else {}))
     for number in slot.stack:
         if number in reg.ON_DISCARD and not note_effect_blocked(game, batch, player, slot, number, "discard"):
             reg.ON_DISCARD[number](game, batch, player, slot)
@@ -2811,7 +2875,7 @@ def _maybe_discard_protector(game: Game, batch: list[dict], player: int,
         if (m.kind == "protect_discard" and m.owner == battle.attacker
                 and m.active(st.turn_no) and m.data.get("mamodo") == atk_name):
             if slot in st.players[player].slots:
-                _discard_slot(game, batch, player, slot, reason="protect_discard")
+                _discard_slot(game, batch, player, slot, reason="protect_discard", source=m.source)
             return
 
 
@@ -2992,10 +3056,24 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
 
 def end_flip_loses(game: Game, player: int) -> bool:
     """回合玩家 player 本回合結束時強制翻頁會落敗:已翻開最後一頁且沒有「本回合結束不翻魔書」的待命(M-030)。"""
+    return end_flip_loses_after(game, player, 0)
+
+
+def end_flip_loses_after(game: Game, player: int, flips: int) -> bool:
+    """同 end_flip_loses,但以再翻 flips 張之後的位置判定(開始階段翻頁按鈕的落敗預告)。"""
     st = game.state
     return (st.phase != GAME_OVER and st.turn_player == player
-            and st.players[player].pos + 2 > BOOK_SIZE
+            and st.players[player].pos + 2 * flips + 2 > BOOK_SIZE
             and not any(s.kind == "skip_end_flip" and s.owner == player for s in st.standby))
+
+
+def start_flip_end_loses(game: Game, player: int) -> list[bool] | None:
+    """開始階段的回合玩家:依翻頁張數(0 至可翻上限)翻了之後本回合結束是否會落敗;其他時候 None。"""
+    st = game.state
+    if st.phase != START or st.turn_player != player:
+        return None
+    max_flips = min(3, (BOOK_SIZE - st.players[player].pos) // 2)
+    return [end_flip_loses_after(game, player, n) for n in range(max_flips + 1)]
 
 
 def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:

@@ -98,7 +98,8 @@ class Determinizer:
             snap = copy.deepcopy(jammer["snapshot"])
             _apply(snap, opp, book)
             jammer["snapshot"] = snap
-        return Game(state=st, rng=random.Random(seed), db=self.game.db, jammer=jammer)
+        return Game(state=st, rng=random.Random(seed), db=self.game.db, jammer=jammer,
+                    previewing=True)   # 模擬用:不算保護的後果預告
 
 
 def _apply(st: GameState, opp: int, book: dict[int, str]) -> None:
