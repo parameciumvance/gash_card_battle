@@ -1295,6 +1295,9 @@ function renderZoom() {
   const overlay = document.getElementById("zoom-overlay");
   const holder = document.getElementById("zoom-card");
   const actions = document.getElementById("zoom-actions");
+  const close = document.getElementById("zoom-close");
+  close.setAttribute("aria-label", t("ui.close"));
+  close.title = t("ui.close");
   holder.innerHTML = "";
   actions.innerHTML = "";
 
@@ -1361,7 +1364,14 @@ function renderZoom() {
   overlay.classList.remove("hidden");
 }
 
-document.getElementById("zoom-overlay").onclick = closeZoom;
+document.getElementById("zoom-overlay").onclick = closeZoom;   // 點背景關閉;「×」的點擊冒泡到這裡
+// Esc 只關最上層的放大檢視:capture 階段攔下,底下的棄牌區視窗、魔書翻閱都收不到這次按鍵
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape" || document.getElementById("zoom-overlay").classList.contains("hidden")) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  closeZoom();
+}, true);
 
 // ---------------------------------------------------------------- 合法操作判斷
 
