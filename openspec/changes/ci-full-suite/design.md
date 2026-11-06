@@ -30,7 +30,7 @@
 ### concurrency 與逾時
 
 - `test.yml` 頂層 `concurrency: { group: test-${{ github.ref }}, cancel-in-progress: true }`。被 Deploy 以 `workflow_call` 呼叫時 `github.ref` 是 tag,每個 tag 各自一組,不會取消別的發布。
-- 測試 job `timeout-minutes: 25`(本機全套約 8 分鐘,CI 預估 10–12 分鐘,留一倍以上餘裕)。不設的話,卡住的瀏覽器測試要 6 小時才會失敗。
+- 測試 job `timeout-minutes: 30`。CI 實測 pytest 約 8 分鐘、整次約 10 分鐘;但 `--with-deps` 的 9 個字型套件(含中日文字型,瀏覽器測試排版需要)曾因鏡像站變慢下載 12 分鐘(平常 1 秒),原訂 25 分鐘餘裕不足。不設的話,卡住的瀏覽器測試要 6 小時才會失敗。
 
 ### 失敗截圖
 

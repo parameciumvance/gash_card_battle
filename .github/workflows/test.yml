@@ -16,7 +16,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # 本機全套約 8 分鐘;不設的話卡住的瀏覽器測試要 6 小時才失敗
+    timeout-minutes: 30   # 全套約 8 分鐘,字型套件的鏡像站偶爾很慢(曾 12 分鐘);不設的話卡住的測試要 6 小時才失敗
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
