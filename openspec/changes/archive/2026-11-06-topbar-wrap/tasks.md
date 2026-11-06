@@ -8,7 +8,7 @@
 ## 2. 驗證與文件
 
 - [x] 2.1 `python -m pytest tests -m "not slow and not browser" -q`;battle-ui design 補頂欄換行的做法與理由;`openspec validate topbar-wrap --strict`
-- [ ] 2.2 本機實際操作抽查(使用者):800px 左右(或瀏覽器縮放)日文對局畫面的頂欄
+- [x] 2.2 本機實際操作抽查(使用者):800px 左右(或瀏覽器縮放)日文對局畫面的頂欄(使用者確認後要求歸檔)
 
 ## Workflow follow-up
 
