@@ -23,7 +23,7 @@
 ## 5. 驗證與文件
 
 - [x] 5.1 `python -m pytest tests -m "not slow and not browser" -q` 與相關瀏覽器測試通過;`openspec validate consequence-preview --strict`;game-engine / battle-api / battle-ui design 補上 D1–D4 的做法與理由(快速組 1592 passed;相關瀏覽器測試 74 passed)
-- [ ] 5.2 本機實際操作抽查(使用者):雪莉情境的保護警告、翻到最後一對頁的加註、S-092 的預估
+- [x] 5.2 本機實際操作抽查(使用者):雪莉情境的保護警告、翻到最後一對頁的加註、S-092 的預估(使用者確認後要求歸檔)
 
 ## Workflow follow-up
 
