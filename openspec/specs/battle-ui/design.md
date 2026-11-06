@@ -315,6 +315,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`(戰術自身確定的宣告時加成也以既有的 `breakdown.spell_bonus` / `breakdown.defense_self` 顯示);段落後註明「不含擲硬幣與戰鬥中的效果」(consequence-preview 起;原為「不含宣告時與戰鬥中的效果」)。新手回饋希望宣告前就能估算合計魔力。
 - `pickSpellUser` 的魔物附註有預估時為「合計 N・費用 M」(`ui.spell_user_note`)。
 
+## 頂欄的換行(topbar-wrap)
+
+- 使用者回報(日文、寬度約 800px):回合、階段、等待狀態被壓成一字一行的直排,「CARD BATTLE」拆成兩行,按鈕被推出畫面。原因是 `#topbar` 只有 ≤700px 才換行,按鈕 `flex-shrink: 0` 不讓寬度,可縮小的文字欄位被壓到 min-content;按鈕陸續增加(演出、語言、作用中效果、金手指、棄權)後,約 700–1300px 已經塞不下。
+- `#topbar` 一律 `flex-wrap: wrap`(`row-gap` 6px);≥701px 時文字欄位(`#topbar > span`)與 `#title` `white-space: nowrap; flex-shrink: 0`,放不下時整個項目換到下一行。手機版(≤700px)維持原規則(只留徽章、可換行),不加 nowrap,避免單一欄位比畫面寬。
+- 中等寬度頂欄變兩行(第一行標題與狀態,第二行按鈕);若覺得太佔空間,再考慮把次要按鈕收進選單(使用者選了改動最小的做法)。
+- 測試(`tests/test_topbar_wrap_ui.py`)以 Range 的行框數判定單行:垂直範圍重疊的行框算同一行(標題字大小不同、同一基線)。
+
 ## 後果預告(consequence-preview)
 
 - 新手回饋(評論 8–10):資訊透明度進步了,下一步是「按下去會發生什麼」。使用者決定只提示會離場或可能敗北的後果(Confirmed)。

@@ -66,11 +66,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   border: none; background: transparent; color: #5a3d00; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;
 }
 #topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap;   /* 一行放不下時整個項目換到下一行 */
   padding: 8px 16px; background: var(--page-deep); border-bottom: 1px solid var(--page-line);
   font-size: 14px; color: var(--on-page);
 }
-#title { display: flex; }
+#title { display: flex; flex-shrink: 0; }
+/* 寬螢幕(手機版另有規則):文字欄位與標題不縮小、不在欄位中間斷開——原本按鈕不讓寬度時,
+   回合、階段、等待狀態被壓成一字一行的直排,按鈕也被推出畫面(topbar-wrap) */
+@media (min-width: 701px) {
+  #topbar > span { white-space: nowrap; flex-shrink: 0; }
+}
 /* 標題字:五圓紋徽章(同網頁圖示)+ GASH / CARD BATTLE / ONLINE(ONLINE 置中)。Oswald 子集自架於 /static/fonts(OFL) */
 @font-face {
   font-family: "Oswald Title"; font-weight: 200 700; font-display: swap;
