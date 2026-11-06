@@ -8,16 +8,20 @@ import json
 
 import pytest
 
+from tests.conftest import fake_card_art
+
 DESKTOP = {"width": 1280, "height": 900}
 PHONE = {"width": 390, "height": 844}
 FILTERS = "#pool-filters"
 
 
-def open_builder(browser, server, viewport=DESKTOP, routes=(), locale="zh-TW"):
+def open_builder(browser, server, viewport=DESKTOP, routes=(), locale="zh-TW", art=False):
     context = browser.new_context(viewport=viewport, reduced_motion="reduce", locale=locale)
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
+    if art:
+        fake_card_art(page)                                                   # 篩選圖示依卡圖裁切
     for pattern, handler in routes:
         page.route(pattern, handler)
     page.goto(server + "/?builder=1")
@@ -27,7 +31,7 @@ def open_builder(browser, server, viewport=DESKTOP, routes=(), locale="zh-TW"):
 
 @pytest.fixture
 def builder(browser, server):  # noqa: F811
-    context, page, errors = open_builder(browser, server)
+    context, page, errors = open_builder(browser, server, art=True)
     yield page
     context.close()
     assert not errors
