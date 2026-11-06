@@ -11,7 +11,7 @@
 
 ## 3. 實際驗證與文件
 
-- [ ] 3.1 (使用者同意後)推 `ci-full-suite` 並開 PR 到 `dev`:CI 跑完全套,通過;略過數與本機相同(9 個被動搭檔);記錄 CI 時間。再推一個故意失敗的瀏覽器測試的 commit,確認 artifact 有截圖,之後移除該 commit
+- [x] 3.1 (使用者同意後)推 `ci-full-suite` 並開 PR 到 `dev`:CI 跑完全套,通過;略過數與本機相同(9 個被動搭檔);記錄 CI 時間。再推一個故意失敗的瀏覽器測試的 commit,確認 artifact 有截圖,之後移除該 commit。結果:第一次 4 項失敗(依卡圖裁切的測試,CI 沒有卡圖),改用假卡圖後 2095 passed、9 skipped(與本機相同);故意失敗的 commit 上傳了 test-results artifact,截圖為失敗當下的畫面,確認後以 reset + force-with-lease 移除;時間:平常約 10–12 分鐘,字型套件鏡像站慢時曾 21 分鐘,逾時改 30 分鐘;Chromium 快取命中。actionlint 未執行,語法由實際 CI 執行驗證;Deploy 的 workflow_call 要等下次推 tag 才實際執行
 - [x] 3.2 README「發布新版本」補上 Deploy 會先跑全套測試、失敗時不發布;`docker-deployment` design 更新 CI 一節;`openspec validate ci-full-suite --strict` 通過;`python -m pytest tests -m "not slow and not browser" -q` 通過
 
 ## Workflow follow-up
