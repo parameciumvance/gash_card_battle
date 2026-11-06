@@ -188,16 +188,20 @@ watchtower 下一次輪詢(預設 5 分鐘)。
 
 ### 發布新版本
 
-**(本機)** 先寫這一版的更新內容(給玩家看的 release note),再打 tag:
+開發在 `dev` 分支進行(每個 change 從 `dev` 開 feature 分支,做完合併回 `dev`);`main` 只放已發布的版本。
+**(本機)** 定版時在 `dev` 跑全套測試、寫這一版的更新內容(給玩家看的 release note),併入 `main` 再打 tag:
 
 1. 在 `frontend/i18n/releases.zh-TW.json`、`releases.en.json`、`releases.ja.json` 的
    `releases` **最前面**加入新版本(版本號、日期、可選的 `title`、條目;條目分類為
    `new` / `fix` / `change`)。三個檔案的版本與條目要一致,測試會檢查。
-2. `python tools/build_zh_cn.py` 產生簡中,commit 並 push。
-3. 打 tag 並推上 GitHub:
+2. `python tools/build_zh_cn.py` 產生簡中,在 `dev` commit。
+3. 在 `dev` 跑全套測試 `python -m pytest tests -q`,通過後併入 `main`、打 tag 並推上 GitHub:
    ```bash
+   git switch main && git merge --no-ff dev
+   git push origin main
    git tag v0.1.0
    git push origin v0.1.0
+   git switch dev && git merge main      # 讓 dev 跟上 main 的合併提交
    ```
 
 推 tag 後 GitHub Actions 先以 `tools/release_notes.py check` 確認更新內容的最新一版就是
