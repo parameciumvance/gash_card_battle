@@ -34,7 +34,7 @@ def test_zoom_shows_preview_for_attack_spell(page):
     [sec] = [s for s in sections(page) if s["title"].startswith("預估合計魔力")]
     assert sec["title"] == "預估合計魔力 6000"
     assert len(sec["rows"]) == 2 and "4000" in sec["rows"][0] and "2000" in sec["rows"][1]
-    assert "不含宣告時與戰鬥中的效果" in details_text(page)
+    assert "不含擲硬幣與戰鬥中的效果" in details_text(page)
 
 
 def test_one_section_per_user(page):

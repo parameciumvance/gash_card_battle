@@ -17,12 +17,12 @@
 
 ## 4. 前端
 
-- [ ] 4.1 瀏覽器測試先寫:保護決策中點會離場的魔物,選單「選擇」上方有警告與原因、仍可選擇;點沒有標示的魔物沒有警告;寬螢幕詳情面板顯示同樣的警告;翻閱到最後一對頁時翻頁按鈕旁有落敗加註,前面的對頁沒有;預估魔力的附註為新文字、S-092 明細有攻擊時加成
-- [ ] 4.2 實作 D4(四語文字)。4.1 通過,`tests/test_card_action_menu_ui.py`、`tests/test_card_detail_panel_ui.py`、預估魔力與翻頁的既有瀏覽器測試照舊
+- [x] 4.1 瀏覽器測試先寫:保護決策中點會離場的魔物,選單「選擇」上方有警告與原因、仍可選擇;點沒有標示的魔物沒有警告;寬螢幕詳情面板顯示同樣的警告;翻閱到最後一對頁時翻頁按鈕旁有落敗加註,前面的對頁沒有;預估魔力的附註為新文字、S-092 明細有攻擊時加成
+- [x] 4.2 實作 D4(四語文字)。4.1 通過,`tests/test_card_action_menu_ui.py`、`tests/test_card_detail_panel_ui.py`、預估魔力與翻頁的既有瀏覽器測試照舊
 
 ## 5. 驗證與文件
 
-- [ ] 5.1 `python -m pytest tests -m "not slow and not browser" -q` 與相關瀏覽器測試通過;`openspec validate consequence-preview --strict`;game-engine / battle-api / battle-ui design 補上 D1–D4 的做法與理由
+- [x] 5.1 `python -m pytest tests -m "not slow and not browser" -q` 與相關瀏覽器測試通過;`openspec validate consequence-preview --strict`;game-engine / battle-api / battle-ui design 補上 D1–D4 的做法與理由(快速組 1592 passed;相關瀏覽器測試 74 passed)
 - [ ] 5.2 本機實際操作抽查(使用者):雪莉情境的保護警告、翻到最後一對頁的加註、S-092 的預估
 
 ## Workflow follow-up

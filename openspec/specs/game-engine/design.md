@@ -118,6 +118,7 @@ negated                                                                ← 無�
 - 不採用「把對手的魔物暫時視為自己的魔物」:會牽動場面計數與其他效果。
 - 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect`(被限制的玩家清單;E-013 的待命、S-035 類)使魔書與魔物的傷害都不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物也是「かばう」,套用受方的同一套檢查(受方的 `protect_anyway` 對它有效;M-042 指定的是持有者自己的魔物,它被對手指定時不適用)。`no_protect_slot`(P-043)排除選定的魔物(`protect_anyway` 優先)。
 - 強制保護(Ex-047):`_protect_choice` 先找受方生效中的 `forced_protector`,指定的魔物在候選內時建立只有它的保護決策並立即以 `_handle_choose` 解決(發 `protect_forced`),不等受方回應;不在候選內(傷害對象就是它、已離場、受限制)時照一般流程詢問。
+- 保護的後果預告(consequence-preview):`_protect_choice` 建立決策後,`_mark_protect_outcomes` 在副本上以 `_handle_choose` 實際結算各保護選項,確定離場的選項標 `leaves` / `leave_reason`(見 battle-api design「後果預告」)。副本以 `Game.previewing` 標記,副本裡不再計算;強制保護不詢問,不計算。`_discard_slot` 可帶 `source`,`mamodo_discarded` 事件因此帶上造成離場的效果卡(P-012 的 `_maybe_discard_protector` 傳入)。
 
 ## 場上魔物的欄位
 
