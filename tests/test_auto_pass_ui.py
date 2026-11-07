@@ -124,3 +124,13 @@ def test_has_actions_hint_without_auto(page):
     assert page.locator("#action-bar .idle-hint").text_content() == "有可以使用的效果或行動"
     page.wait_for_timeout(delay(page) + 800)
     assert sent(page) == []
+
+
+def test_full_label_on_narrow_screen(page):
+    """窄螢幕也顯示完整的句子(縮小、可換行),不超出畫面。"""
+    page.set_viewport_size({"width": 390, "height": 844})
+    awaiting_non_turn(page, None)
+    label = page.locator("#action-bar .auto-pass-toggle")
+    assert label.text_content().strip() == "無可用行動時自動 pass"
+    box = label.bounding_box()
+    assert box["x"] >= 0 and box["x"] + box["width"] <= 390

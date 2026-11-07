@@ -2668,10 +2668,7 @@ function autoPassToggleEl() {
   const full = document.createElement("span");
   full.className = "auto-pass-label";
   full.textContent = t("ui.auto_pass");
-  const short = document.createElement("span");
-  short.className = "auto-pass-short";
-  short.textContent = t("ui.auto_pass_short");
-  label.append(box, full, short);
+  label.append(box, full);
   if (AUTO_PASS && AUTO_PASS.running) {
     const count = document.createElement("span");
     count.className = "auto-pass-count";
