@@ -556,6 +556,7 @@
   "builder.title": "Deck builder",
   "builder.pool": "Card pool",
   "builder.filter.all": "All",
+  "builder.search": "Search name, number, effect",
   "card.class.intermediate": "Intermediate",
   "card.class.superior": "Superior",
   "builder.filter.none": "None",

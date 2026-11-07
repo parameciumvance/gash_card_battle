@@ -556,6 +556,7 @@
   "builder.title": "牌組構築",
   "builder.pool": "卡池",
   "builder.filter.all": "全部",
+  "builder.search": "搜尋卡名、卡號、效果",
   "card.class.intermediate": "中級",
   "card.class.superior": "上級",
   "builder.filter.none": "無",

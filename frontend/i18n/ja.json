@@ -556,6 +556,7 @@
   "builder.title": "デッキ構築",
   "builder.pool": "カード一覧",
   "builder.filter.all": "すべて",
+  "builder.search": "カード名・番号・効果で検索",
   "card.class.intermediate": "中級",
   "card.class.superior": "上級",
   "builder.filter.none": "なし",
