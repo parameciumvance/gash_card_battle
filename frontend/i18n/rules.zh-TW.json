@@ -175,7 +175,8 @@
   "seasons": {
     "season": "賽季",
     "products": "新增產品",
-    "note": "{card} 屬於第 {n} 賽季,目前不能選。"
+    "note": "{card} 屬於第 {n} 賽季,目前不能選。",
+    "note_selectable": "{card} 屬於第 {n} 賽季。"
   },
   "figure": {
     "title": "範例卡",

@@ -3693,7 +3693,9 @@ function productSeasons() {
 
 function renderRuleSeasons() {
   const labels = RULES.seasons;
-  const ids = Object.keys(SEASONS.seasons).map(Number).sort((a, b) => a - b);
+  // 只列可選的賽季;已定義但還不能選的賽季,開放時(加入 selectable)才出現
+  const ids = Object.keys(SEASONS.seasons).map(Number).filter((n) => SEASONS.selectable.includes(n))
+    .sort((a, b) => a - b);
   const prefixes = [...SEASON_PREFIXES];
   for (const id of ids) for (const k of Object.keys(SEASONS.seasons[id])) if (!prefixes.includes(k)) prefixes.push(k);
   const products = productSeasons();
@@ -3715,9 +3717,13 @@ function renderRuleSeasons() {
     tbody.appendChild(tr);
   }
   wrap.appendChild(table);
-  const later = Object.entries(SEASONS.special || {}).filter(([, n]) => !SEASONS.selectable.includes(n));
-  for (const [card, n] of later) {
-    wrap.appendChild(el("p", "rules-season-note", labels.note.replace("{card}", card).replace("{n}", n)));
+  // 特別歸屬的卡依賽季併成一句:可選賽季只寫所屬賽季(卡號不在範圍內,表格看不出來),不可選賽季另註目前不能選
+  const special = {};
+  for (const [card, n] of Object.entries(SEASONS.special || {})) (special[n] = special[n] || []).push(card);
+  for (const n of Object.keys(special).map(Number).sort((a, b) => a - b)) {
+    const label = SEASONS.selectable.includes(n) ? labels.note_selectable : labels.note;
+    const cards = special[n].sort().join(t("ui.sep.list"));
+    wrap.appendChild(el("p", "rules-season-note", label.replace("{card}", cards).replace("{n}", n)));
   }
   return wrap;
 }

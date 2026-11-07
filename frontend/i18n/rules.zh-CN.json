@@ -229,7 +229,8 @@
   "seasons": {
     "season": "赛季",
     "products": "添加产品",
-    "note": "{card} 属于第 {n} 赛季,目前不能选。"
+    "note": "{card} 属于第 {n} 赛季,目前不能选。",
+    "note_selectable": "{card} 属于第 {n} 赛季。"
   },
   "figure": {
     "title": "范例卡",

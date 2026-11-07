@@ -215,7 +215,7 @@ def test_product_rows_skip_reprints(builder):
 
 
 def all_open(route):
-    """測試替身:清空尚未開放清單,讓第 3 賽季的新產品都有開放卡片。"""
+    """測試替身:清空尚未開放清單,讓所有產品都有開放卡片。"""
     route.fulfill(content_type="application/json", body=json.dumps({"cards": []}))
 
 
@@ -227,7 +227,9 @@ def product_rows(page):
 SEASON_ROWS = [
     ["level-1"],
     ["level-2", "mahon-file", "ex-sheet-1"],
-    ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
+    ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2",
+     "dx-red-book"],
+    ["level-4", "ex-sheet-3", "festa-2004-spring"],
     ["ex", "promo"],
 ]
 
@@ -236,11 +238,22 @@ def test_product_rows_by_season_when_all_open(browser, server):
     context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
     menu(page, "product").click()
     assert product_rows(page) == SEASON_ROWS
-    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "ex", "promo"):
+    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "dx-red-book", "ex", "promo"):
         assert tile(page, "product", code).locator("img").count() == 1, code
         assert tile(page, "product", code).locator(".filter-caption").inner_text() == page.evaluate(f"t('product.{code}')")
     context.close()
     assert not errors
+
+
+def test_new_products_hidden_while_pending(builder):
+    # 第 4 賽季的卡與 Ex-100、101 都還沒開放:產品網格與加入它們之前相同
+    menu(builder, "product").click()
+    assert product_rows(builder) == [
+        ["level-1"],
+        ["level-2", "mahon-file", "ex-sheet-1"],
+        ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
+        ["ex", "promo"],
+    ]
 
 
 def mahon_file_2_pending(route):

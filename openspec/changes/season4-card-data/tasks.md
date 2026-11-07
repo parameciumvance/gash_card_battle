@@ -49,29 +49,29 @@
 ## 4. 卡圖與產品圖
 
 - [x] 4.1 用 `download_images.py` 下載新卡的卡圖,列出缺圖清單。(94 張全部下載成功,沒有缺圖)
-- [ ] 4.2 產品圖(design D4):有照片的產品轉成 WebP,更新 `frontend/products/README.md`;沒有照片的列入缺圖清單。
+- [ ] 4.2 產品圖(design D4):有照片的產品轉成 WebP,更新 `frontend/products/README.md`;沒有照片的列入缺圖清單。(進度:`dx-red-book` 已完成;`level-4`、`ex-sheet-3`、`festa-2004-spring` 等使用者提供照片資料夾的位置。之後 `test_product_rows_by_season_when_all_open` 的產品圖檢查要加入這三個)
 
 ## 5. 產品篩選
 
-- [ ] 5.1 先寫瀏覽器測試並確認在修改前失敗(測試替身清空尚未開放清單):
+- [x] 5.1 先寫瀏覽器測試並確認在修改前失敗(測試替身清空尚未開放清單):
   - 產品分 5 排。
   - 第 3 排末尾是 DX赤い魔本。
   - 第 4 排是 LEVEL:4、魔本拡張シート LEVEL:3、電撃フェスタ2004春の陣。
-- [ ] 5.2 確認新卡尚未開放時產品網格與修改前相同(維持現狀的測試)。
-- [ ] 5.3 修改 `pool-filters.json`;補四語 `product.<代號>`(zh-CN 用 `build_zh_cn.py` 產生)。5.1、5.2 通過。
+- [x] 5.2 確認新卡尚未開放時產品網格與修改前相同(維持現狀的測試)。
+- [x] 5.3 修改 `pool-filters.json`;補四語 `product.<代號>`(zh-CN 用 `build_zh_cn.py` 產生)。5.1、5.2 通過。
 
 ## 6. 規則頁的賽季表
 
-- [ ] 6.1 先寫瀏覽器測試並確認在修改前失敗:
+- [x] 6.1 先寫瀏覽器測試並確認在修改前失敗:
   - 表格沒有第 4 賽季,第 3 賽季的 PR 到 010。
   - 註明 Ex-100、Ex-101 屬第 3 賽季;Ex-000、Ex-099 屬第 4 賽季、目前不能選。
   - 把 4 加入 `selectable` 後,表格出現第 4 賽季。
-- [ ] 6.2 修改 `renderRuleSeasons`,四語規則內容檔新增註明文字(design D5)。6.1 與 `test_season_reference_ui.py` 既有測試通過。
+- [x] 6.2 修改 `renderRuleSeasons`,四語規則內容檔新增註明文字(design D5;英文的 note 改成「Season {n} cards (not selectable yet): {card}.」,因為一句會列出多張卡)。6.1 與 `test_season_reference_ui.py` 既有測試通過。
 
 ## 7. 驗證與文件
 
 - [ ] 7.1 快速測試組,以及相關的瀏覽器測試(`test_season_reference_ui.py`、`test_seasons_ui.py`、產品篩選相關)。執行 `openspec validate season4-card-data --strict`。
-- [ ] 7.2 更新文件:
+- [x] 7.2 更新文件:
   - `card-data/design.md`:第 4 賽季的來源、限定拡張的卡號對應、沒有搭檔的魔物、PR 範圍調整。
   - `deck-builder/design.md`:新的分排。
   - `battle-ui/design.md`:賽季表只列可選賽季與註明。

@@ -175,7 +175,8 @@
   "seasons": {
     "season": "Season",
     "products": "New products",
-    "note": "{card} belongs to Season {n} and cannot be selected yet."
+    "note": "Season {n} cards (not selectable yet): {card}.",
+    "note_selectable": "Season {n} cards: {card}."
   },
   "figure": {
     "title": "Example card",

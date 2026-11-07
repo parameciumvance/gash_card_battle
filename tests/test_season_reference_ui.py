@@ -29,14 +29,30 @@ def test_rules_page_lists_season_ranges_and_products(page):
     s1, s3 = rows["1"], rows["3"]
     assert s1[col["M"]] == "001–015" and s1[col["S"]] == "001–028" and s1[col["PR"]] == "001–002"
     assert s1[col["Ex"]] == "—"                                             # 第 1 賽季沒有 Ex 卡
-    assert s3[col["M"]] == "001–069" and s3[col["Ex"]] == "001–048"
+    assert s3[col["M"]] == "001–069" and s3[col["Ex"]] == "001–048" and s3[col["PR"]] == "001–010"
     product = page.evaluate("(k) => t(k)", "product.level-1")
     assert s1[-1] == product                                                # 第 1 賽季新增 LEVEL:1
     assert page.evaluate("(k) => t(k)", "product.level-3") in s3[-1]
     assert page.evaluate("(k) => t(k)", "product.ex-sheet-2") in s3[-1]
     assert page.evaluate("(k) => t(k)", "product.level-1") not in s3[-1]   # 只列新增的產品
-    note = page.locator("#rules-sec-seasons .rules-season-note").text_content()
-    assert "Ex-000" in note and "4" in note
+    # 特別歸屬的卡都註明:可選賽季只寫所屬賽季,不可選賽季另註目前不能選;第 4 賽季還不能選,表格不列
+    assert page.locator("#rules-sec-seasons .rules-season-note").all_text_contents() == [
+        "Ex-100、Ex-101 屬於第 3 賽季。", "Ex-000、Ex-099 屬於第 4 賽季,目前不能選。"]
+
+
+def test_unselectable_season_hidden_until_opened(page):
+    page.evaluate("""() => {
+        SEASONS = {...SEASONS, selectable: [1, 2, 3, 4]};
+        openRules('seasons');
+    }""")
+    page.wait_for_function("document.querySelector('#rules-sec-seasons tbody tr')")
+    rows = season_rows(page)
+    assert set(rows) == {"1", "2", "3", "4"}
+    col = headers(page).index("M")
+    assert rows["4"][col] == "001–085"
+    assert page.evaluate("(k) => t(k)", "product.level-4") in rows["4"][-1]
+    assert page.locator("#rules-sec-seasons .rules-season-note").all_text_contents() == [
+        "Ex-100、Ex-101 屬於第 3 賽季。", "Ex-000、Ex-099 屬於第 4 賽季。"]
 
 
 def test_season_table_follows_definition(page):
