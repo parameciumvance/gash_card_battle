@@ -648,12 +648,11 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* 自動 pass 開關(行動欄的回應按鈕旁)與「有可用行動」提示 */
 .auto-pass-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer;
   white-space: nowrap; }
-.auto-pass-short { display: none; }
 .auto-pass-count { color: var(--on-page-green); font-weight: 600; }
 .idle-hint { font-size: 13px; color: var(--on-page-green); font-weight: 600; }
 @media (max-width: 700px) {
-  .auto-pass-label { display: none; }
-  .auto-pass-short { display: inline; }
+  /* 窄螢幕:完整的句子縮小、可換行(只寫「自動」看不出意思,13px 又會超出畫面) */
+  .auto-pass-toggle { white-space: normal; max-width: 120px; font-size: 11px; line-height: 1.3; }
 }
 .hidden { display: none !important; }
 #dialog {

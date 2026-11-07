@@ -33,7 +33,6 @@
   "ui.flip_browse_hint": "Use ← → to choose the pages to turn to (up to {max})",
   "ui.pass": "Pass",
   "ui.auto_pass": "Auto pass when no actions",
-  "ui.auto_pass_short": "Auto",
   "ui.auto_pass_counting": "Auto pass soon…",
   "ui.idle_has_actions": "You have effects or actions you can use",
   "ui.details": "Details",
