@@ -270,7 +270,26 @@ def snapshot(game: Game, viewer) -> dict:
         if can_see_player(viewer, st.pending.player):
             pending["options"] = st.pending.options  # 選項細節只給決策者
         view["pending"] = pending
+    idle = _idle_view(game, viewer)
+    if idle is not None:
+        view["idle"] = idle
     return view
+
+
+def _idle_view(game: Game, viewer) -> dict | None:
+    """等待非回合玩家輸入(戰鬥階段、沒有決策)時,只給該玩家:除了預設回應之外有沒有其他可用行動,
+    沒有時附上預設回應(前端的自動 pass)。翻開的頁對對手隱藏,所以是私有資訊。"""
+    from ..engine.awaiting import awaited_player, default_command
+    from ..engine.state import BATTLE
+    from ..npc.candidates import other_actions_available
+    st = game.state
+    if st.phase != BATTLE or st.pending is not None:
+        return None
+    player = awaited_player(game)
+    if player is None or player == st.turn_player or not can_see_player(viewer, player):
+        return None
+    has = other_actions_available(game, player)
+    return {"has_actions": has, "auto": None if has else default_command(game)}
 
 
 def _effects_view(game: Game) -> list[dict]:

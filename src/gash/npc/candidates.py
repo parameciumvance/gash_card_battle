@@ -112,3 +112,12 @@ def _mamodo_defenses(game: Game, player: int) -> list[dict]:
 def _mamodo_attacks(game: Game, player: int) -> list[dict]:
     return [{"type": "declare_attack", "mode": "mamodo", "slot_uid": slot.uid}
             for slot in game.state.players[player].slots if slot.top in reg.MAMODO_ATTACK]
+
+
+def other_actions_available(game: Game, player: int) -> bool:
+    """player 在目前決策點除了預設回應(default_command:pass / 進入戰鬥 / 不防禦)之外,
+    是否還有其他合法的行動(battle-api「非回合玩家的可用行動快照」)。在副本上逐一試送判斷。"""
+    from ..engine.awaiting import default_command
+    from .settle import clone, try_submit
+    default = default_command(game)
+    return any(cmd != default and try_submit(clone(game), player, cmd) for cmd in candidates(game, player))
