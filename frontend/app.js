@@ -2599,13 +2599,87 @@ function hintsShown() {
   try { return localStorage.getItem("gash-action-hints") === "shown"; } catch (_) { return false; }
 }
 
+// ---------------------------------------------------------------- 自動 pass(battle-ui「自動 pass」)
+
+// 快照的 idle.auto:等待中的非回合玩家沒有其他可用行動時的預設回應(pass / 進入戰鬥 / 不防禦)。
+// 開關記在瀏覽器,預設開;演出播完後倒數,放大檢視或卡片行動選單開著時暫停(關閉後重新倒數)
+const AUTO_PASS_KEY = "gash-auto-pass";
+const AUTO_PASS_MS = 2000;
+let AUTO_PASS = null;   // { key, cmd, player, elapsed, running, timer }
+
+function autoPassOn() {
+  try { return localStorage.getItem(AUTO_PASS_KEY) !== "off"; } catch (_) { return true; }
+}
+
+function cancelAutoPass() {
+  if (AUTO_PASS && AUTO_PASS.timer) clearInterval(AUTO_PASS.timer);
+  AUTO_PASS = null;
+}
+
+function autoPassKey() {
+  return S && S.idle && S.idle.auto ? `${S.event_count}:${JSON.stringify(S.idle.auto)}` : null;
+}
+
+function scheduleAutoPass() {
+  const key = autoPassKey();
+  const awaited = key ? awaitedPlayer() : null;
+  if (!key || !autoPassOn() || PICK || awaited === null || !iControl(awaited)) { cancelAutoPass(); return; }
+  if (AUTO_PASS && AUTO_PASS.key === key) return;            // 同一個決策點:倒數照舊
+  cancelAutoPass();
+  const state = { key, cmd: S.idle.auto, player: awaited, elapsed: 0, running: false, timer: null };
+  AUTO_PASS = state;
+  Anim.idle().then(() => {
+    if (AUTO_PASS !== state) return;
+    state.running = true;
+    renderActionBar();                                       // 顯示倒數中
+    state.timer = setInterval(() => {
+      if (AUTO_PASS !== state) { clearInterval(state.timer); return; }
+      if (ZOOM || CARD_MENU) { state.elapsed = 0; return; }  // 查看卡片時暫停,關閉後重新倒數
+      state.elapsed += 100;
+      if (state.elapsed < AUTO_PASS_MS) return;
+      cancelAutoPass();
+      // 送出前再確認:同一個決策點、沒有送出中的指令、開關仍開(玩家自己回應後狀態前進,鍵就不同)
+      if (autoPassKey() !== state.key || SENDING > 0 || !autoPassOn()) return;
+      send({ ...state.cmd, player: state.player });
+    }, 100);
+  });
+}
+
+function autoPassToggleEl() {
+  const label = document.createElement("label");
+  label.className = "auto-pass-toggle";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = autoPassOn();
+  box.onchange = () => {
+    try { localStorage.setItem(AUTO_PASS_KEY, box.checked ? "on" : "off"); } catch (_) { /* 本次不記 */ }
+    if (!box.checked) cancelAutoPass();
+    renderActionBar();
+  };
+  const full = document.createElement("span");
+  full.className = "auto-pass-label";
+  full.textContent = t("ui.auto_pass");
+  const short = document.createElement("span");
+  short.className = "auto-pass-short";
+  short.textContent = t("ui.auto_pass_short");
+  label.append(box, full, short);
+  if (AUTO_PASS && AUTO_PASS.running) {
+    const count = document.createElement("span");
+    count.className = "auto-pass-count";
+    count.textContent = t("ui.auto_pass_counting");
+    label.appendChild(count);
+  }
+  return label;
+}
+
 function renderActionBar() {
   const outer = document.getElementById("action-bar");
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
   if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
-  if (!S || S.phase === "game_over") return;
+  if (!S || S.phase === "game_over") { cancelAutoPass(); return; }
+  scheduleAutoPass();
   const me = myViewer();
   if ((me === 0 || me === 1) && R && R.unresponsive && R.unresponsive[1 - me]) {   // 對手沒有回應:結束或繼續等
     const box = document.createElement("div");
@@ -2729,7 +2803,14 @@ function renderActionBar() {
           : t("ui.any_page_cards", { n: anyPage.length }), () => showBookReview(awaited));
       }
     }
+    if (S.idle && S.idle.has_actions) {               // 非回合玩家:除了預設回應還有可用的效果或行動(不列出)
+      const hint = document.createElement("span");
+      hint.className = "idle-hint";
+      hint.textContent = t("ui.idle_has_actions");
+      bar.appendChild(hint);
+    }
   }
+  if (me === 0 || me === 1 || me === "all") bar.appendChild(autoPassToggleEl());   // 觀戰者不顯示
   if (details) bar.appendChild(details);
 }
 

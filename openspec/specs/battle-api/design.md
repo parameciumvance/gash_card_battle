@@ -94,3 +94,10 @@
   - 只回報保護的魔物是否離場與原因,這是保護後就會公開的結果;副本中的其他資訊(對手的隱藏資訊)不外流。
 - **`flip_end_loses`**:開始階段的回合玩家,依翻頁張數(0 至 `min(3, (32 - pos) // 2)`)翻了之後本回合結束是否落敗;`end_flip_loses_after` 與 `end_flip_loses` 同一個判定(後者為翻 0 張)。只依公開資訊,所有視角相同;其他時候為 `None`。
 - 使用者決定只做會離場或可能敗北的情況,不列「之後將無法使用的戰術」、不提示只會負傷。
+
+## 非回合玩家的可用行動(auto-pass)
+
+- 快照的 `idle`(`_idle_view`):戰鬥階段、沒有 pending、等待的是非回合玩家、觀看者看得到該玩家時,`{"has_actions": bool, "auto": 指令或 null}`。`auto` 是 `default_command`(逾時代打的同一個:戰鬥開始確認為進入戰鬥、防禦步驟為不防禦、其他為 pass)。
+- 判斷在 `npc/candidates.py` 的 `other_actions_available`:`candidates()` 中排除等於預設回應的那一個,其餘在副本上以 `try_submit` 試送,任一合法即有。候選列舉本來就在 NPC 模組,引擎不反向依賴 NPC;副本(`settle.clone`)已設 `previewing`,不做保護的後果預告。防禦包含魔物效果防禦(`_mamodo_defenses`)。
+- 只給該玩家:對手翻開的頁是隱藏的,「有沒有可用行動」是私有資訊。開始階段(回合玩家)與決策不計算。
+- 資訊外洩:前端的自動 pass 會讓對手從回應速度推測有沒有可用行動;使用者知悉後決定所有模式預設開啟、2 秒延遲(見 battle-ui design「自動 pass」)。

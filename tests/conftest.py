@@ -93,6 +93,11 @@ SEEN_RELEASE_SCRIPT = (f"if (localStorage.getItem('gash-release-seen') === null)
                        f"localStorage.setItem('gash-release-seen', '{LATEST_RELEASE}');")
 
 
+# 自動 pass(battle-ui「自動 pass」)預設開啟,會替既有測試自動送出回應;測試預設關閉(只在尚未設定時寫入),
+# 自動 pass 的測試自行開啟
+AUTO_PASS_OFF_SCRIPT = "if (localStorage.getItem('gash-auto-pass') === null) localStorage.setItem('gash-auto-pass', 'off');"
+
+
 class _Browser:
     """Chromium 包一層:new_context 自動加上 SEEN_RELEASE_SCRIPT,其餘照原物件。"""
 
@@ -102,6 +107,7 @@ class _Browser:
     def new_context(self, **kwargs):
         context = self._instance.new_context(**kwargs)
         context.add_init_script(SEEN_RELEASE_SCRIPT)
+        context.add_init_script(AUTO_PASS_OFF_SCRIPT)
         return context
 
     def __getattr__(self, name):
