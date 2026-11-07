@@ -13,4 +13,4 @@
 ## 3. 驗證與文件
 
 - [x] 3.1 快速測試組與相關瀏覽器測試;deck-builder design;`openspec validate deck-warnings --strict`
-- [ ] 3.2 本機實際操作抽查(使用者)
+- [x] 3.2 本機實際操作抽查(使用者)
