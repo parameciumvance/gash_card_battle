@@ -1997,6 +1997,11 @@ function browsedPageEl(p, ps, pg) {
   return el;
 }
 
+// 開始階段最多能翻的張數(大會規則上限 3 張,不超過魔書最後一頁)
+function maxFlips(pos) {
+  return Math.min(3, Math.floor((32 - pos) / 2));
+}
+
 function bookNavButton(cls, label, text, disabled, onclick) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -2058,7 +2063,11 @@ function renderBookBlock(p, ps) {
     const at = browse ?? Math.min(ps.pos, 32);
     cover.classList.toggle("browsing", browse !== null);
     cover.appendChild(bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1)));
-    cover.appendChild(bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1)));
+    const next = bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1));
+    // 開始階段的翻頁提醒:回合玩家還能再往後翻閱(未達最多能翻的張數)時發光
+    if (S.phase === "start" && p === S.turn_player && iControl(p) && !S.pending
+        && (at - ps.pos) / 2 < maxFlips(ps.pos)) next.classList.add("flip-glow");
+    cover.appendChild(next);
     cover.appendChild(bookNavButton("book-current", t("ui.book.current"), t("ui.book.current"),
       browse === null, () => browseBook(p, 0)));
   }
@@ -2762,14 +2771,17 @@ function renderActionBar() {
       // 依魔書翻閱到的對頁決定翻幾張:目前頁 = 不翻頁,往後第 n 個對頁 = 翻 n 張;不對應時只給提示
       const tp = S.turn_player;
       const pos = S.players[tp].pos;
-      const maxFlip = Math.min(3, Math.floor((32 - pos) / 2));
+      const maxFlip = maxFlips(pos);
       const n = ((bookBrowsable(tp) ? browseStart(tp) : null) ?? pos) - pos;
       const count = n / 2;
       if (count >= 0 && count <= maxFlip) {
         const mp = S.turn_no === 1 ? 0 : 2 * count;   // 大會規則:先攻第 1 回合翻頁不得 MP(game-engine「開始階段翻頁」)
         const loses = (S.players[tp].flip_end_loses || [])[count];   // 翻了之後本回合結束會落敗
+        // 停在目前頁且能翻頁:提醒用魔書的 › 選擇張數(翻了會落敗的加註優先)
+        const note = loses ? t("ui.flip_end_loses")
+          : count === 0 && maxFlip > 0 ? t("ui.flip_0_note", { max: maxFlip }) : undefined;
         addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp }),
-          () => send({ type: "flip_pages", player: tp, count }), true, loses ? t("ui.flip_end_loses") : undefined);
+          () => send({ type: "flip_pages", player: tp, count }), true, note);
         if (loses) bar.lastElementChild.classList.add("flip-loses");
       } else {
         const hint = document.createElement("span");

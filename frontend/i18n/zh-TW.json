@@ -29,6 +29,7 @@
   "ui.healthy": "健康",
   "ui.flip_n": "翻 {n} 張(MP +{mp})",
   "ui.flip_0": "不翻頁",
+  "ui.flip_0_note": "按魔書的 › 往後翻閱,選擇翻幾張(最多 {max} 張)",
   "ui.flip_browse_hint": "用左右鍵選擇要翻到的頁(最多翻 {max} 張)",
   "ui.pass": "Pass",
   "ui.auto_pass": "無可用行動時自動 pass",
