@@ -891,6 +891,13 @@ function cardEl(num, opts = {}) {
     cls.textContent = t(`card.class.${def.class}`);
     meta.appendChild(cls);
   }
+  // 干擾(ジャマー)效果圖示:依卡片資料,多個效果圖示的卡(M-080)也只標一次(battle-ui「資訊列的干擾標籤」)
+  if ((def.effect_icons || [def.effect_icon]).includes("jammer")) {
+    const tag = document.createElement("span");
+    tag.className = "cclass ctag-jammer";
+    tag.textContent = t("card.icon.jammer");
+    meta.appendChild(tag);
+  }
   el.appendChild(meta);
 
   const eff = document.createElement("div");

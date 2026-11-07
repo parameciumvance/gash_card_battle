@@ -563,6 +563,7 @@
   "builder.search": "カード名・番号・効果で検索",
   "card.class.intermediate": "中級",
   "card.class.superior": "上級",
+  "card.icon.jammer": "ジャマー",
   "builder.filter.none": "なし",
   "builder.detail": "詳細",
   "builder.pending": "まだ使えない",
