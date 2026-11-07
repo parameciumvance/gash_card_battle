@@ -31,7 +31,7 @@
   "ui.flip_0": "めくらない",
   "ui.flip_browse_hint": "左右キーでめくるページを選ぶ(最大 {max} 枚)",
   "ui.pass": "パス",
-  "ui.auto_pass": "自動パス",
+  "ui.auto_pass": "使える行動がないとき自動パス",
   "ui.auto_pass_short": "自動",
   "ui.auto_pass_counting": "まもなく自動パス…",
   "ui.idle_has_actions": "使える効果や行動があります",

@@ -58,7 +58,7 @@ def test_toggle_default_on_and_hidden_for_spectators(browser, server):  # noqa: 
     p.wait_for_function("Object.keys(CARDS).length > 0")
     awaiting_non_turn(p, None)
     assert p.locator(TOGGLE).is_checked()
-    assert "自動 pass" in p.locator("#action-bar .auto-pass-toggle").text_content()
+    assert "無可用行動時自動 pass" in p.locator("#action-bar .auto-pass-toggle").text_content()
     p.evaluate("SESSION = {...SESSION, viewer: 'spectator'}; render()")
     assert p.locator(TOGGLE).count() == 0
     context.close()

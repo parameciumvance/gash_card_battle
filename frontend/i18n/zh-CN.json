@@ -31,7 +31,7 @@
   "ui.flip_0": "不翻页",
   "ui.flip_browse_hint": "用左右键选择要翻到的页(最多翻 {max} 张)",
   "ui.pass": "Pass",
-  "ui.auto_pass": "自动 pass",
+  "ui.auto_pass": "无可用行动时自动 pass",
   "ui.auto_pass_short": "自动",
   "ui.auto_pass_counting": "即将自动 pass…",
   "ui.idle_has_actions": "有可以使用的效果或行动",
