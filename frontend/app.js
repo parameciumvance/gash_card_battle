@@ -4158,7 +4158,7 @@ let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/p
 const FILTER_MENUS = ["mamodo", "product", "season"];
 
 function newPoolFilters() {
-  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, fopen: null };
+  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, fopen: null, fquery: "" };
 }
 
 // 卡圖裁切的圖示(探測結果有快取,重繪不閃爍)。fallback 為文字時先放文字,卡圖可載入才換成裁切;
@@ -4227,7 +4227,24 @@ function mamodoFilterPaused(filters) {
   return filters.ftypes.size === 1 && filters.ftypes.has("event");
 }
 
+// 卡池文字搜尋(deck-builder「卡池文字搜尋」):全形轉半形、不分大小寫
+function searchNormalize(text) {
+  return text.normalize("NFKC").toLowerCase();
+}
+
+// 每張卡的比對字串:卡號(含去掉連字號)、目前語言的卡名、日文原名、效果名、效果文;語言切換會重新載入,不必失效
+const SEARCH_TEXT = new Map();
+function searchText(num) {
+  if (!SEARCH_TEXT.has(num)) {
+    const z = TEXT[num] || {};
+    SEARCH_TEXT.set(num, searchNormalize([num, num.replace(/-/g, ""), z.name, z.name_ja, z.attr, z.effect]
+      .filter(Boolean).join("\n")));
+  }
+  return SEARCH_TEXT.get(num);
+}
+
 function poolCardMatches(def, filters) {
+  if (filters.fquery && !searchText(def.number).includes(searchNormalize(filters.fquery.trim()))) return false;
   if (filters.ftypes.size && !filters.ftypes.has(def.type)) return false;
   if (filters.fmamodo && !mamodoFilterPaused(filters)
       && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
@@ -4333,7 +4350,22 @@ function renderCardPoolFilters(holder, filters, onChange) {
     }
     menus[group] = { btn, panel, tiles, allBtn };
   }
-  holder.append(bar, ...FILTER_MENUS.map((group) => menus[group].panel));
+  // 搜尋框:篩選列上方獨立一行(篩選列維持一行);輸入即篩選,Esc 清空(金手指視窗不關閉)
+  const searchBox = el("input", "pool-search");
+  searchBox.type = "search";
+  searchBox.placeholder = t("builder.search");
+  searchBox.setAttribute("aria-label", t("builder.search"));
+  searchBox.value = filters.fquery || "";
+  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; onChange(); });
+  searchBox.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || !searchBox.value) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    searchBox.value = "";
+    filters.fquery = "";
+    onChange();
+  });
+  holder.append(searchBox, bar, ...FILTER_MENUS.map((group) => menus[group].panel));
 
   function sync() {
     for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
