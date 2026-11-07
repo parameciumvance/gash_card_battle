@@ -36,7 +36,7 @@ from .tables import (ENDED, EMPTY, LEAVE, PLAYING, REMATCH, TABLE_TIMERS, TABLES
                      connected_seats)
 from .views import filter_events, snapshot
 
-# Python 3.12 的 .webp 只在非嚴格對照表,python:3.12-slim 又沒有 /etc/mime.types,
+# 部分 Python 版本(如 3.12)的 .webp 只在非嚴格對照表,slim 映像檔又沒有 /etc/mime.types,
 # StaticFiles 會回 application/octet-stream;先登記,卡圖一律 image/webp
 mimetypes.add_type("image/webp", ".webp")
 

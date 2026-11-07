@@ -1,6 +1,6 @@
 # Production 映像檔:給 VPS 常駐部署用,與 .devcontainer/Dockerfile(開發容器)分開。
 # 房間狀態存在單一行程記憶體,MUST 以單一 uvicorn 行程運作,不可多 worker/多 replica。
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 

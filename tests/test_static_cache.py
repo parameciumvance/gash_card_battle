@@ -69,7 +69,7 @@ def test_missing_card_art_not_cached(art_dir):
     assert "max-age" not in res.headers.get("cache-control", "")
 
 
-# 模擬 python:3.12-slim:沒有 /etc/mime.types,.webp 只在非嚴格的 common_types
+# 模擬 python:3.12-slim 一類環境:沒有 /etc/mime.types,.webp 只在非嚴格的 common_types
 WEBP_WITHOUT_SYSTEM_MIME = r'''
 import mimetypes
 mimetypes.knownfiles = []
