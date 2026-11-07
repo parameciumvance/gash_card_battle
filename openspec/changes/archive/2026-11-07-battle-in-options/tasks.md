@@ -8,7 +8,7 @@
 ## 2. 驗證與文件
 
 - [x] 2.1 快速測試組與相關瀏覽器測試通過;各 capability design 改用新用語;`openspec validate battle-in-options --strict`;回合轉盤在日文下的標籤不擠壞(截圖確認)(快速組 1605 passed;非 slow 瀏覽器 460 passed;日文 390 / 1280px 的行動欄與時機軌截圖正常)
-- [ ] 2.2 本機實際操作抽查(使用者)
+- [x] 2.2 本機實際操作抽查(使用者)(使用者確認;要求同意進入戰鬥的附註也提醒可以插入行動,已修正)
 
 ## Workflow follow-up
 
