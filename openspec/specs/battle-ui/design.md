@@ -315,6 +315,15 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`(戰術自身確定的宣告時加成也以既有的 `breakdown.spell_bonus` / `breakdown.defense_self` 顯示);段落後註明「不含擲硬幣與戰鬥中的效果」(consequence-preview 起;原為「不含宣告時與戰鬥中的效果」)。新手回饋希望宣告前就能估算合計魔力。
 - `pickSpellUser` 的魔物附註有預估時為「合計 N・費用 M」(`ui.spell_user_note`)。
 
+## 自動 pass(auto-pass)
+
+- 使用者回饋:非回合玩家能用的行動不多,卻在回合玩家每個行動之後、戰鬥開始確認、防禦步驟、效果步驟輪流時都被詢問,只能一直按 pass。新手回饋也希望一眼看出有沒有能做的事。
+- 快照 `idle.auto` 存在(沒有其他可用行動)時,`scheduleAutoPass` 以 `event_count` 與指令為鍵建立倒數(同鍵不重建),等 `Anim.idle()` 後開始;100ms 一個 tick 累計 3 秒(`AUTO_PASS_MS`;使用者試過後由 2 秒改為 3 秒),`ZOOM` 或 `CARD_MENU` 開著時歸零(查看卡片時暫停、關閉後重新倒數 3 秒,使用者決定)。送出前再確認鍵相同、沒有送出中的指令(`SENDING`)、開關仍開;玩家自己回應後狀態前進、鍵不同,倒數自然失效,不會重複送出。
+- 開關在行動欄(回應按鈕旁),對局中的玩家(含本機模式)一直顯示,觀戰者不顯示;`localStorage` 的 `gash-auto-pass`,所有模式預設開啟(使用者決定,知悉資訊外洩)。窄螢幕只顯示勾選框與「自動」。倒數中顯示「即將自動 pass…」。
+- `idle.has_actions` 時行動欄提示「有可以使用的效果或行動」,不列出內容(使用者決定)。
+- 參考遊戲王 Master Duel 的「發動確認」(Auto / ON / OFF):有沒有能發動的卡由系統判斷,停頓同樣會透露資訊,交給玩家設定。這裡只做開關,關閉就等於每個時機都詢問。
+- 瀏覽器測試預設關閉(`conftest` 的 `AUTO_PASS_OFF_SCRIPT`,只在尚未設定時寫入),否則既有測試的回應會被自動送出;自動 pass 的測試自行開啟。
+
 ## 頂欄的換行(topbar-wrap)
 
 - 使用者回報(日文、寬度約 800px):回合、階段、等待狀態被壓成一字一行的直排,「CARD BATTLE」拆成兩行,按鈕被推出畫面。原因是 `#topbar` 只有 ≤700px 才換行,按鈕 `flex-shrink: 0` 不讓寬度,可縮小的文字欄位被壓到 min-content;按鈕陸續增加(演出、語言、作用中效果、金手指、棄權)後,約 700–1300px 已經塞不下。

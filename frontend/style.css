@@ -645,6 +645,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .detail-warning { margin: 6px 0; }
 /* 翻了之後本回合結束會落敗的翻頁按鈕 */
 #action-bar button.flip-loses .btn-note { color: var(--danger); font-weight: 700; }
+/* 自動 pass 開關(行動欄的回應按鈕旁)與「有可用行動」提示 */
+.auto-pass-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; }
+.auto-pass-short { display: none; }
+.auto-pass-count { color: var(--on-page-green); font-weight: 600; }
+.idle-hint { font-size: 13px; color: var(--on-page-green); font-weight: 600; }
+@media (max-width: 700px) {
+  .auto-pass-label { display: none; }
+  .auto-pass-short { display: inline; }
+}
 .hidden { display: none !important; }
 #dialog {
   background: #202a42; border: 1px solid #4a5a80; border-radius: 10px;
