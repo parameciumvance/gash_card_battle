@@ -15,7 +15,6 @@ SEASON3 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, h
 def test_season3_numbers_complete():
     db = card_db()
     assert len(SEASON3) == 95 and all(n in db for n in SEASON3)
-    assert len(db) == 332
     for lang in ("ja", "en", "zh-TW", "zh-CN"):
         texts = json.loads((DATA_DIR / f"cards.{lang}.json").read_text(encoding="utf-8"))
         assert all(n in texts for n in SEASON3), lang

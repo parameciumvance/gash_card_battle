@@ -2,26 +2,31 @@
 
 ## 1. 賽季定義
 
-- [ ] 1.1 先寫測試並確認在修改前失敗:
+- [x] 1.1 先寫測試並確認在修改前失敗:
   - Ex-100 / Ex-101 / Ex-099 依序為第 3 / 3 / 4 賽季。
   - PR-004 / 005 / 010 / 011 / 013 依序為第 2 / 3 / 3 / 4 / 4 賽季。
   - M-085、S-146、Ex-074 為第 4 賽季;M-086 沒有賽季。
   - 前端 `cardSeason` 與引擎的結果相同。
-- [ ] 1.2 修改 `data/seasons.json`(design D1)。1.1 通過;既有用到 PR 賽季當例子的測試照新定義調整,並在本檔記錄改了哪些。
+- [x] 1.2 修改 `data/seasons.json`(design D1)。1.1 通過;既有用到 PR 賽季當例子的測試照新定義調整,並在本檔記錄改了哪些。(實作紀錄:沒有既有測試需要調整)
 
 ## 2. 抓取與轉換
 
-- [ ] 2.1 先寫工具測試並確認在修改前失敗:
+- [x] 2.1 先寫工具測試並確認在修改前失敗:
   - 卡頁的 `LEVEL:4`、`拡張3`、`限定拡張` 收錄產品行能被辨認,備註行不併入。
   - PR-012 沒有「パートナー＝」時不報錯,`related_partner_ja` 為空;未登記的魔物照舊報錯。
   - 「限定拡張」依卡號轉為 `dx-red-book` / `festa-2004-spring`;未登記的卡號報錯。
   - M-070 的 `LEVEL:4|TBB1|RE` 轉為 `["level-4", "tbb1", "re"]`。
-- [ ] 2.2 修改 `scrape_ja_effects.py`(`PRODUCT_NAMES`、`KNOWN_NO_PARTNER`、說明文件的來源頁)與 `build_cards_json.py`(`PRODUCTS`、`LIMITED_EXPANSION`、`EXPECTED_COUNT` 426)。2.1 通過。
-- [ ] 2.3 依序抓 pages/36、54,再抓 pages/61(`--untyped`,範圍 Ex-000、Ex-049、Ex-050、Ex-099~101、PR-012~013),產生 `cards.json`。
+- [x] 2.2 修改 `scrape_ja_effects.py`(`PRODUCT_NAMES`、`KNOWN_NO_PARTNER`、說明文件的來源頁)與 `build_cards_json.py`(`PRODUCTS`、`LIMITED_EXPANSION`、`EXPECTED_COUNT` 426)。2.1 通過。
+- [x] 2.3 依序抓 pages/36、54,再抓 pages/61(`--untyped`,範圍 Ex-000、Ex-049、Ex-050、Ex-099~101、PR-012~013),產生 `cards.json`。
   - 遇到未知 token 或頁面漏刊時逐一確認,登記處記錄在本檔。
   - 重新轉換後,逐卡比對既有 332 張的 `cards.json` 沒有變動。
-- [ ] 2.4 `data/pending_cards.json` 列入 94 張;更新各測試的卡片總數。
-- [ ] 2.5 卡片資料測試:新卡號齊全、共 426 張、M-070 / Ex-100 建房回 `deck.card_pending`。
+  - 實作紀錄(design D7):
+    - 新 token「石版魔物」(Ex-056~058):使用者選擇記為魔物 + `stone_tablet`;`cards_ja.csv` 加欄位,先寫測試確認失敗後實作。
+    - Ex-050 的魔力倍率寫成「1000x」:轉換工具接受字母 x。
+    - M-080 有兩個效果圖示:記為 `effect_icons`。
+    - 沒有頁面漏刊。既有 332 張逐卡比對沒有變動;新卡的戰術與搭檔都對得到魔物家族,新家族 9 個(エルジョ、ゴーレン、ドグモス、ドンポッチョ、バランシャ、ビョンコ、ボルボラ、ロード、黒騎士)。
+- [x] 2.4 `data/pending_cards.json` 列入 94 張;更新各測試的卡片總數(`test_deck.py`;`test_season3_cards.py` 的總數移到 `test_season4_cards.py`)。
+- [x] 2.5 卡片資料測試:新卡號齊全、共 426 張、M-070 / Ex-100 建房回 `deck.card_pending`。
 
 ## 3. 卡片文字
 

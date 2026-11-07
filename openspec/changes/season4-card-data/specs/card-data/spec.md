@@ -120,3 +120,28 @@ atwiki 卡頁把 DX赤い魔本 與 電撃フェスタ2004春の陣 的附錄卡
 #### Scenario: LEVEL:4 與拡張シート LEVEL:3
 - **WHEN** 轉換 M-070(`LEVEL:4|TBB1|RE`)與 Ex-051(`拡張3|TBB1`)
 - **THEN** 兩者的 `sets` 依序為 `["level-4", "tbb1", "re"]` 與 `["ex-sheet-3", "tbb1"]`
+
+### Requirement: 石版魔物的標記
+atwiki 卡頁資料頭以「石版魔物」取代「魔物」的卡(如 Ex-056「石版魔物　4500」)SHALL 解析為魔物卡,並在 `cards.json` 記 `stone_tablet: true`;其他卡 MUST NOT 有這個欄位。石版魔物在規則上與一般魔物相同,只有指定石版魔物的效果會區分(atwiki 規則頁「石版魔物」)。
+
+#### Scenario: 石版魔物
+- **WHEN** 轉換 Ex-056、Ex-057、Ex-058
+- **THEN** 類型為魔物,`stone_tablet` 為 true,魔力等其他欄位照一般魔物解析
+
+#### Scenario: 一般魔物
+- **WHEN** 轉換 Ex-051
+- **THEN** 沒有 `stone_tablet` 欄位
+
+### Requirement: 多個效果圖示
+資料頭有多個效果圖示的卡(各效果有自己的圖示,如 M-080「ジャマー」「バトル」)SHALL 在 `cards.json` 依資料頭順序記錄全部圖示於 `effect_icons`,且 `effect_icon` 為 null;MUST NOT 只保留其中一個。只有一個圖示的卡照舊只有 `effect_icon`。
+
+#### Scenario: 兩個效果圖示
+- **WHEN** 轉換 M-080
+- **THEN** `effect_icons` 為 `["jammer", "battle"]`,`effect_icon` 為 null
+
+### Requirement: 魔力倍率的寫法
+戰術的魔力倍率(數字加倍率後綴)SHALL 接受乘號「×」與英文字母「x」兩種寫法,視為相同(Ex-050 的來源寫作「1000x」)。
+
+#### Scenario: 字母 x
+- **WHEN** 轉換 power 為「1000x」的 Ex-050
+- **THEN** `power` 為 `{"special": true, "per_heads": 1000}`

@@ -95,3 +95,12 @@ def test_join_mode_has_no_season_and_shows_room_season_on_reject(page, server):
     assert "此房間為第 1 賽季" in page.locator("#toast").inner_text()
     assert page.locator("#setup-friend").is_visible()
     assert page.locator("#join-code").input_value() == room["code"]
+
+
+def test_front_card_season_matches_engine(page):
+    """前端 cardSeason 與引擎 card_season 對每個卡號(含未收錄卡號、特別歸屬)結果相同。"""
+    from gash.engine.seasons import card_season
+    numbers = ["M-015", "M-016", "M-085", "M-086", "PR-004", "PR-005", "PR-010", "PR-011", "PR-013",
+               "Ex-000", "Ex-048", "Ex-049", "Ex-074", "Ex-075", "Ex-099", "Ex-100", "Ex-101"]
+    front = page.evaluate("(ns) => ns.map((n) => cardSeason(n))", numbers)
+    assert front == [card_season(n) for n in numbers]

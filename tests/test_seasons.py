@@ -26,8 +26,25 @@ def test_special_assignment_overrides_range():
 
 
 def test_card_outside_every_season_has_none():
-    assert card_season("M-070") is None
-    assert card_season("Ex-049") is None
+    assert card_season("M-086") is None                  # LIMITED EDITION Ⅱ:第 5 賽季,尚未定義
+    assert card_season("Ex-075") is None
+
+
+@pytest.mark.parametrize("number, season", [("Ex-100", 3), ("Ex-101", 3), ("Ex-099", 4)])
+def test_special_assignment_outside_ranges(number, season):
+    # DX赤い魔本附錄(第 3 賽季)、電撃フェスタ(第 4 賽季):編號不在任何賽季的 Ex 範圍內
+    assert card_season(number) == season
+
+
+@pytest.mark.parametrize("number, season", [
+    ("PR-004", 2), ("PR-005", 3), ("PR-007", 3), ("PR-010", 3), ("PR-011", 4), ("PR-013", 4)])
+def test_pr_seasons(number, season):
+    assert card_season(number) == season
+
+
+@pytest.mark.parametrize("number", ["M-070", "M-085", "S-146", "P-050", "E-054", "Ex-049", "Ex-074"])
+def test_season4_cards(number):
+    assert card_season(number) == 4
 
 
 def test_preset_deck_seasons():
