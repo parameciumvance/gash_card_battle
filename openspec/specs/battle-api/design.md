@@ -97,7 +97,7 @@
 
 ## 非回合玩家的可用行動(auto-pass)
 
-- 快照的 `idle`(`_idle_view`):戰鬥階段、沒有 pending、等待的是非回合玩家、觀看者看得到該玩家時,`{"has_actions": bool, "auto": 指令或 null}`。`auto` 是 `default_command`(逾時代打的同一個:戰鬥開始確認為進入戰鬥、防禦步驟為不防禦、其他為 pass)。
+- 快照的 `idle`(`_idle_view`):戰鬥階段、沒有 pending、等待的是非回合玩家、觀看者看得到該玩家時,`{"has_actions": bool, "auto": 指令或 null}`。`auto` 是 `default_command`(逾時代打的同一個:進入戰鬥確認為進入戰鬥、防禦步驟為不防禦、其他為 pass)。
 - 判斷在 `npc/candidates.py` 的 `other_actions_available`:`candidates()` 中排除等於預設回應的那一個,其餘在副本上以 `try_submit` 試送,任一合法即有。候選列舉本來就在 NPC 模組,引擎不反向依賴 NPC;副本(`settle.clone`)已設 `previewing`,不做保護的後果預告。防禦包含魔物效果防禦(`_mamodo_defenses`)。
 - 只給該玩家:對手翻開的頁是隱藏的,「有沒有可用行動」是私有資訊。開始階段(回合玩家)與決策不計算。
 - 資訊外洩:前端的自動 pass 會讓對手從回應速度推測有沒有可用行動;使用者知悉後決定所有模式預設開啟、3 秒延遲(見 battle-ui design「自動 pass」)。

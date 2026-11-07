@@ -46,7 +46,7 @@ def ability(player, slot, zone="mamodo"):
 
 
 def attack(g, page, slot=None, defend_page=None):
-    """玩家 0 宣告攻擊、玩家 1 迎戰;defend_page 為 None 時不防禦。停在戰鬥中效果的時機(攻方先)。"""
+    """玩家 0 宣告攻擊、玩家 1 同意進入戰鬥;defend_page 為 None 時不防禦。停在戰鬥中效果的時機(攻方先)。"""
     cmd = {"type": "declare_attack", "player": 0, "page": page}
     if slot is not None:
         cmd["slot_uid"] = slot.uid

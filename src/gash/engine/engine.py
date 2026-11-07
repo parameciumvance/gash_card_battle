@@ -620,7 +620,7 @@ def _submit(game: Game, command: dict) -> list[dict]:
         _battle_command(game, batch, player, command)
         return batch
 
-    # --- 戰鬥開始確認中:僅非回合玩家可回應 ---
+    # --- 進入戰鬥確認中:僅非回合玩家可回應 ---
     if st.battle_in is not None:
         _battle_in_response(game, batch, player, command)
         return batch
@@ -1008,7 +1008,7 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         raise IllegalCommand("book.not_usable", "此卡不能留在魔書中使用")
 
 
-# ---------------------------------------------------------------- 戰鬥開始確認
+# ---------------------------------------------------------------- 進入戰鬥確認
 
 def _spell_any_page_standby(game: Game, player: int, page, slot: MamodoSlot | None = None,
                             use: str | None = None) -> Standby | None:
@@ -1292,7 +1292,7 @@ reg.CHOICE_RESOLVERS["spell_free"] = _spell_discount_resolver   # PR-001:是否�
 
 
 def _proceed_declaration(game: Game, batch: list[dict], side: str, decl: dict) -> None:
-    """減費之後:費用 0(PR-001)與追加費用(S-067 / S-097)的詢問,之後開始迎戰確認(攻擊)或完成防禦宣告。"""
+    """減費之後:費用 0(PR-001)與追加費用(S-067 / S-097)的詢問,之後開始同意進入戰鬥確認(攻擊)或完成防禦宣告。"""
     if "free" not in decl and _ask_spell_free(game, batch, side, decl):
         return
     if "extra" not in decl and _ask_extra_cost(game, batch, side, decl):
@@ -1436,7 +1436,7 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
     st = game.state
     bi = st.battle_in
     if player != 1 - bi["attacker"]:
-        raise IllegalCommand("battle_in.not_defender", "等待非回合玩家回應戰鬥開始確認")
+        raise IllegalCommand("battle_in.not_defender", "等待非回合玩家回應進入戰鬥確認")
     ctype = command.get("type")
     if ctype in ("battle_in_response", "pass"):
         st.battle_in = None
@@ -1452,7 +1452,7 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         st.action_player = bi["attacker"]
         st.consecutive_passes = 0
         return
-    raise IllegalCommand("battle_in.invalid", "只能迎戰(進入戰鬥)或插入 1 個行動")
+    raise IllegalCommand("battle_in.invalid", "只能同意進入戰鬥或插入 1 個行動")
 
 
 # ---------------------------------------------------------------- 戰鬥

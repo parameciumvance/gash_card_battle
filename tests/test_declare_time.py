@@ -14,7 +14,7 @@ def coins(events):
 
 
 def declare(g, page, slot=None):
-    """玩家 0 宣告攻擊並由玩家 1 迎戰,回傳宣告(戰鬥開始)時的事件。"""
+    """玩家 0 宣告攻擊並由玩家 1 同意進入戰鬥,回傳宣告(戰鬥開始)時的事件。"""
     cmd = {"type": "declare_attack", "player": 0, "page": page}
     if slot is not None:
         cmd["slot_uid"] = slot.uid
