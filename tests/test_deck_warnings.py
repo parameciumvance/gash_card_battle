@@ -15,7 +15,7 @@ def book(**pages):
 
 
 def warned(pages):
-    return {(w["code"], w["page"], w["card"]) for w in deck_warnings(pages)}
+    return {(w["kind"], w["page"], w["card"]) for w in deck_warnings(pages)}
 
 
 def test_spell_without_user_then_add_mamodo():
@@ -59,7 +59,7 @@ def test_api():
     client = TestClient(app)
     r = client.post("/api/decks/warnings", json={"pages": book(p1="M-004", p5="S-001", p8="P-001")})
     assert r.status_code == 200
-    assert {(w["code"], w["page"], w["card"]) for w in r.json()["warnings"]} == {
+    assert {(w["kind"], w["page"], w["card"]) for w in r.json()["warnings"]} == {
         ("spell_no_user", 5, "S-001"), ("partner_no_mamodo", 8, "P-001")}
 
 

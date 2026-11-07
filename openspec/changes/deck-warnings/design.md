@@ -13,7 +13,7 @@
 - 以一場固定的對局(預組開局)為環境,把魔書中每張魔物卡放成假設的場上魔物,沿用 `_spell_usable_by` 判斷每張非指令戰術能不能用;家族相符與相容規則都只依卡片資料,在假設盤面上判斷準確。
 - `spell_compat_attr` 是對局中由搭檔效果產生的暫時修正:掃描魔書中各卡的效果樹,找出 `AllowAttrSpellsThisTurn(mamodo, attr)`,魔書中有該家族的魔物時,把該屬性的戰術視為能使用(不提醒)。
 - 搭檔:魔書中沒有家族相符的魔物時提醒(與 `partner_targets` 同一判斷)。
-- 空頁略過;回傳 `[{code: "spell_no_user" | "partner_no_mamodo", page, card}]`(頁碼從 1 起)。
+- 空頁略過;回傳 `[{kind: "spell_no_user" | "partner_no_mamodo", page, card}]`(頁碼從 1 起)。
 - 替代方案:前端依 `related_mamodo` 自行判斷。會漏掉相容規則(M-029 等)而誤報。
 
 ### D2 API 與前端

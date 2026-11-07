@@ -119,9 +119,9 @@ def deck_warnings(pages: list[str | None], db: dict[str, CardDef] | None = None)
     for page, number in cards:
         card = db[number]
         if card.type == SPELL and not card.is_command_spell and not usable(card):
-            warnings.append({"code": "spell_no_user", "page": page, "card": number})
+            warnings.append({"kind": "spell_no_user", "page": page, "card": number})
         elif card.type == PARTNER and card.related_mamodo not in families:
-            warnings.append({"code": "partner_no_mamodo", "page": page, "card": number})
+            warnings.append({"kind": "partner_no_mamodo", "page": page, "card": number})
     return warnings
 
 

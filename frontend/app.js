@@ -4624,6 +4624,23 @@ function renderBookGrid(grid, renderSlot) {
   if (focused != null) grid.querySelector(`[data-page="${focused}"]`)?.focus({ preventScroll: true });
 }
 
+// 魔書組合的提醒:以魔書內容為鍵快取,只採用最後一次請求的結果
+let DECK_WARN = { key: null, list: [] };
+let deckWarnSeq = 0;
+
+function requestDeckWarnings(pages, key) {
+  const seq = ++deckWarnSeq;
+  api("/api/decks/warnings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pages }),
+  }).then((d) => {
+    if (seq !== deckWarnSeq) return;
+    DECK_WARN = { key, list: d.warnings || [] };
+    if (B) renderValidation();
+  }).catch(() => {});
+}
+
 function renderValidation() {
   // 魔書名稱旁的「第 N 賽季起」(deck-builder「魔書的賽季標示」):只是資訊,不影響合法性提示
   const tag = document.getElementById("builder-season");
@@ -4647,6 +4664,19 @@ function renderValidation() {
       el.textContent = t(e.key, e.params);
       bar.appendChild(el);
     }
+  }
+  // 組合的提醒(deck-builder「魔書組合的提醒」):伺服器以引擎判斷,不影響合法性;取得前不顯示
+  const pages = B.deck.pages.map((c) => c || null);
+  const warnKey = JSON.stringify(pages);
+  if (DECK_WARN.key === warnKey) {
+    for (const w of DECK_WARN.list) {
+      const el = document.createElement("span");
+      el.className = "warn";
+      el.textContent = t(`builder.warn.${w.kind}`, { card: cname(w.card), page: w.page });
+      bar.appendChild(el);
+    }
+  } else {
+    requestDeckWarnings(pages, warnKey);
   }
   const mamodo = B.deck.pages.filter((c) => c && CARDS[c].type === "mamodo").length;
   const stat = document.createElement("span");
