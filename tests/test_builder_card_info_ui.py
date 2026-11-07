@@ -149,19 +149,19 @@ def test_delete_key_removes_selected(builder):
     assert builder.evaluate("B.deck.pages[2]") is None
 
 
-# ---------------------------------------------------------------- 尚未開放的卡(deck-builder「卡池不顯示尚未開放的卡」)
+# ---------------------------------------------------------------- 尚未開放的卡(deck-builder「卡池的尚未開放卡片」)
 
-def test_pending_cards_hidden_from_pool_and_products(builder):
+def test_pending_cards_shown_but_marked_in_pool_and_products(builder):
     # E-029 已開放:以頁面的 PENDING 模擬它尚未開放(保留目前清單中的卡)
     assert not builder.evaluate("PENDING.has('E-029')") and "E-029" in pool_numbers(builder)
     builder.evaluate("PENDING = new Set([...PENDING, 'E-029']); renderPoolFilters(); renderPool()")
-    assert "E-029" not in pool_numbers(builder) and "M-001" in pool_numbers(builder)
+    assert "E-029" in pool_numbers(builder) and "M-001" in pool_numbers(builder)   # 構築器照常列出
+    assert "pending" in builder.locator('#pool-grid .card[aria-label^="E-029 "]').get_attribute("class").split()
     products = builder.locator("#pool-filters .filter-panel[data-group=product] .filter-tile[data-key]")
-    assert "mahon-file" in products.evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
-    # 魔本ファイル的卡全部尚未開放時,產品網格不列出該產品(網格只列有開放卡片的產品)
+    # 魔本ファイル的卡全部尚未開放時,構築器的產品網格照常列出該產品(金手指不列,見 test_pool_filters_ui)
     builder.evaluate("""PENDING = new Set([...PENDING, 'E-029', ...Object.values(CARDS)
       .filter((c) => c.sets.includes('mahon-file')).map((c) => c.number)]); renderPoolFilters(); renderPool()""")
-    assert "mahon-file" not in products.evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
+    assert "mahon-file" in products.evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
     put(builder, {6: "E-029"})                                              # 匯入等方式放進魔書
     assert "E-029" in builder.locator("#builder-validation").text_content()
 

@@ -565,6 +565,8 @@
   "card.class.superior": "上级",
   "builder.filter.none": "无",
   "builder.detail": "详情",
+  "builder.pending": "尚未开放",
+  "builder.pending_blocked": "此卡尚未开放,不能加入魔书",
   "builder.filter.type": "类型",
   "builder.filter.mamodo": "对应魔物",
   "builder.type.mamodo": "魔物",

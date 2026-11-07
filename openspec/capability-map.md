@@ -30,7 +30,7 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |
 | `npc-opponent` | NPC 對手的決策:資訊可見範圍、只送出引擎接受的指令、難度與基本判斷、可重現 | Documented | Documented | 測試在 `tests/test_npc.py`;NPC 房與驅動見 `online-room` |
 | `battle-ui` | 對戰畫面:首頁(含對戰中人數)、設定頁與牌桌頁、盤面(含場上魔書翻閱)、回合與時機指示、操作與決策、終局與結算面板、行動記錄、動畫與聚焦展示、音效、演出設定、規則頁、意見回報、更新內容(release note)、維護公告、語言選擇(繁中、簡中、英、日)與 i18n | Partial | Partial | 初評;design 只整理了首頁與設定頁、更新內容、維護公告、事件動畫、聚焦展示、音效、回合和時機指示、終局、規則頁、意見回報與語言 |
-| `deck-builder` | 魔書構築:對頁編輯、卡池圖示篩選(含賽季)、合法性提示、組合提醒、瀏覽器儲存、文字碼 | Partial | Partial | 初評;design 只整理了卡池篩選(與金手指共用,含產品依賽季分排)、魔書的賽季標示與組合提醒 |
+| `deck-builder` | 魔書構築:對頁編輯、卡池圖示篩選(含賽季)、合法性提示、組合提醒、瀏覽器儲存、文字碼 | Partial | Partial | 初評;design 只整理了卡池篩選(與金手指共用,含產品依賽季分排、尚未開放的卡顯示但不可選)、魔書的賽季標示與組合提醒 |
 | `docker-deployment` | VPS 容器部署:映像檔、Cloudflare Tunnel 對外、CI 分流(`main` / `dev` 跑含瀏覽器測試的全套、發布前的測試關卡與更新內容檢查、GitHub Release、失敗截圖)、自動更新、本機的維運腳本(卡圖同步、維護公告發布 / 撤下、狀態查詢) | Partial | Partial | 初評;design 整理了架構、映像檔、發布與更新、對外服務、維運腳本(測試在 `tests/test_vps_tool.py`;公告格式規則與 `battle-api` 共用) |
 
 ## 重要關係與 flow
