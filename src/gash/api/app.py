@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from ..announcement import AnnouncementError, parse_announcement
 from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
-from ..engine.deck import DeckError, load_deck, validate_deck
+from ..engine.deck import DeckError, deck_warnings, load_deck, validate_deck
 from ..engine.seasons import deck_season, default_season, selectable_seasons
 from ..engine.engine import IllegalCommand, end_game, new_game, submit
 from ..engine.state import BOOK_SIZE, GAME_OVER
@@ -374,6 +374,19 @@ def _resolve(code: str, token: str | None) -> tuple[Room, int | str]:
 async def list_decks():
     """列出伺服器 data/decks/ 下所有預組魔書(丟檔即現)。"""
     return {"decks": preset_list()}
+
+
+class DeckWarningsRequest(BaseModel):
+    pages: list[str | None]
+
+
+@app.post("/api/decks/warnings")
+async def get_deck_warnings(req: DeckWarningsRequest):
+    """構築中魔書的組合提醒(deck-builder「魔書組合的提醒」):可含空頁;不是構築規則。"""
+    db = card_db()
+    if len(req.pages) != BOOK_SIZE or any(n is not None and n not in db for n in req.pages):
+        raise HTTPException(400, {"code": "deck.invalid", "message": "魔書須為 32 頁,卡號須存在"})
+    return {"warnings": deck_warnings(req.pages, db)}
 
 
 # ---------------------------------------------------------------- 執行環境
