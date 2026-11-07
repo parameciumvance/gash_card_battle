@@ -8,7 +8,7 @@
 ## 2. 驗證與文件
 
 - [x] 2.1 快速測試組通過;deck-builder design 補搜尋的做法;`openspec validate builder-search --strict`
-- [ ] 2.2 本機實際操作抽查(使用者)
+- [x] 2.2 本機實際操作抽查(使用者)(使用者確認沒問題)
 
 ## Workflow follow-up
 
