@@ -1304,6 +1304,7 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   font-size: 12.5px; min-height: 38px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
 }
 #builder-validation .err { color: #ff8f8f; }
+#builder-validation .warn { color: #ffc964; }   /* 組合的提醒(deck-builder「魔書組合的提醒」):不是違規,與 .err 區分 */
 #builder-validation .ok { color: var(--accent-green); font-weight: bold; }
 #builder-validation .stat { color: var(--ink-dim); }
 

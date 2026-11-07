@@ -77,3 +77,65 @@ def load_deck(path: Path, db: dict[str, CardDef]) -> Deck:
     pages = list(raw["pages"])
     validate_deck(pages, db)
     return Deck(id=raw["id"], pages=tuple(pages))
+
+
+def deck_warnings(pages: list[str | None], db: dict[str, CardDef] | None = None) -> list[dict]:
+    """魔書組合的提醒(deck-builder「魔書組合的提醒」):不是構築規則,只指出一定不能運作的卡。
+    - spell_no_user:魔書中沒有任何魔物能使用的戰術(指令戰術除外)。
+    - partner_no_mamodo:魔書中沒有對應魔物的搭檔。
+    「能使用」沿用引擎的 _spell_usable_by:把魔書中每張魔物卡放成假設的場上魔物判斷(家族、戰術相容規則
+    都只依卡片資料);對局中由搭檔效果產生的屬性相容(P-029 AllowAttrSpellsThisTurn)另外掃描效果樹。
+    空頁略過;頁碼從 1 起。"""
+    from .cards import PARTNER, card_db
+    from .effects import tree as T
+    from .effects.primitives import family
+    from .engine import _spell_usable_by, new_game
+    from .state import MamodoSlot
+
+    db = db or card_db()
+    cards = [(i, n) for i, n in enumerate(pages, 1) if n]
+    # 判斷用的對局環境:只借用引擎的函式,場上換成假設的魔物、清掉修正
+    game = new_game(["M-001"] + ["S-001"] * (BOOK_SIZE - 1), seed=0, db=db)
+    game.state.modifiers = []
+    slots = [MamodoSlot(uid=1000 + i, stack=[n]) for i, n in cards if db[n].type == MAMODO]
+    families = {family(game, s) for s in slots}
+    # 魔書中的卡讓某家族使用某屬性的戰術(P-029):(家族, 屬性)
+    granted = set()
+    numbers = {n for _, n in cards}
+    for key, root in T.EFFECTS.items():
+        if key.split(":", 1)[0] in numbers:
+            for node in _tree_nodes(root):
+                if isinstance(node, T.AllowAttrSpellsThisTurn):
+                    granted.add((node.mamodo, node.attr))
+
+    def usable(card: CardDef) -> bool:
+        for slot in slots:
+            game.state.players[0].slots = [slot]
+            if _spell_usable_by(game, 0, slot, card):
+                return True
+        return any(fam in families and card.attr_name == attr for fam, attr in granted)
+
+    warnings = []
+    for page, number in cards:
+        card = db[number]
+        if card.type == SPELL and not card.is_command_spell and not usable(card):
+            warnings.append({"kind": "spell_no_user", "page": page, "card": number})
+        elif card.type == PARTNER and card.related_mamodo not in families:
+            warnings.append({"kind": "partner_no_mamodo", "page": page, "card": number})
+    return warnings
+
+
+def _tree_nodes(node):
+    """效果樹的所有節點(依 dataclass 欄位遞迴,含 Sequence / When 的子節點)。"""
+    from dataclasses import fields, is_dataclass
+    from .effects import tree as T
+    if isinstance(node, (list, tuple)):
+        for item in node:
+            yield from _tree_nodes(item)
+        return
+    if not isinstance(node, T.Effect):
+        return
+    yield node
+    if is_dataclass(node):
+        for f in fields(node):
+            yield from _tree_nodes(getattr(node, f.name))
