@@ -63,7 +63,7 @@
   "ui.defend": "防御",
   "ui.no_defense": "防御しない",
   "ui.allow_battle": "バトル・インを認める",
-  "ui.allow_battle_note": "続けて防御するかを宣言",
+  "ui.allow_battle_note": "続けて防御を宣言/行動を割り込ませると確認は無効",
   "ui.battle_in_hint": "{player} が「{spell}」で攻撃しようとしています(バトル・インの確認) — バトル・インを認めて次に防御を宣言するか、ほかの行動で確認を無効にできます",
   "ui.ability": "効果",
   "ui.ability_mp": "効果(MP {n})",

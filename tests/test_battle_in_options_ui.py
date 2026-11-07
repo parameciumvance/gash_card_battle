@@ -20,7 +20,7 @@ def to_battle_in(page):
 def test_button_and_hint(page):
     to_battle_in(page)
     assert button(page, "同意進入戰鬥").locator(".btn-label").first.text_content() == "同意進入戰鬥"
-    assert note_of(page, "同意進入戰鬥").startswith("接著宣告防禦或不防禦")
+    assert note_of(page, "同意進入戰鬥") == "接著宣告防禦;或插入行動使確認無效"
     labels = page.locator("#action-bar button .btn-label").all_text_contents() + \
         page.locator("#action-bar button:not(:has(.btn-label))").all_text_contents()
     assert not any("不防禦" in label for label in labels)                  # 不提供「進入戰鬥,不防禦」

@@ -63,7 +63,7 @@
   "ui.defend": "Defend",
   "ui.no_defense": "No defense",
   "ui.allow_battle": "Allow battle-in",
-  "ui.allow_battle_note": "then declare a defense or no defense",
+  "ui.allow_battle_note": "then declare a defense; or insert an action to void the check",
   "ui.battle_in_hint": "{player} wants to attack with “{spell}” (battle-in check) — allow the battle-in and declare a defense next, or use another action to void the check",
   "ui.ability": "Effect",
   "ui.ability_mp": "Effect (MP {n})",

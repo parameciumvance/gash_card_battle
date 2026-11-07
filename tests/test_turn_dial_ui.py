@@ -53,7 +53,7 @@ def test_allow_battle_note_and_no_defense_plain(page):
     send(page, tp, {"type": "flip_pages", "count": 0})
     send(page, tp, {"type": "declare_attack", "page": 3})
     page.wait_for_function("S.battle_in")
-    assert note_of(page, "同意進入戰鬥").startswith("接著宣告防禦或不防禦")
+    assert note_of(page, "同意進入戰鬥") == "接著宣告防禦;或插入行動使確認無效"
     assert button(page, "同意進入戰鬥").locator(".btn-label").first.text_content() == "同意進入戰鬥"
     send(page, me, {"type": "battle_in_response", "allow": True})
     page.wait_for_function("S.battle && S.battle.step === 'defense'")

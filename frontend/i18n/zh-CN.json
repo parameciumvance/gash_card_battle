@@ -63,7 +63,7 @@
   "ui.defend": "防御",
   "ui.no_defense": "不防御",
   "ui.allow_battle": "同意进入战斗",
-  "ui.allow_battle_note": "接着宣告防御或不防御",
+  "ui.allow_battle_note": "接着宣告防御;或插入行动使确认无效",
   "ui.battle_in_hint": "{player} 想以《{spell}》攻击,进行进入战斗确认 — 可以同意进入战斗,在下一步宣告防御;也可以使用其他行动,让这次确认无效",
   "ui.ability": "效果",
   "ui.ability_mp": "效果(MP {n})",
