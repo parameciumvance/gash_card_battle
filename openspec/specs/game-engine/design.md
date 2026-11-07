@@ -25,7 +25,7 @@
 
 ## 戰鬥開始與待命表
 
-- `_start_battle` 在戰鬥開始確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、攻擊戰術的名稱集合 `spell_names`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
+- `_start_battle` 在進入戰鬥確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、攻擊戰術的名稱集合 `spell_names`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
 - 戰鬥開始時消耗的待命由 `BATTLE_START_STANDBYS` 表驅動,依表的順序消耗,每個發 `standby_resolved`:
 
 | 待命 | 適用條件 | 套用 |
@@ -45,7 +45,7 @@
 ## 攻防效果的宣告時確定
 
 - 規則出處:atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html)「バトル ②防御 ※重要」:攻撃や防御の効果で対象を選ぶとき・コインを投げるときは宣言時、効果は宣言時に確定。效果文明寫其他時機時依效果文(S-004 / S-014 / S-037「ダメージをあたえたとき、コインを投げて」、S-039、S-078 在造成傷害時;S-021「効果の使用の最後に」)。
-- 攻擊的宣告時點是 `_start_battle`(迎戰確認之後、防禦宣告之前)。改為傷害對手魔物的攻擊(S-058、S-057 待命)先由 `_ask_injure_target` 選對象,選完才執行 `on_declare`(擲幣等),避免兩個決策同時出現。
+- 攻擊的宣告時點是 `_start_battle`(同意進入戰鬥確認之後、防禦宣告之前)。改為傷害對手魔物的攻擊(S-058、S-057 待命)先由 `_ask_injure_target` 選對象,選完才執行 `on_declare`(擲幣等),避免兩個決策同時出現。
 - 宣告時的結果存在 `battle.data`(`injure_target`、`declared_targets`、`RememberInBattle` 的鍵),結算時讀取;`on_declare` 與 `on_win` 是兩次獨立的效果樹執行,不共用 ctx。戰鬥結束時 `battle` 清空,結果一起消失。
 - 宣告時選定的對象在結算前不在時,那份效果沒有作用;攻擊被無效時,`on_win` 不執行,宣告時確定的效果一起失效。
 - S-021:`battle.data["negate_at_effects_end"]` 由 `_resolve_showdown` 開頭(雙方 pass 之後)處理,防禦已被無效時不生效。
@@ -81,7 +81,7 @@ negated                                                                ← 無�
 ## 1 個行動、ジャマー與「使えない」
 
 - 規則出處:官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,印刷頁碼)第 42 頁「『無効にする』と『使えない』」;atwiki 規則頁「1アクションを使って」與「ジャマー効果は相手が直前でおこなったアクションを取り消し、無効にする」。
-- `use_action_effect`:非戰鬥中的一般行動(戰鬥開始確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
+- `use_action_effect`:非戰鬥中的一般行動(進入戰鬥確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
 - 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
 - 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。
 - ジャマー的種類(`reg.jammer(..., on=)`):`mamodo_effect`(M-026)、`event`(M-032 / Ex-034)、`mp_reduced`(M-065,對手的行動使持有者的 MP 實際減少)。持有者可以是魔物或搭檔(`_jammer_holder` 看 `slot.top` 與 `slot.partner`,搭檔受 `NO_PARTNER_EFFECTS`);`per_turn` 為 None 時不限次數。對手的每個行動(事件卡、魔物 / 搭檔的啟動效果、借用的搭檔效果、非戰鬥戰術)開始前,對手有任何可能回應的ジャマー時存快照(`_jammer_snapshot`),解決後 `_queue_action_jammer` 排定:該行動對應的種類,加上 `mp_reduced`(只在 batch 中有對手的 `mp_changed` 負值時);所有可用的持有者在同一個決策中同時列出(`_offered_jammers`,選項值為ジャマー卡號)。戰術獲勝時的效果不是行動,不詢問。

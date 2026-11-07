@@ -30,7 +30,7 @@ def test_awaited_and_default_through_states():
     # 非戰鬥 → action_player、pass
     assert awaited_player(g) == 0
     assert default_command(g) == {"type": "pass"}
-    # 戰鬥開始確認 → 防方、迎戰
+    # 進入戰鬥確認 → 防方、同意進入戰鬥
     submit(g, {"type": "declare_attack", "player": 0, "page": 3})
     assert awaited_player(g) == 1
     assert default_command(g) == {"type": "battle_in_response", "allow": True}

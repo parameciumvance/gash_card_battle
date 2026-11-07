@@ -26,7 +26,7 @@ def nonbattle_opponent_turn(book1):
 
 
 def battle_in(book1):
-    """玩家 0 以 S-029 宣告攻擊,等待玩家 1 的戰鬥開始確認。"""
+    """玩家 0 以 S-029 宣告攻擊,等待玩家 1 的進入戰鬥確認。"""
     g, _ = mk(book("M-001"), book1)
     g.state.players[0].mp = g.state.players[1].mp = 10                    # 雙方 MP 足夠,可用與否只看卡片
     to_battle(g, 0)

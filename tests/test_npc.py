@@ -174,7 +174,7 @@ def test_all_level_pairs_finish_every_game(selfplay):
 
 
 def test_every_decision_point_gets_an_accepted_command(selfplay):
-    """開始階段、行動權、戰鬥開始確認、防禦、戰鬥中效果與中途決策都出現過,且首選都被引擎接受。"""
+    """開始階段、行動權、進入戰鬥確認、防禦、戰鬥中效果與中途決策都出現過,且首選都被引擎接受。"""
     log = [entry for _, _, game_log in selfplay for entry in game_log]
     assert {point for _, point, _, _ in log} >= {"start", "action", "battle_in", "defense", "effects", "pending"}
     assert [entry for entry in log if entry[2] != entry[3]] == []
@@ -204,7 +204,7 @@ def test_dummy_sends_the_timeout_default():
 
 
 def test_dummy_never_acts(selfplay):
-    """木人樁:翻 0 張、pass;對手攻擊時迎戰且不防禦。"""
+    """木人樁:翻 0 張、pass;對手攻擊時同意進入戰鬥且不防禦。"""
     sent = [cmd for _, _, log in selfplay for level, _, _, cmd in log if level == "dummy"]
     assert {c["type"] for c in sent} <= {"flip_pages", "pass", "battle_in_response", "no_defense", "choose"}
     assert all(c["count"] == 0 for c in sent if c["type"] == "flip_pages")
@@ -363,7 +363,7 @@ def test_npc_values_p001_together_with_following_attack():
 
 def _robnos_attack():
     """玩家 0 場上ガッシュ・ベル(先放)與ロブノス,以ロブノス的戰術 S-042 宣告攻擊;
-    NPC(玩家 1)翻開頁有 E-024,停在戰鬥開始確認。"""
+    NPC(玩家 1)翻開頁有 E-024,停在進入戰鬥確認。"""
     from gash.engine.state import MamodoSlot
     from tests.test_level2 import book, mk as mk2, to_battle
     g, _ = mk2(book("M-001", "S-042", "S-042"), book("M-001", "E-024", "S-001"))
