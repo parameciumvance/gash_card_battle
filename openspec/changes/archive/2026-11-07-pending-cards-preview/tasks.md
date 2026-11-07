@@ -25,7 +25,7 @@
 
 - [x] 4.1 快速測試組,以及構築器、金手指、產品篩選相關的瀏覽器測試;`openspec validate pending-cards-preview --strict`。(快速組 1660 項、非 slow 瀏覽器測試 478 項全部通過)
 - [x] 4.2 更新文件:`deck-builder/design.md`(顯示但不可選、金手指不顯示、MJ12 排序)、`card-data/design.md`「尚未開放的卡」的說明、capability map(如有需要)。
-- [ ] 4.3 使用者確認:本機實際操作(卡池的樣式與提示、產品網格、網格項目不調暗是否可以)。
+- [x] 4.3 使用者確認:本機實際操作(卡池的樣式與提示、產品網格、網格項目不調暗是否可以)。(2026-11-07 使用者確認沒問題)
 
 ## Workflow follow-up
 
