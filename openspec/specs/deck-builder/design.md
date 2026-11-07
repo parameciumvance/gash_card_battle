@@ -4,15 +4,15 @@
 
 ## 卡池篩選
 
-- **共用**:`renderCardPoolFilters(holder, filters, onChange)` 建篩選列,`renderCardPool` 以 `poolCardMatches` 比對;構築器(`B`)與金手指(`CHEAT`)各自持有一份篩選狀態(`newPoolFilters()`:類型集合 `ftypes`、魔物 `fmamodo`、產品 `fproduct` 與賽季 `fseason`(`null` 為全部)、目前展開的網格 `fopen`),函式不判斷呼叫端。
+- **共用**:`renderCardPoolFilters(holder, filters, onChange, opts)` 建篩選列,`renderCardPool` 以 `poolCardMatches` 比對;構築器(`B`)與金手指(`CHEAT`)各自持有一份篩選狀態(`newPoolFilters()`:類型集合 `ftypes`、魔物 `fmamodo`、產品 `fproduct` 與賽季 `fseason`(`null` 為全部)、目前展開的網格 `fopen`),函式不判斷呼叫端;唯一的差別由 `opts.pending` 傳入(見「尚未開放的卡」)。
 - **比對**:類型空集合不篩選、勾多個時符合任一;魔物、產品、賽季未選不篩選;賽季為累計(卡片賽季 ≤ 所選賽季,`cardSeason` 見 `card-data/design.md`「賽季」);跨組全部符合。指令戰術在魔物組以 `__none__`(「無」)代表。只勾「事件」時(`mamodoFilterPaused`)魔物組不套用、按鈕停用,選擇保留。
 - **篩選列**:一行:4 顆類型徽章(`aria-pressed` 切換鈕,圖示旁有類型名稱)+ 魔物、產品、賽季三顆按鈕(`FILTER_MENUS`,`aria-expanded`),按鈕摘要為目前選擇的圖示與名稱(賽季用短標示「第2季」,讓窄螢幕的篩選列放得下)。網格是篩選列下方的浮層,同時只開一個;網格內點選即選擇並收起,焦點回到按鈕;點網格外(document 的 `pointerdown`,每個 holder 只掛一組)或 Esc 收起。建好後只以 `sync()` 更新狀態,不整個重繪,鍵盤焦點不會跑掉。窄螢幕(≤700px)徽章與按鈕改為上圖下字以維持一行。
 - **圖示**:
   - 每個圖示旁都有文字(類型名稱、魔物名稱、產品名稱)。
   - 類型徽章與魔物圖示從卡圖裁切(`artCrop`,與規則頁的圖示共用;座標在 `ART_BOXES.type` 與 `MAMODO_ART`,所有卡同版型)。類型徽章先放「魔 / 使 / 術 / 鍵」,`probeArt` 確認卡圖可載入才換成裁切;魔物圖示在卡圖無法載入時移除,只留名稱。探測結果有快取,重繪不閃。
-  - 魔物代表卡:家族中卡號最小的開放魔物卡;家族沒有開放的魔物卡時只顯示名稱。名稱取代表卡卡名並去掉結尾的括號註記(`familyLabel`)。
+  - 魔物代表卡:家族中卡號最小、卡池列得出的魔物卡;沒有時只顯示名稱。名稱取代表卡卡名並去掉結尾的括號註記(`familyLabel`)。
   - 產品圖 `frontend/products/<代號>.webp`(進 git,經 `/static/products/` 提供;`frontend/assets/` 在正式站是卡圖 volume,不能放),取自維護者的產品照片,長邊 400px;載入失敗就移除圖,只留產品名稱。
-- **排序**:`renderCardPool` 以 `comparePoolCards` 排列:類型依 `POOL_TYPES`(魔物 → 搭檔 → 戰術 → 事件),同類型依卡號;原本是卡號字串排序,事件(E-)會排在最前。卡號比較一律用 `compareCardNumbers`:原有前綴(M- / P- / S- / E-)在前,接著 Ex-、PR-(`NUMBER_PREFIX_RANK`),同前綴依編號;魔物代表卡與家族排列也用它(字串比較會讓 Ex-028 排在 M-005 前面)。
+- **排序**:`renderCardPool` 以 `comparePoolCards` 排列:類型依 `POOL_SORT_TYPES`(魔物 → 搭檔 → 戰術 → 事件 → MJ12;MJ12 只排序、沒有類型篩選鈕,所以不在 `POOL_TYPES`),同類型依卡號;原本是卡號字串排序,事件(E-)會排在最前。卡號比較一律用 `compareCardNumbers`:原有前綴(M- / P- / S- / E-)在前,接著 Ex-、PR-(`NUMBER_PREFIX_RANK`),同前綴依編號;魔物代表卡與家族排列也用它(字串比較會讓 Ex-028 排在 M-005 前面)。
 - **設定檔 `frontend/pool-filters.json`**:`products` 每個內層陣列是一排(一個賽季的系列),只列出的產品會顯示;`mamodo` 是家族順序,沒列出的依代表卡卡號接在後面(新彈加入的魔物不會因為忘了改設定而消失);`mamodo_merge` 把家族併入另一家族(`filterFamily`),只影響篩選,不改 `cards.json` 的 `related_mamodo`。放在 `frontend/` 是因為它是介面呈現的設定,不是卡片資料。
 
 - **產品分排與換行**(2026-10-28):一排是一個賽季的系列。
@@ -21,8 +21,17 @@
   - `.filter-row` 以懸掛縮排表示續行:整排 `padding-left`,第一格負 `margin-left`。
   - 手機上第 3 賽季分三行,桌面分兩行。
   - 不採用固定每行 3 格:桌面浪費空間,也不必為了寬度在設定檔拆排。
-  - 新產品在卡片開放前照「只列有開放卡片的產品」不顯示;測試以替身清空尚未開放清單驗證分排與縮排。
+  - 新產品在卡片開放前,構築器照常列出(見「尚未開放的卡」),金手指不列。
   - 第 4 賽季(season4-card-data,2026-11-07):第 3 賽季那一排末尾加 DX赤い魔本(附錄卡 Ex-100、Ex-101 屬第 3 賽季);新增第 4 排 LEVEL:4、拡張シート LEVEL:3、電撃フェスタ2004春の陣;特典卡那排變成第 5 排。DX赤い魔本 的產品圖取自使用者提供的網路圖片,其他照舊取自產品照片。
+
+## 尚未開放的卡(pending-cards-preview,2026-11-07)
+
+- 使用者希望在效果實作前就能預覽新卡。構築器卡池顯示尚未開放的卡,但不能加入魔書;金手指維持不顯示,因為它把卡直接放進對局,而引擎還不會處理部分新卡(如 MJ12)。
+- `poolCards(withPending)`:構築器傳 true(全部的卡),金手指傳 false(`openCards()`)。卡池列表、魔物網格、產品網格都用它,所以只含尚未開放卡片的產品與魔物家族在構築器也會列出;網格項目不另做調暗(網格是篩選用的,卡片本身有標示;使用者採納)。
+- 卡片加 `pending` 樣式(調暗、灰階,詳情按鈕與「尚未開放」標記除外),無障礙名稱帶「尚未開放」。點選或 Enter / Space 不放卡,改為 toast 提示;「i」詳情按鈕照常放大檢視。
+- 不設 `aria-disabled`:依 ARIA,它會連帶把卡片內的詳情按鈕標成停用(螢幕閱讀器讀成不能按,Playwright 也點不到)。
+- 只是畫面上的保護;匯入牌組代碼等方式放進魔書時,構築規則照樣以 `deck.card_pending` 擋下。
+- 選第 1~3 賽季時,第 4 賽季的新卡照賽季篩選濾掉;Ex-100、Ex-101 屬第 3 賽季,選第 3 賽季時以尚未開放的樣式出現。
 
 ## 魔書的賽季標示
 

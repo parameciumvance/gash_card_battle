@@ -12,6 +12,8 @@ let PENDING = new Set();   // 資料已收錄、效果尚未實作的卡號(data
 
 // 已開放的卡(卡池、篩選選項用)
 function openCards() { return Object.values(CARDS).filter((c) => !PENDING.has(c.number)); }
+// 卡池可列出的卡(deck-builder「卡池的尚未開放卡片」):構築器含尚未開放的卡(顯示但不可選),金手指只有開放的卡
+function poolCards(withPending) { return withPending ? Object.values(CARDS) : openCards(); }
 let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { assets: null, version: null };  // /api/meta:卡圖安裝狀態、版本號
@@ -4233,7 +4235,7 @@ function renderNewSelect() {
 }
 
 function renderPoolFilters() {
-  renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool);
+  renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool, { pending: true });
 }
 
 // 卡池圖示篩選(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」):類型徽章平鋪(多選),魔物、產品各一顆按鈕展開圖示網格(單選)。
@@ -4289,10 +4291,10 @@ function familyLabel(name) {
   return name.replace(/\s*[（(][^（()）]*[）)]\s*$/, "");
 }
 
-// 魔物網格的項目:有開放卡片的家族,依設定檔順序,沒列出的依代表卡卡號接在最後;另加「無」(指令戰術)
-function mamodoFilterItems() {
-  const reps = {};   // 家族 → 代表卡(卡號最小的魔物卡;沒有開放的魔物卡時為 null,只顯示名稱)
-  for (const c of openCards()) {
+// 魔物網格的項目:卡池列得出卡片的家族,依設定檔順序,沒列出的依代表卡卡號接在最後;另加「無」(指令戰術)
+function mamodoFilterItems(withPending) {
+  const reps = {};   // 家族 → 代表卡(卡號最小的魔物卡;卡池沒有該家族的魔物卡時為 null,只顯示名稱)
+  for (const c of poolCards(withPending)) {
     const fam = filterFamily(c.related_mamodo);
     if (!fam || fam === COMMAND_MAMODO) continue;
     if (!(fam in reps)) reps[fam] = null;
@@ -4311,9 +4313,9 @@ function productHas(def, code) {
   return code === "ex" ? def.number.startsWith("Ex-") : (def.sets || []).includes(code);
 }
 
-// 產品網格的各排:依設定檔,只列有開放卡片的產品(再收錄產品不在設定檔中,不列出)
-function productFilterRows() {
-  const cards = openCards();
+// 產品網格的各排:依設定檔,只列卡池列得出卡片的產品(再收錄產品不在設定檔中,不列出)
+function productFilterRows(withPending) {
+  const cards = poolCards(withPending);
   return (FILTER_CFG.products || []).map((row) => row.filter((code) => cards.some((c) => productHas(c, code))))
     .filter((row) => row.length);
 }
@@ -4352,7 +4354,7 @@ function poolCardMatches(def, filters) {
   return true;
 }
 
-function renderCardPoolFilters(holder, filters, onChange) {
+function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
   holder.replaceChildren();
   holder.classList.add("pool-filters");
   const bar = el("div", "filter-bar");
@@ -4373,8 +4375,8 @@ function renderCardPoolFilters(holder, filters, onChange) {
     return btn;
   });
 
-  const mamodoItems = mamodoFilterItems();
-  const productRows = productFilterRows();
+  const mamodoItems = mamodoFilterItems(opts.pending);
+  const productRows = productFilterRows(opts.pending);
   const groups = {
     mamodo: { key: "fmamodo", label: t("builder.filter.mamodo"),
       items: [{ key: MAMODO_NONE, label: t("builder.filter.none"), title: t("builder.filter.none_title") },
@@ -4507,12 +4509,14 @@ function renderCardPoolFilters(holder, filters, onChange) {
 }
 
 function renderPool() {
-  renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true });
+  renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true, pending: true });
 }
 
-// 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件,同類型依卡號
+// 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件 → MJ12,同類型依卡號。
+// MJ12 只排序、沒有類型篩選鈕(留到 MJ12 的效果批次),所以不在 POOL_TYPES
+const POOL_SORT_TYPES = [...POOL_TYPES, "mj12"];
 function comparePoolCards(a, b) {
-  return POOL_TYPES.indexOf(CARDS[a].type) - POOL_TYPES.indexOf(CARDS[b].type) || compareCardNumbers(a, b);
+  return POOL_SORT_TYPES.indexOf(CARDS[a].type) - POOL_SORT_TYPES.indexOf(CARDS[b].type) || compareCardNumbers(a, b);
 }
 
 // 魔物篩選的「無」:只留指令戰術
@@ -4520,17 +4524,23 @@ const MAMODO_NONE = "__none__";
 
 function renderCardPool(grid, filters, onPick, opts = {}) {
   grid.innerHTML = "";
-  const numbers = openCards().map((c) => c.number).sort(comparePoolCards);
+  const numbers = poolCards(opts.pending).map((c) => c.number).sort(comparePoolCards);
   for (const num of numbers) {
     const def = CARDS[num];
     if (!poolCardMatches(def, filters)) continue;
     const el = cardEl(num, { small: true, detail: opts.detail });
-    el.onclick = () => onPick(num);
+    const pending = PENDING.has(num);   // 尚未開放:顯示但不可選,詳情按鈕照常放大檢視
+    const pickCard = () => (pending ? toast(t("builder.pending_blocked")) : onPick(num));
+    el.onclick = pickCard;
     el.setAttribute("role", "button");
     el.tabIndex = 0;
-    el.setAttribute("aria-label", `${num} ${cname(num)}`);
+    el.setAttribute("aria-label", `${num} ${cname(num)}` + (pending ? ` ${t("builder.pending")}` : ""));
+    if (pending) {
+      el.classList.add("pending");   // 不設 aria-disabled:它會連帶停用卡片內的詳情按鈕;狀態由名稱與點選提示表達
+      el.appendChild(Object.assign(document.createElement("span"), { className: "pending-badge", textContent: t("builder.pending") }));
+    }
     el.onkeydown = (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onPick(num); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pickCard(); }
     };
     grid.appendChild(el);
   }

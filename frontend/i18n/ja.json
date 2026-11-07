@@ -565,6 +565,8 @@
   "card.class.superior": "上級",
   "builder.filter.none": "なし",
   "builder.detail": "詳細",
+  "builder.pending": "まだ使えない",
+  "builder.pending_blocked": "このカードはまだ使えないため、魔本に入れられません",
   "builder.filter.type": "種類",
   "builder.filter.mamodo": "対応する魔物",
   "builder.type.mamodo": "魔物",

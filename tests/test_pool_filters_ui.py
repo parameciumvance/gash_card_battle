@@ -64,7 +64,8 @@ def pool_numbers(page):
 
 
 def cards_where(page, expr):
-    return page.evaluate(f"openCards().filter((c) => {expr}).map((c) => c.number).sort()")
+    # 構築器卡池列得出的卡:含尚未開放的卡(deck-builder「卡池的尚未開放卡片」)
+    return page.evaluate(f"poolCards(true).filter((c) => {expr}).map((c) => c.number).sort()")
 
 
 def tile_keys(page, group):
@@ -132,9 +133,9 @@ def number_key(n):
 def test_pool_order_mamodo_partner_spell_event(builder):
     numbers = builder.locator("#pool-grid .card .cnum").all_text_contents()
     types = builder.evaluate("(ns) => ns.map((n) => CARDS[n].type)", numbers)
-    order = ["mamodo", "partner", "spell", "event"]
-    assert types == sorted(types, key=order.index)                         # 事件在最後
-    assert numbers[0] == "M-001" and types[-1] == "event"
+    order = ["mamodo", "partner", "spell", "event", "mj12"]
+    assert types == sorted(types, key=order.index)                         # 事件在四類之後,MJ12 最後
+    assert numbers[0] == "M-001" and types[-1] == "mj12"
     for ty in order:
         group = [n for n, t in zip(numbers, types) if t == ty]
         assert group == sorted(group, key=number_key)                       # 同類型依卡號,Ex- / PR- 在後
@@ -207,9 +208,9 @@ def test_product_rows_skip_reprints(builder):
     menu(builder, "product").click()
     rows = panel(builder, "product").locator(".filter-row").evaluate_all(
         "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
-    has_open = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => openCards().some((c) => productHas(c, k))))",
-                                SEASON_ROWS)
-    assert rows == [r for r in has_open if r]                                  # 只列有開放卡片的產品
+    listed = builder.evaluate("(rows) => rows.map((r) => r.filter((k) => poolCards(true).some((c) => productHas(c, k))))",
+                              SEASON_ROWS)
+    assert rows == [r for r in listed if r]                                    # 只列卡池列得出卡片的產品
     captions = panel(builder, "product").locator(".filter-caption").all_text_contents()
     assert captions[0] == builder.evaluate("t('product.level-1')")
 
@@ -246,10 +247,14 @@ def test_product_rows_by_season_when_all_open(browser, server):
     assert not errors
 
 
-def test_new_products_hidden_while_pending(builder):
-    # 第 4 賽季的卡與 Ex-100、101 都還沒開放:產品網格與加入它們之前相同
-    menu(builder, "product").click()
-    assert product_rows(builder) == [
+def test_new_products_hidden_while_pending(page):
+    # 第 4 賽季的卡與 Ex-100、101 都還沒開放:金手指的產品網格與加入它們之前相同(構築器照常列出,見 test_pending_preview_ui)
+    from tests.test_cheat_editor import open_local
+    open_local(page)
+    filters = page.locator("#cheat-filters")
+    filters.locator(".filter-menu[data-group=product]").click()
+    assert filters.locator(".filter-panel[data-group=product] .filter-row").evaluate_all(
+        "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))") == [
         ["level-1"],
         ["level-2", "mahon-file", "ex-sheet-1"],
         ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
@@ -262,11 +267,16 @@ def mahon_file_2_pending(route):
     route.fulfill(content_type="application/json", body=json.dumps({"cards": ["M-059", "M-060", "M-061"]}))
 
 
-def test_product_without_open_cards_hidden(browser, server):
+def test_product_without_open_cards_still_listed_in_builder(browser, server):
+    # 構築器:產品的卡都尚未開放時照常列出,選了看得到尚未開放的卡(金手指不列,見 test_new_products_hidden_while_pending)
     context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", mahon_file_2_pending)])
     menu(page, "product").click()
     rows = product_rows(page)
-    assert "mahon-file-2" not in sum(rows, []) and "special-box" in sum(rows, [])
+    assert "mahon-file-2" in sum(rows, []) and "special-box" in sum(rows, [])
+    page.keyboard.press("Escape")
+    pick(page, "product", "mahon-file-2")
+    assert pool_numbers(page) == ["M-059", "M-060", "M-061"]
+    assert page.locator("#pool-grid .card:not(.pending)").count() == 0
     context.close()
     assert not errors
 
@@ -332,7 +342,7 @@ def test_mamodo_tiles_use_representative_art(builder):
     menu(builder, "mamodo").click()
     keys = tile_keys(builder, "mamodo")
     assert keys[0] == "__none__"
-    families = builder.evaluate("[...new Set(openCards().map((c) => c.related_mamodo))]"
+    families = builder.evaluate("[...new Set(poolCards(true).map((c) => c.related_mamodo))]"
                                 ".filter((m) => m && m !== 'コマンド' && m !== '金色のガッシュベル')")
     assert sorted(keys[1:]) == sorted(families)
     crop = tile(builder, "mamodo", "ブラゴ").locator(".filter-crop")

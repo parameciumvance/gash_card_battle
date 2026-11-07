@@ -565,6 +565,8 @@
   "card.class.superior": "Superior",
   "builder.filter.none": "None",
   "builder.detail": "Details",
+  "builder.pending": "Not yet available",
+  "builder.pending_blocked": "This card is not available yet and cannot be added to the Spell Book",
   "builder.filter.type": "Type",
   "builder.filter.mamodo": "MAMODO",
   "builder.type.mamodo": "MAMODO",
