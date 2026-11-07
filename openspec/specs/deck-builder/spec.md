@@ -219,7 +219,7 @@
 
 一排的寬度放不下時 SHALL 換行,續行 SHALL 比該排第一格縮排,表示仍屬同一系列。
 
-再收錄產品(THE BEST BOOSTER 1、THE BEST BOOSTER 2、REVISED EDITION、FILE:1、LEVEL:S)MUST NOT 列出。
+再收錄產品(TBB1、TBB2、REVISED EDITION、FILE:1、LEVEL:S)MUST NOT 列出。
 
 產品 SHALL 以產品圖為圖示,並以目前語言顯示產品名稱;特典カード以「PR」字樣的圖示表示,Ex 卡見「Ex 卡產品」。
 
