@@ -175,7 +175,8 @@
   "seasons": {
     "season": "シーズン",
     "products": "追加された商品",
-    "note": "{card} はシーズン{n}のカードで、まだ選べません。"
+    "note": "{card} はシーズン{n}のカードで、まだ選べません。",
+    "note_selectable": "{card} はシーズン{n}のカードです。"
   },
   "figure": {
     "title": "カードの例",

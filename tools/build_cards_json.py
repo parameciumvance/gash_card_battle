@@ -24,10 +24,10 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data/cards_ja.csv"
 OUT = ROOT / "data/cards.json"
 
-EXPECTED_COUNT = 332  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102 + 第 3 賽季其餘 95
+EXPECTED_COUNT = 432  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102 + 第 3 賽季其餘 95 + 第 4 賽季 98 與 Ex-100、101
 
 FORM_SUFFIX_RE = re.compile(r"（[^）]*）")
-POWER_X_RE = re.compile(r"^(\d+)×$")
+POWER_X_RE = re.compile(r"^(\d+)[×x]$")   # Ex-050 的來源寫成英文字母 x
 POWER_BONUS_RE = re.compile(r"^\+(\d+)$")
 POWER_BASE_RE = re.compile(r"^(\d+)$")
 
@@ -46,6 +46,10 @@ PRODUCTS = {
     "別売魔本(第2弾)": "mahon-file-2",   # atwiki 不分第1、2弾,依卡號轉換(MAHON_FILE_2)
     "拡張1": "ex-sheet-1",
     "拡張2": "ex-sheet-2",
+    "DX赤い魔本": "dx-red-book",            # atwiki 寫作「限定拡張」,依卡號轉換(LIMITED_EXPANSION)
+    "LEVEL:4": "level-4",
+    "拡張3": "ex-sheet-3",
+    "電撃フェスタ2004春の陣": "festa-2004-spring",   # 同上
     "プロモ": "promo",
     "LEVEL:S": "level-s",
     "TBB1": "tbb1",
@@ -56,6 +60,13 @@ PRODUCTS = {
 PRODUCT_ORDER = list(PRODUCTS.values())
 # 魔本ファイル第2弾的卡:atwiki 卡頁的收錄產品與第1弾同為「別売魔本」,只有商品頁分開列出
 MAHON_FILE_2 = {"M-059", "M-060", "M-061"}
+# 「限定拡張」的卡:atwiki 卡頁把 DX赤い魔本 スペシャルカードエディション的附錄卡與電撃フェスタ2004春の陣
+# プロモーションシート都寫作「限定拡張」,只有卡頁之外的備註分得出來;依卡號轉換,未登記的卡號報錯
+LIMITED_EXPANSION = {
+    "Ex-100": "DX赤い魔本", "Ex-101": "DX赤い魔本",
+    "Ex-000": "電撃フェスタ2004春の陣", "Ex-049": "電撃フェスタ2004春の陣",
+    "Ex-050": "電撃フェスタ2004春の陣", "Ex-099": "電撃フェスタ2004春の陣",
+}
 
 
 def _none_if_blank(s: str) -> str | None:
@@ -99,11 +110,15 @@ def derive_attr_name(row: dict) -> str | None:
     return None
 
 
+def derive_effect_icons(row: dict) -> list[str]:
+    """資料頭的效果圖示,依出現順序(多個效果各有圖示時,如 M-080 的「ジャマー|バトル」)。"""
+    return [EFFECT_ICON_MAP[x] for x in row["effect_icon_ja"].split("|") if x.strip()]
+
+
 def derive_effect_icon(row: dict) -> str | None:
-    icon = row["effect_icon_ja"].strip()
-    if not icon:
-        return None
-    return EFFECT_ICON_MAP[icon]
+    """單一圖示;沒有或有多個時為 None(多個的完整清單另記在 effect_icons)。"""
+    icons = derive_effect_icons(row)
+    return icons[0] if len(icons) == 1 else None
 
 
 def derive_sets(row: dict) -> list[str]:
@@ -112,6 +127,10 @@ def derive_sets(row: dict) -> list[str]:
         name = entry.split("\u3000")[0]
         if name == "別売魔本" and row["number"] in MAHON_FILE_2:
             name = "別売魔本(第2弾)"
+        if name == "限定拡張":
+            if row["number"] not in LIMITED_EXPANSION:
+                raise SystemExit(f"{row['number']}: 「限定拡張」沒有登記是哪個產品,請先在 LIMITED_EXPANSION 登記")
+            name = LIMITED_EXPANSION[row["number"]]
         if name not in PRODUCTS:
             raise SystemExit(f"{row['number']}: 產品對照表沒有「{name}」,請先在 PRODUCTS 登記代號")
         codes.add(PRODUCTS[name])
@@ -143,6 +162,10 @@ def convert(csv_path: Path, expected: int | None = EXPECTED_COUNT) -> list[dict]
         )
         if row["damage"] == "?":                 # 傷害依效果決定(卡面「ダメージ?」)
             card["damage_variable"] = True
+        if len(derive_effect_icons(row)) > 1:     # 多個效果各有圖示:全部保留,不只取一個
+            card["effect_icons"] = derive_effect_icons(row)
+        if row.get("stone_tablet"):               # 石版魔物:類型仍是魔物
+            card["stone_tablet"] = True
         cards.append(card)
 
     cards.sort(key=lambda c: (c["number"][0], c["number"]))

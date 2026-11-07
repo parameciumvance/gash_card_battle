@@ -1267,7 +1267,10 @@ def test_e021_timeout_defaults_complete():
     assert g.state.pending is None
 
 
-BORROWABLE = [n for n in sorted(card_db()) if n.startswith("P-")]
+from gash.engine.cards import pending_cards  # noqa: E402
+
+# 尚未開放(效果未實作)的搭檔不列入,否則會被當成被動搭檔略過
+BORROWABLE = [n for n in sorted(card_db()) if n.startswith("P-") and n not in pending_cards()]
 
 
 @pytest.mark.parametrize("number", BORROWABLE)
