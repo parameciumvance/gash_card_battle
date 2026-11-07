@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"   # 與 production 映像檔(python:3.12-slim)相同
+          python-version: "3.14"   # 與 production 映像檔(python:3.14-slim)、開發容器相同
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]"

@@ -29,7 +29,7 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 ## 發布與更新
 
 - CI 只在推送 `v*` tag 時建置映像檔並推上 GHCR(標上版號與 `latest`),一般 push 只跑測試。
-- **CI 測試**(ci-full-suite):`test.yml` 在 push / PR 到 `main`、`dev` 時執行全套,含瀏覽器測試(安裝 `chromium-headless-shell`;原本沒有安裝,`browser` fixture 啟動失敗而整批略過,CI 綠燈只代表引擎與 API)。Python 3.12 與 production 映像檔相同。`cache: pip`、依 playwright 版本快取 `~/.cache/ms-playwright`(系統套件每次 apt 安裝);`concurrency` 以 `test-<ref>` 分組、取消同分支的舊執行;`timeout-minutes: 30`(平常約 10 分鐘,字型套件的鏡像站偶爾很慢)。
+- **CI 測試**(ci-full-suite):`test.yml` 在 push / PR 到 `main`、`dev` 時執行全套,含瀏覽器測試(安裝 `chromium-headless-shell`;原本沒有安裝,`browser` fixture 啟動失敗而整批略過,CI 綠燈只代表引擎與 API)。Python 3.14 與 production 映像檔、開發容器相同(python-314:原本 CI 與正式站 3.12、開發容器 3.14,本機用到新版寫法要到 CI 才發現;改為一致升到 3.14。`requires-python` 仍為 `>=3.12`,3.12 下全套亦通過)。`cache: pip`、依 playwright 版本快取 `~/.cache/ms-playwright`(系統套件每次 apt 安裝);`concurrency` 以 `test-<ref>` 分組、取消同分支的舊執行;`timeout-minutes: 30`(平常約 10 分鐘,字型套件的鏡像站偶爾很慢)。
 - **發布前的測試關卡**:`deploy.yml` 的 `test` job 以 `workflow_call` 呼叫同一份 `test.yml`,`build-and-push` 設 `needs: test`。兩邊用同一份定義,不會漏改;不採「查詢該 commit 的 Test 結果」,因為 tag 可能打在沒有對應 Test 執行的 commit 上。被呼叫時 `github.ref` 是 tag,concurrency 各自一組,不會取消別的發布。
 - **失敗截圖**:`tests/conftest.py` 的 `pytest_runtest_makereport` 在瀏覽器測試本體失敗時,截下 `browser` 所有 context 的頁面到 `test-results/`(fixture 尚未 teardown,頁面都還開著);`test.yml` 失敗時上傳為 artifact,保留 7 天。
 - VPS 端由 watchtower 每 300 秒輪詢,有新版就拉取並重啟該容器。CI 不持有任何能連進 VPS 的憑證(SSH 金鑰、VPN 授權)。
