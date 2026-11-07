@@ -50,6 +50,11 @@ def sent(page):
     return page.evaluate("SENT")
 
 
+def delay(page):
+    """倒數時間(毫秒),測試依它推算等待時間,調整秒數不必改測試。"""
+    return page.evaluate("AUTO_PASS_MS")
+
+
 def test_toggle_default_on_and_hidden_for_spectators(browser, server):  # noqa: F811
     context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce", locale="zh-TW")
     context.add_init_script("localStorage.removeItem('gash-auto-pass')")   # 未設定:預設開啟
@@ -66,44 +71,46 @@ def test_toggle_default_on_and_hidden_for_spectators(browser, server):  # noqa: 
 
 def test_auto_sends_once_after_two_seconds(page):
     nt = awaiting_non_turn(page, AUTO)
-    page.wait_for_timeout(800)
+    ms = delay(page)
+    page.wait_for_timeout(ms * 0.4)
     assert sent(page) == []                                               # 還在倒數
     assert "即將自動 pass" in page.locator("#action-bar .auto-pass-toggle").text_content()
-    page.wait_for_timeout(2500)
+    page.wait_for_timeout(ms * 0.6 + 800)
     assert sent(page) == [{"type": "pass", "player": nt}]
-    page.wait_for_timeout(2500)
+    page.wait_for_timeout(ms + 500)
     assert len(sent(page)) == 1                                           # 不重複送出
 
 
 def test_auto_enters_battle_and_no_defense(page):
     nt = awaiting_non_turn(page, {"has_actions": False, "auto": {"type": "no_defense"}})
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(delay(page) + 800)
     assert sent(page) == [{"type": "no_defense", "player": nt}]
 
 
 def test_pause_while_zoom_open(page):
     awaiting_non_turn(page, AUTO)
+    ms = delay(page)
     page.evaluate("zoom('S-001')")
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(ms + 1000)
     assert sent(page) == []                                               # 查看卡片時不送
     page.evaluate("closeZoom()")
-    page.wait_for_timeout(1000)
-    assert sent(page) == []                                               # 關閉後重新倒數 2 秒
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(ms * 0.5)
+    assert sent(page) == []                                               # 關閉後重新倒數
+    page.wait_for_timeout(ms * 0.5 + 800)
     assert len(sent(page)) == 1
 
 
 def test_manual_pass_first_sends_once(page):
     nt = awaiting_non_turn(page, AUTO)
     page.locator("#action-bar button", has_text="Pass").click()
-    page.wait_for_timeout(3500)
+    page.wait_for_timeout(delay(page) + 1000)
     assert sent(page) == [{"type": "pass", "player": nt}]
 
 
 def test_turning_off_stops_and_persists(page):
     awaiting_non_turn(page, AUTO)
     page.locator(TOGGLE).uncheck()
-    page.wait_for_timeout(3500)
+    page.wait_for_timeout(delay(page) + 1000)
     assert sent(page) == []
     assert page.evaluate("localStorage.getItem('gash-auto-pass')") == "off"
     page.reload()
@@ -115,5 +122,5 @@ def test_turning_off_stops_and_persists(page):
 def test_has_actions_hint_without_auto(page):
     awaiting_non_turn(page, {"has_actions": True, "auto": None})
     assert page.locator("#action-bar .idle-hint").text_content() == "有可以使用的效果或行動"
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(delay(page) + 800)
     assert sent(page) == []

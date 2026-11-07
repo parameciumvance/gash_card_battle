@@ -2604,7 +2604,7 @@ function hintsShown() {
 // 快照的 idle.auto:等待中的非回合玩家沒有其他可用行動時的預設回應(pass / 進入戰鬥 / 不防禦)。
 // 開關記在瀏覽器,預設開;演出播完後倒數,放大檢視或卡片行動選單開著時暫停(關閉後重新倒數)
 const AUTO_PASS_KEY = "gash-auto-pass";
-const AUTO_PASS_MS = 2000;
+const AUTO_PASS_MS = 3000;
 let AUTO_PASS = null;   // { key, cmd, player, elapsed, running, timer }
 
 function autoPassOn() {
