@@ -563,6 +563,7 @@
   "builder.search": "搜索卡名、卡号、效果",
   "card.class.intermediate": "中级",
   "card.class.superior": "上级",
+  "card.icon.jammer": "干扰",
   "builder.filter.none": "无",
   "builder.detail": "详情",
   "builder.pending": "尚未开放",

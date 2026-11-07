@@ -563,6 +563,7 @@
   "builder.search": "Search name, number, effect",
   "card.class.intermediate": "Intermediate",
   "card.class.superior": "Superior",
+  "card.icon.jammer": "CUT-IN",
   "builder.filter.none": "None",
   "builder.detail": "Details",
   "builder.pending": "Not yet available",

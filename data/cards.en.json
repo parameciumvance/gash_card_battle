@@ -309,7 +309,7 @@
   "name": "Lying",
   "name_ja": "ウ・ソ",
   "attr": null,
-  "effect": "Choose 1 effect of your cards that was negated this turn by your opponent's Jammer effect, a “negate” effect, or the like. Treat that effect as not having been used (MP paid as a cost and cards discarded as a cost are returned)."
+  "effect": "Choose 1 effect of your cards that was negated this turn by your opponent's CUT-IN effect, a “negate” effect, or the like. Treat that effect as not having been used (MP paid as a cost and cards discarded as a cost are returned)."
  },
  "E-053": {
   "name": "I Won't Let You Pass!",
@@ -1251,7 +1251,7 @@
   "name": "Donpoccho",
   "name_ja": "ドンポッチョ",
   "attr": "Pleading for Life",
-  "effect": "Declare use → End this BATTLE PHASE (Jammer effects can be used against this effect). In the END PHASE of this turn, effects are processed, but the “turn a page and increase MP by 2” step is not performed. Can be used only once per game."
+  "effect": "Declare use → End this BATTLE PHASE (CUT-IN effects can be used against this effect). In the END PHASE of this turn, effects are processed, but the “turn a page and increase MP by 2” step is not performed. Can be used only once per game."
  },
  "M-078": {
   "name": "Kido",

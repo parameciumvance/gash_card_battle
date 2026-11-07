@@ -41,7 +41,7 @@
         {"list": [
           "NO BATTLE: this SPELL is used when not in BATTLE, and using it does not start a BATTLE.",
           "BATTLE: this effect of a card in play can only be used in BATTLE; effects without this mark are normally used when not in BATTLE.",
-          "CUT-IN (jammer): right after your opponent uses certain effects, you may pay the cost to negate that effect (the card says which effects)."
+          "CUT-IN: right after your opponent uses certain effects, you may pay the cost to negate that effect (the card says which effects)."
         ]},
         {"icons": true}
       ]
@@ -156,7 +156,7 @@
       "blocks": [
         {"list": [
           "Some effects flip coins, and the result depends on heads or tails. Both players can see the results.",
-          "After all coins are flipped, both players may use effects that change the result (re-flip, turn to heads). The player who flipped decides first, then players alternate; after one player uses an effect it is the other player's turn, and when neither uses any more the current result is resolved. These effects are not actions and cannot be negated by Jammer effects.",
+          "After all coins are flipped, both players may use effects that change the result (re-flip, turn to heads). The player who flipped decides first, then players alternate; after one player uses an effect it is the other player's turn, and when neither uses any more the current result is resolved. These effects are not actions and cannot be negated by CUT-IN effects.",
           "Some cards let you re-flip, such as Kanchome's effect or an Event that re-flips for MP. When deciding whether to re-flip, the screen lists the current result of each coin."
         ]}
       ]
@@ -190,7 +190,7 @@
       "damage": "Damage",
       "battle": "BATTLE",
       "nobattle": "NO BATTLE",
-      "cutin": "CUT-IN (jammer)"
+      "cutin": "CUT-IN"
     },
     "icons_title": "Icon list"
   }
