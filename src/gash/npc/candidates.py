@@ -116,7 +116,7 @@ def _mamodo_attacks(game: Game, player: int) -> list[dict]:
 
 def other_actions_available(game: Game, player: int) -> bool:
     """player 在目前決策點除了預設回應(default_command:pass / 進入戰鬥 / 不防禦)之外,
-    是否還有其他合法的行動(battle-api「非回合玩家的可用行動快照」)。在副本上逐一試送判斷。"""
+    是否還有其他合法的行動(battle-api「非回合玩家可用行動的快照」)。在副本上逐一試送判斷。"""
     from ..engine.awaiting import default_command
     from .settle import clone, try_submit
     default = default_command(game)
