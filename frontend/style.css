@@ -1018,6 +1018,12 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .fx-guard.guarding { box-shadow: 0 0 0 3px var(--accent-blue), 0 0 22px rgba(108,196,255,.85); }
 .fx-guard.guard-gone { opacity: 0; filter: grayscale(1); }
 
+/* 開始階段的翻頁提醒:魔書的 › 發光(動畫關閉時為靜態外框,見下方 html.motion-off) */
+.book-nav.flip-glow { color: #ffd257; box-shadow: 0 0 0 2px #ffc83c, 0 0 12px 4px rgba(255, 200, 60, .85);
+  animation: flip-glow 1.4s ease-in-out infinite; }
+@keyframes flip-glow { 50% { box-shadow: 0 0 0 2px #ffc83c, 0 0 20px 8px rgba(255, 200, 60, .5); } }
+html.motion-off .book-nav.flip-glow { animation: none; }
+
 /* 動畫關閉(演出設定;未設定時依 prefers-reduced-motion,由 app.js 切換 html.motion-off) */
 .motion-off *, .motion-off *::before, .motion-off *::after {
   animation: none !important; transition: none !important;

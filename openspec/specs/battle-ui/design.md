@@ -315,6 +315,13 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - `zoomDetails` 對自己的攻防戰術列出 `users[].power_breakdown`:一隻可用魔物一段「預估合計魔力 N」,兩隻以上各一段「《魔物》的預估合計魔力 N」,條目沿用 `breakdown.*`(戰術自身確定的宣告時加成也以既有的 `breakdown.spell_bonus` / `breakdown.defense_self` 顯示);段落後註明「不含擲硬幣與戰鬥中的效果」(consequence-preview 起;原為「不含宣告時與戰鬥中的效果」)。新手回饋希望宣告前就能估算合計魔力。
 - `pickSpellUser` 的魔物附註有預估時為「合計 N・費用 M」(`ui.spell_user_note`)。
 
+## 開始階段的翻頁提醒(flip-hint)
+
+- 新手回饋:開始階段初見只有「不翻頁」,要先按魔書的箭頭才出現「翻 N 張」。使用者決定維持依翻閱位置選張數的做法,只加提醒。
+- 停在目前頁、`maxFlips(pos) > 0` 時,「不翻頁」以 `addBtn` 的兩行附註寫「按魔書的 › 往後翻閱,選擇翻幾張(最多 N 張)」;翻了會落敗的加註(consequence-preview)優先。
+- `renderBookBlock` 的「›」:開始階段、回合玩家且自己能操作、沒有 pending、翻閱位置未達上限時加 `.flip-glow`(金色外框與光暈脈動;`html.motion-off` 時靜態)。翻閱到上限或不能翻頁時自然不發光。最初用頁面的琥珀色,深色書皮上不明顯,改為亮金色。
+- `maxFlips(pos)`(`min(3, floor((32 - pos) / 2))`)抽成共用函式,行動欄與發光判斷一致。
+
 ## 進入戰鬥確認的用語(battle-in-options)
 
 - 用語依規則原文(atwiki 規則頁「④バトル・インの確認」):步驟是「バトル・インの確認」(回合玩家問「バトル・インしていいですか?」),「バトル・イン」是回合玩家使用攻擊效果進入戰鬥;非回合玩家插入行動時確認無效。原本的「戰鬥開始確認 / バトル開始の確認 / BATTLE start check」與「迎戰 / 受けて立つ / Accept」都不是規則用語(「迎戰」是使用者早期翻譯バトル・イン的用詞)。

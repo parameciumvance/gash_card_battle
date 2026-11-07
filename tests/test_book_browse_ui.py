@@ -127,7 +127,10 @@ def test_book_pick_target_selectable_while_browsing(page):
 # ---------------------------------------------------------------- 開始階段依翻閱選擇翻頁張數
 
 def flip_buttons(page):
-    return [t for t in page.locator("#action-bar button").all_text_contents() if t.startswith(("翻", "不翻頁"))]
+    """行動欄翻頁按鈕的名稱(有附註的按鈕只取名稱,如「不翻頁」的翻頁提醒)。"""
+    names = page.evaluate("""() => [...document.querySelectorAll('#action-bar button')]
+        .map((b) => (b.querySelector('.btn-label') || b).textContent)""")
+    return [t for t in names if t.startswith(("翻", "不翻頁"))]
 
 
 def test_start_phase_flip_follows_browse(page):
