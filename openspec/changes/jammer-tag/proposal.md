@@ -6,7 +6,8 @@
 
 - 卡片資訊列(放大檢視、卡池、魔書構築頁位、金手指)對有干擾圖示的卡加上「干擾」標籤,樣式比照「中級」「上級」標籤。
 - 依卡片資料判斷:`effect_icon` 為 `jammer`,或 `effect_icons` 含 `jammer`(M-080 有兩個效果圖示)。
-- 四語標籤:繁中「干擾」、日文「ジャマー」、英文「Jammer」(簡中由轉換產生)。
+- 四語標籤:繁中「干擾」、日文「ジャマー」、英文「CUT-IN」(簡中由轉換產生)。
+- 英文一律稱「CUT-IN」(英文版卡面圖示的印刷文字;使用者指出「Jammer」難懂,2026-11-07):規則頁拿掉「(jammer)」,E-052、M-077 英文效果文的「Jammer effect」改為「CUT-IN effect」。
 - 盤面卡面照舊不顯示資訊列。
 
 ## Capabilities
@@ -21,6 +22,7 @@
 
 ## Impact
 
-- 前端:`frontend/app.js` 的 `cardEl`、`frontend/style.css`、四語 i18n。
+- 前端:`frontend/app.js` 的 `cardEl`、`frontend/style.css`、四語 i18n、`rules.en.json`。
+- 資料:`data/cards.en.json`(E-052、M-077 的效果文)。
 - 測試:卡面資訊列的瀏覽器測試。
 - 伺服器、引擎、卡片資料不變。
