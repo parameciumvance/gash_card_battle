@@ -70,7 +70,7 @@
 
 ## 7. 驗證與文件
 
-- [ ] 7.1 快速測試組,以及相關的瀏覽器測試(`test_season_reference_ui.py`、`test_seasons_ui.py`、產品篩選相關)。執行 `openspec validate season4-card-data --strict`。
+- [x] 7.1 快速測試組,以及相關的瀏覽器測試(`test_season_reference_ui.py`、`test_seasons_ui.py`、產品篩選相關)。執行 `openspec validate season4-card-data --strict`。(快速組 1652 項;非 slow 瀏覽器測試 472 項全部通過)
 - [x] 7.2 更新文件:
   - `card-data/design.md`:第 4 賽季的來源、限定拡張的卡號對應、沒有搭檔的魔物、PR 範圍調整。
   - `deck-builder/design.md`:新的分排。
