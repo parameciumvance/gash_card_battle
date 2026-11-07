@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data/cards_ja.csv"
 OUT = ROOT / "data/cards.json"
 
-EXPECTED_COUNT = 426  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102 + 第 3 賽季其餘 95 + 第 4 賽季 92 與 Ex-100、101
+EXPECTED_COUNT = 432  # 第一彈+Level 2 共 135(含 S-042)+ 第三彈 102 + 第 3 賽季其餘 95 + 第 4 賽季 98 與 Ex-100、101
 
 FORM_SUFFIX_RE = re.compile(r"（[^）]*）")
 POWER_X_RE = re.compile(r"^(\d+)[×x]$")   # Ex-050 的來源寫成英文字母 x

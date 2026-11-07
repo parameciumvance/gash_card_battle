@@ -28,6 +28,7 @@ def test_special_assignment_overrides_range():
 def test_card_outside_every_season_has_none():
     assert card_season("M-086") is None                  # LIMITED EDITION Ⅱ:第 5 賽季,尚未定義
     assert card_season("Ex-075") is None
+    assert card_season("MJ-007") is None                 # MJ12:第 4 賽季只到 MJ-006
 
 
 @pytest.mark.parametrize("number, season", [("Ex-100", 3), ("Ex-101", 3), ("Ex-099", 4)])
@@ -42,7 +43,7 @@ def test_pr_seasons(number, season):
     assert card_season(number) == season
 
 
-@pytest.mark.parametrize("number", ["M-070", "M-085", "S-146", "P-050", "E-054", "Ex-049", "Ex-074"])
+@pytest.mark.parametrize("number", ["M-070", "M-085", "S-146", "P-050", "E-054", "Ex-049", "Ex-074", "MJ-001", "MJ-006"])
 def test_season4_cards(number):
     assert card_season(number) == 4
 

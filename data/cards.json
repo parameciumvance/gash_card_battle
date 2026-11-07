@@ -4087,6 +4087,113 @@
   ]
  },
  {
+  "number": "MJ-001",
+  "type": "mj12",
+  "name_ja": "ツー・ライティング・アイ",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "このカードを捨て札にする→相手の魔本に1ダメージ(ダメージなので「かばう」ことができる)。この効果は1ターンに1回しか使えない。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4",
+   "tbb2",
+   "re"
+  ]
+ },
+ {
+  "number": "MJ-002",
+  "type": "mj12",
+  "name_ja": "ロケット・フット",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "このカードを捨て札にする→【ステイ】このターン中、自分の防御すべての合計魔力を+4000する。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4"
+  ]
+ },
+ {
+  "number": "MJ-003",
+  "type": "mj12",
+  "name_ja": "フライング・ビート",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "このカードを捨て札にする→自分の魔本の好きなページから、魔物カードかパートナーカード1枚を選び、場に出す。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4",
+   "tbb2",
+   "re"
+  ]
+ },
+ {
+  "number": "MJ-004",
+  "type": "mj12",
+  "name_ja": "セカンド・サイト",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "MPを1へらす→相手の魔本の今のページを見る。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4"
+  ]
+ },
+ {
+  "number": "MJ-005",
+  "type": "mj12",
+  "name_ja": "ダイナソー・アーム",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "このカードを捨て札にする→【ステイ】このターン中、自分の攻撃すべての合計魔力を+2000する。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4"
+  ]
+ },
+ {
+  "number": "MJ-006",
+  "type": "mj12",
+  "name_ja": "ワンダフル・トゥ・ザ・フューチャー",
+  "related_mamodo": null,
+  "cost": null,
+  "ad": null,
+  "class": "none",
+  "attr_name": null,
+  "effect_ja": "このカードが場にある→相手の効果によって自分のMPがへらされたとき、へらされたMPの数だけ、相手のMPをへらす。※相手の場にも「ワンダフル・トゥ・ザ・フューチャー」があるとき、この効果はたがいに1回ずつ適用される。",
+  "effect_icon": null,
+  "power": {},
+  "damage": null,
+  "sets": [
+   "level-4",
+   "tbb2"
+  ]
+ },
+ {
   "number": "P-001",
   "type": "partner",
   "name_ja": "高嶺清麿",

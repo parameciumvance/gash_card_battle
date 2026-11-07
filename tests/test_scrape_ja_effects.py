@@ -829,3 +829,36 @@ def test_stone_tablet_mamodo_header():
 
 def test_stone_tablet_category_from_header():
     assert scraper.card_page_category(_ex_html("Ex-056", ["石版魔物　4500"], ["拡張3"]), "Ex-056") == "魔物"
+
+
+MJ12_PRODUCT_PAGE_HTML = """
+<h3 id="id_1">収録カード</h3>
+<h4 id="id_2">パートナー</h4>
+<ul><li>P-050 <a href="//w.example.test/pages/1464.html"  >\n遠藤喜一郎\n</a></li></ul>
+<br />
+<h4 id="id_3">MJ12</h4>
+<ul><li>MJ-001 <a href="//w.example.test/pages/1454.html"  >\nツー・ライティング・アイ\n</a> R</li></ul>
+"""
+
+
+def test_mj12_category_on_product_page():
+    # LEVEL:4 產品頁的「MJ12」分類(MJ-001~006)要被收錄,類型為 mj12
+    entries = parse_product_page(MJ12_PRODUCT_PAGE_HTML, "https://example.test/p.html")
+    assert [(n, c) for n, _, _, c in entries] == [("P-050", "パートナー"), ("MJ-001", "MJ12")]
+    assert scraper.CATEGORY_TO_TYPE["MJ12"] == "mj12"
+
+
+def test_mj12_card_page():
+    # MJ12 卡頁的資料頭是全形「ＭＪ１２」,沒有魔力、費用等欄位
+    html = _ex_html("MJ-004", ["ＭＪ１２", "MPを1へらす→相手の魔本の今のページを見る。"],
+                    ["マジョスティック12の一員。透視能力で全てを見通す。", "LEVEL:4　R"])
+    assert scraper.card_page_category(html, "MJ-004") == "MJ12"
+    r = parse_card_page(html, "MJ12", "MJ-004")
+    assert r["effect_ja"] == "MPを1へらす→相手の魔本の今のページを見る。"
+    assert r["power"] is None and r["cost"] is None and r["related_mamodo_ja"] == ""
+    assert r["flavor_ja"] == "マジョスティック12の一員。透視能力で全てを見通す。" and r["sets_ja"] == "LEVEL:4　R"
+
+
+def test_mj_range():
+    ranges = [scraper.parse_range("MJ-001:MJ-006")]
+    assert scraper.in_ranges("MJ-006", ranges) and not scraper.in_ranges("M-006", ranges)

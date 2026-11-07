@@ -101,6 +101,7 @@ def test_front_card_season_matches_engine(page):
     """前端 cardSeason 與引擎 card_season 對每個卡號(含未收錄卡號、特別歸屬)結果相同。"""
     from gash.engine.seasons import card_season
     numbers = ["M-015", "M-016", "M-085", "M-086", "PR-004", "PR-005", "PR-010", "PR-011", "PR-013",
-               "Ex-000", "Ex-048", "Ex-049", "Ex-074", "Ex-075", "Ex-099", "Ex-100", "Ex-101"]
+               "Ex-000", "Ex-048", "Ex-049", "Ex-074", "Ex-075", "Ex-099", "Ex-100", "Ex-101",
+               "MJ-006", "MJ-007"]
     front = page.evaluate("(ns) => ns.map((n) => cardSeason(n))", numbers)
     assert front == [card_season(n) for n in numbers]

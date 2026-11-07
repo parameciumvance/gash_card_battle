@@ -4,9 +4,9 @@ from gash.engine.cards import DATA_DIR, card_db
 from gash.engine.deck import DeckError, load_deck, validate_deck
 
 
-def test_card_db_has_426_cards():
+def test_card_db_has_432_cards():
     db = card_db()
-    assert len(db) == 426  # Level 1 67 + Level 2 67 + S-042 + 第三彈 102 + 第 3 賽季其餘 95 + 第 4 賽季 92 與 Ex-100、101
+    assert len(db) == 432  # Level 1 67 + Level 2 67 + S-042 + 第三彈 102 + 第 3 賽季其餘 95 + 第 4 賽季 98 與 Ex-100、101
     assert db["S-061"].damage is None and db["S-061"].damage_variable    # 「ダメージ?」:傷害依效果決定
     assert not db["S-001"].damage_variable
     assert db["M-001"].power_base == 4000

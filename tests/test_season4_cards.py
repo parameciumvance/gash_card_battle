@@ -11,15 +11,16 @@ from gash.engine.deck import load_deck
 
 RANGES = {"M": (70, 85), "S": (113, 146), "P": (44, 50), "E": (50, 54), "Ex": (51, 74)}
 EXTRA = ["Ex-000", "Ex-049", "Ex-050", "Ex-099", "PR-012", "PR-013"]
-SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA
+MJ12 = [f"MJ-{i:03d}" for i in range(1, 7)]                # LEVEL:4 的 MJ12 卡
+SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA + MJ12
 DX = ["Ex-100", "Ex-101"]                                   # 第 3 賽季補收:DX赤い魔本附錄
 NEW = SEASON4 + DX
 
 
 def test_numbers_complete():
     db = card_db()
-    assert len(SEASON4) == 92 and all(n in db for n in NEW)
-    assert len(db) == 426
+    assert len(SEASON4) == 98 and all(n in db for n in NEW)
+    assert len(db) == 432
     for lang in ("ja", "en", "zh-TW", "zh-CN"):
         texts = json.loads((DATA_DIR / f"cards.{lang}.json").read_text(encoding="utf-8"))
         assert all(n in texts for n in NEW), lang
@@ -29,7 +30,7 @@ def test_new_cards_pending():
     assert set(NEW) <= pending_cards()
 
 
-@pytest.mark.parametrize("number", ["M-070", "Ex-100"])
+@pytest.mark.parametrize("number", ["M-070", "Ex-100", "MJ-001"])
 def test_room_with_new_card_rejected(number):
     pages = list(load_deck(DATA_DIR / "decks/level1.json", card_db()).pages)
     pages[20] = number
@@ -55,3 +56,10 @@ def test_stone_tablet_and_icons():
 def test_mamodo_without_partner():
     db = card_db()
     assert db["PR-012"].type == "mamodo" and db["PR-012"].related_mamodo == "黒騎士"
+
+
+def test_mj12_cards():
+    # MJ12(LEVEL:4):第 6 種卡片類型,沒有魔力與費用欄位
+    db = card_db()
+    assert [db[n].type for n in MJ12] == ["mj12"] * 6
+    assert db["MJ-004"].effect_ja.startswith("MPを1へらす→") and db["MJ-004"].cost is None

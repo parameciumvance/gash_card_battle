@@ -127,3 +127,17 @@ def test_multiple_effect_icons(tmp_path):
     cards = {c["number"]: c for c in convert(p, expected=None)}
     assert cards["M-080"]["effect_icon"] is None and cards["M-080"]["effect_icons"] == ["jammer", "battle"]
     assert cards["M-048"]["effect_icon"] == "battle" and "effect_icons" not in cards["M-048"]
+
+
+def test_mj12_card(tmp_path):
+    # MJ12:新的卡片類型 mj12;沒有魔力、費用,排在 M 開頭的卡之後
+    p = tmp_path / "cards_ja.csv"
+    write_csv(p, [{"number": "MJ-001", "type": "mj12", "name_ja": "ツー・ライティング・アイ", "class": "none",
+                   "effect_ja": "このカードを捨て札にする→相手の魔本に1ダメージ。", "sets_ja": "LEVEL:4　R|TBB2　N|RE　R"},
+                  {**MAMODO, "number": "M-085", "sets_ja": "LEVEL:4"},
+                  {**SPELL, "sets_ja": "LEVEL:2"}])
+    cards = convert(p, expected=None)
+    assert [c["number"] for c in cards] == ["M-085", "MJ-001", "S-061"]
+    mj = cards[1]
+    assert mj["type"] == "mj12" and mj["power"] == {} and mj["cost"] is None
+    assert mj["sets"] == ["level-4", "tbb2", "re"]

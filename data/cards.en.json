@@ -1301,6 +1301,42 @@
   "attr": "Petrify",
   "effect": "While this card is in play → Your opponent cannot return cards in the Discard Pile to play or to the Spell Book."
  },
+ "MJ-001": {
+  "name": "Lightning Eye",
+  "name_ja": "ツー・ライティング・アイ",
+  "attr": null,
+  "effect": "Discard this card → 1 damage to your opponent's Spell Book (since this is damage, it can be “protected”). This effect can be used only once per turn."
+ },
+ "MJ-002": {
+  "name": "Rocket Foot",
+  "name_ja": "ロケット・フット",
+  "attr": null,
+  "effect": "Discard this card → [STAY] During this turn, the total Power of all your defenses is increased by 4000."
+ },
+ "MJ-003": {
+  "name": "Flying Beat",
+  "name_ja": "フライング・ビート",
+  "attr": null,
+  "effect": "Discard this card → Choose 1 MAMODO card or Partner card from any page of your Spell Book and put it into play."
+ },
+ "MJ-004": {
+  "name": "Second Sight",
+  "name_ja": "セカンド・サイト",
+  "attr": null,
+  "effect": "Reduce MP by 1 → Look at your opponent's current pages."
+ },
+ "MJ-005": {
+  "name": "Dinosaur Arm",
+  "name_ja": "ダイナソー・アーム",
+  "attr": null,
+  "effect": "Discard this card → [STAY] During this turn, the total Power of all your attacks is increased by 2000."
+ },
+ "MJ-006": {
+  "name": "Future Wonder",
+  "name_ja": "ワンダフル・トゥ・ザ・フューチャー",
+  "attr": null,
+  "effect": "While this card is in play → When your MP is reduced by your opponent's effect, reduce your opponent's MP by the same amount. ※ If your opponent also has “Future Wonder” in play, this effect applies once for each player."
+ },
  "P-001": {
   "name": "Kiyo Takamine",
   "name_ja": "高嶺清麿",

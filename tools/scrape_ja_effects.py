@@ -67,7 +67,11 @@ FIELDNAMES = [
     "sets_ja", "url", "raw_header_lines", "stone_tablet",
 ]
 
-CATEGORY_TO_TYPE = {"魔物": "mamodo", "術": "spell", "パートナー": "partner", "イベント": "event"}
+CATEGORY_TO_TYPE = {
+    "魔物": "mamodo", "術": "spell", "パートナー": "partner", "イベント": "event", "MJ12": "mj12",
+}
+# MJ12(マジョスティック12,LEVEL:4 起):產品頁分類寫作「MJ12」,卡頁資料頭寫作全形「ＭＪ１２」
+MJ12_HEADER_TOKEN = "ＭＪ１２"
 # 石版魔物(魔物圖示為石版樣式):規則上就是魔物,只有指定石版魔物的效果會區分。資料頭以「石版魔物」取代「魔物」,
 # 類型照舊是魔物,另記 stone_tablet = "1"
 STONE_TABLET_TOKEN = "石版魔物"
@@ -75,7 +79,9 @@ CLASS_MAP = {"中級": "intermediate", "上級": "superior"}
 ELEMENT_TOKENS = {"水", "火", "雷", "氷", "木", "風", "重力", "土"}
 EFFECT_ICON_TOKENS = {"バトル", "非バトル", "ジャマー"}
 AD_TOKENS = {"バトル攻撃": "A", "バトル防御": "D", "自分のターン": "A", "相手のターン": "D"}
-REQUIRED_FIELDS = {"event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set()}
+REQUIRED_FIELDS = {
+    "event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set(), "mj12": set(),
+}
 # related_mamodo_ja/related_partner_ja 由效果文尾行(而非資料頭 token)解析而來,檢查時機與
 # REQUIRED_FIELDS 不同,故另外獨立成集合,由 parse_card_page 在尾行解析後檢查。
 REQUIRE_RELATED_MAMODO = {"spell", "partner"}
@@ -155,7 +161,7 @@ def strip_tags(html: str) -> str:
 
 SECTION_RE = re.compile(r">収録カード</h3>(.*?)(?:<div id=\"atwiki-page-tags\"|$)", re.S)
 CATEGORY_RE = re.compile(r'<h4[^>]*>([^<]+)</h4>(.*?)(?=<h4|\Z)', re.S)
-# 卡號前綴:M / S / P / E / PR,以及擴張卡的「Ex」(atwiki 的寫法)
+# 卡號前綴:M / S / P / E / PR / MJ,以及擴張卡的「Ex」(atwiki 的寫法)
 CARD_NO = r"[A-Z][A-Za-z]*-\d+"
 CARD_LI_RE = re.compile(rf'<li>\s*({CARD_NO})\s*<a href="([^"]+)"[^>]*>\s*([^<]*?)\s*</a>', re.S)
 
@@ -163,7 +169,7 @@ CARD_LI_RE = re.compile(rf'<li>\s*({CARD_NO})\s*<a href="([^"]+)"[^>]*>\s*([^<]*
 def parse_product_page(html: str, base_url: str) -> list[tuple[str, str, str, str]]:
     """回傳 [(卡號, 個別卡頁絕對網址, 名稱, 分類原文), ...]。
 
-    只取 魔物/術/パートナー/イベント 四個分類;拡張シート頁另有「シート1~12」分組重複列出同一批卡,略過。"""
+    只取 魔物/術/パートナー/イベント/MJ12 五個分類;拡張シート頁另有「シート1~12」分組重複列出同一批卡,略過。"""
     m = SECTION_RE.search(html)
     if not m:
         raise ValueError("找不到「収録カード」區塊,頁面格式可能不同")
@@ -210,7 +216,7 @@ PARTNER_NAME_TAIL_RE = re.compile(r'^パートナー＝(.+)$')  # 魔物卡宣�
 
 def classify_token(tok: str, header: dict, number: str) -> None:
     """就地更新 header dict。無法歸類的 token 直接 raise,不默默略過或誤歸類為屬性。"""
-    if tok in CATEGORY_TO_TYPE:
+    if tok in CATEGORY_TO_TYPE or tok == MJ12_HEADER_TOKEN:
         return
     if tok == STONE_TABLET_TOKEN:
         header["stone_tablet"] = "1"
@@ -331,7 +337,7 @@ def _is_tail_line(line: str, type_: str) -> bool:
 
 
 def card_page_category(html: str, number: str) -> str:
-    """卡頁資料頭第一個 token 的類型(魔物/術/パートナー/イベント);不是這四者時報錯。"""
+    """卡頁資料頭第一個 token 的類型(魔物/術/パートナー/イベント/MJ12);都不是時報錯。"""
     bq = BLOCKQUOTE_RE.search(html)
     divs = DIV_RE.findall(bq.group(1)) if bq else []
     lines = [strip_tags(x) for x in BR_RE.split(divs[0])] if divs else []
@@ -339,6 +345,8 @@ def card_page_category(html: str, number: str) -> str:
     token = lines[1].split("\u3000")[0] if len(lines) > 1 else ""
     if token == STONE_TABLET_TOKEN:
         return "魔物"
+    if token == MJ12_HEADER_TOKEN:
+        return "MJ12"
     if token not in CATEGORY_TO_TYPE:
         raise ValueError(f"{number}: 卡頁資料頭的類型無法判定({token!r})")
     return token
