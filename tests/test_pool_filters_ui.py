@@ -238,7 +238,8 @@ def test_product_rows_by_season_when_all_open(browser, server):
     context, page, errors = open_builder(browser, server, routes=[("**/data/pending_cards.json", all_open)])
     menu(page, "product").click()
     assert product_rows(page) == SEASON_ROWS
-    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "dx-red-book", "ex", "promo"):
+    for code in ("limited-1", "special-box", "mahon-file-2", "ex-sheet-1", "ex-sheet-2", "dx-red-book",
+                 "level-4", "ex-sheet-3", "festa-2004-spring", "ex", "promo"):
         assert tile(page, "product", code).locator("img").count() == 1, code
         assert tile(page, "product", code).locator(".filter-caption").inner_text() == page.evaluate(f"t('product.{code}')")
     context.close()
