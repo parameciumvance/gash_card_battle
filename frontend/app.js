@@ -2672,13 +2672,32 @@ function autoPassToggleEl() {
   return label;
 }
 
+// 「進入戰鬥,不防禦」(battle-ui「戰鬥開始確認的選項」):這場戰鬥輪到該玩家的防禦步驟時代為送出不防禦。
+// 換回合、確認被中斷(battle_in 與 battle 都沒有)或換了一場戰鬥時失效。送出中不清除(send 會忽略)
+let PRESET_NO_DEFENSE = null;   // { player, turn_no, attacker }
+
+function applyPresetNoDefense() {
+  const p = PRESET_NO_DEFENSE;
+  if (!p) return;
+  if (!S || S.phase !== "battle" || S.turn_no !== p.turn_no || (!S.battle && !S.battle_in)
+      || (S.battle && S.battle.attacker !== p.attacker)) {
+    PRESET_NO_DEFENSE = null;
+    return;
+  }
+  if (S.battle && S.battle.step === "defense" && !S.pending && awaitedPlayer() === p.player && SENDING === 0) {
+    PRESET_NO_DEFENSE = null;
+    send({ type: "no_defense", player: p.player });
+  }
+}
+
 function renderActionBar() {
   const outer = document.getElementById("action-bar");
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
   if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
-  if (!S || S.phase === "game_over") { cancelAutoPass(); return; }
+  if (!S || S.phase === "game_over") { cancelAutoPass(); PRESET_NO_DEFENSE = null; return; }
+  applyPresetNoDefense();
   scheduleAutoPass();
   const me = myViewer();
   if ((me === 0 || me === 1) && R && R.unresponsive && R.unresponsive[1 - me]) {   // 對手沒有回應:結束或繼續等
@@ -2778,8 +2797,12 @@ function renderActionBar() {
         bar.appendChild(hint);
       }
     } else if (timing === "battle_in") {
-      addBtn(t("ui.allow_battle"),
-        () => send({ type: "battle_in_response", player: awaited, allow: true }), true, t("ui.allow_battle_note"));
+      const enter = () => send({ type: "battle_in_response", player: awaited, allow: true });
+      addBtn(t("ui.allow_battle"), enter, true, t("ui.allow_battle_note"));
+      addBtn(t("ui.allow_battle_no_defense"), () => {   // 進入戰鬥並預先決定這場戰鬥不防禦
+        PRESET_NO_DEFENSE = { player: awaited, turn_no: S.turn_no, attacker: S.battle_in.attacker };
+        enter();
+      });
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {

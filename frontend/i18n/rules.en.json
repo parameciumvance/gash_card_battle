@@ -115,7 +115,7 @@
       "title": "BATTLE sequence",
       "blocks": [
         {"list": [
-          "Start check: the turn player declares an attack with a SPELL (shows the SPELL and pays its cost). The non-turn player may accept, or insert 1 action (play a card, an in-play effect, or an Event or NO BATTLE SPELL with D (Defense)); inserting an action voids this check, and the turn player may declare again or do something else.",
+          "Start check: the turn player declares an attack with a SPELL (shows the SPELL and pays its cost). The non-turn player may battle in, or insert 1 action (play a card, an in-play effect, or an Event or NO BATTLE SPELL with D (Defense)); inserting an action voids this check, and the turn player may declare again or do something else.",
           "Defense: the non-turn player (the defender) may defend with a SPELL that has D (Defense), paying its cost, or not defend. Some effects make an attack impossible to defend.",
           "Effects: starting with the attacker, players alternate using effects with BATTLE or passing; when both pass in a row, Power is compared.",
           "Power showdown: total Power = Power of the MAMODO using the SPELL + Power of the SPELL (including all modifiers). If the attacker's total is greater than the defender's, the attack succeeds; if they are equal or the defender's is greater, it fails. Without a defense the defender's total is 0; a negated attack counts as a failure.",

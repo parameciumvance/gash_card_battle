@@ -1452,7 +1452,7 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         st.action_player = bi["attacker"]
         st.consecutive_passes = 0
         return
-    raise IllegalCommand("battle_in.invalid", "只能迎戰(進入戰鬥)或插入 1 個行動")
+    raise IllegalCommand("battle_in.invalid", "只能進入戰鬥或插入 1 個行動")
 
 
 # ---------------------------------------------------------------- 戰鬥
