@@ -75,6 +75,7 @@ class SpellRider:
     # 以此戰術防禦時,於「効果の使用」的最後(雙方都 pass、魔力勝負前)解決的防禦效果;防禦已被無效時
     # 不執行。宣告時的擲幣結果由 on_declare 以 RememberInBattle 記下 fn(game, batch, defender)(S-025 等)
     on_effects_end: Callable | None = None
+    power_per_count: tuple | None = None  # 戰術的魔力 = (計數規格, 每單位魔力):魔力勝負時依當下計數計算(S-143)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}

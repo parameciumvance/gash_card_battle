@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from gash.api.app import app
 from gash.engine.cards import DATA_DIR, card_db, pending_cards
 from gash.engine.deck import load_deck
+from tests.test_season4_spells import BATCH as SPELLS_BASIC
 
 RANGES = {"M": (70, 85), "S": (113, 146), "P": (44, 50), "E": (50, 54), "Ex": (51, 74)}
 EXTRA = ["Ex-000", "Ex-049", "Ex-050", "Ex-099", "PR-012", "PR-013"]
@@ -15,7 +16,7 @@ MJ12 = [f"MJ-{i:03d}" for i in range(1, 7)]                # LEVEL:4 的 MJ12 �
 SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA + MJ12
 DX = ["Ex-100", "Ex-101"]                                   # 第 3 賽季補收:DX赤い魔本附錄
 NEW = SEASON4 + DX
-IMPLEMENTED = set(MJ12) | {"Ex-074"}                         # 已實作效果、移出尚未開放清單(mj12-cards)
+IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC)     # 已實作效果、移出尚未開放清單(mj12-cards、season4-spells-basic)
 
 
 def test_numbers_complete():

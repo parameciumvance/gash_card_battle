@@ -5,6 +5,7 @@ Run: python -m pytest tests/test_pending_preview_ui.py -q
 """
 from tests.test_cheat_editor import open_local
 from tests.test_pool_filters_ui import SEASON_ROWS, menu, open_builder, pick, pool_numbers, product_rows, tile_keys
+from tests.test_season4_spells import BATCH as SPELLS_BASIC
 
 PENDING_CARD = "M-070"   # 第 4 賽季,資料已收錄、效果尚未實作
 OPEN_CARD = "M-001"
@@ -61,13 +62,14 @@ def test_builder_grids_include_pending_only_items(browser, server):
     assert product_rows(page) == SEASON_ROWS                                   # LEVEL:4 等新產品也列出
     page.keyboard.press("Escape")
     menu(page, "mamodo").click()
-    assert "バランシャ" in tile_keys(page, "mamodo")                          # 只有尚未開放卡片的魔物家族
+    assert "ゴーレン" in tile_keys(page, "mamodo")                            # 只有尚未開放卡片的魔物家族
     page.keyboard.press("Escape")
     pick(page, "product", "level-4")
     numbers = pool_numbers(page)
     assert numbers and PENDING_CARD in numbers
     opened = page.locator("#pool-grid .card:not(.pending) .cnum").all_text_contents()
-    assert sorted(opened) == [f"MJ-{n:03d}" for n in range(1, 7)]           # 已實作的 MJ12(mj12-cards)照常可選
+    # 已實作的 MJ12(mj12-cards)與第 1 批戰術(season4-spells-basic)照常可選
+    assert set(opened) == {f"MJ-{n:03d}" for n in range(1, 7)} | {n for n in SPELLS_BASIC if n.startswith("S-")}
     context.close()
     assert not errors
 
@@ -80,12 +82,12 @@ def test_cheat_pool_hides_pending(page):
     filters.locator(".filter-menu[data-group=product]").click()
     keys = filters.locator(".filter-panel[data-group=product] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")
-    assert not {"festa-2004-spring", "dx-red-book"} & set(keys)
-    assert {"level-4", "ex-sheet-3"} <= set(keys)                             # 有已開放的卡(MJ12、Ex-074)
+    assert "dx-red-book" not in keys
+    assert {"level-4", "ex-sheet-3", "festa-2004-spring"} <= set(keys)        # 有已開放的卡(MJ12、Ex-074、Ex-050)
     filters.locator(".filter-menu[data-group=mamodo]").click()
     keys = filters.locator(".filter-panel[data-group=mamodo] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")
-    assert "バランシャ" not in keys
+    assert "ゴーレン" not in keys                                              # 只有尚未開放卡片的魔物家族
 
 
 def test_mj12_sorted_after_events(browser, server):

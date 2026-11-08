@@ -1934,6 +1934,9 @@ def side_breakdown(game: Game, battle: BattleState, side: str) -> tuple[int, lis
     # 戰術的魔力(特殊為 0),加上戰術自身的加值與待命 / 效果的加成(S-016 / S-017 / S-040 / M-008 / P-007)
     spell_items = [_item("spell", spell, 0 if card.power_special else (card.power_bonus or 0))]
     spell_items += [dict(i) for i in battle.data.get(f"{side}_spell_power", [])]
+    if rider and rider.power_per_count:                     # S-143:依當下計數的戰術魔力
+        spec, per = rider.power_per_count
+        spell_items.append(_item("spell_count", spell, spec.value(game, {"player": player}) * per))
     st = game.state
     spell_items += [_item("attr_power", m.source, m.amount) for m in st.modifiers   # S-062:雙方的屬性加成
                     if m.kind == "attr_power" and m.active(st.turn_no) and m.data.get("attr") == card.attr_name]

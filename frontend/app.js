@@ -3124,6 +3124,7 @@ function choiceLabel(opt, results) {
       : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
+    case "discard_opponent_partner": return t("choice.discard_opponent_partner");
     case "end_review": return t("choice.end_review");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
