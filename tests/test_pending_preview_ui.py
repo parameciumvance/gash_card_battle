@@ -5,9 +5,16 @@ Run: python -m pytest tests/test_pending_preview_ui.py -q
 """
 from tests.test_cheat_editor import open_local
 from tests.test_pool_filters_ui import SEASON_ROWS, menu, open_builder, pick, pool_numbers, product_rows, tile_keys
-from tests.test_season4_spells import BATCH as SPELLS_BASIC
-from tests.test_season4_spells_2a import BATCH as SPELLS_2A
-from tests.test_season4_spells_2b import BATCH as SPELLS_2B
+from tests.test_pool_filters_ui import open_products
+
+
+def level4_open() -> set[str]:
+    import json
+
+    from gash.engine.cards import DATA_DIR, pending_cards
+    cards = json.loads((DATA_DIR / "cards.json").read_text(encoding="utf-8"))
+    return {c["number"] for c in cards if "level-4" in c["sets"] and c["number"] not in pending_cards()}
+
 
 PENDING_CARD = "M-070"   # 第 4 賽季,資料已收錄、效果尚未實作
 OPEN_CARD = "M-001"
@@ -70,9 +77,8 @@ def test_builder_grids_include_pending_only_items(browser, server):
     numbers = pool_numbers(page)
     assert numbers and PENDING_CARD in numbers
     opened = page.locator("#pool-grid .card:not(.pending) .cnum").all_text_contents()
-    # 已實作的 MJ12(mj12-cards)與第 4 賽季戰術(season4-spells-*)照常可選
-    assert set(opened) == {f"MJ-{n:03d}" for n in range(1, 7)} | {
-        n for n in SPELLS_BASIC + SPELLS_2A + SPELLS_2B if n.startswith("S-")}
+    # 已實作(不在尚未開放清單)的 LEVEL:4 卡照常可選
+    assert set(opened) == level4_open()
     context.close()
     assert not errors
 
@@ -85,8 +91,7 @@ def test_cheat_pool_hides_pending(page):
     filters.locator(".filter-menu[data-group=product]").click()
     keys = filters.locator(".filter-panel[data-group=product] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")
-    assert "dx-red-book" not in keys
-    assert {"level-4", "ex-sheet-3", "festa-2004-spring"} <= set(keys)        # 有已開放的卡(MJ12、Ex-074、Ex-050)
+    assert set(keys) == open_products()                                       # 只列有已開放卡片的產品
     filters.locator(".filter-menu[data-group=mamodo]").click()
     keys = filters.locator(".filter-panel[data-group=mamodo] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")

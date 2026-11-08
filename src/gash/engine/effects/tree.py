@@ -25,6 +25,7 @@ from .primitives import (
     discard_from_book, discard_option, discard_partner, flip_coins,
     family, heal_slot, mamodo_name, mark_opp_mp_reduced, mp_guarded, partner_discard_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
     mp_counter_after_reduction, reduce_opponent_mp, return_to_book, run_on_play, selectable_opponent_slots,
+    card_name_key,
     schedule_standby, slot_option, stack_base, take_from_book,
     turn_pages,
 )
@@ -913,17 +914,31 @@ class OpponentBookCards:
     card_type: str | None
     exclude_last: bool = False
     restricting: bool = False
+    names: tuple = ()                    # 只列名稱完全相符的卡(Ex-072「プロフェッサー・ダルタニアン」)
+    same_name_as_discard: bool = False   # 只列與對手棄牌區中某張卡同名的卡(E-050,card_name_key)
+    after_current: bool = False          # 只列今のページより後ろ(翻開的頁之後)的頁(PR-013)
+    excluding: str = ""                  # 排除 ctx 中這個綁定已選的頁(Ex-072 的第 2 張)
 
     def options(self, game, ctx) -> list[dict]:
         opp = game.state.players[1 - ctx["player"]]
+        keys = {card_name_key(game.db[n].name_ja) for n in opp.discard} if self.same_name_as_discard else None
         out = []
         for p in range(1, 33):
             if p in opp.consumed_pages or (self.exclude_last and p == 32):
                 continue
+            if self.after_current and p <= opp.pos + 1:
+                continue
+            if self.excluding and ctx.get(self.excluding) == p:
+                continue
             number = opp.card_at(p)
-            if self.card_type is not None and game.db[number].type != self.card_type:
+            card = game.db[number]
+            if self.card_type is not None and card.type != self.card_type:
                 continue
             if self.restricting and not restriction_kinds(number):
+                continue
+            if self.names and card.name_ja not in self.names:
+                continue
+            if keys is not None and card_name_key(card.name_ja) not in keys:
                 continue
             out.append(page_option(1 - ctx["player"], p, number))
         return out
@@ -2937,6 +2952,45 @@ class LockUserSlot(Effect):
                             target_player=player, flag="mamodo_locked", duration=self.duration)
         m.target_slot = slot.uid
         m.data["mamodo"] = family(rt.game, slot)
+        return True
+
+
+@dataclass(frozen=True)
+class OpponentMamodoWithDiscardCostEffect:
+    """對手場上頂層的卡有「このカードを捨て札にする→」效果的魔物(E-054;S-121 保護的除外)。選項值為 slot UID。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = 1 - ctx["player"]
+        return [slot_option(opp, s) for s in selectable_opponent_slots(game, ctx["player"])
+                if reg.has_discard_cost_effect(s.top)]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇有「このカードを捨て札にする→」效果的對手魔物")
+
+
+@dataclass(frozen=True)
+class GainMpPerCount(Effect):
+    """自己 MP 增加 count 計數規格的值 × per(Ex-073)。"""
+    count: Any = None
+    per: int = 1
+
+    def run(self, rt, ctx, path):
+        from ..engine import gain_mp
+        amount = self.count.value(rt.game, ctx) * self.per
+        gain_mp(rt.game, rt.batch, ctx["player"], amount, ctx["source"], by=ctx["player"])
+        return True
+
+
+@dataclass(frozen=True)
+class ScheduleEndPhaseMpHalfBattleLoss(Effect):
+    """[待命] 本回合結束階段,自己 MP 增加「這回合戰鬥階段中自己減少的 MP」的一半(捨去)(Ex-101);
+    增加量在解決時才計算,使用前與這張卡的費用都算。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="end_phase_mp", source=ctx["source"], owner=ctx["player"],
+                         data={"half_battle_mp_lost": True})
         return True
 
 

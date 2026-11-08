@@ -563,3 +563,12 @@ def opponent_event_cost(number: str, amount: int):
 def reveal_opponent_pages(number: str):
     """此卡在場上時,持有者看得到對手翻開的頁(P-024)。"""
     REVEAL_OPPONENT_PAGES.add(number)
+
+
+def has_discard_cost_effect(number: str | None) -> bool:
+    """卡片有「このカードを捨て札にする→」的效果:啟動效果 mode="discard"、干擾 discard_self、擲幣改正面(E-054)。"""
+    if not number:
+        return False
+    spec = ACTIVATED.get(number)
+    jam = JAMMER.get(number)
+    return bool((spec and spec.mode == "discard") or (jam and jam["discard_self"]) or number in COIN_SET_HEADS)

@@ -143,12 +143,13 @@ def mp_guarded(game, player) -> bool:
 def battle_phase_mp_lock(game, player) -> bool:
     """戰鬥階段中,player 場上有 P-020(搭檔效果未被禁止)。「このカードが場にある→」也算使用效果,
     所以「パートナーの効果を使えない」時不生效。"""
-    from ..engine import restricted
-    from ..state import BATTLE, NO_PARTNER_EFFECTS
+    from ..engine import partner_effects_blocked
+    from ..state import BATTLE
     st = game.state
-    if st.phase != BATTLE or restricted(game, player, NO_PARTNER_EFFECTS):
+    if st.phase != BATTLE:
         return False
-    return any(s.partner in reg.BATTLE_PHASE_MP_LOCK for s in st.players[player].slots)
+    return any(s.partner in reg.BATTLE_PHASE_MP_LOCK and not partner_effects_blocked(game, player, s)
+               for s in st.players[player].slots)
 
 
 def reduce_opponent_mp(game, batch, player, amount, source, _counter_level=0) -> int:
@@ -321,6 +322,15 @@ def own_page_turnback_effect(game, batch, player, leaves, source):
 # 目標為卡片的選項標示卡片所在位置(zone / player / 定位欄位),前端據此在畫面上的位置選擇;
 # value 是決策指令的值,不受位置欄位影響。extra 為呼叫端的附加欄位(例如 slot_uid),不可覆寫位置欄位。
 
+def card_name_key(name: str) -> str:
+    """E-050 的同名判斷:「( )つきのカード名のカードは、( )内が異なっていても同名」——去掉全形 / 半形括號內的文字;
+    W 魔物 / VS 魔物(名稱含「＆」「&」或「VS」)須完全相符。"""
+    import re
+    if any(mark in name for mark in ("＆", "&", "VS", "ＶＳ")):
+        return name
+    return re.sub(r"[（(][^）)]*[）)]", "", name).strip()
+
+
 def selectable_opponent_slots(game, chooser) -> list:
     """chooser 的效果「選ぶ」時可選的對手魔物:受「相手は…を選ぶことができない」(S-121,依家族、期間中上場的也算)
     保護的除外。所有「由效果選對手魔物」的地方都用它(game-engine「不能被對手選擇的魔物」)。"""
@@ -424,8 +434,8 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
 def _set_heads_sources(game, player):
     """player 場上可用的「把自己擲的硬幣改成正面」來源 (卡號, 魔物槽, zone):魔物卡(M-034,「魔物の効果」)
     與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。"""
-    from ..engine import mamodo_effect_block, restricted
-    from ..state import NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS
+    from ..engine import mamodo_effect_block, partner_effects_blocked, restricted
+    from ..state import NO_DISCARD_COST_EFFECTS
     out, seen = [], set()
     if restricted(game, player, NO_DISCARD_COST_EFFECTS):   # S-144:登記的都是「このカードを捨て札にする→」
         return out
@@ -434,7 +444,7 @@ def _set_heads_sources(game, player):
             out.append((s.top, s, "mamodo"))
             seen.add(s.top)
         if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen
-                and not restricted(game, player, NO_PARTNER_EFFECTS)):
+                and not partner_effects_blocked(game, player, s)):
             out.append((s.partner, s, "partner"))
             seen.add(s.partner)
     return out
