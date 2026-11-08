@@ -12,6 +12,7 @@ from tests.test_season4_spells import BATCH as SPELLS_BASIC
 from tests.test_season4_spells_2a import BATCH as SPELLS_2A
 from tests.test_season4_spells_2b import BATCH as SPELLS_2B
 from tests.test_season4_events_a import BATCH as EVENTS_A
+from tests.test_season4_events_b import BATCH as EVENTS_B
 
 RANGES = {"M": (70, 85), "S": (113, 146), "P": (44, 50), "E": (50, 54), "Ex": (51, 74)}
 EXTRA = ["Ex-000", "Ex-049", "Ex-050", "Ex-099", "PR-012", "PR-013"]
@@ -19,7 +20,7 @@ MJ12 = [f"MJ-{i:03d}" for i in range(1, 7)]                # LEVEL:4 的 MJ12 �
 SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA + MJ12
 DX = ["Ex-100", "Ex-101"]                                   # 第 3 賽季補收:DX赤い魔本附錄
 NEW = SEASON4 + DX
-IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A)   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
+IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A) | set(EVENTS_B)   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
 
 
 def test_numbers_complete():

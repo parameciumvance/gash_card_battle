@@ -70,6 +70,7 @@ class Modifier:
     amount: int = 0
     flag: str | None = None            # restriction 旗標名
     data: dict[str, Any] = field(default_factory=dict)
+    use_id: int | None = None          # 效果編號(game-engine「效果編號」):同一次使用產生的紀錄相同
 
     def active(self, turn_no: int) -> bool:
         if self.duration == DUR_NEXT_TURN:
@@ -85,6 +86,7 @@ class Standby:
     owner: int
     created_turn: int
     data: dict[str, Any] = field(default_factory=dict)
+    use_id: int | None = None   # 效果編號(game-engine「效果編號」)
 
 
 @dataclass
@@ -228,6 +230,9 @@ class GameState:
     standby: list[Standby] = field(default_factory=list)
     battle_phase_acted: bool = False      # 本回合戰鬥階段中已有行動(PR-005「バトルフェイズの一番最初」)
     action_seq: int = 0                   # 已處理的行動(非 choose 的指令)數;「直後」的判斷用(Ex-025)
+    # 效果編號(game-engine「效果編號」):每次從頭解決效果配發一個;解決期間產生的持續效果與待命記在 use_id
+    use_seq: int = 0
+    current_use: int | None = None
     winner: int | None = None
     end_reason: str | None = None
     _uid_seq: int = 0

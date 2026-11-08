@@ -158,3 +158,10 @@ negated                                                                ← 無�
 - 不經ジャマー快照:目前沒有ジャマー回應 MJ12 的效果(M-026 只回應魔物效果;MJ-006 是場にある效果,不能被無效)。
 - MJ-002 / MJ-005 的 modifier `side_power`(`data.side`):`side_breakdown` 的三條路徑(戰術、魔物效果攻擊、魔物效果防禦)都加,明細項 `side_power`。
 - MJ-006(`reg.mp_counter`):掛在 `reduce_opponent_mp` 實際減少之後,以及 E-004 的歸零;以層級參數實作「たがいに1回ずつ」(level 0 → 1 → 2 停)。事件 `field_card_effect`(行動記錄)。
+
+## 戰鬥中使用魔書的事件卡與效果編號(season4-events-b)
+
+- 有戰鬥圖示的事件卡(E-053):`STEP_EFFECTS` 輪到的玩家送 `use_book_card` 時,`_battle_icon_event` 確認那頁是有戰鬥圖示的事件卡,再交給 `_use_book_card`;之後的輪替比照 `use_field_ability`(pass 計數歸零,有 pending 時以 `pending_flip` 等決策解決後再換)。`_use_book_card` 對這類卡在 `STEP_EFFECTS` 以外一律 `event.timing`;`_battle_in_response` 在作廢進入戰鬥確認之前先拒絕,因為 `submit` 不會還原失敗指令已改的狀態。沒有圖示的事件卡在戰鬥中照舊 `battle.invalid`。
+- 效果中途造成傷害再續行(`DamageOwnMamodoThen`):傷害 ctx 帶 `after: "effect_tree_resume"` 與續體,`_finish_damage` 在傷害流程(含保護選擇)結束時續行效果樹;同步結束時在 `run` 之中就已續行,所以 `run` 一律回傳 False。
+- 效果編號:`GameState.use_seq` 配發、`current_use` 是解決中的編號(`tree._in_use` 設定並還原外層);`run_effect` 與 `resume` 都經過它,ctx 的 `use_id` 隨續體保存。`add_modifier` / `schedule_standby` 記在 `Modifier.use_id` / `Standby.use_id`,不放進 `data`。效果樹以外(引擎直接建立)的紀錄沒有編號。`SeparateEffects` 讓「●」列出的獨立效果各自配發編號,各步只能同步完成。
+- 提升魔力的判斷(Ex-070):`engine.POWER_UP_MODIFIERS` / `POWER_UP_STANDBYS` 依種類判斷;效果樹的 `Standby` 看觸發時要解決的子樹有沒有標 `raises_power` 且 amount > 0 的節點(`tree.standby_raises_power`)。新增加魔力的持續效果 / 待命種類或節點時要一併登記,否則 Ex-070 取除不了。

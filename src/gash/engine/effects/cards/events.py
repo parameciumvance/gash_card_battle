@@ -12,7 +12,7 @@ from ..tree import (
     DiscardChosenOpponentFieldCard, OpponentFieldCards,
     DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
     TurnOwnPagesBackOncePerTurn,
-    DamageChosenOpponentMamodo, ForceProtectWith, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
+    DamageChosenOpponentMamodo, DamageOwnMamodoThen, ForceProtectWith, NegateAttack, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
     battle_phase_first, opponent_has_two_or_more_mamodo,
     AddPower, AddPowerPerOwnMamodo, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
@@ -25,9 +25,9 @@ from ..tree import (
     OwnMamodoAndPartnerCount, OwnPartneredMamodo, PartnerDiscardedThisTurn, PeekOpponentOpenPages, PlayablePartnerInDiscard,
     PlayMamodoFromBook, ProtectAnyway, RaiseEventLimitThisTurn, ReduceOpponentMp, ReduceOpponentMpUnlessReducedLastTurn,
     ReduceOwnMp, Ref,
-    RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen, RestrictSelf,
+    RemovePowerUps, RemoveRestrictions, RestrictBothPlayers, RestrictOpponent, RestrictOthersThanChosen, RestrictSelf,
     ReturnDiscardToBook, RevealOpponentBook, ScheduleEndPhaseDiscardExceptKept, ScheduleEndPhaseMp,
-    ScheduleEndPhaseTurnOpponent, ScheduleNoProtectNextBattle, Sequence, SwapOpponentBookPages,
+    ScheduleEndPhaseTurnOpponent, ScheduleNoProtectNextBattle, SeparateEffects, Sequence, SwapOpponentBookPages,
     TurnOwnPageLimitedThenGainMp, SlotsForBookPartner, Standby, TurnPagesBack, TurnPagesForward, When,
     ZeroBothPlayersMp,
     dealt_damage_this_turn, has_own_injured_mamodo, has_own_mamodo, has_partner_discarded_this_turn, has_two_or_more_mamodo,
@@ -412,16 +412,23 @@ reg.event("E-051", when=HasOptions(AttachablePartnerPagesInOwnBook()), effect=Ch
     ),
 ))
 
+# 戰鬥圖示:戰鬥中的「効果の使用」使用(引擎判斷時機)。傷害走一般流程(可保護);
+# 「ダメージがあたえられたかどうかにかかわらず」傷害流程結束後無效攻擊
+reg.event("E-053", when=has_own_mamodo, effect=Sequence(steps=(
+    Choose(OwnMamodo(), bind="slot", prompt="pick_own_mamodo", then=DamageOwnMamodoThen(target=Ref("slot"))),
+    NegateAttack(),
+)))
+
 # 「このカードを捨て札にする→」効果を持つ魔物(啟動效果、干擾、擲幣改正面);選不到時不能使用
 reg.event("E-054", when=HasOptions(OpponentMamodoWithDiscardCostEffect()), effect=Choose(
     OpponentMamodoWithDiscardCostEffect(), bind="choice", prompt="pick_opponent_mamodo",
     then=DiscardChosenOpponentMamodo(),
 ))
 
-# Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻
+# Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻;兩個 ● 各自獨立(Ex-070 只取除 +5000)
 reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
-    then=Sequence(steps=(
+    then=SeparateEffects(steps=(
         AddPower(amount=5000, duration=DUR_TURN, target=Ref("slot")),
         ScheduleEndPhaseDiscardSlot(target=Ref("slot")),
     )),
@@ -470,6 +477,9 @@ reg.event("Ex-047", when=opponent_has_mamodo, effect=Choose(
 
 # Ex-048:高於 4 的一方算「MPをへらす」、低於 4 的一方算「MPをふやす」
 reg.event("Ex-048", effect=SetBothMp(value=4))
+
+# 沒有指定對象:雙方的都取除(atwiki 卡頁);複合效果整個取除,減魔力與「設為某值」不算
+reg.event("Ex-070", effect=RemovePowerUps())
 
 # 比照 E-024:「魔物の効果」與這隻魔物身上搭檔的效果(之後才裝上的也算),不封戰術;雙方的回合
 reg.event("Ex-071", when=opponent_has_mamodo, effect=Choose(

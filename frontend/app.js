@@ -2392,10 +2392,30 @@ function borrowedButtons(p, borrow) {
   }];
 }
 
+// 事件卡的「使用」按鈕;timingBlock:時機不符時的理由(優先顯示)
+function eventButton(p, entry, def, timingBlock) {
+  const ps = S.players[p];
+  const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
+  const blocked = timingBlock ? timingBlock
+    : ps.events_exhausted ? t("ui.used")
+    : entry.condition_ok === false ? t("ui.condition")
+    : cost > ps.mp ? mpReason(p, cost)
+    : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
+    : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
+  return {
+    label: t("ui.use_event"), primary: true, disabled: !!blocked, reason: blocked,
+    onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
+  };
+}
+
 function pageButtons(p, entry) {
   const def = CARDS[entry.card];
   const buttons = [];
 
+  if (def.type === "event" && def.effect_icon === "battle" && iControl(p) && !S.pending
+      && S.battle && S.battle.step === "effects" && S.battle.effect_turn === p) {
+    buttons.push(eventButton(p, entry, def, null));   // 戰鬥中輪到自己使用效果
+  }
   if (canActNow(p)) {
     if (def.type === "mamodo" || def.type === "partner" || def.type === "mj12") {
       // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選;MJ12 進獨立卡區
@@ -2407,17 +2427,8 @@ function pageButtons(p, entry) {
           : send({ type: "play_card", player: p, page: entry.page })),
       });
     } else if (def.type === "event") {
-      const ps = S.players[p];
-      const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
-      const blocked = ps.events_exhausted ? t("ui.used")
-        : entry.condition_ok === false ? t("ui.condition")
-        : cost > ps.mp ? mpReason(p, cost)
-        : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
-        : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
-      buttons.push({
-        label: t("ui.use_event"), primary: true, disabled: !!blocked, reason: blocked,
-        onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
-      });
+      // 有戰鬥圖示的事件卡(E-053)只能在戰鬥中的「効果の使用」使用
+      buttons.push(eventButton(p, entry, def, def.effect_icon === "battle" ? t("ui.why.battle_only") : null));
     }
     if (def.type === "spell" && def.effect_icon === "nonbattle" && inNonBattle()) {
       const u = nonbattleSpellUsable(p, entry);
@@ -4052,6 +4063,7 @@ function logLine(ev) {
     case "pages_turned": return t("log.pages_turned", { ...P, count: Math.abs(ev.count), source: cname(ev.source) || ev.source });
     case "page_turn_restricted": return t("log.page_turn_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "restrictions_removed":
+    case "power_ups_removed":   // Ex-070
       return ev.sources && ev.sources.length
         ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) })
         : t("log.restrictions_removed_none", P);

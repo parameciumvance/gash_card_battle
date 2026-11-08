@@ -33,7 +33,7 @@ def candidates(game: Game, player: int) -> list[dict]:
         if st.battle.step == STEP_DEFENSE:
             return ([{"type": "no_defense"}] + _spell_declarations(game, player, "declare_defense")
                     + _mamodo_defenses(game, player))
-        return [{"type": "pass"}] + _field_abilities(game, player)
+        return [{"type": "pass"}] + _field_abilities(game, player) + _battle_events(game, player)
     if st.battle_in is not None:
         return [{"type": "battle_in_response", "allow": True}] + _actions(game, player)
     return ([{"type": "pass"}] + _actions(game, player)
@@ -66,6 +66,13 @@ def _actions(game: Game, player: int) -> list[dict]:
         if reg.ACTION_DISCARD.get(slot.partner) == "partner":
             out.append({"type": "use_action_effect", "zone": "partner", "slot_uid": slot.uid})
     return out + _field_abilities(game, player)
+
+
+def _battle_events(game: Game, player: int) -> list[dict]:
+    """戰鬥中的「効果の使用」:今のページ上有戰鬥圖示的事件卡(E-053)。"""
+    ps = game.state.players[player]
+    return [{"type": "use_book_card", "page": page} for page in ps.open_pages()
+            if game.db[ps.card_at(page)].type == EVENT and game.db[ps.card_at(page)].effect_icon == "battle"]
 
 
 def _field_abilities(game: Game, player: int) -> list[dict]:
