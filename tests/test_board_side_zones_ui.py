@@ -192,10 +192,7 @@ def test_discard_pile_empty_and_last_card(desk):
 
 def test_header_has_no_discard_entry(desk):
     page, me = desk
-    for p in (me, 1 - me):
-        head = zone(page, p).locator(".pz-head")
-        assert head.locator(".discard-btn").count() == 0
-        assert "棄牌區" not in head.inner_text()
+    assert page.locator(".discard-btn").count() == 0
 
 
 def test_desktop_discard_pile_between_book_and_centerline(desk):
@@ -277,3 +274,105 @@ def test_phone_side_column_right_for_both_and_aligned(phone):
         mamodo = [box(c) for c in zone(page, p).locator(".mamodo-row .mamodo-cell").all()]
         tray = box(zone(page, p).locator(".mp-tray"))
         assert tray["x"] >= mamodo[-1]["x"] + mamodo[-1]["width"]              # 手機雙方都在右側
+
+
+# ---------------------------------------------------------------- 標題列與查閱魔書入口(header-cleanup)
+
+def test_names_in_center_row(desk):
+    page, me = desk
+    assert page.locator(".pz-head").count() == 0                               # 玩家區沒有標題列
+    track = box(page.locator("#timing-track"))
+    mine, theirs = page.locator(f'.stage-name[data-player="{me}"]'), page.locator(f'.stage-name[data-player="{1 - me}"]')
+    assert page.evaluate(f"pname({me})") in mine.inner_text() and "(你)" in mine.inner_text()
+    assert page.evaluate(f"pname({1 - me})") in theirs.inner_text()
+    m, o = box(mine), box(theirs)
+    assert m["x"] + m["width"] <= track["x"] and o["x"] >= track["x"] + track["width"]   # 我方在左、對手在右
+    for b in (m, o):                                                           # 與時機指示同一列
+        assert b["y"] < track["y"] + track["height"] and track["y"] < b["y"] + b["height"]
+    assert "active" in mine.get_attribute("class").split()                    # 行動方的名稱也標示
+    assert "active" not in theirs.get_attribute("class").split()
+
+
+def test_names_are_text_not_markup(desk):
+    page, me = desk
+    page.evaluate("R = {...(R || {}), names: ['<b>x</b>', '<i>y</i>']}; render()")
+    assert page.locator(".stage-name").count() == 2
+    assert page.locator(".stage-name b, .stage-name i").count() == 0
+    assert "<b>x</b>" in page.locator(".stage-name").all_inner_texts()[0] + page.locator(".stage-name").all_inner_texts()[1]
+
+
+def test_phone_names_one_row_above_track(phone):
+    page, me = phone
+    track = box(page.locator("#timing-track"))
+    m, o = (box(page.locator(f'.stage-name[data-player="{p}"]')) for p in (me, 1 - me))
+    assert abs(m["y"] - o["y"]) <= 2 and m["x"] < o["x"]                      # 同一列,我方在左
+    assert m["y"] + m["height"] <= track["y"] + 1
+    assert o["x"] + o["width"] <= PHONE["width"]
+
+
+def test_review_book_button_on_cover(desk):
+    page, me = desk
+    cover = zone(page, me).locator(".book-cover")
+    btn = cover.locator(".book-review")
+    assert btn.inner_text().strip() == "查閱魔書"
+    b, c = box(btn), box(cover)
+    assert b["y"] + b["height"] / 2 >= c["y"] + c["height"] - 2               # 在書皮下緣
+    btn.click()
+    page.wait_for_function("!document.getElementById('book-review-overlay').classList.contains('hidden')")
+    assert page.evaluate("BOOK_VIEW") == me
+
+
+def test_opponent_book_has_no_review_button(desk):
+    page, me = desk
+    page.evaluate("SESSION = {...SESSION, viewer: %d}; render()" % me)
+    page.evaluate("""(opp) => { S = {...S, players: S.players.map((ps, i) => i === opp ? {...ps, book: null} : ps)};
+        render(); }""", 1 - me)
+    assert zone(page, 1 - me).locator(".book-review").count() == 0
+    assert zone(page, me).locator(".book-review").count() == 1
+
+
+def test_phone_review_button_clear_of_discard_pile(phone):
+    page, me = phone
+    for p in (me, 1 - me):
+        b, d = box(zone(page, p).locator(".book-review")), box(zone(page, p).locator(".discard-pile"))
+        assert b["x"] + b["width"] <= d["x"] or d["x"] + d["width"] <= b["x"] \
+            or b["y"] + b["height"] <= d["y"] or d["y"] + d["height"] <= b["y"]
+
+
+def test_topbar_has_no_game_status(desk):
+    page, me = desk
+    for el in ("identity", "turn-info", "phase-info", "acting-info"):
+        assert page.locator(f"#{el}").count() == 0
+    assert "回合" not in page.locator("#topbar").inner_text()
+
+
+def test_turn_number_in_center_row(desk):
+    page, me = desk
+    page.evaluate("S = {...S, turn_no: 7}; render()")
+    turn, track = page.locator("#stage-turn"), box(page.locator("#timing-track"))
+    assert turn.inner_text().strip() == "第 7 回合"
+    b = box(turn)
+    assert b["y"] < track["y"] + track["height"] and track["y"] < b["y"] + b["height"]
+    assert b["x"] + b["width"] <= track["x"] + 1                                # 接在時機指示之前
+
+
+def test_spectator_label_in_center_row(desk):
+    page, me = desk
+    page.evaluate("SESSION = {...SESSION, viewer: 'spectator'}; render()")
+    assert "觀戰中" in page.locator("#stage-turn").inner_text()
+    assert all("(你)" not in t for t in page.locator(".stage-name").all_inner_texts())
+
+
+def test_opponent_deciding_note_in_action_bar(desk):
+    page, me = desk
+    page.evaluate("""(me) => { S = {...S, pending: {kind: 'protect', player: 1 - me, source: null, info: {}, options: []}};
+        SESSION = {...SESSION, viewer: me}; render(); }""", me)
+    assert "對手決策中" in page.locator("#action-bar .waiting-note").inner_text()
+
+
+def test_phone_turn_number_on_name_row(phone):
+    page, me = phone
+    turn = box(page.locator("#stage-turn"))
+    m, o = (box(page.locator(f'.stage-name[data-player="{p}"]')) for p in (me, 1 - me))
+    assert m["x"] + m["width"] <= turn["x"] + 1 and turn["x"] + turn["width"] <= o["x"] + 1   # 名稱之間
+    assert abs((turn["y"] + turn["height"] / 2) - (m["y"] + m["height"] / 2)) <= 3

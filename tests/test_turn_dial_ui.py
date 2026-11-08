@@ -107,7 +107,8 @@ def test_dial_points_to_turn_player_and_no_badge(page):
     assert page.evaluate("document.getElementById('turn-cluster').getAttribute('aria-label')") == \
         page.evaluate(f"`等待 ${{pname({tp})}} 行動(對手的回合・非戰鬥中)`")
     assert page.locator(".pz-head .turn-marker").count() == 0
-    assert page.locator(f"{zone_of(page, tp)} .pz-head").text_content().find("回合玩家") == -1
+    assert page.locator(".stage-name").all_text_contents() and \
+        all("回合玩家" not in t for t in page.locator(".stage-name").all_text_contents())
     assert_in_action_bar(page)
 
 
