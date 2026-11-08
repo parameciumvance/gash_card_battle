@@ -2015,19 +2015,25 @@ function discardPileEl(p, ps) {
   pile.tabIndex = 0;
   pile.setAttribute("aria-label", t("ui.discard", { n: ps.discard.length }));
   pile.title = t("ui.discard", { n: ps.discard.length });
+  const label = document.createElement("span");   // 「棄牌區」標籤常駐(有卡時在張數上方)
+  label.className = "discard-label";
+  label.textContent = t("ui.slot.empty_discard");
   if (!ps.discard.length) {
     pile.classList.add("empty");
-    pile.textContent = t("ui.slot.empty_discard");
+    pile.appendChild(label);
   } else {
     const last = ps.discard[ps.discard.length - 1];
     const card = cardEl(last);
     card.onclick = null;                        // 整格同一個入口:開棄牌區視窗
     card.dataset.card = last;
     pile.appendChild(card);
+    const info = document.createElement("div");
+    info.className = "discard-info";
     const count = document.createElement("span");
     count.className = "discard-count";
     count.textContent = `×${ps.discard.length}`;
-    pile.appendChild(count);
+    info.append(label, count);
+    pile.appendChild(info);
   }
   if (PICK && PICK.discards.has(p)) pile.classList.add("pickable");
   pile.onclick = () => showDiscard(p);

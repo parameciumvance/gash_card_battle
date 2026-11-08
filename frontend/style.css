@@ -266,6 +266,9 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* 場區卡片縮小時(手機、較窄的寬螢幕)卡名與魔力徽章的字級等比例縮小(以手機原尺寸 88px 的字級為基準) */
 #board .field-block .card .cname { font-size: min(12px, calc(var(--card-w) * 12 / 88)); }
 #board .field-block .card .val-badge.val-power { font-size: min(10px, calc(var(--card-w) * 10 / 88)); }
+.discard-pile .discard-info { display: flex; flex-direction: column; gap: 2px; }
+.discard-pile .discard-label { font-size: 11px; color: var(--gold-soft); white-space: nowrap; }
+.discard-pile.empty .discard-label { color: rgba(30, 60, 110, .5); }
 .discard-pile .discard-count { font-size: 16px; font-weight: bold; color: var(--gold-soft); }
 .discard-pile.pickable { box-shadow: 0 0 0 3px var(--glow), 0 0 12px var(--glow); }
 .discard-pile:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }

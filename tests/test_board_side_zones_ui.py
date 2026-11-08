@@ -176,10 +176,12 @@ def test_discard_pile_empty_and_last_card(desk):
     page, me = desk
     pile = zone(page, me).locator(".discard-pile")
     assert "empty" in pile.get_attribute("class").split()
+    assert pile.locator(".discard-label").inner_text().strip() == "棄牌區"
     set_discard(page, me, ["S-001", "M-001"])
     assert "empty" not in pile.get_attribute("class").split()
     assert pile.locator(".card").get_attribute("data-card") == "M-001"         # 最後進入的卡
     assert pile.locator(".discard-count").inner_text().strip() == "×2"
+    assert pile.locator(".discard-label").inner_text().strip() == "棄牌區"       # 有卡時標籤也常駐
     opacity = pile.locator(".card").evaluate("(el) => parseFloat(getComputedStyle(el).opacity)")
     filt = pile.locator(".card").evaluate("(el) => getComputedStyle(el).filter")
     assert opacity < 1 or "brightness" in filt                                  # 調暗
