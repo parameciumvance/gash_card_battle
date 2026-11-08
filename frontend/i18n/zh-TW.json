@@ -189,6 +189,7 @@
   "choice.gain_mp_2": "自己的 MP +2",
   "choice.extra_cost_none": "不追加",
   "choice.extra_cost": "追加 {amount}(魔力 +{power}、傷害 +{damage})",
+  "choice.extra_cost.negate_2_damage": "追加 {amount}:也使 2 傷害的攻擊無效",
   "choice.damage_mamodo": "對對手的 1 隻魔物造成傷害",
   "choice.discard_opponent_partner": "選對手的 1 張搭檔棄掉",
   "choice.damage_book": "對對手的魔書造成傷害",

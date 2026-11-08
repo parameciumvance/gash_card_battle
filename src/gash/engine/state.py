@@ -156,6 +156,7 @@ class PlayerState:
     dealt_damage_this_turn: bool = False
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
     spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
+    spell_names_by_turn: dict[int, set[str]] = field(default_factory=dict)  # 宣告過的戰術卡名(S-129 / S-146)
     # 最近一次自己的行動以效果使自己增加的 MP 與當時的 action_seq(Ex-025「直後」);ジャマー還原時一併還原
     last_effect_mp_gain: dict | None = None
 

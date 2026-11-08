@@ -11,7 +11,8 @@ from __future__ import annotations
 from ..engine.engine import (
     _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses, start_flip_end_loses,
     event_cost_breakdown,
-    event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
+    event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, restriction_live,
+    reveals_open_pages,
     side_breakdown, spell_block, spell_cost, spell_power_preview, spell_cost_breakdown, uses_this_turn,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
@@ -315,6 +316,8 @@ def _effects_view(game: Game) -> list[dict]:
                     "expires": sb.data.get("expires", "turn"), "created_turn": sb.created_turn,
                     "target_slot": sb.data.get("slot_uid"), **_public_data(sb.data)})
     for m in st.modifiers:
+        if m.kind == "restriction" and not restriction_live(game, m):   # S-117 / S-131:來源戰術被無效後解除
+            continue
         entry = {"type": "modifier", "kind": m.kind, "source": m.source, "owner": m.owner,
                  "duration": m.duration, "created_turn": m.created_turn,
                  "target_player": m.target_player, "target_slot": m.target_slot,

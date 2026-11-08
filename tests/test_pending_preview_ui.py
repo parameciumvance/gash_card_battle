@@ -6,6 +6,7 @@ Run: python -m pytest tests/test_pending_preview_ui.py -q
 from tests.test_cheat_editor import open_local
 from tests.test_pool_filters_ui import SEASON_ROWS, menu, open_builder, pick, pool_numbers, product_rows, tile_keys
 from tests.test_season4_spells import BATCH as SPELLS_BASIC
+from tests.test_season4_spells_2a import BATCH as SPELLS_2A
 
 PENDING_CARD = "M-070"   # 第 4 賽季,資料已收錄、效果尚未實作
 OPEN_CARD = "M-001"
@@ -68,8 +69,9 @@ def test_builder_grids_include_pending_only_items(browser, server):
     numbers = pool_numbers(page)
     assert numbers and PENDING_CARD in numbers
     opened = page.locator("#pool-grid .card:not(.pending) .cnum").all_text_contents()
-    # 已實作的 MJ12(mj12-cards)與第 1 批戰術(season4-spells-basic)照常可選
-    assert set(opened) == {f"MJ-{n:03d}" for n in range(1, 7)} | {n for n in SPELLS_BASIC if n.startswith("S-")}
+    # 已實作的 MJ12(mj12-cards)與第 4 賽季戰術(season4-spells-*)照常可選
+    assert set(opened) == {f"MJ-{n:03d}" for n in range(1, 7)} | {
+        n for n in SPELLS_BASIC + SPELLS_2A if n.startswith("S-")}
     context.close()
     assert not errors
 

@@ -3120,7 +3120,9 @@ function choiceLabel(opt, results) {
     case "reduce_opponent_mp_3": return t("choice.reduce_opponent_mp_3");
     case "both_mp_plus_2": return t("choice.both_mp_plus_2");
     case "both_mp_minus_2": return t("choice.both_mp_minus_2");
-    case "extra_cost": return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
+    case "extra_cost":
+      if (opt.amount && opt.effect) return t(`choice.extra_cost.${opt.effect}`, { amount: opt.amount });   // Ex-063
+      return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
       : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
