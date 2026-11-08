@@ -89,6 +89,13 @@ SPELL_NONBATTLE: dict[str, Callable] = {}
 # 非戰鬥戰術使用前置條件: fn(game, player) -> bool(於支付費用前檢查;不成立拒絕 spell.condition)
 SPELL_NONBATTLE_CONDITION: dict[str, Callable] = {}
 
+# 「この術は、自分の場に『X』がいなくても使える」的非戰鬥戰術:場上沒有對應魔物時不需要使用魔物(S-140)
+SPELL_NO_USER: set[str] = set()
+
+
+def spell_no_user(number: str) -> None:
+    SPELL_NO_USER.add(number)
+
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
 

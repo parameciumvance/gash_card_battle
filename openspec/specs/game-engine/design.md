@@ -51,6 +51,10 @@
 - **防禦戰術的效果於「効果の使用」的最後解決**(規則頁「バトル」②防御「防御の効果はここではまだ解決しません」、「攻撃や防御の無効化」「攻撃や防御のタイミングで使われた効果は無効になります」):戰術掛鉤 `on_effects_end`(與 `on_win`、`on_counter` 同類)。防禦的 `on_declare` 在宣告時擲幣 / 選對象,結果以 `RememberInBattle` 記在 `battle.data`(擲幣正面用 `defense_coin_heads`,與攻擊方的 `coin_heads` 分開,S-069 可能雙方同時使用);`_resolve_showdown` 開頭(雙方 pass 之後、魔力勝負計算前)在防禦戰術沒被無效時執行它的 `on_effects_end`。這些效果不是【スタンバイ】:不放進 `state.standby`,所以不會成為「待命中的效果」(P-034 / E-036 等)的對象,也不出現在作用中效果列表。S-021、S-025、S-027、S-069(防禦)、S-079、S-095、S-106 都用這個寫法;新的防禦戰術比照。
 - **「このバトル中…使えない」從宣告時生效**(S-117 / S-131):`RestrictInBattle` 加上 `DUR_BATTLE` 的限制,`data["lift_side"]` 記下來源戰術是攻擊或防禦。`engine.restriction_live` 在那一方已被無效時視為不生效,`restricted`、`slot_restricted`、`_restrictions` 與快照的作用中效果列表都經過它;不在各個「使無效」的地方移除,避免遺漏。
 - **戰鬥戰術的使用條件**(S-146):`SpellRider.declare_condition`(條件規格,ctx 含 `slot`、`side`)與 `once_per_turn`(依 `PlayerState.spell_names_by_turn` 的同名戰術)在 `_validate_spell_declaration` 檢查,宣告與進入戰鬥確認時都會走到;錯誤碼 `spell.condition` / `spell.used`。`spell_names_by_turn` 與 Ex-043 的屬性記錄同時寫入,只保留本回合與前一回合。
+- **魔物效果攻防規格的查詢**:一律經 `engine.mamodo_attack_spec` / `mamodo_defense_spec`(引擎、快照、NPC 都用),回傳的規格含使用次數的鍵 `key`。卡號登記的(M-027 等)優先;沒有時看效果賦予的(S-113 的 `granted_fighting` modifier,依當下的家族,`key` 為 `fighting:<來源>:<slot>`,攻防共用)。
+- **不能被對手選擇**(S-121):`primitives.selectable_opponent_slots(game, chooser)` 排除受 `unselectable` modifier(`data["mamodo"]` 為家族)保護的魔物。新的「由效果選對手魔物」的規格或節點都要用它,不要直接讀對手的 `slots`。依家族的不受傷害是 `no_damage` modifier 的 `target_slot` 為 None、`data["mamodo"]` 為家族。
+- **非戰鬥戰術的使用魔物**:handler 收 `user_slot`(效果 ctx 的 `user_slot`,S-136);`reg.spell_no_user` 的戰術在沒有可用的對應魔物時 `user` 為 None(S-140),仍檢查整個玩家的「術を使えない」。
+- **「このカードを捨て札にする→」的限制**(S-144,`NO_DISCARD_COST_EFFECTS`):`ability_block` 擋 `mode="discard"`、`_jammer_holders` 擋 `discard_self`、`primitives._set_heads_sources` 擋全部(登記的都是棄掉自己)。
 - 防禦的追加費用記在 `battle.data["defense_extra_cost"]`,供改變效果的追加(Ex-063,`SpellRider.extra_cost_effect` 決定選項文字)讀取。
 - 攻擊方的宣告時效果不延後:「この攻撃を防御できない」本來要在防禦宣告前作用;其餘(傷害 +N、不能保護、記下對象)要到攻擊成功才用到,攻擊被無效即不發生。魔力加成在魔力勝負時計算,被無效時 `_negate` 使合計魔力歸零。
 

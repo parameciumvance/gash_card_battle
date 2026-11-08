@@ -24,7 +24,7 @@ from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
     discard_from_book, discard_option, discard_partner, flip_coins,
     family, heal_slot, mamodo_name, mark_opp_mp_reduced, mp_guarded, partner_discard_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
-    mp_counter_after_reduction, reduce_opponent_mp, return_to_book, run_on_play,
+    mp_counter_after_reduction, reduce_opponent_mp, return_to_book, run_on_play, selectable_opponent_slots,
     schedule_standby, slot_option, stack_base, take_from_book,
     turn_pages,
 )
@@ -318,7 +318,8 @@ def has_two_or_more_mamodo(game, player) -> bool:
 
 
 def opponent_has_mamodo(game, player) -> bool:
-    return bool(game.state.players[1 - player].slots)
+    """選得到對手的魔物(S-121 保護的除外)。"""
+    return bool(selectable_opponent_slots(game, player))
 
 
 @dataclass(frozen=True)
@@ -485,12 +486,12 @@ class OpponentInjuredMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [slot_option(opp, s) for s in game.state.players[opp].slots if s.injured]
+        return [slot_option(opp, s) for s in selectable_opponent_slots(game, ctx["player"]) if s.injured]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
-        if slot is None or not slot.injured:
+        if slot is None or not slot.injured or slot not in selectable_opponent_slots(game, ctx["player"]):
             raise IllegalCommand("choose.invalid", "須選擇對手場上負傷的魔物")
 
 
@@ -638,7 +639,7 @@ class OpponentMamodoExcept:
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [slot_option(opp, s) for s in game.state.players[opp].slots
+        return [slot_option(opp, s) for s in selectable_opponent_slots(game, ctx["player"])
                 if mamodo_name(game, s) != self.name]
 
     def validate(self, game, ctx, value) -> None:
@@ -729,11 +730,12 @@ class OpponentMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [slot_option(opp, s) for s in game.state.players[opp].slots]
+        return [slot_option(opp, s) for s in selectable_opponent_slots(game, ctx["player"])]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
-        if game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1) is None:
+        slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
+        if slot is None or slot not in selectable_opponent_slots(game, ctx["player"]):
             raise IllegalCommand("choose.invalid", "須選擇對手場上的魔物")
 
 
@@ -1614,7 +1616,7 @@ class AddPowerToAllOpponentMamodo(Effect):
     def run(self, rt, ctx, path):
         player = ctx["player"]
         opp = 1 - player
-        for s in rt.game.state.players[opp].slots:
+        for s in selectable_opponent_slots(rt.game, player):                     # S-033「すべてを選び」
             add_modifier(rt.game, rt.batch, kind="power", source=ctx["source"], owner=player,
                          duration=self.duration, target_player=opp, target_slot=s.uid,
                          amount=self.amount)
@@ -2874,7 +2876,67 @@ class RememberOpponentMamodo(Effect):
     def run(self, rt, ctx, path):
         battle = rt.game.state.battle
         if battle is not None:
-            battle.data["declared_targets"] = [s.uid for s in rt.game.state.players[1 - ctx["player"]].slots]
+            battle.data["declared_targets"] = [s.uid for s in selectable_opponent_slots(rt.game, ctx["player"])]
+        return True
+
+
+@dataclass(frozen=True)
+class GrantFamilyFighting(Effect):
+    """【ステイ】自己的 family 家族魔物擁有「魔物の効果」《格闘》:費用 0,以合計魔力 power 攻擊(傷害 damage)
+    或防禦,每回合 1 次(S-113;期間中上場的也算,多張不疊加,由 engine.mamodo_attack_spec 查詢)。"""
+    family: str = ""
+    power: int = 10000
+    damage: int = 1
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="granted_fighting", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player,
+                     data={"mamodo": self.family, "power": self.power, "damage": self.damage})
+        return True
+
+
+@dataclass(frozen=True)
+class FamilyNoDamage(Effect):
+    """【ステイ】自己的 family 家族魔物不受傷害(S-121;target_slot 為 None,data["mamodo"] 為家族,依當下家族判斷,期間中上場的也算)。"""
+    family: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="no_damage", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player, data={"mamodo": self.family})
+        return True
+
+
+@dataclass(frozen=True)
+class FamilyUnselectable(Effect):
+    """【ステイ】對手的效果「選ぶ」時不能選自己的 family 家族魔物(S-121;primitives.selectable_opponent_slots 查詢)。"""
+    family: str = ""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="unselectable", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player, data={"mamodo": self.family})
+        return True
+
+
+@dataclass(frozen=True)
+class LockUserSlot(Effect):
+    """【ステイ】自己不能使用「使用這張非戰鬥戰術的魔物」(ctx["user_slot"])的魔物效果與戰術(S-136)。"""
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        slot = rt.game.state.slot_by_uid(player, ctx.get("user_slot", -1))
+        if slot is None:
+            return True
+        m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
+                            target_player=player, flag="mamodo_locked", duration=self.duration)
+        m.target_slot = slot.uid
+        m.data["mamodo"] = family(rt.game, slot)
         return True
 
 
@@ -3188,15 +3250,20 @@ class ScheduleSpellReuse(Effect):
 
 @dataclass(frozen=True)
 class ScheduleSpellFromNextSpreads(Effect):
-    """[待命] 本回合下一場戰鬥中,可使用一次目前翻開頁之後 spreads 個對頁內的 mamodo 家族戰術(M-037)。"""
+    """[待命] 本回合下一場戰鬥中,可使用一次目前翻開頁之後 spreads 個對頁內的 mamodo 家族戰術(M-037);
+    any_spell 時不限魔物(S-145)。"""
     mamodo: str = ""
     spreads: int = 2
+    any_spell: bool = False
 
     def run(self, rt, ctx, path):
         pos = rt.game.state.players[ctx["player"]].pos
         pages = list(range(pos + 2, pos + 2 + 2 * self.spreads))
+        data = {"mamodo": self.mamodo, "pages": pages, "expires": "next_battle"}
+        if self.any_spell:
+            data["any_spell"] = True
         schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
-                         data={"mamodo": self.mamodo, "pages": pages, "expires": "next_battle"})
+                         data=data)
         return True
 
 
@@ -3564,12 +3631,12 @@ class OpponentHealthyMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         opp = 1 - ctx["player"]
-        return [slot_option(opp, s) for s in game.state.players[opp].slots if not s.injured]
+        return [slot_option(opp, s) for s in selectable_opponent_slots(game, ctx["player"]) if not s.injured]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
         slot = game.state.slot_by_uid(1 - ctx["player"], value if isinstance(value, int) else -1)
-        if slot is None or slot.injured:
+        if slot is None or slot.injured or slot not in selectable_opponent_slots(game, ctx["player"]):
             raise IllegalCommand("choose.invalid", "須選擇對手場上健康的魔物")
 
 
@@ -3577,7 +3644,7 @@ class OpponentMamodoCount:
     """計數規格:對手場上魔物的數量(Ex-044 的擲幣次數)。"""
 
     def value(self, game, ctx) -> int:
-        return len(game.state.players[1 - ctx["player"]].slots)
+        return len(selectable_opponent_slots(game, ctx["player"]))          # Ex-044「相手の魔物1体を選ぶ…すべてについて」
 
 
 @dataclass(frozen=True)
@@ -3667,7 +3734,7 @@ class LockOpponentMamodoPerHeads(Effect):
 
     def run(self, rt, ctx, path):
         player = ctx["player"]
-        slots = list(rt.game.state.players[1 - player].slots)
+        slots = list(selectable_opponent_slots(rt.game, player))
         for slot, heads in zip(slots, ctx.get("results", [])):
             if heads:
                 m = add_restriction(rt.game, rt.batch, source=ctx["source"], owner=player,
@@ -4173,8 +4240,8 @@ def register_deferred(number: str, tree: Effect) -> str:
 def register_spell_nonbattle(number: str, tree: Effect):
     effect_id = _install(number, "spell_nonbattle", tree, number in reg.SPELL_NONBATTLE)
 
-    def handler(game, batch, player):
-        run_effect(game, batch, effect_id, {"player": player, "source": number})
+    def handler(game, batch, player, user_slot=None):   # user_slot:使用這張戰術的魔物(S-136;S-140 可為 None)
+        run_effect(game, batch, effect_id, {"player": player, "source": number, "user_slot": user_slot})
     return handler
 
 

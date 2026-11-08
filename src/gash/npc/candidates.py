@@ -5,7 +5,7 @@ from __future__ import annotations
 from ..engine.cards import EVENT, MAMODO, MJ12, PARTNER, SPELL
 from ..engine.effects import registry as reg
 from ..engine.effects.primitives import family
-from ..engine.engine import _spell_any_page_standby, _spell_usable_by
+from ..engine.engine import _spell_any_page_standby, _spell_usable_by, mamodo_attack_spec, mamodo_defense_spec
 from ..engine.state import BOOK_SIZE, GAME_OVER, START, STEP_DEFENSE, Game
 
 
@@ -109,12 +109,12 @@ def _spell_declarations(game: Game, player: int, ctype: str) -> list[dict]:
 
 def _mamodo_defenses(game: Game, player: int) -> list[dict]:
     return [{"type": "declare_defense", "mode": "mamodo", "slot_uid": slot.uid}
-            for slot in game.state.players[player].slots if slot.top in reg.MAMODO_DEFENSE]
+            for slot in game.state.players[player].slots if mamodo_defense_spec(game, player, slot)]
 
 
 def _mamodo_attacks(game: Game, player: int) -> list[dict]:
     return [{"type": "declare_attack", "mode": "mamodo", "slot_uid": slot.uid}
-            for slot in game.state.players[player].slots if slot.top in reg.MAMODO_ATTACK]
+            for slot in game.state.players[player].slots if mamodo_attack_spec(game, player, slot)]
 
 
 def other_actions_available(game: Game, player: int) -> bool:
