@@ -3177,22 +3177,6 @@ class AttackNotNegated:
 
 
 @dataclass(frozen=True)
-class FamilyNoDamageThisTurn(Effect):
-    """本回合自己場上 family 家族的魔物不受傷害(S-095,【ステイ】;以解決當下在場的魔物為對象)。"""
-    family: str = ""
-
-    def run(self, rt, ctx, path):
-        from ..engine import family
-        from ..state import DUR_TURN
-        player = ctx["player"]
-        for s in rt.game.state.players[player].slots:
-            if family(rt.game, s) == self.family:
-                add_modifier(rt.game, rt.batch, kind="no_damage", source=ctx["source"], owner=player,
-                             duration=DUR_TURN, target_player=player, target_slot=s.uid)
-        return True
-
-
-@dataclass(frozen=True)
 class ScheduleAfterBattleRestriction(Effect):
     """本場戰鬥結束時(攻擊未被無效)起,對手受 flag 限制(S-068「このバトルの終了後、このターン中、相手は術を
     使えない」)。排定期間是帶分類的待命,P-034 / E-036 可移除。"""

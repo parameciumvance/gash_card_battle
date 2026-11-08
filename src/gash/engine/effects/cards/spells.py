@@ -15,7 +15,7 @@ from ..tree import (
     FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
     HeadsAtLeast, HealOwnFamily, HealSlot, IncreaseThisSpellDamage, InjureOpponentMamodoInstead,
     LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
-    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, AttackNotNegated, FamilyNoDamageThisTurn,
+    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, AttackNotNegated,
     OpponentMamodo, OpponentOpenPageCards, OpponentOpenPagesLackSpell, OpponentPartneredMamodo,
     OrSkip, OwnBookCopiesOf, PlayablePartnerInDiscard, ScheduleNextBattleStandby, OwnFieldHas, OwnInjuredMamodo, PeekOpponentOpenPages,
     PlayMamodoFromBook, ReduceOpponentMp, Ref, RememberInBattle, RememberOpponentMamodo,
@@ -405,6 +405,7 @@ reg.spell_nonbattle("S-094", effect=Coin(
 ))
 
 # 宣告防禦時擲幣;正面時於「効果の使用」的最後(不論勝敗,防禦沒被無效)起本回合自己的キャンチョメ不受傷害
+# (依家族,之後上場的キャンチョメ也算)
 reg.spell_rider("S-095", on_declare=When(
     SideIs("defense"),
     then=Coin(
@@ -413,7 +414,7 @@ reg.spell_rider("S-095", on_declare=When(
     ),
 ), on_effects_end=When(
     BattleRemembered(key="defense_coin_heads"),
-    then=FamilyNoDamageThisTurn(family="キャンチョメ"),
+    then=FamilyNoDamage(family="キャンチョメ", duration=DUR_TURN),
 ))
 
 reg.spell_rider("S-097", extra_cost=(2, 2, 4000, 0))
