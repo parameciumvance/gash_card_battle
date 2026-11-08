@@ -1849,19 +1849,13 @@ function renderPlayerZone(zone, p, isTop) {
   head.appendChild(rest);
   zone.appendChild(head);
 
-  // 場區(魔物列+搭檔列)置中;魔書區靠外角:對手右上、我方左下(對角相對)
+  // 魔書區、場區(魔物列+搭檔列)、第 4 欄(MP 托盤+獨立卡區)以 CSS grid 依螢幕寬度排列:
+  // 雙方的魔物 3 欄恆置中對齊;魔書區與第 4 欄的位置見 style.css 的 .zone-body
   const body = document.createElement("div");
   body.className = "zone-body";
-  const sideL = document.createElement("div");
-  sideL.className = "zone-side";
-  const sideR = document.createElement("div");
-  sideR.className = "zone-side";
-  const book = renderBookBlock(p, ps);
-  (isTop ? sideR : sideL).classList.add("book-side");
-  (isTop ? sideR : sideL).appendChild(book);
-  body.appendChild(sideL);
+  body.appendChild(renderBookBlock(p, ps));
   body.appendChild(renderFieldBlock(p, ps, isTop));
-  body.appendChild(sideR);
+  body.appendChild(renderSideBlock(p, ps, isTop));
   zone.appendChild(body);
 }
 
@@ -1922,18 +1916,23 @@ function renderFieldBlock(p, ps, isTop) {
     mamodoRow.appendChild(mamodoCell);
     partnerRow.appendChild(partnerCell);
   }
-  // 第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區;我方在右、對手在左(對角)
+  if (isTop) { block.appendChild(partnerRow); block.appendChild(mamodoRow); }
+  else { block.appendChild(mamodoRow); block.appendChild(partnerRow); }
+  return block;
+}
+
+// 第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區(與場區同樣的列高與列距,上下對齊)
+function renderSideBlock(p, ps, isTop) {
+  const block = document.createElement("div");
+  block.className = "side-block";
   const mpCell = document.createElement("div");
   mpCell.className = "mcell side-cell mp-cell";
   mpCell.appendChild(mpTrayEl(p, ps.mp));
   const fieldCell = document.createElement("div");
   fieldCell.className = "mcell side-cell field-cell";
   fieldCell.appendChild(fieldCardsEl(p, ps));
-  const put = isTop ? "prepend" : "append";
-  mamodoRow[put](mpCell);
-  partnerRow[put](fieldCell);
-  if (isTop) { block.appendChild(partnerRow); block.appendChild(mamodoRow); }
-  else { block.appendChild(mamodoRow); block.appendChild(partnerRow); }
+  if (isTop) block.append(fieldCell, mpCell);
+  else block.append(mpCell, fieldCell);
   return block;
 }
 

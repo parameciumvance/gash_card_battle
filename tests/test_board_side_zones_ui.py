@@ -83,7 +83,7 @@ def test_side_column_diagonal_and_mp_aligned(desk):
     for p, right in ((me, True), (opp, False)):
         z = zone(page, p)
         mamodo = [box(c) for c in z.locator(".mamodo-row .mamodo-cell").all()]
-        tray = box(z.locator(".mamodo-row .mp-cell .mp-tray"))
+        tray = box(z.locator(".mp-cell .mp-tray"))
         if right:
             assert tray["x"] >= max(c["x"] + c["width"] for c in mamodo)         # 我方:魔物列右側
         else:
@@ -91,7 +91,7 @@ def test_side_column_diagonal_and_mp_aligned(desk):
         assert abs(tray["y"] - mamodo[0]["y"]) <= 1                              # 與魔物格上下對齊
         assert abs(tray["height"] - mamodo[0]["height"]) <= 1
         partners = [box(c) for c in z.locator(".partner-row .partner-cell").all()]
-        field = box(z.locator(".partner-row .field-cards"))
+        field = box(z.locator(".field-cards"))
         assert (field["x"] >= max(c["x"] + c["width"] for c in partners)) if right \
             else (field["x"] + field["width"] <= min(c["x"] for c in partners))
         assert z.locator(".book-block .mp-tray").count() == 0                     # 魔書區不再有 MP 托盤
@@ -100,7 +100,7 @@ def test_side_column_diagonal_and_mp_aligned(desk):
 def test_phone_four_equal_columns(phone):
     page, me = phone
     for p in (me, 1 - me):
-        row = zone(page, p).locator(".mamodo-row > .mcell")
+        row = zone(page, p).locator(".mamodo-row > .mcell, .mp-cell")
         assert row.count() == 4
         widths = [box(c)["width"] for c in row.all()]
         assert max(widths) - min(widths) <= 1
@@ -229,3 +229,51 @@ def test_discard_pile_glows_for_discard_target(desk):
         source: 'M-025', options: [{zone: 'discard', player: me, index: 0, value: 0}, {value: null, label: 'skip'}]}},
         actor: me, events: [{type: 'choice_required', kind: 'pick_card_in_own_discard', player: me, seq: animSeq}]})""", me)
     page.wait_for_function(f"document.querySelector('.player-zone[data-player=\"{me}\"] .discard-pile.pickable')")
+
+
+# ---------------------------------------------------------------- 雙方魔物欄對齊
+
+def mamodo_centers(page, p):
+    return [b["x"] + b["width"] / 2 for b in (box(c) for c in zone(page, p).locator(".mamodo-row .mamodo-cell").all())]
+
+
+def assert_columns_aligned(page, me):
+    mine, theirs = mamodo_centers(page, me), mamodo_centers(page, 1 - me)
+    assert len(mine) == len(theirs) == 3
+    assert all(abs(a - b) <= 1 for a, b in zip(mine, theirs)), (mine, theirs)
+
+
+def test_desktop_mamodo_columns_face_each_other(desk):
+    page, me = desk
+    assert_columns_aligned(page, me)
+
+
+@pytest.mark.parametrize("width", [760, 1024, 1199])
+def test_mid_width_book_row_and_aligned_columns(browser, server, width):  # noqa: F811
+    context, page, errors, me = open_game(browser, server, {"width": width, "height": 1400})
+    assert_columns_aligned(page, me)
+    for p, below in ((me, True), (1 - me, False)):
+        z = zone(page, p)
+        book, field = box(z.locator(".book-cover")), box(z.locator(".field-block"))
+        if below:
+            assert book["y"] >= field["y"] + field["height"] - 1               # 我方魔書列在場區下方
+        else:
+            assert book["y"] + book["height"] <= field["y"] + 1                # 對手魔書列在場區上方
+        mamodo = [box(c) for c in z.locator(".mamodo-row .mamodo-cell").all()]
+        tray = box(z.locator(".mp-tray"))
+        right = p == me                                                        # 寬螢幕維持對角
+        assert (tray["x"] >= mamodo[-1]["x"] + mamodo[-1]["width"]) if right \
+            else (tray["x"] + tray["width"] <= mamodo[0]["x"])
+    assert page.evaluate("document.querySelector('.player-zone .zone-body').scrollWidth"
+                         " <= document.querySelector('.player-zone .zone-body').clientWidth + 1")
+    context.close()
+    assert not errors
+
+
+def test_phone_side_column_right_for_both_and_aligned(phone):
+    page, me = phone
+    assert_columns_aligned(page, me)
+    for p in (me, 1 - me):
+        mamodo = [box(c) for c in zone(page, p).locator(".mamodo-row .mamodo-cell").all()]
+        tray = box(zone(page, p).locator(".mp-tray"))
+        assert tray["x"] >= mamodo[-1]["x"] + mamodo[-1]["width"]              # 手機雙方都在右側
