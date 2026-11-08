@@ -1332,7 +1332,10 @@ html.motion-off .book-nav.flip-glow { animation: none; }
 .pool-filters .filter-type .filter-check { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px;
   border-radius: 50%; background: var(--glow); color: #2a1b06; font-size: 10px; font-weight: bold;
   align-items: center; justify-content: center; }
-.pool-filters .filter-panel[data-group=tag] .filter-tile { flex-direction: row; align-items: center;
+/* 標籤網格每組一列 */
+.pool-filters .filter-tag-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px;
+  margin-bottom: 6px; }
+.pool-filters .filter-panel[data-group=tag] .filter-tile { display: flex; flex-direction: row; align-items: center;
   justify-content: flex-start; gap: 6px; padding: 6px 8px; }
 .pool-filters .filter-box { flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; border: 2px solid var(--ink-dim); border-radius: 4px; }
@@ -1343,14 +1346,17 @@ html.motion-off .book-nav.flip-glow { animation: none; }
 .pool-filters .filter-crop { display: block; width: 100%; background-repeat: no-repeat; }
 .pool-filters .type-icon { flex: none; width: 32px; height: 32px; border-radius: 50%;
   font-size: 16px; font-weight: bold; }
-.pool-filters .filter-menu { flex: none; display: flex; align-items: center; gap: 4px; height: 38px;
-  padding: 2px 8px; white-space: nowrap; }
+/* 選單按鈕撐滿篩選列剩下的寬度(使用者:空間盡量利用);重置按鈕在最後 */
+.pool-filters .filter-menu { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center;
+  gap: 4px; height: 38px; padding: 2px 8px; white-space: nowrap; }
+.pool-filters .filter-reset { flex: none; height: 38px; padding: 2px 10px; white-space: nowrap; }
 .pool-filters .filter-menu::after { content: "\25BE"; color: var(--ink-dim); }
 .pool-filters .filter-menu-label { color: var(--ink-dim); }
 .pool-filters .filter-summary { display: flex; align-items: center; gap: 3px; }
 .pool-filters .filter-summary .mamodo-icon { width: 28px; border-radius: 4px; }
 .pool-filters .filter-summary .product-icon { width: 20px; height: 30px; }
-.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+.pool-filters .filter-summary { min-width: 0; }
+.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 700px) {
   .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
     padding: 1px; border-radius: 8px; }
@@ -1361,7 +1367,8 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
   .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
   .pool-filters .filter-summary .mamodo-icon { width: 22px; }
-  .pool-filters .filter-summary .filter-caption { max-width: 3.5em; font-size: 11px; }
+  .pool-filters .filter-summary .filter-caption { max-width: 6em; font-size: 11px; }
+  .pool-filters .filter-reset { height: 44px; padding: 1px 6px; font-size: 11px; }
 }
 .pool-filters .filter-panel {
   position: absolute; left: 8px; right: 8px; top: calc(100% - 2px); z-index: 20;

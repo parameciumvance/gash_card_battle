@@ -461,7 +461,7 @@ def test_phone_filter_bar_is_one_line(browser, server):
     context, page, errors = open_builder(browser, server, viewport=PHONE)
     tops = page.locator(f"{FILTERS} .filter-bar > button").evaluate_all(
         "(bs) => bs.map((b) => Math.round(b.getBoundingClientRect().top))")
-    assert len(tops) == 9 and len(set(tops)) == 1                         # 5 顆類型徽章 + 4 個選單
+    assert len(tops) == 10 and len(set(tops)) == 1                        # 5 顆類型徽章 + 4 個選單 + 重置
     menu(page, "mamodo").click()
     assert panel(page, "mamodo").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")

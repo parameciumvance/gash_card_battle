@@ -4595,7 +4595,13 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
       tiles[item.key] = tile;
       return tile;
     };
-    if (group === "product") {
+    if (group === "tag") {   // 每組一列:干擾 / 中級・上級 / 屬性
+      for (const tagGroup of ["jammer", "class", "attr"]) {
+        const line = el("div", "filter-tag-row");
+        for (const tag of POOL_TAGS.filter((x) => x.group === tagGroup)) line.appendChild(tileFor(g.items.find((it) => it.key === tag.key)));
+        panel.appendChild(line);
+      }
+    } else if (group === "product") {
       for (const row of productRows) {
         const line = el("div", "filter-row");
         for (const code of row) line.appendChild(tileFor(g.items.find((it) => it.key === code)));
@@ -4608,25 +4614,40 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
     }
     menus[group] = { btn, panel, tiles, allBtn };
   }
+  // 重置:清除所有篩選與搜尋(沒有篩選時停用)
+  const resetBtn = el("button", "filter-reset", t("builder.filter.reset"));
+  resetBtn.type = "button";
+  resetBtn.onclick = () => {
+    filters.ftypes.clear();
+    filters.fmamodo = filters.fproduct = filters.fseason = null;
+    if (filters.ftags) filters.ftags.clear();
+    filters.fquery = "";
+    searchBox.value = "";
+    filters.fopen = null;
+    sync(); onChange();
+  };
+  bar.appendChild(resetBtn);
   // 搜尋框:篩選列上方獨立一行(篩選列維持一行);輸入即篩選,Esc 清空(金手指視窗不關閉)
   const searchBox = el("input", "pool-search");
   searchBox.type = "search";
   searchBox.placeholder = t("builder.search");
   searchBox.setAttribute("aria-label", t("builder.search"));
   searchBox.value = filters.fquery || "";
-  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; onChange(); });
+  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; sync(); onChange(); });
   searchBox.addEventListener("keydown", (ev) => {
     if (ev.key !== "Escape" || !searchBox.value) return;
     ev.preventDefault();
     ev.stopPropagation();
     searchBox.value = "";
     filters.fquery = "";
-    onChange();
+    sync(); onChange();
   });
   holder.append(searchBox, bar, ...FILTER_MENUS.map((group) => menus[group].panel));
 
   function sync() {
     for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
+    resetBtn.disabled = !(filters.ftypes.size || filters.fmamodo || filters.fproduct || filters.fseason
+      || (filters.ftags && filters.ftags.size) || filters.fquery);
     const paused = mamodoFilterPaused(filters);
     if (paused && filters.fopen === "mamodo") filters.fopen = null;
     for (const group of FILTER_MENUS) {
@@ -4664,8 +4685,9 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
 
   // 點網格外或 Esc 收起(每個 holder 只掛一組監聽)
   document.removeEventListener("pointerdown", holder._closeFilters, true);
-  holder._closeFilters = (ev) => {
-    if (filters.fopen && !holder.contains(ev.target)) { filters.fopen = null; sync(); }
+  holder._closeFilters = (ev) => {   // 點在展開的網格與它的按鈕以外(含篩選區內的空白處)就收起
+    const open = filters.fopen && menus[filters.fopen];
+    if (open && !open.panel.contains(ev.target) && !open.btn.contains(ev.target)) { filters.fopen = null; sync(); }
   };
   document.addEventListener("pointerdown", holder._closeFilters, true);
   holder.onkeydown = (ev) => {

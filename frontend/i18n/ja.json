@@ -573,6 +573,7 @@
   "builder.pending_blocked": "このカードはまだ使えないため、魔本に入れられません",
   "builder.filter.type": "種類",
   "builder.filter.tag": "タグ",
+  "builder.filter.reset": "リセット",
   "builder.filter.n_selected": "{n} 件",
   "builder.filter.mamodo": "対応する魔物",
   "builder.type.mamodo": "魔物",

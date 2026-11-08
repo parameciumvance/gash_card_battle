@@ -573,6 +573,7 @@
   "builder.pending_blocked": "This card is not available yet and cannot be added to the Spell Book",
   "builder.filter.type": "Type",
   "builder.filter.tag": "Tags",
+  "builder.filter.reset": "Reset",
   "builder.filter.n_selected": "{n} selected",
   "builder.filter.mamodo": "MAMODO",
   "builder.type.mamodo": "MAMODO",

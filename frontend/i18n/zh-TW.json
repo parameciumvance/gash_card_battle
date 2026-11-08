@@ -573,6 +573,7 @@
   "builder.pending_blocked": "此卡尚未開放,不能加入魔書",
   "builder.filter.type": "類型",
   "builder.filter.tag": "標籤",
+  "builder.filter.reset": "重置",
   "builder.filter.n_selected": "{n} 個",
   "builder.filter.mamodo": "對應魔物",
   "builder.type.mamodo": "魔物",
