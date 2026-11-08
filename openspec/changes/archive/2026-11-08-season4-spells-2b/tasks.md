@@ -15,4 +15,4 @@
 - [x] 3.1 快速測試組、相關瀏覽器測試、新 slow 測試;`openspec validate season4-spells-2b --strict`。(新測試 28 項;快速組 1816 項;相關瀏覽器測試 214 項;第 4 賽季戰術三批的自我對戰 27 局)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`。
 - [x] 3.4 使用者決定 S-095 改為之後上場的也算:先寫測試確認修正前失敗,改用 `FamilyNoDamage(duration=DUR_TURN)`,移除 `FamilyNoDamageThisTurn`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。(2026-11-08 使用者同意歸檔)
