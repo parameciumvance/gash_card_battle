@@ -14,4 +14,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試、新 slow 測試;`openspec validate season4-events-a --strict`。(新測試 23 項,實作前全部失敗;快速組 1841 項;相關瀏覽器測試 246 項;自我對戰 9 局。金手指 / 構築器的產品與 LEVEL:4 測試改為依資料計算預期值,之後分批開放不必再改)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
