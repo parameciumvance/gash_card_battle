@@ -114,3 +114,12 @@ def test_m018_button_disabled_on_opponent_turn(page):
     button = page.locator("#zoom-actions button", has_text="MP")
     assert button.is_disabled()
     assert "自己的回合" in page.locator("#zoom-actions").inner_text()
+
+
+def test_peeked_cards_same_height(page):
+    # 效果文長短不同的兩張卡(S-008 短、S-032 長)在對話框中等高
+    start_local(page)
+    page.evaluate("showPeek([{type: 'pages_peeked', player: 1, viewer: 0, cards: [{page: 10, card: 'S-008'}, {page: 11, card: 'S-032'}]}])")
+    page.wait_for_selector("#info-overlay .peek-item .card")
+    heights = page.locator("#info-overlay .peek-item .card").evaluate_all("(cs) => cs.map((c) => c.getBoundingClientRect().height)")
+    assert len(heights) == 2 and abs(heights[0] - heights[1]) <= 1, heights

@@ -151,7 +151,7 @@ def battle_phase_mp_lock(game, player) -> bool:
     return any(s.partner in reg.BATTLE_PHASE_MP_LOCK for s in st.players[player].slots)
 
 
-def reduce_opponent_mp(game, batch, player, amount, source) -> int:
+def reduce_opponent_mp(game, batch, player, amount, source, _counter_level=0) -> int:
     """player 的效果使對手 MP 減少(不低於 0),並記錄為「減少對手 MP」的效果。回傳實際減少量。
     對手受 P-021 保護時不減少(發出 mp_reduction_prevented),仍算使用了減少對手 MP 的效果。"""
     mark_opp_mp_reduced(game, player)
@@ -160,7 +160,21 @@ def reduce_opponent_mp(game, batch, player, amount, source) -> int:
         return 0
     actual = reduce_mp(game, batch, 1 - player, amount, source)
     game.state.players[1 - player].mp_reduced_by_opponent += actual   # E-028 / E-035
+    mp_counter_after_reduction(game, batch, 1 - player, actual, _counter_level)
     return actual
+
+
+def mp_counter_after_reduction(game, batch, victim, amount, level=0) -> None:
+    """victim 的 MP 被對手的效果實際減少 amount 後:victim 場上有 MJ-006 時,對手減少同樣數量(強制)。
+    「相手の場にも…あるとき、この効果はたがいに1回ずつ適用される」:由 MJ-006 造成的減少(level 1)
+    再觸發對方的 MJ-006 一次,那次(level 2)不再觸發。"""
+    if amount <= 0 or level >= 2 or game.state.phase == GAME_OVER:
+        return
+    card = next((f.card for f in game.state.players[victim].field_cards if f.card in reg.MP_COUNTER), None)
+    if card is None:
+        return
+    game.emit(batch, "field_card_effect", player=victim, card=card, amount=amount)
+    reduce_opponent_mp(game, batch, victim, amount, card, _counter_level=level + 1)
 
 
 def heal_slot(game, batch, player, slot, source):

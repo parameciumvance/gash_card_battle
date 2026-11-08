@@ -99,6 +99,13 @@ class MamodoSlot:
         return self.stack[-1]
 
 
+@dataclass
+class FieldCard:
+    """獨立卡區的卡:不裝在魔物上的場上卡片(MJ12;之後的獨立バルカン)。uid 與魔物槽共用序號。"""
+    uid: int
+    card: str
+
+
 def slot_columns(slots: list["MamodoSlot"]) -> dict[int, int]:
     """各魔物槽的欄位(uid → 欄位)。沒有欄位的魔物槽(測試或金手指直接建立)依清單順序補最左邊的空欄。"""
     out = {s.uid: s.column for s in slots if s.column is not None}
@@ -127,6 +134,7 @@ class PlayerState:
     pos: int = 1                               # 目前對頁的第一頁
     mp: int = 0
     slots: list[MamodoSlot] = field(default_factory=list)
+    field_cards: list[FieldCard] = field(default_factory=list)   # 獨立卡區,依出場順序(game-engine「獨立卡區與 MJ12」)
     discard: list[str] = field(default_factory=list)
     consumed_pages: set[int] = field(default_factory=set)   # 已離開魔書的頁(1-based)
     spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各戰術卡頁已使用次數
@@ -229,6 +237,9 @@ class GameState:
             if s.uid == uid:
                 return s
         return None
+
+    def field_card_by_uid(self, player: int, uid) -> FieldCard | None:
+        return next((f for f in self.players[player].field_cards if f.uid == uid), None)
 
     def find_mamodo(self, player: int, name: str) -> MamodoSlot | None:
         """以魔物名(英文 related_mamodo 名)找自己場上的魔物槽。"""

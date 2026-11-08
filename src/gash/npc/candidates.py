@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..engine.cards import EVENT, MAMODO, PARTNER, SPELL
+from ..engine.cards import EVENT, MAMODO, MJ12, PARTNER, SPELL
 from ..engine.effects import registry as reg
 from ..engine.effects.primitives import family
 from ..engine.engine import _spell_any_page_standby, _spell_usable_by
@@ -46,7 +46,7 @@ def _actions(game: Game, player: int) -> list[dict]:
     out = []
     for page in ps.open_pages():
         card = game.db[ps.card_at(page)]
-        if card.type == MAMODO:
+        if card.type in (MAMODO, MJ12):
             out.append({"type": "play_card", "page": page})
         elif card.type == PARTNER:   # 對應的魔物各一個(兩隻對應魔物時由 NPC 選擇裝備對象)
             out += [{"type": "play_card", "page": page, "slot_uid": s.uid} for s in ps.slots
@@ -76,6 +76,9 @@ def _field_abilities(game: Game, player: int) -> list[dict]:
             out.append({"type": "use_field_ability", "zone": "mamodo", "slot_uid": slot.uid})
         if slot.partner in reg.ACTIVATED:
             out.append({"type": "use_field_ability", "zone": "partner", "slot_uid": slot.uid})
+    for fc in st.players[player].field_cards:   # 獨立卡區(MJ12)
+        if fc.card in reg.ACTIVATED:
+            out.append({"type": "use_field_ability", "zone": "field", "field_uid": fc.uid})
     # E-010:使用本回合借用的對手搭檔卡效果(以卡號記錄,該搭檔離場也可用)
     if any(m.kind == "borrow_partner" and m.owner == player and not m.data.get("used")
            for m in st.modifiers):
