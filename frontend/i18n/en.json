@@ -447,6 +447,7 @@
   "log.mamodo_discarded": "{player}'s “{card}” is discarded",
   "log.mamodo_healed": "{player}'s “{card}” is healthy again",
   "log.card_discarded": "{player}'s “{card}” goes to the Discard Pile",
+  "log.field_card_effect": "{player}'s “{card}”: opponent also loses {n} MP",
   "log.standby_set": "{player} sets a STANDBY effect ({card})",
   "log.spell_reuse_set": "{player} uses “{source}” so “{card}” (page {page}) can be used once more at cost 0 this turn",
   "log.standby_resolved": "STANDBY effect resolves ({card})",

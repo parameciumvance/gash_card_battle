@@ -391,3 +391,73 @@ def test_ex074_illegal_choice_keeps_pending():
     assert st.pending is not None and st.pending.kind == "pick_opponent_field_card"
     assert code(g, {"type": "choose", "player": 0, "value": own}) == "choose.invalid"   # 自己的 MJ12 不能選
     assert st.pending is not None and field(g, 0) == ["MJ-004"]
+
+
+# ---------------------------------------------------------------- 快照(battle-api「獨立卡區快照」)
+
+def test_snapshot_field_cards():
+    from gash.api.views import snapshot
+    g = game(("MJ-004",))
+    put(g, 0, "MJ-004")
+    use(g, 0, "MJ-004")
+    mine, theirs = snapshot(g, 0), snapshot(g, 1)
+    fc = mine["players"][0]["field_cards"][0]
+    assert fc["card"] == "MJ-004" and fc["ability_used"] and fc["ability_block"] == "used"
+    assert fc["ability"]["mode"] == "mp" and fc["ability"]["mp_cost"] == 1
+    other = theirs["players"][0]["field_cards"][0]
+    assert other["card"] == "MJ-004" and other["ability_used"] and "ability_block" not in other   # 使用可否只給持有者
+    page = next(e for e in mine["players"][0]["open_pages"] if e["page"] == 2)
+    assert page["play_block"] == "same_name"                                   # 翻開頁的 MJ12 附放出可否
+    assert theirs["players"][1]["field_cards"] == []
+
+
+# ---------------------------------------------------------------- NPC
+
+def test_npc_candidates_include_mj12():
+    from gash.npc.candidates import candidates
+    g = game(("MJ-004",))
+    put(g, 0, "MJ-001")
+    cands = candidates(g, 0)
+    assert {"type": "play_card", "page": 2} in cands
+    uid = g.state.players[0].field_cards[0].uid
+    assert {"type": "use_field_ability", "zone": "field", "field_uid": uid} in cands
+
+
+SELFPLAY_BOOKS = (
+    ("M-001", "MJ-001", "S-001", "MJ-002", "P-001", "MJ-003", "S-002", "MJ-004", "S-001", "MJ-005", "M-004",
+     "MJ-006", "S-029", "Ex-074", "S-002", "S-001", "P-002", "S-029", "S-002", "S-001", "E-018", "S-029",
+     "S-002", "S-001", "S-029", "E-018", "S-002", "S-001", "M-002", "S-029", "S-002", "S-005"),
+    ("M-004", "MJ-006", "S-001", "Ex-074", "M-001", "MJ-001", "P-001", "S-002", "MJ-004", "S-001", "P-002",
+     "S-029", "MJ-005", "S-002", "S-001", "E-018", "S-029", "MJ-002", "E-018", "S-001", "S-029", "MJ-003",
+     "S-002", "S-001", "S-029", "E-018", "S-002", "S-001", "E-032", "S-029", "S-002", "S-005"),
+)
+
+
+def test_selfplay_books_cover_batch():
+    assert all(len(b) == 32 for b in SELFPLAY_BOOKS)
+    assert set(BATCH) <= set(SELFPLAY_BOOKS[0]) | set(SELFPLAY_BOOKS[1])
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("levels", [("normal", "normal"), ("normal", "dummy"), ("dummy", "normal")])
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_npc_selfplay_with_mj12(levels, seed):
+    import random
+
+    from gash import npc
+    from gash.engine.awaiting import awaited_player
+    from gash.engine.engine import new_game
+    from gash.engine.state import GAME_OVER
+    books = [list(b) for b in SELFPLAY_BOOKS]
+    g = new_game(books[0], seed=seed, decks=(books[0], books[1]))
+    rngs = [random.Random(f"{seed}:{p}") for p in (0, 1)]
+    played = False
+    for _ in range(3000):
+        if g.state.phase == GAME_OVER:
+            break
+        p = awaited_player(g)
+        assert npc.submit_ranked(g, p, npc.decide(g, p, levels[p], rngs[p])) is not None
+        played = played or any(ps.field_cards for ps in g.state.players)
+    assert g.state.phase == GAME_OVER
+    if levels == ("normal", "normal"):                                         # 一般 NPC 會放出 MJ12
+        assert played

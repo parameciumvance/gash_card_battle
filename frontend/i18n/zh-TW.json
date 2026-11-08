@@ -447,6 +447,7 @@
   "log.mamodo_discarded": "{player} 的《{card}》被棄掉",
   "log.mamodo_healed": "{player} 的《{card}》回復健康",
   "log.card_discarded": "{player} 的《{card}》進入棄牌區",
+  "log.field_card_effect": "{player} 的《{card}》:對手的 MP 也減少 {n}",
   "log.standby_set": "{player} 設置待命效果({card})",
   "log.spell_reuse_set": "{player} 以《{source}》指定《{card}》(第 {page} 頁)本回合可費用 0 再用一次",
   "log.standby_resolved": "待命效果解決({card})",

@@ -1194,7 +1194,7 @@ function linkCardNames(root, nums) {
 function cardRefs(ev) {
   const out = new Set();
   for (const v of Object.values(ev)) {
-    if (typeof v === "string" && /^(?:[EMPS]|PR|Ex)-\d{3}$/.test(v) && CARDS[v]) out.add(v);
+    if (typeof v === "string" && /^(?:[EMPS]|PR|Ex|MJ)-\d{3}$/.test(v) && CARDS[v]) out.add(v);
   }
   return [...out];
 }
@@ -1239,6 +1239,10 @@ function zoomActions(ctx) {
   if (ctx.kind === "partner") {
     const slot = ps.slots.find((s) => s.uid === ctx.uid);
     return slot && slot.partner ? { buttons: partnerButtons(ctx.p, slot) } : { gone: true };
+  }
+  if (ctx.kind === "field") {   // 獨立卡區(MJ12)
+    const fc = (ps.field_cards || []).find((f) => f.uid === ctx.uid);
+    return fc ? { buttons: fieldCardButtons(ctx.p, fc) } : { gone: true };
   }
   if (ctx.kind === "any_page") {
     const entry = (ps.any_page_spells || []).find((e) => e.page === ctx.page);
@@ -2289,6 +2293,19 @@ function partnerButtons(p, slot) {
   return buttons;
 }
 
+// 獨立卡區的卡(MJ12)的效果按鈕:與搭檔效果相同的標籤與停用原因(battle-ui「MJ12 的放出與效果操作」)
+function fieldCardButtons(p, fc) {
+  const ab = fc.ability;
+  if (!ab || !iControl(p)) return [];
+  const label = ab.mode === "discard" ? t("ui.ability_discard")
+    : ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
+  const usable = abilityUsableNow(p, ab, fc.ability_used, fc.ability_block);
+  return [{
+    label, disabled: !usable.ok, reason: usable.reason,
+    onclick: () => send({ type: "use_field_ability", player: p, zone: "field", field_uid: fc.uid }),
+  }];
+}
+
 function partnerEl(p, slot) {
   const ctx = { kind: "partner", p, uid: slot.uid };
   return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx,
@@ -2379,8 +2396,8 @@ function pageButtons(p, entry) {
   const buttons = [];
 
   if (canActNow(p)) {
-    if (def.type === "mamodo" || def.type === "partner") {
-      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選
+    if (def.type === "mamodo" || def.type === "partner" || def.type === "mj12") {
+      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選;MJ12 進獨立卡區
       const blocked = entry.play_block ? t(`error.play.${entry.play_block}`) : null;
       buttons.push({
         label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
@@ -3031,7 +3048,7 @@ function pickState() {
   if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) return null;
   const pd = S.pending;
   const results = (pd.info && pd.info.results) || [];
-  const pick = { player: pd.player, slot: new Map(), book: new Map(), discard: new Map(),
+  const pick = { player: pd.player, slot: new Map(), book: new Map(), discard: new Map(), field: new Map(),
                  buttons: [], cards: [], books: new Set(), discards: new Set() };
   for (const opt of pd.options) {
     const value = opt.index !== undefined ? opt.index : opt.value !== undefined ? opt.value : opt.page;
@@ -3050,6 +3067,9 @@ function pickState() {
       pick.discard.set(`${opt.player}:${opt.index}`, value);
       pick.discards.add(opt.player);
       continue;
+    } else if (opt.zone === "field") {                                  // 獨立卡區(Ex-074)
+      const fc = (S.players[opt.player]?.field_cards || []).find((f) => f.uid === opt.uid);
+      if (fc) { pick.field.set(`${opt.player}:${opt.uid}`, value); continue; }
     }
     if (opt.card) pick.cards.push({ card: opt.card, value });            // 對應不到位置:直接列出
     else if (opt.page !== undefined) pick.buttons.push({ label: t("ui.page_n", { n: opt.page }), value });
@@ -3130,6 +3150,7 @@ function pickValue(ctx) {
   if (ctx.kind === "partner") return PICK.slot.get(`${ctx.p}:${ctx.uid}:partner`);
   if (ctx.kind === "page" || (ctx.kind === "pick" && ctx.zone === "book")) return PICK.book.get(`${ctx.p}:${ctx.page}`)?.value;
   if (ctx.kind === "pick" && ctx.zone === "discard") return PICK.discard.get(`${ctx.p}:${ctx.index}`);
+  if (ctx.kind === "field") return PICK.field && PICK.field.get(`${ctx.p}:${ctx.uid}`);
   return undefined;
 }
 
@@ -4100,6 +4121,7 @@ function logLine(ev) {
     case "mamodo_discarded": return t("log.mamodo_discarded", { ...P, card: cname(ev.cards[ev.cards.length - 1]) });
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });
     case "card_discarded": return t("log.card_discarded", { ...P, card: cname(ev.card) });
+    case "field_card_effect": return t("log.field_card_effect", { ...P, card: cname(ev.card), n: ev.amount });
     case "first_player_set": return t("log.first_player_set", { player: pname(ev.player) });
     case "standby_set":
       return ev.kind === "spell_reuse" && ev.card   // S-098:寫出選定的戰術

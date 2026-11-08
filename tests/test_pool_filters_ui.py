@@ -248,7 +248,8 @@ def test_product_rows_by_season_when_all_open(browser, server):
 
 
 def test_new_products_hidden_while_pending(page):
-    # 第 4 賽季的卡與 Ex-100、101 都還沒開放:金手指的產品網格與加入它們之前相同(構築器照常列出,見 test_pending_preview_ui)
+    # 第 4 賽季的卡與 Ex-100、101 大多還沒開放:金手指的產品網格只列有已開放卡片的產品(LEVEL:4 的 MJ12、
+    # 拡張シート3 的 Ex-074 已開放,見 mj12-cards;構築器照常列出全部,見 test_pending_preview_ui)
     from tests.test_cheat_editor import open_local
     open_local(page)
     filters = page.locator("#cheat-filters")
@@ -258,6 +259,7 @@ def test_new_products_hidden_while_pending(page):
         ["level-1"],
         ["level-2", "mahon-file", "ex-sheet-1"],
         ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
+        ["level-4", "ex-sheet-3"],
         ["ex", "promo"],
     ]
 

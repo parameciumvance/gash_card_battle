@@ -83,6 +83,18 @@ def _slot_view(game: Game, player: int, slot, viewer=None) -> dict:
     return view
 
 
+def _field_card_view(game: Game, player: int, fc, viewer=None) -> dict:
+    """獨立卡區的卡(MJ12):公開卡號與效果的使用狀態;使用可否只給持有者(battle-api「獨立卡區快照」)。"""
+    from ..engine.effects import registry as reg
+    spec = reg.ACTIVATED.get(fc.card)
+    ps = game.state.players[player]
+    view = {"uid": fc.uid, "card": fc.card, "ability": _ability_view(fc.card),
+            "ability_used": _used(ps, "field", fc.card, bool(spec and spec.per_game))}
+    if can_see_player(viewer, player):
+        view["ability_block"] = ability_block(game, player, "field", None, fc.card)
+    return view
+
+
 def _borrowed_block(game: Game, p: int):
     """本回合借用且尚未使用的搭檔效果(E-010)目前不能使用的原因代碼;沒有借用時 None。"""
     st = game.state
@@ -208,6 +220,7 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "open_pages": open_pages,
         "consumed_pages": sorted(ps.consumed_pages),
         "slots": [_slot_view(game, p, s, viewer) for s in ps.slots],
+        "field_cards": [_field_card_view(game, p, f, viewer) for f in ps.field_cards],
         "discard": list(ps.discard),
         "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
         "events_exhausted": ps.events_used_this_turn >= event_limit(game, p),   # 本回合事件卡已達上限(E-029 可提高)

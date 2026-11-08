@@ -113,6 +113,13 @@
 - 不是決策者時的「對手決策中」與擲幣結果是既有規格要求(「操作與決策互動」「擲幣重擲詢問顯示目前結果」),原本只在頂欄;改在行動欄的 `.waiting-note`,觀戰者為「等待 {玩家} 決策」。
 - 窄螢幕中線兩行:`#stage-mid` 用 `display: contents`,讓「第 N 回合」與兩端名稱同列,時機指示 / 終局資訊以 `order` 換到第二行。
 
+## MJ12 的操作(mj12-cards)
+
+- 翻開頁的 MJ12 與魔物、搭檔共用「放出」按鈕(`pageButtons`,依快照 `play_block`)。獨立卡區的卡以 `{kind: "field", p, uid}` 為放大檢視的實例上下文,`fieldCardButtons` 依快照 `field_cards[].ability` / `ability_block` 產生按鈕(標籤與停用原因同搭檔效果)。
+- 決策選項 `zone: "field"` 對到 `PICK.field`(`玩家:uid`),獨立卡區的卡 / 小圖示以 `markPickable` 發光;對應不到時照舊直接列在決策提示中。
+- 動畫:`card_played` 的 `zone: "field"` 飛到 `[data-field-uid]`(手機為小圖示,找不到時飛到獨立卡區);`card_discarded` 的 `zone: "field"` 從該卡飛向棄牌區格。卡號正則(`CARD_NO` 等)加入 `MJ-`。
+- MJ-006 觸發時的事件 `field_card_effect` 有自己的行動記錄文字;MJ-002 / MJ-005 的作用中效果依 `side` 顯示攻擊或防禦,魔力明細項為 `breakdown.side_power`。
+
 ## 借用效果入口(E-010)
 
 - 行動欄在可行動(非開始、非進入戰鬥確認、非防禦)時,若 `S.effects` 有自己未使用的 `borrow_partner`,加「借用效果:〈卡名〉」按鈕;按下開 `{kind: "borrowed", p}` 的放大檢視,`zoomActions` 以 `borrowedButtons` 提供「使用」,可用性沿用 `abilityUsableNow`(效果項附帶的 `ability`)再加搭檔效果失效判斷,時機不符時顯示原因。借用項目消失或已使用時檢視自動關閉。

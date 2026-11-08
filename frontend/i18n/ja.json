@@ -447,6 +447,7 @@
   "log.mamodo_discarded": "{player} の「{card}」が捨て札になる",
   "log.mamodo_healed": "{player} の「{card}」が健康な状態にもどる",
   "log.card_discarded": "{player} の「{card}」が捨て札になる",
+  "log.field_card_effect": "{player} の「{card}」:相手の MP も {n} へる",
   "log.standby_set": "{player} がスタンバイの効果を置く({card})",
   "log.spell_reuse_set": "{player} が「{source}」で「{card}」({page} ページ)をこのターン中コスト0でもう1回使えるようにする",
   "log.standby_resolved": "スタンバイの効果を解決({card})",

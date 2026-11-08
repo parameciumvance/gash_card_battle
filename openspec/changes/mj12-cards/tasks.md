@@ -12,19 +12,19 @@
 
 ## 3. 快照、NPC、資料
 
-- [ ] 3.1 快照 `field_cards` 與翻開頁 MJ12 的 `play_block`(design D4),測試。
-- [ ] 3.2 NPC 候選指令含放出 MJ12 與使用其效果;自我對戰含 MJ12 的魔書不出錯(slow)。
+- [x] 3.1 快照 `field_cards` 與翻開頁 MJ12 的 `play_block`(design D4),測試。
+- [x] 3.2 NPC 候選指令含放出 MJ12 與使用其效果;自我對戰含 MJ12 的魔書不出錯(slow)。
 - [x] 3.3 `pending_cards.json` 移除 MJ-001~006、Ex-074。
 
 ## 4. 前端
 
-- [ ] 4.1 先寫瀏覽器測試並確認失敗:放出按鈕、效果按鈕與停用原因、`field` 決策目標、動畫端點、行動記錄文字。
-- [ ] 4.2 實作(design D5)。
+- [x] 4.1 先寫瀏覽器測試並確認失敗:放出按鈕、效果按鈕與停用原因、`field` 決策目標、動畫端點、行動記錄文字。
+- [x] 4.2 實作(design D5)。
 
 ## 5. 驗證與文件
 
-- [ ] 5.1 快速測試組與相關瀏覽器測試、新的 slow 測試;`openspec validate mj12-cards --strict`。
-- [ ] 5.2 reconciliation:`card-effects/design.md`(行為決定與理由)、`game-engine` / `battle-ui` design、capability map。
+- [x] 5.1 快速測試組與相關瀏覽器測試、新的 slow 測試;`openspec validate mj12-cards --strict`。(快速組 1697 項;非 slow 瀏覽器測試 521 項;MJ12 自我對戰 9 局。金手指與構築器的產品 / 卡池測試改為 LEVEL:4、拡張シート3 已有開放的卡)
+- [x] 5.2 reconciliation:`card-effects/design.md`(行為決定與理由)、`game-engine` / `battle-ui` design、capability map。
 - [ ] 5.3 使用者確認。
 
 ## Workflow follow-up

@@ -139,3 +139,12 @@ negated                                                                ← 無�
 - 出處:atwiki「ルール」pages/87「大会ルール」記載公式大會與公認大會在 ADV ルール之外再加兩條,其中與對局有關的是「先攻の1ターン目はスタートフェイズにページをめくってもMPを増やせない」(pages/94 的開始階段說明也提到);另一條 PR 卡限 1 張見 `card-data` design「大會規則的 PR 卡限制」。
 - 不設開關,所有模式一律適用,當作基本規則(使用者決定,2026-11-01):不提供房間選項,也不另開 capability。
 - 「先攻の1ターン目」以 `turn_no == 1` 判定:第 1 回合的回合玩家就是先攻玩家(自由調查時間固定玩家 1 先攻也一樣)。只影響開始階段的主動翻頁:頁照翻,`pages_flipped.mp_gained` 為 0,`start_phase_mp_gain`(P-035)也記 0。開局準備的 +2、第 1 回合結束階段的強制翻頁 +2(規則只寫スタートフェイズ)不受影響。
+
+## 獨立卡區與 MJ12(mj12-cards)
+
+- `PlayerState.field_cards: list[FieldCard(uid, card)]`:不裝在魔物上的場上卡片,依出場順序;uid 與魔物槽共用 `next_uid`。之後的獨立バルカン(第 12 賽季)也放這裡,所以名稱不叫 MJ。
+- 放出走 `play_card`(今のページ、1 個行動):`play_block` 對 MJ12 只檢查同名(依 `name_ja`);事件 `card_played` 帶 `zone: "field"`、`field_uid`。戰鬥中只接受帶戰鬥圖示的效果,所以 MJ12 不能在戰鬥中放出(與魔物、搭檔相同)。
+- 效果走 `use_field_ability`(`zone: "field"`、`field_uid`):`ability_block(zone="field")` 不檢查魔物 / 搭檔的「使えない」;已使用記為 `field:<卡號>`。「このカードを捨て札にする」先 `discard_field_card`(事件 `card_discarded`,`zone: "field"`)再解決;效果樹的 `self_slot` 為 None。
+- 不經ジャマー快照:目前沒有ジャマー回應 MJ12 的效果(M-026 只回應魔物效果;MJ-006 是場にある效果,不能被無效)。
+- MJ-002 / MJ-005 的 modifier `side_power`(`data.side`):`side_breakdown` 的三條路徑(戰術、魔物效果攻擊、魔物效果防禦)都加,明細項 `side_power`。
+- MJ-006(`reg.mp_counter`):掛在 `reduce_opponent_mp` 實際減少之後,以及 E-004 的歸零;以層級參數實作「たがいに1回ずつ」(level 0 → 1 → 2 停)。事件 `field_card_effect`(行動記錄)。
