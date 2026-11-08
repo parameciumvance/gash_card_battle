@@ -20,7 +20,7 @@
 - [x] 4.1 截圖確認桌面與手機(按鈕不與棄牌區格重疊)。(書皮上下緣的按鈕凸出約 11px,魔書區的列距改為 14px)
 - [x] 4.2 快速測試組與相關瀏覽器測試;`openspec validate header-cleanup --strict`。(快速組 1661 項;非 slow 瀏覽器測試 515 項通過)
 - [x] 4.3 更新 `battle-ui/design.md`。
-- [ ] 4.4 使用者確認。
+- [x] 4.4 使用者確認。(2026-11-08 使用者同意歸檔)
 
 ## Workflow follow-up
 
