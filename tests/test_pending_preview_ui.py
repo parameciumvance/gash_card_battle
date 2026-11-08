@@ -93,7 +93,7 @@ def test_mj12_sorted_after_events(browser, server):
     order = page.locator("#pool-grid .card .cnum").all_text_contents()
     types = page.evaluate("(ns) => ns.map((n) => CARDS[n].type)", order)
     mj = [i for i, ty in enumerate(types) if ty == "mj12"]
-    events = [i for i, ty in enumerate(types) if ty == "event"]
+    events = [i for i, ty in enumerate(types) if ty == "event" and order[i].startswith("E-")]   # Ex 事件排在最後
     assert len(mj) == 6 and min(mj) > max(events)
     assert [order[i] for i in mj] == [f"MJ-{n:03d}" for n in range(1, 7)]
     context.close()

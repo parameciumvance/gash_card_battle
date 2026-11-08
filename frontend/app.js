@@ -4366,7 +4366,21 @@ function renderPoolFilters() {
 // 卡池圖示篩選(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」):類型徽章平鋪(多選),魔物、產品各一顆按鈕展開圖示網格(單選)。
 // ftypes 為集合,空集合不篩選;fmamodo / fproduct / fseason 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
 // 賽季篩選為累計:選第 N 賽季顯示卡片賽季 ≤ N 的卡(deck-builder「卡池賽季篩選」)
-const POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+// 「其他」:主要 4 種以外的類型(MJ12,之後的バルカン),不必每多一種類型就加一顆徽章
+const MAIN_POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+const POOL_TYPES = [...MAIN_POOL_TYPES, "other"];
+function poolType(def) { return MAIN_POOL_TYPES.includes(def.type) ? def.type : "other"; }
+
+// 標籤篩選(deck-builder「卡池標籤篩選」):干擾、中級 / 上級、戰術屬性(依卡數多寡)。
+// 同一組(group)互斥:中級與上級、各屬性之間只能選一個;不同組要同時符合
+const TAG_ATTRS = ["雷", "重力", "土", "風", "水", "氷", "木", "火"];
+const POOL_TAGS = [
+  { key: "jammer", group: "jammer", label: () => t("card.icon.jammer"),
+    has: (def) => (def.effect_icons || [def.effect_icon]).includes("jammer") },
+  { key: "intermediate", group: "class", label: () => t("card.class.intermediate"), has: (def) => def.class === "intermediate" },
+  { key: "superior", group: "class", label: () => t("card.class.superior"), has: (def) => def.class === "superior" },
+  ...TAG_ATTRS.map((a) => ({ key: `attr:${a}`, group: "attr", label: () => t(`attr.${a}`), has: (def) => def.attr_name === a })),
+];
 
 // 卡號順序(deck-builder「卡池排序」):原有的前綴(M / P / S / E)優先,接著 Ex-,最後 PR-;同前綴依編號
 const NUMBER_PREFIX_RANK = { Ex: 1, PR: 2 };
@@ -4374,14 +4388,15 @@ function compareCardNumbers(a, b) {
   const [pa, na] = a.split("-"), [pb, nb] = b.split("-");
   return (NUMBER_PREFIX_RANK[pa] || 0) - (NUMBER_PREFIX_RANK[pb] || 0) || pa.localeCompare(pb) || Number(na) - Number(nb);
 }
-const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"] };
+const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"],
+  other: ["MJ-001", "他"] };   // 「其他」的圖示先用 MJ12 的符號
 const MAMODO_ART = [26, 24, 412, 388];   // 魔物卡的插圖區(卡名列以上),所有魔物卡共用
 let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/pool-filters.json:產品分排、魔物順序與合併
 
-const FILTER_MENUS = ["mamodo", "product", "season"];
+const FILTER_MENUS = ["mamodo", "product", "season", "tag"];
 
 function newPoolFilters() {
-  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, fopen: null, fquery: "" };
+  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, ftags: new Set(), fopen: null, fquery: "" };
 }
 
 // 卡圖裁切的圖示(探測結果有快取,重繪不閃爍)。fallback 為文字時先放文字,卡圖可載入才換成裁切;
@@ -4468,7 +4483,8 @@ function searchText(num) {
 
 function poolCardMatches(def, filters) {
   if (filters.fquery && !searchText(def.number).includes(searchNormalize(filters.fquery.trim()))) return false;
-  if (filters.ftypes.size && !filters.ftypes.has(def.type)) return false;
+  if (filters.ftypes.size && !filters.ftypes.has(poolType(def))) return false;
+  if (filters.ftags && POOL_TAGS.some((tag) => filters.ftags.has(tag.key) && !tag.has(def))) return false;   // 各組都要符合
   if (filters.fmamodo && !mamodoFilterPaused(filters)
       && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
   if (filters.fproduct && !productHas(def, filters.fproduct)) return false;
@@ -4491,7 +4507,7 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
     btn.dataset.type = ty;
     btn.title = btn.ariaLabel = t("builder.type." + ty);
     btn.append(artIcon(card, ART_BOXES.type.slice(1), mark, "type-icon"),   // 各類型卡的徽章與 M-001 同位置
-      el("span", "filter-label", t("builder.type." + ty)));
+      el("span", "filter-label", t("builder.type." + ty)), el("span", "filter-check", "✓"));   // 多選:勾選的打勾
     btn.onclick = () => {
       if (filters.ftypes.has(ty)) filters.ftypes.delete(ty); else filters.ftypes.add(ty);
       sync(); onChange();
@@ -4511,11 +4527,18 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
     season: { key: "fseason", label: t("builder.filter.season"),
       items: SEASONS.selectable.map((n) => ({ key: String(n), label: t("ui.season.n", { n }),
         short: t("ui.season.short", { n }) })) },
+    tag: { key: "ftags", multi: true, label: t("builder.filter.tag"),
+      items: POOL_TAGS.map((tag) => ({ key: tag.key, label: tag.label() })) },
   };
   // 圖示 + 文字;「無」與賽季只有文字
   const itemFace = (group, item) => {
     const face = [];
     if (group === "season") return [el("span", "filter-caption", item.label)];
+    if (group === "tag") {   // 多選:前面一個方框,勾選時框內打勾
+      const box = el("span", "filter-box");
+      box.appendChild(el("span", "filter-check", "✓"));
+      return [box, el("span", "filter-caption", item.label)];
+    }
     if (group === "product") face.push(productIcon(item.key));
     else if (item.key !== MAMODO_NONE) face.push(artIcon(item.card, MAMODO_ART, null, "mamodo-icon"));
     face.push(el("span", "filter-caption", item.label));
@@ -4524,6 +4547,18 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
   // 再點一次已選取的項目:取消選擇(與點「全部」相同)
   const choose = (group, key) => {
     const field = groups[group].key;
+    if (groups[group].multi) {   // 多選:切換勾選、網格保持展開;「全部」(key null)清除
+      if (!filters[field]) filters[field] = new Set();
+      if (key === null) filters[field].clear();
+      else if (filters[field].has(key)) filters[field].delete(key);
+      else {   // 同一組互斥:換掉同組已勾的標籤
+        const group = POOL_TAGS.find((tag) => tag.key === key)?.group;
+        for (const tag of POOL_TAGS) if (tag.group === group) filters[field].delete(tag.key);
+        filters[field].add(key);
+      }
+      sync(); onChange();
+      return;
+    }
     filters[field] = filters[field] === key ? null : key;
     filters.fopen = null;
     sync(); onChange();
@@ -4560,7 +4595,13 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
       tiles[item.key] = tile;
       return tile;
     };
-    if (group === "product") {
+    if (group === "tag") {   // 每組一列:干擾 / 中級・上級 / 屬性
+      for (const tagGroup of ["jammer", "class", "attr"]) {
+        const line = el("div", "filter-tag-row");
+        for (const tag of POOL_TAGS.filter((x) => x.group === tagGroup)) line.appendChild(tileFor(g.items.find((it) => it.key === tag.key)));
+        panel.appendChild(line);
+      }
+    } else if (group === "product") {
       for (const row of productRows) {
         const line = el("div", "filter-row");
         for (const code of row) line.appendChild(tileFor(g.items.find((it) => it.key === code)));
@@ -4573,25 +4614,40 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
     }
     menus[group] = { btn, panel, tiles, allBtn };
   }
+  // 重置:清除所有篩選與搜尋(沒有篩選時停用)
+  const resetBtn = el("button", "filter-reset", t("builder.filter.reset"));
+  resetBtn.type = "button";
+  resetBtn.onclick = () => {
+    filters.ftypes.clear();
+    filters.fmamodo = filters.fproduct = filters.fseason = null;
+    if (filters.ftags) filters.ftags.clear();
+    filters.fquery = "";
+    searchBox.value = "";
+    filters.fopen = null;
+    sync(); onChange();
+  };
+  bar.appendChild(resetBtn);
   // 搜尋框:篩選列上方獨立一行(篩選列維持一行);輸入即篩選,Esc 清空(金手指視窗不關閉)
   const searchBox = el("input", "pool-search");
   searchBox.type = "search";
   searchBox.placeholder = t("builder.search");
   searchBox.setAttribute("aria-label", t("builder.search"));
   searchBox.value = filters.fquery || "";
-  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; onChange(); });
+  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; sync(); onChange(); });
   searchBox.addEventListener("keydown", (ev) => {
     if (ev.key !== "Escape" || !searchBox.value) return;
     ev.preventDefault();
     ev.stopPropagation();
     searchBox.value = "";
     filters.fquery = "";
-    onChange();
+    sync(); onChange();
   });
   holder.append(searchBox, bar, ...FILTER_MENUS.map((group) => menus[group].panel));
 
   function sync() {
     for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
+    resetBtn.disabled = !(filters.ftypes.size || filters.fmamodo || filters.fproduct || filters.fseason
+      || (filters.ftags && filters.ftags.size) || filters.fquery);
     const paused = mamodoFilterPaused(filters);
     if (paused && filters.fopen === "mamodo") filters.fopen = null;
     for (const group of FILTER_MENUS) {
@@ -4602,10 +4658,21 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
       btn.disabled = group === "mamodo" && paused;
       btn.setAttribute("aria-expanded", String(open));
       panel.classList.toggle("hidden", !open);
+      const summary = btn.querySelector(".filter-summary");
+      if (g.multi) {   // 多選:勾選的 tile 打勾;摘要為「全部」、單一名稱或個數
+        const set = current || new Set();
+        allBtn.setAttribute("aria-pressed", String(!set.size));
+        for (const [key, tile] of Object.entries(tiles)) tile.setAttribute("aria-pressed", String(set.has(key)));
+        const picked = g.items.filter((item) => set.has(item.key));
+        const text = !picked.length ? t("builder.filter.all")
+          : picked.length === 1 ? picked[0].label : t("builder.filter.n_selected", { n: picked.length });
+        summary.replaceChildren(el("span", "filter-caption", text));
+        btn.ariaLabel = `${g.label}: ${picked.length ? picked.map((item) => item.label).join(t("ui.sep.list")) : t("builder.filter.all")}`;
+        continue;
+      }
       allBtn.setAttribute("aria-pressed", String(!current));
       for (const [key, tile] of Object.entries(tiles)) tile.setAttribute("aria-pressed", String(current === key));
       // 按鈕摘要:未選取為「全部」,否則為選取項目的圖示與名稱
-      const summary = btn.querySelector(".filter-summary");
       const picked = g.items.find((item) => item.key === current);
       // 賽季按鈕用短標示,窄螢幕的篩選列才放得下
       const face = !picked ? [t("builder.filter.all")]
@@ -4618,8 +4685,9 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
 
   // 點網格外或 Esc 收起(每個 holder 只掛一組監聽)
   document.removeEventListener("pointerdown", holder._closeFilters, true);
-  holder._closeFilters = (ev) => {
-    if (filters.fopen && !holder.contains(ev.target)) { filters.fopen = null; sync(); }
+  holder._closeFilters = (ev) => {   // 點在展開的網格與它的按鈕以外(含篩選區內的空白處)就收起
+    const open = filters.fopen && menus[filters.fopen];
+    if (open && !open.panel.contains(ev.target) && !open.btn.contains(ev.target)) { filters.fopen = null; sync(); }
   };
   document.addEventListener("pointerdown", holder._closeFilters, true);
   holder.onkeydown = (ev) => {
@@ -4638,10 +4706,13 @@ function renderPool() {
 }
 
 // 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件 → MJ12,同類型依卡號。
-// MJ12 只排序、沒有類型篩選鈕(留到 MJ12 的效果批次),所以不在 POOL_TYPES
-const POOL_SORT_TYPES = [...POOL_TYPES, "mj12"];
+// Ex- 與 PR- 整批排在最後、各自依編號(不分類型);魔物網格的代表卡與家族仍用 compareCardNumbers
+const POOL_SORT_TYPES = [...MAIN_POOL_TYPES, "mj12"];
 function comparePoolCards(a, b) {
-  return POOL_SORT_TYPES.indexOf(CARDS[a].type) - POOL_SORT_TYPES.indexOf(CARDS[b].type) || compareCardNumbers(a, b);
+  const rank = (n) => NUMBER_PREFIX_RANK[n.split("-")[0]] || 0;
+  return rank(a) - rank(b)
+    || (rank(a) ? 0 : POOL_SORT_TYPES.indexOf(CARDS[a].type) - POOL_SORT_TYPES.indexOf(CARDS[b].type))
+    || compareCardNumbers(a, b);
 }
 
 // 魔物篩選的「無」:只留指令戰術

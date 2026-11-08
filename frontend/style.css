@@ -1320,22 +1320,56 @@ html.motion-off .book-nav.flip-glow { animation: none; }
 }
 :is(#pool-filters, #cheat-filters) button:disabled { opacity: .4; cursor: not-allowed; }
 :is(#pool-filters, #cheat-filters) button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+/* 篩選列是 container:放不下完整版(約 680px)時改緊湊版(圖示在上、文字在下),手機與較窄的桌面相同 */
+.pool-filters .filter-bar { container-type: inline-size; }
 .pool-filters .filter-type { flex: none; display: flex; align-items: center; gap: 3px; height: 38px;
   padding: 2px 8px 2px 2px; border-radius: 19px; }
 .pool-filters .filter-type:not([aria-pressed="true"]) { opacity: .6; }
+/* 多選(類型徽章、標籤)的打勾:勾選時才顯示;徽章在右上角,標籤在前面的方框內 */
+.pool-filters .filter-type { position: relative; }
+.pool-filters .filter-check { display: none; }
+.pool-filters [aria-pressed="true"] .filter-check { display: inline-flex; }
+.pool-filters .filter-type .filter-check { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--glow); color: #2a1b06; font-size: 10px; font-weight: bold;
+  align-items: center; justify-content: center; }
+/* 標籤網格每組一列 */
+.pool-filters .filter-tag-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px;
+  margin-bottom: 6px; }
+.pool-filters .filter-panel[data-group=tag] .filter-tile { display: flex; flex-direction: row; align-items: center;
+  justify-content: flex-start; gap: 6px; padding: 6px 8px; }
+.pool-filters .filter-box { flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: 2px solid var(--ink-dim); border-radius: 4px; }
+.pool-filters [aria-pressed="true"] .filter-box { border-color: var(--glow); background: var(--glow); }
+.pool-filters .filter-box .filter-check { color: #2a1b06; font-size: 13px; font-weight: bold; line-height: 1; }
 .pool-filters .filter-icon { display: flex; align-items: center; justify-content: center; overflow: hidden;
   font-size: 11px; line-height: 1.1; text-align: center; }
 .pool-filters .filter-crop { display: block; width: 100%; background-repeat: no-repeat; }
 .pool-filters .type-icon { flex: none; width: 32px; height: 32px; border-radius: 50%;
   font-size: 16px; font-weight: bold; }
-.pool-filters .filter-menu { flex: none; display: flex; align-items: center; gap: 4px; height: 38px;
-  padding: 2px 8px; white-space: nowrap; }
+/* 選單按鈕撐滿篩選列剩下的寬度(使用者:空間盡量利用);重置按鈕在最後 */
+.pool-filters .filter-menu { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center;
+  gap: 4px; height: 38px; padding: 2px 8px; white-space: nowrap; }
+.pool-filters .filter-reset { flex: none; height: 38px; padding: 2px 10px; white-space: nowrap; }
 .pool-filters .filter-menu::after { content: "\25BE"; color: var(--ink-dim); }
 .pool-filters .filter-menu-label { color: var(--ink-dim); }
 .pool-filters .filter-summary { display: flex; align-items: center; gap: 3px; }
 .pool-filters .filter-summary .mamodo-icon { width: 28px; border-radius: 4px; }
 .pool-filters .filter-summary .product-icon { width: 20px; height: 30px; }
-.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+.pool-filters .filter-summary { min-width: 0; }
+.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 700px) {
+  .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
+    padding: 1px; border-radius: 8px; }
+  .pool-filters .type-icon { width: 26px; height: 26px; }
+  .pool-filters .filter-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-menu { flex-direction: column; justify-content: center; height: 44px; padding: 1px 4px; gap: 0; }
+  .pool-filters .filter-menu::after { display: none; }
+  .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
+  .pool-filters .filter-summary .mamodo-icon { width: 22px; }
+  .pool-filters .filter-summary .filter-caption { max-width: 6em; font-size: 11px; }
+  .pool-filters .filter-reset { height: 44px; padding: 1px 6px; font-size: 11px; }
+}
 .pool-filters .filter-panel {
   position: absolute; left: 8px; right: 8px; top: calc(100% - 2px); z-index: 20;
   max-height: min(60vh, 420px); overflow-y: auto; padding: 8px;
@@ -1515,16 +1549,6 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   #pool-grid { justify-content: center; }
   #pool-grid .card { width: 106px; }
   .pool-filters .filter-bar { gap: 4px; }
-  .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
-    padding: 1px; border-radius: 8px; }
-  .pool-filters .type-icon { width: 26px; height: 26px; }
-  .pool-filters .filter-label { font-size: 10px; line-height: 1.1; }
-  .pool-filters .filter-menu { flex-direction: column; justify-content: center; height: 44px; padding: 1px 4px; gap: 0; }
-  .pool-filters .filter-menu::after { display: none; }
-  .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
-  .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
-  .pool-filters .filter-summary .mamodo-icon { width: 22px; }
-  .pool-filters .filter-summary .filter-caption { max-width: 3.5em; font-size: 11px; }
   #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
 }
 
