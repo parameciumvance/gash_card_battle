@@ -26,7 +26,7 @@
 - [x] 5.1 快速測試組與相關瀏覽器測試、新的 slow 測試;`openspec validate mj12-cards --strict`。(快速組 1697 項;非 slow 瀏覽器測試 521 項;MJ12 自我對戰 9 局。金手指與構築器的產品 / 卡池測試改為 LEVEL:4、拡張シート3 已有開放的卡)
 - [x] 5.2 reconciliation:`card-effects/design.md`(行為決定與理由)、`game-engine` / `battle-ui` design、capability map。
 - [x] 5.4 使用者回報:檢視對手頁面的對話框中,效果文長短不同的卡高度不一致(MJ-004 會用到)。先寫等高測試並確認失敗,再讓卡片撐滿外框。
-- [ ] 5.3 使用者確認。
+- [x] 5.3 使用者確認。(2026-11-08 使用者同意歸檔)
 
 ## Workflow follow-up
 
