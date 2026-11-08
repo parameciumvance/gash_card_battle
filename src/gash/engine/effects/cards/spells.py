@@ -2,7 +2,7 @@
 
 from ...state import (
     DUR_TURN, DUR_UNTIL_END_NEXT_TURN, DUR_UNTIL_END_OWN_NEXT_TURN, NO_DEFENSE, NO_EFFECTS_AND_SPELLS,
-    DUR_BATTLE, NO_PARTNER_EFFECTS, NO_SPELLS,
+    DUR_BATTLE, NO_EVENTS, NO_PARTNER_EFFECTS, NO_SPELLS,
 )
 from .. import registry as reg
 from ..tree import (
@@ -23,9 +23,10 @@ from ..tree import (
     ScheduleAfterBattleRestriction, ScheduleInjureInsteadNextWin, ScheduleSpellReuse, Sequence,
     SideIs, StackFromBookOnto, Standby, TurnOwnPagesOncePerTurn, UsedSpellPagesThisTurn, When,
     opponent_has_mamodo, DiscardRememberedPartner, IncreaseThisSpellDamagePerHeads, OpponentDidNotDefend,
-    OwnDiscardMamodoCards, RememberDeclaredTarget,
+    OwnDiscardMamodoCards, RememberDeclaredTarget, AsOpponent, AttackAttrIs, AttackDamageIs,
+    DiscardRememberedPartners, OpponentDiscardablePartnerCount, OwnUsedSpellNamedLastTurn, RememberPartnersPerHeads,
+    RestrictInBattle, ReturnableOwnMamodo, ReturnSlotToBook, StealOpponentMp, UserPowerExceedsOpponentsBy,
 )
-
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
@@ -526,6 +527,9 @@ reg.spell_rider("S-115", on_declare=Sequence(steps=(
 
 reg.spell_rider("S-116", on_win=RestrictOpponent(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
 
+# 「このバトル中、相手はイベントカードを使えない」:宣告時起(攻防都適用),這張戰術被無效時解除
+reg.spell_rider("S-117", on_declare=RestrictInBattle(flag=NO_EVENTS, who="opponent"))
+
 # 「次の効果の1つを使う」:比照 S-070,攻擊宣告時選擇魔書傷害或棄掉對手 1 張搭檔(一併選擇);獲勝時依選擇結算
 reg.spell_rider("S-118", on_declare=Choose(
     EffectOptions((("book", "damage_book", None),
@@ -561,13 +565,44 @@ reg.spell_rider("S-120", on_declare=When(
     then=NegateAttack(),
 ))
 
+# 對手每張可棄的搭檔依場上順序各擲 1 次(結果不受順序影響,不讓玩家選順序,比照 Ex-044);獲勝時棄掉正面的
+reg.spell_rider("S-125", on_declare=When(
+    HasOptions(OpponentPartneredMamodo(discard=True)),
+    then=Coin(
+        count=OpponentDiscardablePartnerCount(), on=Always(),
+        then=RememberPartnersPerHeads(),
+    ),
+), on_win=DiscardRememberedPartners(), no_book_damage=True)
+
+# 魔力勝負に勝ったとき無効(資料驅動);勝敗にかかわらず「雷」属性の攻撃を無効
+reg.spell_rider("S-128", on_effects_end=When(
+    AttackAttrIs(attr="雷"),
+    then=NegateAttack(),
+))
+
+reg.spell_rider("S-129", on_declare=When(
+    OwnUsedSpellNamedLastTurn(name="アシルド"),
+    then=Sequence(steps=(
+        AddSpellSelfBonus(amount=4000),
+        IncreaseThisSpellDamage(amount=2),
+    )),
+))
+
 # 防禦時「魔力勝負の勝敗にかかわらず、相手の攻撃のダメージを2へらす」;攻擊時是一般的魔書傷害
 reg.spell_rider("S-130", on_effects_end=AdjustDefenseDamage(amount=-2))
+
+# 「このバトル中、自分も相手も、パートナーの効果やイベントの効果を使えない」:宣告時起,被無效時解除
+reg.spell_rider("S-131", on_declare=Sequence(steps=(
+    RestrictInBattle(flag=NO_PARTNER_EFFECTS, who="both"),
+    RestrictInBattle(flag=NO_EVENTS, who="both"),
+)))
 
 reg.spell_rider("S-132", on_win=When(
     OpponentDidNotDefend(),
     then=IncreaseThisSpellDamage(amount=1),
 ))
+
+reg.spell_rider("S-133", on_damage=StealOpponentMp(amount=3))
 
 reg.spell_rider("S-134", on_declare=When(
     SideIs("attack"),
@@ -601,6 +636,16 @@ reg.spell_rider("S-142", on_declare=When(
 # 「この術の魔力は、自分の捨て札の魔物カードの数×2000になる」:魔力勝負時依當下張數計算
 reg.spell_rider("S-143", power_per_count=(OwnDiscardMamodoCards(), 2000))
 
+# 「この術を使う魔物の魔力が、相手のどの魔物の魔力より5000以上、上回っているとき使える」(對手沒有魔物時不能)、
+# 「1ターンに1回だけ」;獲勝時對手選自己 1 隻魔物整疊放回魔書的空頁(對手選頁),搭檔進棄牌區,不造成傷害
+reg.spell_rider("S-146", declare_condition=UserPowerExceedsOpponentsBy(gap=5000), once_per_turn=True, on_win=Sequence(steps=(
+    AsOpponent(then=Choose(
+        ReturnableOwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+        then=ReturnSlotToBook(),
+    )),
+    FinishAttackWithoutDamage(),
+)), on_win_owns_damage=True)
+
 reg.spell_rider("Ex-014", counter=True)
 # Ex-015:攻擊獲勝時(防方獲勝時攻方的效果不解決)
 reg.spell_rider("Ex-015", on_win=RestrictOpponent(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
@@ -624,6 +669,13 @@ reg.spell_rider("Ex-050", on_declare=Coin(
         AddSpellPowerPerHeads(per_head=1000),
         IncreaseThisSpellDamagePerHeads(per_head=1),
     )),
+))
+
+# 「相手の1ダメージの攻撃を無効」「コストを2ふやすことで、相手の2ダメージの攻撃も無効」:宣告時選追加,
+# 「効果の使用」的最後依攻擊的當下傷害判斷
+reg.spell_rider("Ex-063", extra_cost=(2, 2, 0, 0), extra_cost_effect="negate_2_damage", on_effects_end=When(
+    AttackDamageIs(values=(1,), with_extra=(1, 2)),
+    then=NegateAttack(),
 ))
 
 reg.spell_rider("Ex-064", on_effects_end=AdjustDefenseDamage(amount=-1))

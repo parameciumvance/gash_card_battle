@@ -189,6 +189,7 @@
   "choice.gain_mp_2": "Gain 2 MP",
   "choice.extra_cost_none": "No additional cost",
   "choice.extra_cost": "Add {amount} (Power +{power}, Damage +{damage})",
+  "choice.extra_cost.negate_2_damage": "Pay {amount} more: also negate a 2-damage attack",
   "choice.damage_mamodo": "Damage 1 of your opponent's MAMODO",
   "choice.discard_opponent_partner": "Discard 1 of your opponent's Partners",
   "choice.damage_book": "Damage your opponent's Spell Book",

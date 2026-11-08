@@ -189,6 +189,7 @@
   "choice.gain_mp_2": "自分のMPを2ふやす",
   "choice.extra_cost_none": "追加しない",
   "choice.extra_cost": "追加 {amount}(魔力 +{power}、ダメージ +{damage})",
+  "choice.extra_cost.negate_2_damage": "{amount}追加:2ダメージの攻撃も無効にする",
   "choice.damage_mamodo": "相手の魔物1体にダメージ",
   "choice.discard_opponent_partner": "相手のパートナー1枚を捨て札にする",
   "choice.damage_book": "相手の魔本にダメージ",

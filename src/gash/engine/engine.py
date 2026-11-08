@@ -142,10 +142,20 @@ def _attacking_with(game: Game, player: int, slot: MamodoSlot) -> bool:
     return b is not None and b.attacker == player and b.attack_slot == slot.uid
 
 
+def restriction_live(game: Game, m) -> bool:
+    """限制 modifier 目前是否作用:「このバトル中…使えない」(S-117 / S-131)在來源戰術那一方被無效後解除
+    (game-engine「戰鬥中的禁止於宣告時生效」)。"""
+    side = m.data.get("lift_side") if m.data else None
+    if side is None:
+        return True
+    battle = game.state.battle
+    return battle is not None and not (battle.attack_negated if side == "attack" else battle.defense_negated)
+
+
 def restricted(game: Game, player: int, flag: str) -> bool:
     return any(
         m.kind == "restriction" and m.flag == flag and m.target_player == player
-        and m.active(game.state.turn_no)
+        and m.active(game.state.turn_no) and restriction_live(game, m)
         for m in game.state.modifiers
     )
 
@@ -154,7 +164,7 @@ def slot_restricted(game: Game, player: int, flag: str, slot_uid: int) -> bool:
     """指定魔物槽的禁止旗標(E-024 mamodo_locked)。"""
     return any(
         m.kind == "restriction" and m.flag == flag and m.target_player == player
-        and m.target_slot == slot_uid and m.active(game.state.turn_no)
+        and m.target_slot == slot_uid and m.active(game.state.turn_no) and restriction_live(game, m)
         for m in game.state.modifiers
     )
 
@@ -181,7 +191,8 @@ STANDBY_CATEGORIES = {"no_protect": {"protect"}}
 def _restrictions(game: Game, player: int):
     st = game.state
     return [m for m in st.modifiers
-            if m.kind == "restriction" and m.target_player == player and m.active(st.turn_no)]
+            if m.kind == "restriction" and m.target_player == player and m.active(st.turn_no)
+            and restriction_live(game, m)]
 
 
 def spell_block(game: Game, player: int, slot: MamodoSlot | None, *, attack: bool = False,
@@ -1160,6 +1171,8 @@ def _record_spell_attr(game: Game, player: int, card: CardDef) -> None:
     ps.spell_attrs_by_turn = {t: a for t, a in ps.spell_attrs_by_turn.items() if t >= st.turn_no - 1}
     if card.attr_name:
         ps.spell_attrs_by_turn.setdefault(st.turn_no, set()).add(card.attr_name)
+    ps.spell_names_by_turn = {t: n for t, n in ps.spell_names_by_turn.items() if t >= st.turn_no - 1}
+    ps.spell_names_by_turn.setdefault(st.turn_no, set()).add(card.name_ja)
 
 
 def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -> bool:
@@ -1243,6 +1256,12 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
             raise IllegalCommand("spell.no_mamodo", "對應此戰術的魔物不在自己場上")
     if any_page and _spell_any_page_standby(game, player, page, slot, use) is None:
         raise IllegalCommand("page.not_open", "該頁未翻開或卡片已不在魔書中")
+    rider = reg.SPELL_RIDERS.get(number)
+    if rider and rider.once_per_turn and card.name_ja in ps.spell_names_by_turn.get(st.turn_no, set()):
+        raise IllegalCommand("spell.used", "此戰術每回合只能使用 1 次")     # S-146「1ターンに1回だけ使える」
+    if rider and rider.declare_condition and not rider.declare_condition.test(
+            game, {"player": player, "slot": slot.uid, "side": use, "source": number}):
+        raise IllegalCommand("spell.condition", "不符合此戰術的使用條件")   # S-146「〜とき使える」
     block = spell_block(game, player, slot, attack=attack, card=card, defense=not attack)
     if block:
         raise IllegalCommand(block, "目前不能使用此戰術")
@@ -1367,9 +1386,14 @@ def _ask_extra_cost(game: Game, batch: list[dict], side: str, decl: dict) -> boo
     if len(values) <= 1:
         decl["extra"] = 0
         return False
-    step, _, power, damage = reg.SPELL_RIDERS[card.number].extra_cost
+    rider = reg.SPELL_RIDERS[card.number]
+    step, _, power, damage = rider.extra_cost
     options = [{"value": v, "label": "extra_cost", "amount": v, "power": power * v // step,
                 "damage": damage * v // step} for v in values]
+    if rider.extra_cost_effect:                        # Ex-063:追加改變的是效果,不是魔力 / 傷害
+        for o in options:
+            if o["amount"]:
+                o["effect"] = rider.extra_cost_effect
     game.state.pending = PendingChoice(kind="spell_extra_cost", player=player, source=card.number,
                                        options=options, data={"side": side, "decl": decl})
     game.emit(batch, "choice_required", kind="spell_extra_cost", player=player)
@@ -1870,6 +1894,8 @@ def _finish_defense_declaration(game: Game, batch: list[dict], decl: dict) -> No
     for k, v in _extra_cost_data("defense", number, extra).items():
         battle.data.setdefault(k, [] if isinstance(v, list) else 0)
         battle.data[k] = battle.data[k] + v
+    if extra:
+        battle.data["defense_extra_cost"] = extra       # Ex-063:追加費用改變效果(on_effects_end 讀取)
     battle.defense_page = page
     battle.defense_spell = number
     battle.defense_slot = slot.uid
@@ -1973,7 +1999,7 @@ def spell_power_preview(game: Game, player: int, slot: MamodoSlot, number: str, 
 
 def _declare_bonus_preview(game: Game, battle: BattleState, player: int, number: str, side: str) -> None:
     """戰術 number 的宣告時效果樹中,宣告前就能確定的自身魔力加成,照實戰寫進假設戰鬥的明細。
-    只求值依公開狀態的條件(SideIs、OpponentUsedAttrLastTurn);擲硬幣、選擇等節點與其下的效果不走,
+    只求值依公開狀態的條件(SideIs、OpponentUsedAttrLastTurn、OwnUsedSpellNamedLastTurn);擲硬幣、選擇等節點與其下的效果不走,
     不認得的節點略過——最多少算(回到不含宣告時效果的預估),不會多算。"""
     from .effects import tree as T
     root = T.EFFECTS.get(f"{number}:rider.on_declare")
@@ -1984,7 +2010,7 @@ def _declare_bonus_preview(game: Game, battle: BattleState, player: int, number:
             for step in node.steps:
                 walk(step)
         elif isinstance(node, T.When):
-            if isinstance(node.cond, (T.SideIs, T.OpponentUsedAttrLastTurn)):
+            if isinstance(node.cond, (T.SideIs, T.OpponentUsedAttrLastTurn, T.OwnUsedSpellNamedLastTurn)):
                 walk(node.then if node.cond.test(game, ctx) else node.otherwise)
         elif isinstance(node, T.AddAttackSelfBonus):      # 與各節點的 run 相同的明細項
             add_spell_power(battle, "attack", number, node.amount)
