@@ -321,6 +321,16 @@ def own_page_turnback_effect(game, batch, player, leaves, source):
 # 目標為卡片的選項標示卡片所在位置(zone / player / 定位欄位),前端據此在畫面上的位置選擇;
 # value 是決策指令的值,不受位置欄位影響。extra 為呼叫端的附加欄位(例如 slot_uid),不可覆寫位置欄位。
 
+def selectable_opponent_slots(game, chooser) -> list:
+    """chooser 的效果「選ぶ」時可選的對手魔物:受「相手は…を選ぶことができない」(S-121,依家族、期間中上場的也算)
+    保護的除外。所有「由效果選對手魔物」的地方都用它(game-engine「不能被對手選擇的魔物」)。"""
+    st = game.state
+    owner = 1 - chooser
+    guards = [m.data.get("mamodo") for m in st.modifiers
+              if m.kind == "unselectable" and m.target_player == owner and m.active(st.turn_no)]
+    return [s for s in st.players[owner].slots if not guards or family(game, s) not in guards]
+
+
 def slot_option(player, slot, card=None, **extra):
     """場上魔物槽;card 預設為魔物本身,目標是搭檔時傳 slot.partner。"""
     return {**extra, "value": slot.uid, "card": card or slot.top,
@@ -415,8 +425,10 @@ def _set_heads_sources(game, player):
     """player 場上可用的「把自己擲的硬幣改成正面」來源 (卡號, 魔物槽, zone):魔物卡(M-034,「魔物の効果」)
     與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。"""
     from ..engine import mamodo_effect_block, restricted
-    from ..state import NO_PARTNER_EFFECTS
+    from ..state import NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS
     out, seen = [], set()
+    if restricted(game, player, NO_DISCARD_COST_EFFECTS):   # S-144:登記的都是「このカードを捨て札にする→」
+        return out
     for s in game.state.players[player].slots:
         if s.top in reg.COIN_SET_HEADS and s.top not in seen and not mamodo_effect_block(game, player, s):
             out.append((s.top, s, "mamodo"))

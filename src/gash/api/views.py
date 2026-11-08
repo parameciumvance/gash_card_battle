@@ -11,7 +11,8 @@ from __future__ import annotations
 from ..engine.engine import (
     _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses, start_flip_end_loses,
     event_cost_breakdown,
-    event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, restriction_live,
+    event_limit, exhausted_spell_pages, mamodo_attack_spec, mamodo_defense_spec, partner_targets, play_block,
+    power_breakdown, restriction_live,
     reveals_open_pages,
     side_breakdown, spell_block, spell_cost, spell_power_preview, spell_cost_breakdown, uses_this_turn,
 )
@@ -67,15 +68,15 @@ def _slot_view(game: Game, player: int, slot, viewer=None) -> dict:
                             if reg.has_passive(n) and (by := effect_block_sources(game, player, slot, n))],
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
-        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 魔物效果攻擊規格(M-027)
-        "mamodo_defense": reg.MAMODO_DEFENSE.get(slot.top),  # 魔物效果防禦規格(M-039)
+        "mamodo_attack": _public_spec(mamodo_attack_spec(game, player, slot)),   # 魔物效果攻擊規格(M-027 / S-113)
+        "mamodo_defense": _public_spec(mamodo_defense_spec(game, player, slot)),  # 魔物效果防禦規格(M-039 / S-113)
         # 「1アクションを使って…捨て札にできる」:疊放的上層(M-046)/ 搭檔(P-020)
         "action_discard": len(slot.stack) > 1 and reg.ACTION_DISCARD.get(slot.top) == "top",
         "partner_action_discard": reg.ACTION_DISCARD.get(slot.partner) == "partner",
         # 效果已使用(每回合 1 次 / 一場限 1 次):前端據此停用按鈕
         "ability_used": _used(ps, "mamodo", slot.top, bool(top_spec and top_spec.per_game)),
         "partner_ability_used": _used(ps, "partner", slot.partner, bool(partner_spec and partner_spec.per_game)),
-        "mamodo_attack_used": _attack_used(ps, slot.top),
+        "mamodo_attack_used": _attack_used(game, player, ps, slot),
         "mamodo_defense_used": _used(ps, "mamodo_defense", slot.top),
     }
     if can_see_player(viewer, player):   # 效果的使用可否(使用條件可能看非公開資訊,只給持有者)
@@ -104,11 +105,15 @@ def _borrowed_block(game: Game, p: int):
     return ability_block(game, p, "borrowed", None, borrow.data["card"]) if borrow else None
 
 
-def _attack_used(ps, number):
+def _attack_used(game, player, ps, slot):
     """魔物效果攻擊本回合已用滿次數(M-068 每回合 2 次)時為 "turn"。"""
-    from ..engine.effects import registry as reg
-    spec = reg.MAMODO_ATTACK.get(number)
-    return "turn" if spec and uses_this_turn(ps, f"mamodo_attack:{number}") >= spec["per_turn"] else False
+    spec = mamodo_attack_spec(game, player, slot)
+    return "turn" if spec and uses_this_turn(ps, spec["key"]) >= spec["per_turn"] else False
+
+
+def _public_spec(spec):
+    """快照用的魔物效果攻防規格:不送使用次數的內部鍵。"""
+    return None if spec is None else {k: v for k, v in spec.items() if k != "key"}
 
 
 def _in_use_pages(game: Game, p: int) -> set[int]:

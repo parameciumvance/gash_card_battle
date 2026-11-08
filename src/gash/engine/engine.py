@@ -12,14 +12,15 @@ import random
 from .cards import EVENT, MAMODO, MJ12, PARTNER, SPELL, CardDef, card_db
 from .effects import registry as reg
 from .effects.primitives import (
-    add_spell_power, can_stack_on, family, mamodo_name, page_option, run_on_play, slot_option, spell_names,
+    add_spell_power, can_stack_on, family, mamodo_name, page_option, run_on_play, selectable_opponent_slots, slot_option,
+    spell_names,
     stack_base,
 )
 from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
     NO_ATTACK, NO_DEFENSE_SPELL_SLOT, NO_EFFECTS_AND_SPELLS, NO_EVENTS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS,
-    NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
+    NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, FieldCard, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
     place_slot,
 )
@@ -836,6 +837,8 @@ def _play_card(game: Game, batch: list[dict], player: int, command: dict) -> Non
 
 _ABILITY_ERRORS = {
     "partner_restricted": lambda: IllegalCommand("ability.partner_restricted", "搭檔卡效果目前失效"),
+    "discard_cost_restricted": lambda: IllegalCommand("ability.discard_cost_restricted",
+                                                      "對手的效果使你不能使用「このカードを捨て札にする→」的效果"),
     "mamodo_locked": lambda: IllegalCommand("ability.mamodo_locked", "此魔物的效果目前不能使用"),
     "mamodo_restricted": lambda: IllegalCommand("ability.mamodo_restricted", "此魔物的效果目前不能使用"),
     "timing_battle": lambda: IllegalCommand("ability.timing", "此效果只能在戰鬥中使用"),
@@ -862,6 +865,8 @@ def ability_block(game: Game, player: int, zone: str, slot: MamodoSlot | None, n
     # 獨立卡區(MJ12)的效果不是魔物 / 搭檔的效果,這兩類的「使えない」不擋
     if zone in ("partner", "borrowed") and restricted(game, player, NO_PARTNER_EFFECTS):
         return "partner_restricted"
+    if spec.mode == "discard" and restricted(game, player, NO_DISCARD_COST_EFFECTS):
+        return "discard_cost_restricted"        # S-144:「このカードを捨て札にする→」(魔物、搭檔、MJ12、借用)
     if zone == "mamodo":
         block = mamodo_effect_block(game, player, slot)
         if block:
@@ -1054,10 +1059,11 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         st.players[player].used_nonbattle_pages.add(page)
         _record_spell_attr(game, player, card)
         pay_mp(game, batch, player, cost, f"spell:{number}")
-        game.emit(batch, "book_card_used", player=player, card=number, page=page, mamodo=user.top)
+        game.emit(batch, "book_card_used", player=player, card=number, page=page,
+                  mamodo=user.top if user else None)
         snapshot = _jammer_snapshot(game, player, ())   # M-065:非戰鬥戰術使對手 MP 減少時
         start = len(batch)
-        handler(game, batch, player)
+        handler(game, batch, player, user.uid if user else None)
         _check_victory(game, batch)
         _queue_action_jammer(game, batch, player, number, snapshot, (), start)
     else:
@@ -1100,7 +1106,7 @@ def _any_page_allows(game: Game, player: int, d: dict, card: CardDef, page: int,
     if d.get("attack_only") and use not in (None, "attack"):
         return False
     if d.get("any_spell"):
-        return True
+        return page in d["pages"] if "pages" in d else True     # S-145:翻開頁之後 4 個對頁內
     name = d.get("mamodo")
     if not name:
         return False
@@ -1192,12 +1198,17 @@ def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -
                for m in st.modifiers)
 
 
-def _nonbattle_spell_user(game: Game, player: int, page: int, card: CardDef, slot_uid) -> MamodoSlot:
+def _nonbattle_spell_user(game: Game, player: int, page: int, card: CardDef, slot_uid) -> MamodoSlot | None:
     """非戰鬥戰術的使用魔物:指定時須能使用且未被 E-024 封鎖;未指定時取未被封鎖者中費用最低的第一隻。
     E-024「その魔物の…術を使えない」不分戰鬥與非戰鬥。"""
     st = game.state
     usable = [s for s in st.players[player].slots
               if card.is_command_spell or _spell_usable_by(game, player, s, card)]
+    if not usable and card.number in reg.SPELL_NO_USER and slot_uid is None:
+        block = spell_block(game, player, None, card=card)   # S-140:沒有使用魔物,仍受整個玩家的「術を使えない」
+        if block:
+            raise IllegalCommand(block, "目前不能使用此戰術")
+        return None
     if slot_uid is not None:
         slot = st.slot_by_uid(player, slot_uid)
         if slot is None or slot not in usable:
@@ -1443,19 +1454,51 @@ def _mark_used(ps, key: str) -> None:
     ps.used_abilities.add(key if n == 0 else f"{key}#{n + 1}")
 
 
+def _granted_fighting(game: Game, player: int, slot: MamodoSlot):
+    """S-113 賦予的「魔物の効果」《格闘》:作用中的 granted_fighting modifier 中,家族與這隻魔物相同的第一筆
+    (以當下的家族判斷,期間中上場的也算;多張不疊加)。"""
+    st = game.state
+    fam = family(game, slot)
+    return next((m for m in st.modifiers if m.kind == "granted_fighting" and m.target_player == player
+                 and m.active(st.turn_no) and m.data.get("mamodo") == fam), None)
+
+
+def mamodo_attack_spec(game: Game, player: int, slot: MamodoSlot) -> dict | None:
+    """這隻魔物的魔物效果攻擊規格(含使用次數的鍵 key):卡號登記的(M-027 等),或效果賦予的(S-113)。"""
+    spec = reg.MAMODO_ATTACK.get(slot.top)
+    if spec is not None:
+        return {**spec, "key": f"mamodo_attack:{slot.top}"}
+    m = _granted_fighting(game, player, slot)
+    if m is None:
+        return None
+    return {"mp_cost": 0, "power": m.data["power"], "damage": m.data["damage"], "per_turn": 1,
+            "key": f"fighting:{m.source}:{slot.uid}", "granted_by": m.source}
+
+
+def mamodo_defense_spec(game: Game, player: int, slot: MamodoSlot) -> dict | None:
+    """這隻魔物的魔物效果防禦規格(M-039 等,或 S-113 賦予;攻防共用使用次數的鍵)。"""
+    spec = reg.MAMODO_DEFENSE.get(slot.top)
+    if spec is not None:
+        return {**spec, "key": f"mamodo_defense:{slot.top}"}
+    m = _granted_fighting(game, player, slot)
+    if m is None:
+        return None
+    return {"mp_cost": 0, "power": m.data["power"], "key": f"fighting:{m.source}:{slot.uid}", "granted_by": m.source}
+
+
 def _validate_mamodo_attack(game: Game, player: int, slot_uid) -> tuple[MamodoSlot, dict]:
     """魔物效果攻擊(M-027):驗證魔物已註冊魔物效果攻擊且可支付費用。"""
     st = game.state
     slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
     if slot is None:
         raise IllegalCommand("attack.no_slot", "找不到指定的場上魔物")
-    spec = reg.MAMODO_ATTACK.get(slot.top)
+    spec = mamodo_attack_spec(game, player, slot)
     if spec is None:
         raise IllegalCommand("attack.no_mamodo_attack", "此魔物不能以魔物效果攻擊")
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"attack.{block}", "此魔物的效果目前不能使用")
-    if uses_this_turn(st.players[player], f"mamodo_attack:{slot.top}") >= spec["per_turn"]:
+    if uses_this_turn(st.players[player], spec["key"]) >= spec["per_turn"]:
         raise IllegalCommand("attack.used", "此效果本回合已使用過")   # 「１つの効果は、１ターンに１回だけ」(M-068 為 2 次)
     if st.players[player].mp < spec["mp_cost"]:
         raise IllegalCommand("attack.mp", "MP 不足")
@@ -1595,8 +1638,8 @@ def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackSta
     """魔物效果攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
-    _mark_used(game.state.players[attacker], f"mamodo_attack:{slot.top}")
-    pay_mp(game, batch, attacker, spec["mp_cost"], f"mamodo_attack:{slot.top}")
+    _mark_used(game.state.players[attacker], spec["key"])
+    pay_mp(game, batch, attacker, spec["mp_cost"], spec["key"])
     return AttackStart(
         battle={"attack_page": None, "attack_spell": None, "attack_slot": slot_uid},
         data={"attack_fixed_power": spec["power"], "attack_fixed_source": slot.top,
@@ -1773,7 +1816,7 @@ def _ask_injure_target(game: Game, batch: list[dict]) -> bool:
             battle.data.pop("injure_target")
             battle.data.pop("injure_instead", None)
         return False
-    targets = st.players[battle.defender].slots
+    targets = selectable_opponent_slots(game, battle.attacker)    # S-121 保護的除外
     if len(targets) <= 1:
         battle.data["injure_target"] = targets[0].uid if targets else None
         return False
@@ -1846,18 +1889,18 @@ def _declare_mamodo_defense(game: Game, batch: list[dict], player: int, slot_uid
     slot = st.slot_by_uid(player, slot_uid if slot_uid is not None else -1)
     if slot is None:
         raise IllegalCommand("defense.no_slot", "找不到指定的場上魔物")
-    spec = reg.MAMODO_DEFENSE.get(slot.top)
+    spec = mamodo_defense_spec(game, player, slot)
     if spec is None:
         raise IllegalCommand("defense.no_mamodo_defense", "此魔物不能以魔物效果防禦")
     block = mamodo_effect_block(game, player, slot)
     if block:
         raise IllegalCommand(f"defense.{block}", "此魔物的效果目前不能使用")
-    if f"mamodo_defense:{slot.top}" in st.players[player].used_abilities:
+    if spec["key"] in st.players[player].used_abilities:
         raise IllegalCommand("defense.used", "此效果本回合已使用過")
     if st.players[player].mp < spec["mp_cost"]:
         raise IllegalCommand("defense.mp", "MP 不足")
-    st.players[player].used_abilities.add(f"mamodo_defense:{slot.top}")
-    pay_mp(game, batch, player, spec["mp_cost"], f"mamodo_defense:{slot.top}")
+    st.players[player].used_abilities.add(spec["key"])
+    pay_mp(game, batch, player, spec["mp_cost"], spec["key"])
     battle.defense_slot = slot.uid
     battle.defense_declared = True
     battle.data["defense_fixed_power"] = spec["power"]
@@ -2263,7 +2306,7 @@ def _injure_instead_resolver(game: Game, batch: list[dict], value, data) -> None
     st = game.state
     battle = st.battle
     slot = st.slot_by_uid(battle.defender, value) if battle else None
-    if slot is None:
+    if slot is None or slot not in selectable_opponent_slots(game, battle.attacker):
         raise IllegalCommand("choose.invalid", "無效的負傷對象")
     st.pending = None
     battle.data["injure_target"] = slot.uid
@@ -2300,6 +2343,8 @@ def _jammer_holders(game: Game, player: int, on: str):
             if (mamodo_effect_block(game, player, slot) if zone == "mamodo"
                     else restricted(game, player, NO_PARTNER_EFFECTS)):
                 continue
+            if spec["discard_self"] and restricted(game, player, NO_DISCARD_COST_EFFECTS):
+                continue                              # S-144(M-032 / Ex-034)
             yield number, slot, {**spec, "zone": zone}
 
 
@@ -2832,8 +2877,11 @@ def _apply_damage_item(game: Game, batch: list[dict], item: dict, ctx: dict) -> 
             resolver(game, batch, None, sb.data)
         return
     # 戰鬥中不受傷害(M-013/M-015)
+    # S-121:依家族(target_slot 為 None、data["family"];期間中上場的也算)
+    fam = family(game, slot)
     no_damage = next((m for m in st.modifiers if m.kind == "no_damage" and m.target_player == player
-                      and m.target_slot == slot.uid and m.active(st.turn_no)), None)
+                      and m.active(st.turn_no) and (m.target_slot == slot.uid or (
+                          m.target_slot is None and m.data.get("mamodo") == fam))), None)
     if no_damage:
         game.emit(batch, "damage_prevented", player=player, slot=slot.uid, source=no_damage.source)
         return

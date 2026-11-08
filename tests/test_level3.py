@@ -2377,6 +2377,28 @@ def test_s094_damage_bonus_and_protect():
 
 
 @pytest.mark.parametrize("heads", [True, False])
+def test_s095_kanchome_deployed_later_also_protected(heads):
+    # 「このターン中、自分の『キャンチョメ』はダメージを受けない」:這回合之後才上場的キャンチョメ也不受傷害
+    from tests.test_season3_effects_2 import damage_slot
+    g, _ = mk(book("M-051", "S-058"), book("M-034", "S-095"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    battle_in(g, 2)
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    if st.pending is not None and st.pending.kind == "coin_confirm":
+        choose(g, None)
+    pass_effects(g)
+    finish_damage(g)
+    assert st.battle is None
+    later = add_slot(g, 1, "M-013")                                          # 之後上場的キャンチョメ
+    damage_slot(g, 1, later, source_player=0)
+    finish_damage(g)
+    assert later.injured is (not heads)
+
+
+@pytest.mark.parametrize("heads", [True, False])
 def test_s095_kanchome_no_damage_this_turn(heads):
     # 魔力勝負の勝敗にかかわらず、コインを投げてオモテなら、このターン中、自分の「キャンチョメ」はダメージを受けない
     g, _ = mk(book("M-051", "S-058"), book("M-034", "S-095"))

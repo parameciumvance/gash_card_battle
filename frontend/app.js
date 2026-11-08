@@ -2329,6 +2329,7 @@ const ABILITY_BLOCK_KEYS = {
   mamodo_restricted: "error.ability.mamodo_restricted", timing_battle: "ui.why.battle_only",
   timing_nonbattle: "ui.why.nonbattle_only", own_turn: "ui.ability.own_turn_only", used: "ui.ability.used_turn",
   per_game: "ui.ability.used_game", condition: "error.ability.condition",
+  discard_cost_restricted: "error.ability.discard_cost_restricted",
 };
 
 function mpReason(p, cost) { return t("ui.spell.mp", { mp: S.players[p].mp, cost }); }

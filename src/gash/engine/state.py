@@ -45,6 +45,7 @@ NO_EVENTS = "no_events"                    # 不能使用事件卡(P-042;不屬�
 NO_DEFENSE_SPELL_SLOT = "no_defense_spell_slot"  # 不能使用選定魔物名稱(data["mamodo"])的防禦戰術(P-043)
 NO_PROTECT_SLOT = "no_protect_slot"        # 選定魔物(target_slot)不能保護(P-043)
 NO_NAMED_SPELLS = "no_named_spells"        # 不能使用「data["mamodo"]」の術(PR-009)
+NO_DISCARD_COST_EFFECTS = "no_discard_cost_effects"  # 不能使用「このカードを捨て札にする→」的效果(S-144)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
