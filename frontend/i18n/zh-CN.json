@@ -356,7 +356,6 @@
   "effect.standby.spell_reuse": "《{card}》(第 {page} 页)本回合可费用 0 再用一次",
   "effect.standby.redirect_damage": "下一场战斗:{mamodo} 的战术伤害改给指定的对手魔物",
   "effect.standby.after_battle": "本场战斗结束时生效",
-  "effect.standby.effects_end": "本场战斗的效果使用结束时生效(防御被无效时不生效)",
   "effect.standby.end_phase_mp": "本回合结束阶段 MP {amount}",
   "effect.standby.undefendable_at_total": "下一场战斗:以 {target} 合计魔力 {min_total} 以上攻击时,对手不能防御",
   "effect.standby.spell_base_cost_zero": "下一场战斗:自己的战术本来のコスト为 0",

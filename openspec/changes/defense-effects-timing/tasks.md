@@ -6,9 +6,9 @@
 
 ## 2. 引擎
 
-- [x] 2.1 新時機 `EffectsEnd`(待命種類 `effects_end`,`expires: "battle"`);`_resolve_showdown` 依建立順序解決,防禦被無效時移除不解決(design D1)。
-- [x] 2.2 改寫 S-021、S-025、S-027、S-069、S-079、S-095、S-106(design D2);移除 `NegateAttackAtEffectsEnd` 與 `defender_no_damage_family` 特例;S-106「そうしたなら」的條件(`AttackNotNegated`);效果節點 `AtEffectsEnd`(登記檔不能有函式,所以做成 `Standby` 子類別)、`FamilyNoDamageThisTurn`。
-- [x] 2.3 i18n `effect.standby.effects_end`(zh-TW / en / ja,zh-CN 以工具產生)。
+- [x] 2.1 戰術掛鉤 `on_effects_end`;`_resolve_showdown` 在防禦戰術沒被無效時執行(design D1)。(第一版用 `Standby` 待命實作;使用者指出效果文沒有【スタンバイ】、不應成為待命效果的對象,改為掛鉤)
+- [x] 2.2 改寫 S-021、S-025、S-027、S-069、S-079、S-095、S-106(design D2);移除 `NegateAttackAtEffectsEnd` 與 `defender_no_damage_family` 特例;S-106「そうしたなら」的條件(`AttackNotNegated`);擲幣結果記在 `defense_coin_heads`;新節點 `FamilyNoDamageThisTurn`。
+- [x] 2.3 測試:延後的防禦效果不是待命(`state.standby` 與作用中效果列表都沒有)。
 
 ## 3. 驗證與文件
 

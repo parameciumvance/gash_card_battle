@@ -356,7 +356,6 @@
   "effect.standby.spell_reuse": "“{card}” (page {page}) can be used once more at cost 0 this turn",
   "effect.standby.redirect_damage": "Next BATTLE: damage of {mamodo}'s SPELLs goes to the chosen MAMODO",
   "effect.standby.after_battle": "Takes effect when this BATTLE ends",
-  "effect.standby.effects_end": "Resolves at the end of this BATTLE's \"use effects\" step (not if the defense is negated)",
   "effect.standby.end_phase_mp": "MP {amount} at the END PHASE of this turn",
   "effect.standby.undefendable_at_total": "Next BATTLE: if {target} attacks with total Power {min_total} or more, the opponent cannot defend",
   "effect.standby.spell_base_cost_zero": "Next BATTLE: your SPELLs' original cost is 0",

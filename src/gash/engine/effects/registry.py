@@ -72,6 +72,9 @@ class SpellRider:
     fixed_total: dict | None = None       # 合計魔力固定值 {"attack": n, "defense": n},不加其他加成(S-087)
     on_counter: Callable | None = None    # 【反擊】防方獲勝時取代預設的反擊傷害,自行處理到戰鬥結束 fn(game, batch, defender)(S-109)
     on_protected: Callable | None = None  # 此戰術攻擊的傷害被保護後 fn(game, batch, attacker)(S-112)
+    # 以此戰術防禦時,於「効果の使用」的最後(雙方都 pass、魔力勝負前)解決的防禦效果;防禦已被無效時
+    # 不執行。宣告時的擲幣結果由 on_declare 以 RememberInBattle 記下 fn(game, batch, defender)(S-025 等)
+    on_effects_end: Callable | None = None
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}

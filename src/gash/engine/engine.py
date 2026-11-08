@@ -2103,12 +2103,9 @@ def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     battle = st.battle
     # 防禦戰術的效果(宣告時擲幣 / 選對象確定)於「効果の使用」的最後解決;防禦已被無效時不解決
     # (規則頁「バトル」②防御「防御の効果はここではまだ解決しません」、「攻撃や防御の無効化」)
-    due = [sb for sb in st.standby if sb.kind == "effects_end"]
-    st.standby = [sb for sb in st.standby if sb.kind != "effects_end"]
-    for sb in due:
-        if sb.owner == battle.defender and (battle.defense_negated or not battle.defense_spell):
-            continue
-        reg.CHOICE_RESOLVERS[sb.data["callback"]](game, batch, None, sb.data)
+    d_rider = reg.SPELL_RIDERS.get(battle.defense_spell) if battle.defense_spell else None
+    if d_rider and d_rider.on_effects_end and not battle.defense_negated:
+        d_rider.on_effects_end(game, batch, battle.defender)
         if st.phase == GAME_OVER or st.battle is None:
             return
     att, att_items = side_breakdown(game, battle, "attack")

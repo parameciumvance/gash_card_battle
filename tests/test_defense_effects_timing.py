@@ -52,7 +52,7 @@ def test_attack_negated_only_at_end_of_effects_step(spell, mamodo, coins):
     pos1 = st.players[1].pos
     assert not st.battle.attack_negated and not negations(g, spell)          # 戰鬥中效果的時機期間仍有效
     assert not own_page_turns(g, spell) and st.players[1].pos == pos1        # S-106 還沒翻
-    assert [e for e in snapshot(g, 0)["effects"] if e["kind"] == "effects_end" and e["source"] == spell]
+    assert not st.standby and not [e for e in snapshot(g, 0)["effects"] if e["source"] == spell]   # 不是【スタンバイ】
     pass_effects(g)
     assert negations(g, spell) and st.battle is None
     if spell == "S-106":
@@ -85,15 +85,19 @@ def test_s027_reduces_damage_at_end_of_effects_step():
     g = _battle("S-027", "M-001", (HEADS, TAILS))
     st = g.state
     pos1 = st.players[1].pos
-    assert [e for e in snapshot(g, 0)["effects"] if e["kind"] == "effects_end" and e["source"] == "S-027"]
+    assert not st.standby                                                    # 不是【スタンバイ】
     pass_effects(g)
     no_protect(g)
     assert st.players[1].pos == pos1 + 2 * 2                                 # 3 - 1
 
 
-def test_s027_tails_no_pending_effect():
+def test_s027_tails_no_reduction():
     g = _battle("S-027", "M-001", (TAILS, TAILS))
-    assert not [e for e in snapshot(g, 0)["effects"] if e["kind"] == "effects_end"]
+    st = g.state
+    pos1 = st.players[1].pos
+    pass_effects(g)
+    no_protect(g)
+    assert st.players[1].pos == pos1 + 2 * 3
 
 
 def test_s079_negated_defense_wonrei_takes_damage():

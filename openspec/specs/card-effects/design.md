@@ -157,7 +157,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 - MP:`mp_guarded` 加入戰鬥階段的 P-020;`gain_mp(by=)` 標出造成增加的效果擁有者,`by == player` 且 P-020 生效時不增加(`mp_gain_prevented`)。
 - 常駐效果與「使えない」:「このカードが場にある→」的效果在對應的「使えない」下不生效(官方規則書第 42 頁)。M-049、P-020、P-031 在各自的查詢中判斷;其餘常駐登記(`START_PHASE`、`STATIC_POWER`、`ON_PLAY`、`ON_DISCARD`、`TRIGGERS`、`SPELL_COMPAT`、`SPELL_USE_LIMIT`、`DAMAGE_IMMUNITY`、`OPPONENT_EVENT_COST`、`REVEAL_OPPONENT_PAGES`)由消費端呼叫 `engine.card_effect_blocked`(passive-cannot-use)。
 - 專用規則:《》以外的文字以 `reg.rule_on_play`(M-047 的定時離場)/ `reg.rule_spell_compat`(M-029 的ザケル)登記,不經 `card_effect_blocked`;其餘專用規則本來就是純資料登記(`stack_on`、`max_copies`、`cannot_protect`、`treated_as`、`action_discard`)。所有放上場的路徑都經 `primitives.run_on_play`(先規則、後效果)。
-- 其他:`OpponentPartneredMamodo(discard=True)` 排除 M-049 保護的搭檔;`attack_undefendable` 統一判斷不能防禦(旗標或 M-048 的合計魔力門檻待命);戰鬥外的魔書傷害 `DamageOpponentBookOutsideBattle`(`cause="effect"`,可保護);S-095 以 `AtEffectsEnd(FamilyNoDamageThisTurn)` 在「効果の使用」的最後(防禦沒被無效)加 `no_damage`(見「防禦效果於『効果の使用』的最後解決」)。
+- 其他:`OpponentPartneredMamodo(discard=True)` 排除 M-049 保護的搭檔;`attack_undefendable` 統一判斷不能防禦(旗標或 M-048 的合計魔力門檻待命);戰鬥外的魔書傷害 `DamageOpponentBookOutsideBattle`(`cause="effect"`,可保護);S-095 以 `on_effects_end` 的 `FamilyNoDamageThisTurn` 在「効果の使用」的最後(防禦沒被無效)加 `no_damage`(見「防禦效果於『効果の使用』的最後解決」)。
 
 ### 第 5 批的機制
 
@@ -749,7 +749,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 **相關規格:** `game-engine` › 需求「戰鬥流程五步驟」;`card-effects` › 需求「攻防效果的宣告時確定」「バリー的解讀」
 
-**決定:** 防禦戰術在宣告時擲幣 / 選對象並確定結果,效果於「効果の使用」的最後(雙方都 pass、魔力勝負前)才解決;防禦已被無效(干擾、P-009 / P-016 / P-017 等)時不解決。適用 S-021、S-025、S-027、S-069(防禦)、S-079、S-095、S-106。S-106「そうしたなら、自分の魔本を1枚めくる」:解決時攻擊已被其他效果無效,就不是 S-106 使它無效,不翻魔書。攻擊方的宣告時效果、魔力加成不受影響。
+**決定:** 防禦戰術在宣告時擲幣 / 選對象並確定結果,效果於「効果の使用」的最後(雙方都 pass、魔力勝負前)才解決;防禦已被無效(干擾、P-009 / P-016 / P-017 等)時不解決。適用 S-021、S-025、S-027、S-069(防禦)、S-079、S-095、S-106。S-106「そうしたなら、自分の魔本を1枚めくる」:解決時攻擊已被其他效果無效,就不是 S-106 使它無效,不翻魔書。效果文沒有【スタンバイ】,所以這些延後解決的效果不是待命,不會成為 P-034 / E-036 等「待命中的效果」的對象。攻擊方的宣告時效果、魔力加成不受影響。
 
 **理由:** 規則頁「バトル」②防御「防御の効果はここではまだ解決しません」、③効果の使用「攻撃や防御の効果はここではまだ解決しません」,「攻撃や防御の無効化」「攻撃や防御のタイミングで使われた効果は無効になります」;※重要的「効果は、宣言時に確定させます」是指擲幣與對象在宣告時決定。過去 S-025、S-027、S-069、S-079、S-106 在宣告時直接生效,防禦被無效後效果仍留著(S-106 也已翻了魔書),與規則及「戰鬥流程五步驟」不符;S-021、S-095 已是延後寫法,一併統一。
 
