@@ -132,14 +132,20 @@ def number_key(n):
 
 def test_pool_order_mamodo_partner_spell_event(builder):
     numbers = builder.locator("#pool-grid .card .cnum").all_text_contents()
-    types = builder.evaluate("(ns) => ns.map((n) => CARDS[n].type)", numbers)
+    head = [n for n in numbers if not n.startswith(("Ex-", "PR-"))]
+    types = builder.evaluate("(ns) => ns.map((n) => CARDS[n].type)", head)
     order = ["mamodo", "partner", "spell", "event", "mj12"]
     assert types == sorted(types, key=order.index)                         # 事件在四類之後,MJ12 最後
     assert numbers[0] == "M-001" and types[-1] == "mj12"
     for ty in order:
-        group = [n for n, t in zip(numbers, types) if t == ty]
-        assert group == sorted(group, key=number_key)                       # 同類型依卡號,Ex- / PR- 在後
-    assert numbers.index("M-069") < numbers.index("Ex-001") < numbers.index("PR-002")
+        group = [n for n, t in zip(head, types) if t == ty]
+        assert group == sorted(group, key=number_key)                       # 同類型依卡號
+    # Ex- 整批接在後面依編號(不分類型),最後 PR- 依編號
+    ex = [n for n in numbers if n.startswith("Ex-")]
+    pr = [n for n in numbers if n.startswith("PR-")]
+    assert numbers == head + ex + pr
+    assert ex == sorted(ex, key=number_key) and pr == sorted(pr, key=number_key)
+    assert numbers[len(head)] == "Ex-000" and numbers[len(head) - 1] == "MJ-006"
 
 
 # ---------------------------------------------------------------- 對應魔物「無」與事件
@@ -385,7 +391,7 @@ def test_missing_art_falls_back_to_text(browser, server):
         browser, server, routes=[("**/static/assets/cards/*", lambda route: route.abort())])
     page.wait_for_timeout(300)
     marks = page.locator(f"{FILTERS} .filter-type .type-icon").all_text_contents()
-    assert marks == ["魔", "使", "術", "鍵"]
+    assert marks == ["魔", "使", "術", "鍵", "他"]
     menu(page, "mamodo").click()
     blago = tile(page, "mamodo", "ブラゴ")
     assert blago.locator(".filter-crop").count() == 0
@@ -432,7 +438,7 @@ def test_click_outside_and_escape_close(builder):
 
 def test_icons_have_text_labels(builder):
     labels = builder.locator(f"{FILTERS} .filter-type .filter-label").all_text_contents()
-    assert labels == ["魔物", "搭檔", "戰術", "事件"]
+    assert labels == ["魔物", "搭檔", "戰術", "事件", "其他"]
     menu(builder, "mamodo").click()
     blago = tile(builder, "mamodo", "ブラゴ")
     blago.locator(".filter-crop").wait_for()
@@ -455,7 +461,7 @@ def test_phone_filter_bar_is_one_line(browser, server):
     context, page, errors = open_builder(browser, server, viewport=PHONE)
     tops = page.locator(f"{FILTERS} .filter-bar > button").evaluate_all(
         "(bs) => bs.map((b) => Math.round(b.getBoundingClientRect().top))")
-    assert len(tops) == 7 and len(set(tops)) == 1
+    assert len(tops) == 9 and len(set(tops)) == 1                         # 5 顆類型徽章 + 4 個選單
     menu(page, "mamodo").click()
     assert panel(page, "mamodo").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")

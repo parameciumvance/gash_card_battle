@@ -1323,6 +1323,19 @@ html.motion-off .book-nav.flip-glow { animation: none; }
 .pool-filters .filter-type { flex: none; display: flex; align-items: center; gap: 3px; height: 38px;
   padding: 2px 8px 2px 2px; border-radius: 19px; }
 .pool-filters .filter-type:not([aria-pressed="true"]) { opacity: .6; }
+/* 多選(類型徽章、標籤)的打勾:勾選時才顯示;徽章在右上角,標籤在前面的方框內 */
+.pool-filters .filter-type { position: relative; }
+.pool-filters .filter-check { display: none; }
+.pool-filters [aria-pressed="true"] .filter-check { display: inline-flex; }
+.pool-filters .filter-type .filter-check { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--glow); color: #2a1b06; font-size: 10px; font-weight: bold;
+  align-items: center; justify-content: center; }
+.pool-filters .filter-panel[data-group=tag] .filter-tile { flex-direction: row; align-items: center;
+  justify-content: flex-start; gap: 6px; padding: 6px 8px; }
+.pool-filters .filter-box { flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: 2px solid var(--ink-dim); border-radius: 4px; }
+.pool-filters [aria-pressed="true"] .filter-box { border-color: var(--glow); background: var(--glow); }
+.pool-filters .filter-box .filter-check { color: #2a1b06; font-size: 13px; font-weight: bold; line-height: 1; }
 .pool-filters .filter-icon { display: flex; align-items: center; justify-content: center; overflow: hidden;
   font-size: 11px; line-height: 1.1; text-align: center; }
 .pool-filters .filter-crop { display: block; width: 100%; background-repeat: no-repeat; }
