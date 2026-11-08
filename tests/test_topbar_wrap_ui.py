@@ -7,7 +7,7 @@ import pytest
 
 
 def battle_page(browser, server, width, lang):
-    """自由調查時間進入戰鬥階段,第 5 回合、非回合玩家決策中(頂欄有回合、階段與等待狀態)。"""
+    """自由調查時間進入戰鬥階段,第 5 回合、非回合玩家決策中(回合、階段與等待狀態已移到中線與行動欄,頂欄只剩標題與按鈕)。"""
     context = browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce", locale=lang)
     context.add_init_script(f"localStorage.setItem('gash-lang', '{lang}'); localStorage.setItem('gash-spotlight', 'off')")
     page = context.new_page()
@@ -23,7 +23,7 @@ def battle_page(browser, server, width, lang):
         S = {...S, turn_no: 5, pending: {kind: 'protect', player: 1 - S.turn_player, source: null, info: {}, options: []}};
         render();
     }""")
-    page.wait_for_function("document.getElementById('acting-info').textContent")
+    page.wait_for_function("document.querySelector('#stage-head .stage-name').textContent")
     return context, page
 
 

@@ -95,7 +95,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .wordmark.small .wm-sub { letter-spacing: .12em; padding-left: 0; }
 #topbar > span:empty { display: none; }   /* 首頁、構築器等沒有對局資訊時,空欄位不佔 gap(手機上會把按鈕擠到右側並換行) */
 #topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
-#acting-info { color: var(--on-page-green); font-weight: bold; }
 
 #layout { display: flex; flex: 1; min-height: 0; }
 #board {
@@ -110,16 +109,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* ---------------- 玩家區(鏡像牌桌) ---------------- */
 .player-zone { padding: 6px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .player-zone.active { box-shadow: inset 0 0 0 2px var(--on-page-green); border-radius: 4px; }
-.pz-head { display: flex; gap: 14px; align-items: center; font-size: 13px; }
-.pz-head .pname { font-weight: bold; font-size: 15px; }
-.pz-head .mp { color: var(--on-page-blue); font-weight: bold; }
-.pz-head .book-progress { color: var(--on-page-amber); }
-
-.pz-head-rest { display: inline-flex; gap: 14px; align-items: center; }
-.pz-head .review-btn { cursor: pointer; color: var(--on-page-amber); text-decoration: underline; }
-/* 行動權標籤(等待輸入的一方);回合玩家由中線的回合轉盤表示 */
-.pz-head .acting-label { color: var(--on-page-green); font-size: 12px; font-weight: bold; }
-.pz-head .review-btn:hover { color: var(--on-page); }
+/* 玩家區沒有標題列(header-cleanup):名稱在中線,行動方以外框標示,MP、頁碼、查閱魔書、棄牌區都在盤面上 */
 .name-input { text-transform: none !important; }
 
 /* 查閱魔書 overlay */
@@ -293,7 +283,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 
 /* 魔書區:紅金書皮 + 書脊中縫,MP 托盤疊於魔書前方(朝中線側),尺寸全固定 */
-.book-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+.book-block { display: flex; flex-direction: column; gap: 14px; flex-shrink: 0;
   align-items: flex-end; }                                     /* 對手:書上、托盤下(前方) */
 .player-zone.bottom .book-block { flex-direction: column-reverse; align-items: flex-start; }
 .book-cover {
@@ -323,6 +313,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .book-next { right: -12px; }
 .book-current {
   top: -11px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 2px 8px; white-space: nowrap;
+}
+/* 查閱魔書:書皮下緣,與上緣的「回到目前頁」相對 */
+.book-review {
+  bottom: -11px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 2px 8px; white-space: nowrap;
+}
+.book-review:hover { background: var(--gold); color: #2a1b06; }
+/* 魔書耗盡:疊在書皮中央 */
+.book-exhausted {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+  padding: 4px 12px; border-radius: 8px; background: rgba(18,24,42,.88); border: 1px solid var(--gold);
+  color: var(--glow); font-weight: bold; font-size: 14px; white-space: nowrap;
 }
 .book-current:not(:disabled) { background: var(--gold); color: #2a1b06; font-weight: bold;
   box-shadow: 0 0 8px rgba(255,209,102,.6); }
@@ -598,6 +599,20 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #action-bar .choice-cards { display: flex; gap: 8px; flex-wrap: wrap; }
 #action-bar .choice-cards .card { cursor: pointer; }
 /* 時機指示(中線) */
+/* 中線第一列:我方名稱|時機指示|對手名稱(玩家區沒有標題列);窄螢幕名稱在上、時機指示換到下一行 */
+#stage-head { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+#stage-head .stage-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: bold; font-size: 14px; color: var(--on-page); }
+#stage-head .stage-name.top { text-align: right; }
+#stage-head .stage-name.active { color: var(--on-page-green); }
+#battle-stage.open #stage-head .stage-name { color: var(--ink); }
+#battle-stage.open #stage-head .stage-name.active { color: #8fe0a0; }
+#stage-mid { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+#stage-turn { font-size: 12px; font-weight: bold; color: var(--on-page); white-space: nowrap; }
+#battle-stage.open #stage-turn { color: var(--ink); }
+#stage-result { font-weight: bold; color: var(--on-page-green); padding: 3px 0; display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; justify-content: center; }
+#stage-result.hidden { display: none; }
 #timing-track { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
   padding: 3px 8px; font-size: 12px; color: var(--on-page-dim); }
 #battle-stage.open #timing-track { color: var(--ink-dim); }
@@ -1249,7 +1264,6 @@ html.motion-off .book-nav.flip-glow { animation: none; }
 .share-row button { padding: 5px 12px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
 
-#identity { color: var(--on-page-blue); font-weight: bold; }
 #countdown { color: var(--on-page-orange); font-weight: bold; min-width: 84px; }
 #conn-status { font-size: 12px; }
 #conn-status.ok { color: var(--on-page-green); }
@@ -1420,9 +1434,11 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   #layout { flex-direction: column; }
   #board { overflow-y: auto; }
   .player-zone { padding: 4px 8px; }
-  .pz-head { font-size: 12px; gap: 8px; flex-wrap: wrap; }
-  .pz-head .pname { font-size: 13px; }
-  .pz-head-rest { gap: 8px; flex-wrap: wrap; }
+  #stage-head { flex-wrap: wrap; row-gap: 0; }
+  #stage-head .stage-name { font-size: 13px; }
+  /* 第一行:我方名稱|第 N 回合|對手名稱;第二行:時機指示(或終局資訊)佔滿 */
+  #stage-mid { display: contents; }
+  #stage-head #timing-track, #stage-head #stage-result { order: 1; flex: 1 1 100%; }
 
   /* 縱向堆疊:魔書列在外端(對手最上/我方最下);場區 3 欄 + 第 4 欄,雙方第 4 欄都在右側,魔物欄上下對齊 */
   .zone-body { grid-template-columns: auto auto; justify-content: center; column-gap: 10px; }

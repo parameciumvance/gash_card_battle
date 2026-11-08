@@ -1770,49 +1770,27 @@ function renderTopbar() {
   document.getElementById("cheat-title").textContent = t("ui.cheat.title");
   document.getElementById("cheat-refresh").textContent = t("ui.cheat.refresh");
   document.getElementById("cheat-apply").textContent = t("ui.cheat.apply");
-  const idEl = document.getElementById("identity");
-  const v = myViewer();
-  idEl.textContent = !SESSION ? "" :
-    v === "spectator" ? t("ui.spectating") :
-    v === "all" ? "" : t("ui.you_are", { player: pname(v) });
-  if (!S) {
-    document.getElementById("turn-info").textContent = "";
-    document.getElementById("phase-info").textContent = "";
-    document.getElementById("acting-info").textContent = "";
-    return;
-  }
-  document.getElementById("turn-info").textContent =
-    t("ui.turn", { n: S.turn_no }) + t("ui.sep.bar") + pname(S.turn_player);
-  document.getElementById("phase-info").textContent =
-    t(`ui.phase.${S.phase === "game_over" ? "game_over" : S.phase}`);
+  if (S) renderStageStatus();   // 回合數、觀戰中、終局資訊在中線(header-cleanup);頂欄只剩標題與按鈕
+}
 
-  const acting = document.getElementById("acting-info");
-  if (S.phase === "game_over") {
-    acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
-      t("ui.paren", { text: endReasonText(S.winner, S.end_reason) }) +
-      (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
-    if (SESSION && RESULT_SEEN === SESSION.code && !(INFO && INFO.kind === "result")) {   // 關閉結算面板後可重新開啟
-      const reopen = document.createElement("button");
-      reopen.className = "result-reopen";
-      reopen.textContent = t("ui.result.reopen");
-      reopen.onclick = showResult;
-      acting.appendChild(reopen);
-    }
-  } else if (S.pending) {
-    const results = (S.pending.info && S.pending.info.results) || [];
-    acting.textContent = (iControl(S.pending.player)
-      ? t("ui.waiting_choice", { player: pname(S.pending.player) })
-      : t("ui.opponent_choosing")) + (results.length ? t("ui.sep.bar") + coinResultsText(results) : "");
-  } else if (S.battle) {
-    acting.textContent = S.battle.step === "defense"
-      ? t("ui.battle_no_defense_yet")
-      : t("ui.acting", { player: pname(S.battle.effect_turn) });
-  } else if (S.battle_in) {
-    acting.textContent = t("ui.acting", { player: pname(1 - S.battle_in.attacker) });
-  } else if (S.phase === "start") {
-    acting.textContent = t("ui.acting", { player: pname(S.turn_player) });
-  } else {
-    acting.textContent = S.action_player !== null ? t("ui.acting", { player: pname(S.action_player) }) : "";
+// 中線的狀態:「(觀戰中・)第 N 回合」接在時機指示前;終局時時機指示換成勝負、原因、NPC 牌組與重新開啟結算
+function renderStageStatus() {
+  const turn = document.getElementById("stage-turn");
+  const result = document.getElementById("stage-result");
+  const over = S.phase === "game_over";
+  turn.textContent = (myViewer() === "spectator" ? t("ui.spectating") + t("ui.sep.meta") : "")
+    + t("ui.turn", { n: S.turn_no });
+  result.classList.toggle("hidden", !over);
+  if (!over) { result.replaceChildren(); return; }
+  result.textContent = t("ui.winner", { player: pname(S.winner) }) +
+    t("ui.paren", { text: endReasonText(S.winner, S.end_reason) }) +
+    (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
+  if (SESSION && RESULT_SEEN === SESSION.code && !(INFO && INFO.kind === "result")) {   // 關閉結算面板後可重新開啟
+    const reopen = document.createElement("button");
+    reopen.className = "result-reopen";
+    reopen.textContent = t("ui.result.reopen");
+    reopen.onclick = showResult;
+    result.appendChild(reopen);
   }
 }
 
@@ -1825,29 +1803,8 @@ function renderPlayerZone(zone, p, isTop) {
   const active = awaitedPlayer() === p;               // 行動權:等待輸入的一方
   zone.classList.toggle("active", active);
 
-  const head = document.createElement("div");
-  head.className = "pz-head";
-  const nameSpan = document.createElement("span");   // 暱稱以 textContent 呈現(防注入)
-  nameSpan.className = "pname";
-  nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? t("ui.you_suffix") : "");
-  head.appendChild(nameSpan);
-  const badge = (cls, key) => {
-    const el = document.createElement("span");
-    el.className = cls;
-    el.textContent = t(key);
-    head.appendChild(el);
-  };
-  if (active) badge("acting-label", "ui.acting_label");
-  const rest = document.createElement("span");
-  rest.className = "pz-head-rest";
-  rest.innerHTML =
-    `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
-    `<span class="book-progress">${ps.pos > ps.book_size ? t("ui.book_exhausted")
-      : `${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}`}</span>` +
-    (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "");
-  if (ps.book) rest.querySelector(".review-btn").onclick = () => showBookReview(p);
-  head.appendChild(rest);
-  zone.appendChild(head);
+  // 玩家區沒有標題列:名稱在中線(renderStageNames),行動方看外框,MP、頁碼、查閱魔書、棄牌區都在盤面上(header-cleanup)
+  renderStageName(p, isTop, active);
 
   // 魔書區、場區(魔物列+搭檔列)、第 4 欄(MP 托盤+獨立卡區)以 CSS grid 依螢幕寬度排列:
   // 雙方的魔物 3 欄恆置中對齊;魔書區與第 4 欄的位置見 style.css 的 .zone-body
@@ -1857,6 +1814,16 @@ function renderPlayerZone(zone, p, isTop) {
   body.appendChild(renderFieldBlock(p, ps, isTop));
   body.appendChild(renderSideBlock(p, ps, isTop));
   zone.appendChild(body);
+}
+
+// 中線的玩家名稱:我方(下方區)在左、對手(上方區)在右,與雙方魔書所在的角落一致;▼ / ▲ 指向所屬的區
+function renderStageName(p, isTop, active) {
+  const el = document.querySelector(`#stage-head .stage-name.${isTop ? "top" : "bottom"}`);
+  if (!el) return;
+  el.dataset.player = p;
+  el.classList.toggle("active", active);
+  el.textContent = (isTop ? "▲ " : "▼ ") + pname(p)        // 暱稱以 textContent 呈現(防注入)
+    + (iControl(p) && myViewer() !== "all" ? t("ui.you_suffix") : "");
 }
 
 const FIELD_COLUMNS = 3;
@@ -2190,6 +2157,15 @@ function renderBookBlock(p, ps) {
     cover.appendChild(next);
     cover.appendChild(bookNavButton("book-current", t("ui.book.current"), t("ui.book.current"),
       browse === null, () => browseBook(p, 0)));
+    // 查閱魔書:書皮下緣,與上緣的「回到目前頁」相對
+    cover.appendChild(bookNavButton("book-review", t("ui.review_book"), t("ui.review_book"), false,
+      () => showBookReview(p)));
+  }
+  if (ps.pos > ps.book_size) {   // 魔書耗盡:兩個頁位都是書末之後的空位,標籤疊在書皮中央
+    const out = document.createElement("span");
+    out.className = "book-exhausted";
+    out.textContent = t("ui.book_exhausted");
+    cover.appendChild(out);
   }
   block.appendChild(cover);
   block.appendChild(discardPileEl(p, ps));
@@ -2836,6 +2812,14 @@ function renderActionBar() {
   if (mine && PICK) {                                  // 決策:行動欄顯示決策區塊,目標在原位置選
     bar.appendChild(PICK.local ? localPromptEl() : choicePromptEl());
     return;
+  }
+  if (!mine && S.pending) {                            // 等待別人決策:等待提示與目前的擲幣結果(原在頂欄)
+    const results = (S.pending.info && S.pending.info.results) || [];
+    const note = document.createElement("span");
+    note.className = "waiting-note";
+    note.textContent = (myViewer() === "spectator" ? t("ui.waiting_choice", { player: pname(S.pending.player) })
+      : t("ui.opponent_choosing")) + (results.length ? t("ui.sep.bar") + coinResultsText(results) : "");
+    bar.appendChild(note);
   }
   if (mine) {                                          // 詳細提示只對可操作的一方
     const toggle = document.createElement("button");

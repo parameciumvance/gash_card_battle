@@ -100,6 +100,7 @@ def test_game_end_names_the_npc_deck(page):
             R = {{...R, npc: {{...R.npc, deck: {deck}}}}};
             S = {{...S, phase: 'game_over', winner: 0, end_reason: 'book_out'}};
             renderTopbar();
-            return document.getElementById('acting-info').textContent;
+            render();
+            return document.getElementById('stage-result').textContent;
         }}""")
         assert page.evaluate(f"t('ui.npc.deck_reveal', {{deck: {expected}}})") in text
