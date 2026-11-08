@@ -260,7 +260,8 @@ def test_m012_reflip_coin():
                "slot_uid": slot0(g, dp).uid})
     assert g.state.pending.kind == "coin_confirm"
     submit(g, {"type": "choose", "player": dp, "value": 0})  # 用 M-012 重擲
-    assert g.state.battle.attack_negated is True  # 重擲為正面 → 攻擊無效
+    # 重擲為正面 → 於「効果の使用」的最後使攻擊無效(defense-effects-timing)
+    assert [sb for sb in g.state.standby if sb.kind == "effects_end" and sb.source == "S-025"]
     assert "mamodo:M-012" in g.state.players[dp].used_abilities
 
 
@@ -271,7 +272,10 @@ def test_s025_j_version_single_coin():
     events = submit(g, {"type": "declare_defense", "player": dp, "page": 2})
     coin_events = [e for e in events if e["type"] == "coin_flipped"]
     assert len(coin_events) == 1  # 日版:只擲 1 次
-    assert g.state.battle.attack_negated is True
+    assert not g.state.battle.attack_negated            # 於「効果の使用」的最後才無效
+    submit(g, {"type": "pass", "player": tp})
+    events = submit(g, {"type": "pass", "player": dp})
+    assert showdown_of(events)["attack_negated"]
 
 
 def test_m013_no_damage_when_injured():
@@ -1189,7 +1193,7 @@ def test_s021_coin_negate_two_flips():
     assert g.state.pending.kind == "coin_confirm"
     submit(g, {"type": "choose", "player": dp, "value": None})
     # 至少一次正面:於「効果の使用」的最後才無效(declare-time-resolution)
-    assert "negate_at_effects_end" in g.state.battle.data and not g.state.battle.attack_negated
+    assert [sb for sb in g.state.standby if sb.kind == "effects_end"] and not g.state.battle.attack_negated
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     assert showdown_of(events)["winner"] == "defender"

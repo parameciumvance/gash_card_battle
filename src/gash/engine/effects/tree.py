@@ -1013,6 +1013,14 @@ class NextStartPhase:
     own: bool = False
 
 
+@dataclass(frozen=True)
+class EffectsEnd:
+    """本場戰鬥「効果の使用」的最後(雙方都 pass、魔力勝負前)。防禦戰術的效果在此解決,防禦已被無效時不解決
+    (game-engine「戰鬥流程五步驟」;由 engine._resolve_showdown 觸發,搭配 expires="battle")。"""
+    kind: ClassVar[str] = "effects_end"
+    own: bool = False
+
+
 # ================================================================ 停點節點
 
 @dataclass(frozen=True)
@@ -1115,6 +1123,14 @@ class Standby(Effect):
 
     def resume(self, rt, ctx, value, path, floor):
         self.then.run(rt, ctx, path + (0,))
+
+
+@dataclass(frozen=True)
+class AtEffectsEnd(Standby):
+    """防禦戰術的效果:宣告時擲幣 / 選對象確定,then 於本場戰鬥「効果の使用」的最後解決;防禦已被無效時
+    不解決(game-engine「戰鬥流程五步驟」)。脫離式,同 Standby。"""
+    at: Any = field(default_factory=EffectsEnd)
+    expires: str = "battle"
 
 
 def _flip(rt: Run, ctx: dict, path: tuple, count: int, flipper: int):
@@ -2868,14 +2884,27 @@ class RememberOpponentMamodo(Effect):
 
 
 @dataclass(frozen=True)
-class NegateAttackAtEffectsEnd(Effect):
-    """於「効果の使用」的最後(雙方都 pass、魔力勝負前)使攻擊無效(S-021);由 engine._resolve_showdown 執行,
-    防禦已被無效時不生效。"""
+class AttackNotNegated:
+    """本場戰鬥的攻擊尚未被無效(S-106「そうしたなら」:攻擊已被其他效果無效時,這張沒有使它無效)。"""
+
+    def test(self, game, ctx) -> bool:
+        battle = game.state.battle
+        return battle is not None and not battle.attack_negated
+
+
+@dataclass(frozen=True)
+class FamilyNoDamageThisTurn(Effect):
+    """本回合自己場上 family 家族的魔物不受傷害(S-095,【ステイ】;以解決當下在場的魔物為對象)。"""
+    family: str = ""
 
     def run(self, rt, ctx, path):
-        battle = rt.game.state.battle
-        if battle is not None:
-            battle.data["negate_at_effects_end"] = {"source": ctx["source"], "player": ctx["player"]}
+        from ..engine import family
+        from ..state import DUR_TURN
+        player = ctx["player"]
+        for s in rt.game.state.players[player].slots:
+            if family(rt.game, s) == self.family:
+                add_modifier(rt.game, rt.batch, kind="no_damage", source=ctx["source"], owner=player,
+                             duration=DUR_TURN, target_player=player, target_slot=s.uid)
         return True
 
 

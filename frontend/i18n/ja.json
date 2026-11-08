@@ -356,6 +356,7 @@
   "effect.standby.spell_reuse": "「{card}」({page} ページ)をこのターン中コスト0でもう1回使える",
   "effect.standby.redirect_damage": "次のバトル:{mamodo} の術のダメージを選んだ相手の魔物にあたえる",
   "effect.standby.after_battle": "このバトルの終了後に発動",
+  "effect.standby.effects_end": "このバトルの「効果の使用」の最後に発動(防御が無効になったときは発動しない)",
   "effect.standby.end_phase_mp": "このターンのエンドフェイズに MP {amount}",
   "effect.standby.undefendable_at_total": "次のバトル:{target} で合計魔力{min_total}以上の攻撃をしたとき、相手は防御できない",
   "effect.standby.spell_base_cost_zero": "次のバトル:自分の術の本来のコストを0にする",

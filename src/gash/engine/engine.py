@@ -2101,22 +2101,16 @@ def own_damage_bonus(game: Game, player: int) -> int:
 def _resolve_showdown(game: Game, batch: list[dict]) -> None:
     st = game.state
     battle = st.battle
-    # S-021「このバトルの『効果の使用』の最後に、相手の攻撃を無効にする」:雙方 pass 之後、魔力勝負前;
-    # 防禦已被無效時一起失效
-    late = battle.data.pop("negate_at_effects_end", None)
-    if late and not battle.defense_negated and not battle.attack_negated:
-        battle.attack_negated = True
-        battle.data["attack_negated_by"] = late["source"]
-        game.emit(batch, "attack_negated", source=late["source"], player=late["player"])
-    # S-095「魔力勝負の勝敗にかかわらず…このターン中、自分の『キャンチョメ』はダメージを受けない」:
-    # 宣告時擲幣正面時,魔力勝負時(防禦沒被無効)起生效
-    no_damage = battle.data.get("defender_no_damage_family")
-    if no_damage and battle.defense_spell and not battle.defense_negated:
-        from .effects.primitives import add_modifier
-        for s in st.players[battle.defender].slots:
-            if family(game, s) == no_damage:
-                add_modifier(game, batch, kind="no_damage", source=battle.defense_spell, owner=battle.defender,
-                             duration=DUR_TURN, target_player=battle.defender, target_slot=s.uid)
+    # 防禦戰術的效果(宣告時擲幣 / 選對象確定)於「効果の使用」的最後解決;防禦已被無效時不解決
+    # (規則頁「バトル」②防御「防御の効果はここではまだ解決しません」、「攻撃や防御の無効化」)
+    due = [sb for sb in st.standby if sb.kind == "effects_end"]
+    st.standby = [sb for sb in st.standby if sb.kind != "effects_end"]
+    for sb in due:
+        if sb.owner == battle.defender and (battle.defense_negated or not battle.defense_spell):
+            continue
+        reg.CHOICE_RESOLVERS[sb.data["callback"]](game, batch, None, sb.data)
+        if st.phase == GAME_OVER or st.battle is None:
+            return
     att, att_items = side_breakdown(game, battle, "attack")
     deff, def_items = side_breakdown(game, battle, "defense")
     battle.data["attack_total"] = att  # 供傷害免疫等查詢型 hook 使用(M-031)
