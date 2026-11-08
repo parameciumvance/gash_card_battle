@@ -24,7 +24,7 @@ from .primitives import (
     add_modifier, add_power, add_restriction, add_spell_power, attach_partner_from_book, coin_info,
     discard_from_book, discard_option, discard_partner, flip_coins,
     family, heal_slot, mamodo_name, mark_opp_mp_reduced, mp_guarded, partner_discard_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
-    reduce_opponent_mp, return_to_book, run_on_play,
+    mp_counter_after_reduction, reduce_opponent_mp, return_to_book, run_on_play,
     schedule_standby, slot_option, stack_base, take_from_book,
     turn_pages,
 )
@@ -863,6 +863,47 @@ class DeployableMamodoInOwnBook:
 
 
 @dataclass(frozen=True)
+class MamodoOrPartnerPagesInOwnBook:
+    """自己魔書中可放出的魔物頁與可裝備的搭檔頁,依頁碼排序(MJ-003「魔物カードかパートナーカード1枚を選び」)。
+    選項值為頁碼。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        opts = DeployableMamodoInOwnBook().options(game, ctx) + AttachablePartnerPagesInOwnBook().options(game, ctx)
+        return sorted(opts, key=lambda o: o["page"])
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇魔書中可放出的魔物卡或可裝備的搭檔卡")
+
+
+@dataclass(frozen=True)
+class BoundPageIsPartner:
+    """ctx 中綁定的自己魔書頁是搭檔卡(MJ-003 依選中的卡分為裝備或放出)。"""
+    page: Ref = Ref("page")
+
+    def test(self, game, ctx) -> bool:
+        ps = game.state.players[ctx["player"]]
+        return game.db[ps.card_at(ctx[self.page.name])].type == PARTNER
+
+
+@dataclass(frozen=True)
+class OpponentFieldCards:
+    """對手獨立卡區中指定類型的卡(Ex-074「相手の場のMJ12カード」)。選項值為該卡的 uid。"""
+    card_type: str = "mj12"
+
+    def options(self, game, ctx) -> list[dict]:
+        opp = 1 - ctx["player"]
+        return [{"value": f.uid, "card": f.card, "zone": "field", "player": opp, "uid": f.uid}
+                for f in game.state.players[opp].field_cards if game.db[f.card].type == self.card_type]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇對手場上的 MJ12 卡")
+
+
+@dataclass(frozen=True)
 class OpponentBookCards:
     """對手魔書中(尚未離開的)指定類型的卡;exclude_last 時排除末頁(E-016 戰術 / E-017 事件)。
     card_type 為 None 時不限類型;restricting 時只列具有限制效果的卡(E-045)。"""
@@ -1520,6 +1561,32 @@ class AttachPartnerFromDiscard(Effect):
 
 
 @dataclass(frozen=True)
+class DiscardChosenOpponentFieldCard(Effect):
+    """把對手獨立卡區中 target 綁定的卡棄掉(Ex-074)。執行時依 uid 重新查找,已離場則無效果。"""
+    target: Ref = Ref("field")
+
+    def run(self, rt, ctx, path):
+        from ..engine import discard_field_card
+        opp = 1 - ctx["player"]
+        fc = rt.game.state.field_card_by_uid(opp, ctx[self.target.name])
+        if fc is not None:
+            discard_field_card(rt.game, rt.batch, opp, fc, ctx["source"])
+        return True
+
+
+@dataclass(frozen=True)
+class SidePowerThisTurn(Effect):
+    """【ステイ】這回合自己所有攻擊(side "attack")/ 防禦("defense")的合計魔力 +amount(MJ-002 / MJ-005)。"""
+    side: str = "attack"
+    amount: int = 0
+
+    def run(self, rt, ctx, path):
+        add_modifier(rt.game, rt.batch, kind="side_power", source=ctx["source"], owner=ctx["player"],
+                     duration=DUR_TURN, target_player=ctx["player"], amount=self.amount, data={"side": self.side})
+        return True
+
+
+@dataclass(frozen=True)
 class DiscardChosenPartner(Effect):
     """棄掉 Choose(OpponentPartneredMamodo()) 選中魔物身上的搭檔卡(S-039)。"""
     target: Ref = Ref("choice")
@@ -1688,11 +1755,14 @@ class ZeroBothPlayersMp(Effect):
                 rt.game.emit(rt.batch, "mp_reduction_prevented", player=p, source=ctx["source"])
                 continue
             if ps.mp:
+                reduced = ps.mp
                 if p != ctx["player"]:
                     ps.mp_reduced_by_opponent += ps.mp   # E-028 / E-035:E-004 的歸零也算被對手減少
                 rt.game.emit(rt.batch, "mp_changed", player=p, delta=-ps.mp, mp=0,
                              reason=ctx["source"])
                 ps.mp = 0
+                if p != ctx["player"]:
+                    mp_counter_after_reduction(rt.game, rt.batch, p, reduced)   # MJ-006
         return True
 
 

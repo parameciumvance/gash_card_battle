@@ -16,6 +16,7 @@ MAMODO = "mamodo"
 PARTNER = "partner"
 SPELL = "spell"
 EVENT = "event"
+MJ12 = "mj12"
 
 # 指示卡(對所有魔物的命令)的 related_mamodo 標記(日文權威來源用語)
 COMMAND_ALL = "コマンド"

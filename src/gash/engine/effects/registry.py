@@ -94,6 +94,9 @@ TREATED_AS: dict[str, str] = {}
 # 「1アクションを使って…捨て札にできる」(M-046 / P-020): 卡號 -> "top"(棄掉疊放的上層)/ "partner"(棄掉搭檔)
 ACTION_DISCARD: dict[str, str] = {}
 
+# 獨立卡區的「自分のMPが相手の効果でへらされたとき、相手のMPを同じだけへらす」(MJ-006)
+MP_COUNTER: set[str] = set()
+
 # 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾戰術)
 SPELL_ONLY_STACK: set[str] = set()
 
@@ -464,6 +467,11 @@ def deferred(number: str, *, effect):
 def treated_as(number: str, name: str):
     """此卡在場上時視為名為 name 的魔物(名稱、家族判定)(M-047)。"""
     TREATED_AS[number] = name
+
+
+def mp_counter(number: str):
+    """獨立卡區的卡:持有者的 MP 因對手的效果實際減少時,對手減少同樣數量(MJ-006)。"""
+    MP_COUNTER.add(number)
 
 
 def action_discard(number: str, what: str):

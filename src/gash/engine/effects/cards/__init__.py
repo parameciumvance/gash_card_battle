@@ -1,4 +1,4 @@
-"""卡片效果樹登記:依卡片類別分檔(events / mamodo / partners / spells),每檔依卡號排序
+"""卡片效果樹登記:依卡片類別分檔(events / mamodo / partners / spells / mj12),每檔依卡號排序
 (同一前綴依編號;第 3 賽季的 Ex-、PR- 依序排在原有前綴之後),
 每卡的登記集中一處(多個掛鉤各一個 reg.xxx(...) 且相鄰),效果邏輯在 tree.py 的節點。
 
@@ -13,6 +13,6 @@
 只有旗標、沒有邏輯的戰術卡(如 counter / damage_cap / injure_instead)也一併登記在 spells.py,讓登記集中。
 """
 
-# 匯入順序即登記順序:events → mamodo → partners → spells,與卡號順序一致
+# 匯入順序即登記順序:events → mamodo → partners → spells → mj12,與卡號順序一致
 # (reg.START_PHASE 等登記表依此順序迭代)。
-from . import events, mamodo, partners, spells  # noqa: F401
+from . import events, mamodo, partners, spells, mj12  # noqa: F401

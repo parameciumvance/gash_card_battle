@@ -3534,6 +3534,7 @@ function effectText(e) {
   if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
   if (e.used && DICT[`${key}.used`] !== undefined) key += ".used";          // E-010 借用的效果已使用
   if (e.copy_card && DICT[`${key}.copy`] !== undefined) key += ".copy";    // M-035 魔力等於選定的魔物
+  if (e.side && DICT[`${key}.${e.side}`] !== undefined) key += `.${e.side}`;   // MJ-002 / MJ-005 攻擊 / 防禦
   if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
   if (e.base_zero) changes.push(t("effect.piece.base_zero"));

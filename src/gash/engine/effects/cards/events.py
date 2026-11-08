@@ -6,6 +6,7 @@ from ...state import (
 )
 from .. import registry as reg
 from ..tree import (
+    DiscardChosenOpponentFieldCard, OpponentFieldCards,
     DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
     TurnOwnPagesBackOncePerTurn,
     DamageChosenOpponentMamodo, ForceProtectWith, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
@@ -407,6 +408,12 @@ reg.event("Ex-047", when=opponent_has_mamodo, effect=Choose(
 
 # Ex-048:高於 4 的一方算「MPをへらす」、低於 4 的一方算「MPをふやす」
 reg.event("Ex-048", effect=SetBothMp(value=4))
+
+# Ex-074「相手の場のMJ12カード1枚を選び、捨て札にする」:由使用者選
+reg.event("Ex-074", when=HasOptions(OpponentFieldCards(card_type="mj12")), effect=Choose(
+    OpponentFieldCards(card_type="mj12"), bind="field", prompt="pick_opponent_field_card",
+    then=DiscardChosenOpponentFieldCard(),
+))
 
 # PR-005「すきな順で」:使用者逐一選下一個效果;沒有負傷魔物時省略回復
 reg.event("PR-005", when=battle_phase_first, effect=UseAllInChosenOrder(entries=(
