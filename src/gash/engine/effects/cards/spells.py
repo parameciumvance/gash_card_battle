@@ -22,7 +22,8 @@ from ..tree import (
     RestrictBothPlayers, RestrictOpponent, RobnosTransformMode, ScheduleAfterBattleAttrPower,
     ScheduleAfterBattleRestriction, ScheduleInjureInsteadNextWin, ScheduleSpellReuse, Sequence,
     SideIs, StackFromBookOnto, Standby, TurnOwnPagesOncePerTurn, UsedSpellPagesThisTurn, When,
-    opponent_has_mamodo,
+    opponent_has_mamodo, DiscardRememberedPartner, IncreaseThisSpellDamagePerHeads, OpponentDidNotDefend,
+    OwnDiscardMamodoCards, RememberDeclaredTarget,
 )
 
 
@@ -507,6 +508,99 @@ reg.spell_rider("S-111", on_declare=Coin(
 
 reg.spell_rider("S-112", on_protected=TurnPagesForward(leaves=1, target="opponent"))
 
+# 第 4 賽季第 1 批(season4-spells-basic)。香草戰術:S-119 S-122 S-123 S-124 S-126 S-127 S-138 Ex-062 Ex-066
+# Ex-067;S-114 為防禦獲勝時無效(資料驅動)。
+
+# 「次の効果の両方を、この順で使う」:攻擊宣告時擲幣、正面時選對手 1 隻魔物;獲勝時魔書傷害 + 選定魔物的傷害
+# (魔物傷害不以魔書受到傷害為條件;S-057 只改變魔書傷害)
+reg.spell_rider("S-115", on_declare=Sequence(steps=(
+    RememberInBattle(key="declared_targets", value=()),
+    Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=Choose(
+            OpponentMamodo(), bind="slot", prompt="pick_opponent_mamodo",
+            then=RememberDeclaredTarget(ref=Ref("slot")),
+        ),
+    ),
+)), on_win=DamageOpponentBookAndAllMamodo(), on_win_owns_damage=True)
+
+reg.spell_rider("S-116", on_win=RestrictOpponent(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
+
+# 「次の効果の1つを使う」:比照 S-070,攻擊宣告時選擇魔書傷害或棄掉對手 1 張搭檔(一併選擇);獲勝時依選擇結算
+reg.spell_rider("S-118", on_declare=Choose(
+    EffectOptions((("book", "damage_book", None),
+                   ("partner", "discard_opponent_partner", OpponentPartneredMamodo(discard=True)))),
+    bind="mode", prompt="pick_effect",
+    then=Sequence(steps=(
+        RememberInBattle(key="effect_mode", ref=Ref("mode")),
+        When(
+            Bound("mode", "partner"),
+            then=Choose(
+                OpponentPartneredMamodo(discard=True), bind="choice", prompt="pick_opponent_partner",
+                then=RememberInBattle(key="partner_target", ref=Ref("choice")),
+            ),
+        ),
+    )),
+), on_win=When(
+    BattleRemembered(key="effect_mode", value="book"),
+    then=AttackBookDamage(),
+    otherwise=Sequence(steps=(
+        DiscardRememberedPartner(key="partner_target"),
+        FinishAttackWithoutDamage(),
+    )),
+), on_win_owns_damage=True, chooses_damage_target=True)
+
+reg.spell_rider("S-120", on_declare=When(
+    SideIs("defense"),
+    then=Coin(
+        count=2, on=HeadsAtLeast(1),
+        then=RememberInBattle(key="defense_coin_heads"),
+    ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=NegateAttack(),
+))
+
+# 防禦時「魔力勝負の勝敗にかかわらず、相手の攻撃のダメージを2へらす」;攻擊時是一般的魔書傷害
+reg.spell_rider("S-130", on_effects_end=AdjustDefenseDamage(amount=-2))
+
+reg.spell_rider("S-132", on_win=When(
+    OpponentDidNotDefend(),
+    then=IncreaseThisSpellDamage(amount=1),
+))
+
+reg.spell_rider("S-134", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=IncreaseThisSpellDamage(amount=1),
+    ),
+), fixed_total={"attack": 7000, "defense": 7000})
+
+# 「この術のダメージは、コインを2回投げて、オモテの数×1になる」:傷害只在攻擊時有用,攻擊宣告時擲
+reg.spell_rider("S-137", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=2, on=Always(),
+        then=IncreaseThisSpellDamagePerHeads(per_head=1),
+    ),
+))
+
+reg.spell_rider("S-139", on_effects_end=AdjustDefenseDamage(amount=-2))
+
+reg.spell_rider("S-141", on_damage=RestrictOpponent(flag=NO_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
+
+reg.spell_rider("S-142", on_declare=When(
+    SideIs("attack"),
+    then=Coin(
+        count=1, on=HeadsAtLeast(1),
+        then=IncreaseThisSpellDamage(amount=1),
+    ),
+))
+
+# 「この術の魔力は、自分の捨て札の魔物カードの数×2000になる」:魔力勝負時依當下張數計算
+reg.spell_rider("S-143", power_per_count=(OwnDiscardMamodoCards(), 2000))
+
 reg.spell_rider("Ex-014", counter=True)
 # Ex-015:攻擊獲勝時(防方獲勝時攻方的效果不解決)
 reg.spell_rider("Ex-015", on_win=RestrictOpponent(flag=NO_EFFECTS_AND_SPELLS, duration=DUR_UNTIL_END_NEXT_TURN))
@@ -522,6 +616,32 @@ reg.spell_rider("Ex-043", on_declare=When(
 reg.spell_nonbattle("Ex-044", when=opponent_has_mamodo, effect=Coin(
     count=OpponentMamodoCount(), on=Always(),
     then=LockOpponentMamodoPerHeads(duration=DUR_UNTIL_END_NEXT_TURN),
+))
+
+reg.spell_rider("Ex-050", on_declare=Coin(
+    count=5, on=Always(),
+    then=Sequence(steps=(
+        AddSpellPowerPerHeads(per_head=1000),
+        IncreaseThisSpellDamagePerHeads(per_head=1),
+    )),
+))
+
+reg.spell_rider("Ex-064", on_effects_end=AdjustDefenseDamage(amount=-1))
+
+reg.spell_rider("Ex-065", on_declare=When(
+    SideIs("defense"),
+    then=Coin(
+        count=2, on=HeadsAtLeast(1),
+        then=RememberInBattle(key="defense_coin_heads"),
+    ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=NegateAttack(),
+))
+
+reg.spell_rider("Ex-068", on_declare=When(
+    SideIs("defense"),
+    then=AddDefenseSelfBonus(amount=2000),
 ))
 
 # PR-006:下一場戰鬥的攻擊戰術可從任意頁使用;加成不論來自哪一頁,魔物效果攻擊沒有加成

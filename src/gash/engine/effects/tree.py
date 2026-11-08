@@ -1710,11 +1710,20 @@ class DamageOpponentBookAndAllMamodo(Effect):
         battle = game.state.battle
         amount = _attack_damage_amount(game, battle)
         items = []
-        if amount > 0:
+        if battle.data.get("injure_instead"):             # S-057:「相手の魔本にダメージ」改為傷害選定的魔物(S-115)
+            target = game.state.slot_by_uid(opp, battle.data.get("injure_target", -1)) \
+                if battle.data.get("injure_target") is not None else None
+            if target is not None:
+                items.append({"kind": "slot", "player": opp, "slot_uid": target.uid, "amount": 1})
+        elif amount > 0:
             items.append({"kind": "book", "player": opp, "amount": amount})
         declared = battle.data.get("declared_targets")   # 宣告時選定的魔物(只對仍在場者)
         items += [{"kind": "slot", "player": opp, "slot_uid": s.uid, "amount": 1}
                   for s in list(game.state.players[opp].slots) if declared is None or s.uid in declared]
+        if not items:
+            from ..engine import finish_attack_without_damage
+            finish_attack_without_damage(game, rt.batch)
+            return True
         _start_damage(game, rt.batch, items,
                       {"cause": "battle_attack", "source": battle.attack_spell,
                        "source_player": player, "amount": amount})
@@ -2867,6 +2876,61 @@ class RememberOpponentMamodo(Effect):
         if battle is not None:
             battle.data["declared_targets"] = [s.uid for s in rt.game.state.players[1 - ctx["player"]].slots]
         return True
+
+
+@dataclass(frozen=True)
+class OpponentDidNotDefend:
+    """這場戰鬥防禦方沒有宣告防禦(戰術或魔物效果)。宣告了防禦、之後被無效,仍算有防禦(S-132)。"""
+
+    def test(self, game, ctx) -> bool:
+        from ..engine import _defended
+        battle = game.state.battle
+        return battle is not None and not _defended(battle)
+
+
+@dataclass(frozen=True)
+class OwnDiscardMamodoCards:
+    """計數規格:使用者棄牌區的魔物卡張數(S-143;疊放的魔物每張各算)。"""
+
+    def value(self, game, ctx) -> int:
+        from ..cards import MAMODO
+        return sum(1 for n in game.state.players[ctx["player"]].discard if game.db[n].type == MAMODO)
+
+
+@dataclass(frozen=True)
+class IncreaseThisSpellDamagePerHeads(Effect):
+    """依 ctx["results"](Coin 擲出的結果)的正面數,這場攻擊所用的戰術傷害 + 正面數 × per_head(S-137 / Ex-050)。"""
+    per_head: int = 1
+
+    def run(self, rt, ctx, path):
+        return IncreaseThisSpellDamage(amount=sum(ctx["results"]) * self.per_head).run(rt, ctx, path)
+
+
+@dataclass(frozen=True)
+class RememberDeclaredTarget(Effect):
+    """宣告時選定的對手魔物(ref 綁定的 UID)記為這場攻擊的魔物傷害對象(battle.data["declared_targets"],
+    由 DamageOpponentBookAndAllMamodo 讀取;S-115)。"""
+    ref: Ref = Ref("slot")
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        if battle is not None:
+            battle.data["declared_targets"] = [ctx[self.ref.name]]
+        return True
+
+
+@dataclass(frozen=True)
+class DiscardRememberedPartner(Effect):
+    """棄掉宣告時記下(battle.data[key],RememberInBattle)的對手魔物身上的搭檔(S-118);
+    對象已離場或已沒有搭檔時沒有效果。"""
+    key: str = "partner_target"
+
+    def run(self, rt, ctx, path):
+        battle = rt.game.state.battle
+        uid = battle.data.get(self.key) if battle is not None else None
+        if uid is None:
+            return True
+        return DiscardChosenPartner(target=Ref("_remembered")).run(rt, {**ctx, "_remembered": uid}, path)
 
 
 @dataclass(frozen=True)
