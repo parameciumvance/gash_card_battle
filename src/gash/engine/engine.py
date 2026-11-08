@@ -20,7 +20,7 @@ from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
     NO_ATTACK, NO_DEFENSE_SPELL_SLOT, NO_EFFECTS_AND_SPELLS, NO_EVENTS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS,
-    NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
+    EFFECTS_LOCKED, NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, FieldCard, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
     place_slot,
 )
@@ -235,8 +235,8 @@ def _mamodo_effect_blocks(game: Game, player: int, slot: MamodoSlot) -> list[tup
     for m in _restrictions(game, player):
         if m.flag in (NO_MAMODO_EFFECTS, NO_EFFECTS_AND_SPELLS):
             out.append(("mamodo_restricted", m.source))
-        elif (m.flag == MAMODO_LOCKED and m.target_slot == slot.uid) or (m.flag == ONLY_MAMODO
-                                                                          and m.target_slot != slot.uid):
+        elif (m.flag in (MAMODO_LOCKED, EFFECTS_LOCKED) and m.target_slot == slot.uid) or (
+                m.flag == ONLY_MAMODO and m.target_slot != slot.uid):
             out.append(("mamodo_locked", m.source))
     return out
 
@@ -251,7 +251,7 @@ def effect_block_sources(game: Game, player: int, slot: MamodoSlot, number: str)
     """「このカードが場にある→」的效果被「使えない」擋下時,造成限制的來源卡號(依限制的建立順序、去重);
     沒被擋時為空。number 是 slot 的搭檔時看「パートナーの効果を使えない」,否則看這隻魔物的「魔物の効果を使えない」。"""
     if number == slot.partner:
-        sources = [m.source for m in _restrictions(game, player) if m.flag == NO_PARTNER_EFFECTS]
+        sources = partner_effect_block_sources(game, player, slot)
     else:
         sources = [source for _, source in _mamodo_effect_blocks(game, player, slot)]
     return list(dict.fromkeys(sources))
@@ -265,6 +265,18 @@ def note_effect_blocked(game: Game, batch: list[dict], player: int, slot: Mamodo
     return bool(sources)
 
 
+def partner_effect_block_sources(game: Game, player: int, slot: MamodoSlot | None) -> list[str]:
+    """「パートナーの効果を使えない」:擋下 slot 身上搭檔效果的限制來源卡號——整個玩家的 NO_PARTNER_EFFECTS,
+    加上這隻魔物的 EFFECTS_LOCKED(Ex-071;限制綁在魔物上,之後才裝上的搭檔也算)。slot 為 None 時只看玩家層級。"""
+    return [m.source for m in _restrictions(game, player)
+            if m.flag == NO_PARTNER_EFFECTS or (m.flag == EFFECTS_LOCKED and slot is not None
+                                                and m.target_slot == slot.uid)]
+
+
+def partner_effects_blocked(game: Game, player: int, slot: MamodoSlot | None) -> bool:
+    return bool(partner_effect_block_sources(game, player, slot))
+
+
 def card_effect_blocked(game: Game, player: int, slot: MamodoSlot, number: str) -> bool:
     """「このカードが場にある→」的效果被「使えない」擋下(官方規則書第 42 頁)。專用規則不經過這裡。"""
     return bool(effect_block_sources(game, player, slot, number))
@@ -275,7 +287,7 @@ def _opponent_family_blocks(game: Game, player: int) -> list[tuple[str, tuple[st
     opp = 1 - player
     out = []
     for s in game.state.players[opp].slots:
-        if s.partner in reg.BLOCK_OPPONENT_FAMILY and not restricted(game, opp, NO_PARTNER_EFFECTS):
+        if s.partner in reg.BLOCK_OPPONENT_FAMILY and not partner_effects_blocked(game, opp, s):
             out.append((s.partner, reg.BLOCK_OPPONENT_FAMILY[s.partner]))
     return out
 
@@ -863,7 +875,7 @@ def ability_block(game: Game, player: int, zone: str, slot: MamodoSlot | None, n
     if in_battle is None:
         in_battle = st.battle is not None
     # 獨立卡區(MJ12)的效果不是魔物 / 搭檔的效果,這兩類的「使えない」不擋
-    if zone in ("partner", "borrowed") and restricted(game, player, NO_PARTNER_EFFECTS):
+    if zone in ("partner", "borrowed") and partner_effects_blocked(game, player, slot if zone == "partner" else None):
         return "partner_restricted"
     if spec.mode == "discard" and restricted(game, player, NO_DISCARD_COST_EFFECTS):
         return "discard_cost_restricted"        # S-144:「このカードを捨て札にする→」(魔物、搭檔、MJ12、借用)
@@ -2341,7 +2353,7 @@ def _jammer_holders(game: Game, player: int, on: str):
             if ps.mp < spec["mp_cost"]:
                 continue
             if (mamodo_effect_block(game, player, slot) if zone == "mamodo"
-                    else restricted(game, player, NO_PARTNER_EFFECTS)):
+                    else partner_effects_blocked(game, player, slot)):
                 continue
             if spec["discard_self"] and restricted(game, player, NO_DISCARD_COST_EFFECTS):
                 continue                              # S-144(M-032 / Ex-034)
@@ -3164,7 +3176,10 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
     st.standby.remove(obj)
     game.emit(batch, "standby_resolved", card=source, kind=kind)
     if kind == "end_phase_mp":              # E-038:結束階段 MP 增加(強制翻頁之前)
-        gain_mp(game, batch, obj.owner, obj.data.get("amount", 0), source, by=obj.owner)
+        amount = obj.data.get("amount", 0)
+        if obj.data.get("half_battle_mp_lost"):   # Ex-101:這回合戰鬥階段減少的 MP 的一半
+            amount = st.players[obj.owner].battle_phase_mp_lost.get(st.turn_no, 0) // 2
+        gain_mp(game, batch, obj.owner, amount, source, by=obj.owner)
     elif kind == "end_phase_turn_opponent":   # E-041:效果的翻頁,不獲得 MP,翻完即敗
         turn_pages(game, batch, 1 - obj.owner, obj.data.get("leaves", 1), source)
     elif kind == "end_phase_discard":       # E-042 / Ex-021:使用時選定的魔物(之後已離場的跳過)

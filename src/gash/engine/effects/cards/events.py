@@ -1,11 +1,14 @@
 """事件卡(E-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
+from ...cards import EVENT
 from ...state import (
-    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS,
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, EFFECTS_LOCKED, NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS,
     NO_SPELLS,
 )
 from .. import registry as reg
 from ..tree import (
+    GainMpPerCount, OpponentMamodoWithDiscardCostEffect, OwnDiscardMamodoCards, ScheduleEndPhaseMpHalfBattleLoss,
+    DiscardChosenOpponentMamodo,
     DiscardChosenOpponentFieldCard, OpponentFieldCards,
     DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
     TurnOwnPagesBackOncePerTurn,
@@ -356,6 +359,65 @@ reg.event("E-049", effect=Choose(
     ),
 ))
 
+# 「相手の魔本を見て…相手の捨て札にあるカードと同じカード名のカード1枚」:( )內不同仍算同名(card_name_key);
+# 比照 E-017 由使用者在網格選,沒有可選的卡時看完即結束,不付費
+reg.event("E-050", effect=Sequence(steps=(
+    RevealOpponentBook(),
+    When(
+        HasOptions(OpponentBookCards(None, same_name_as_discard=True)),
+        then=Choose(
+            OpponentBookCards(None, same_name_as_discard=True), bind="page", prompt="pick_opponent_book_card",
+            auto_single=False, then=DiscardFromOpponentBook(),
+        ),
+        otherwise=AwaitBookReviewEnd(),
+    ),
+)))
+
+# 「パートナーカードを何枚でも選び、場に出す」:比照 P-036 逐張選頁與裝備的魔物,每次都可停止;
+# 1 隻魔物 1 張搭檔、場上最多 3 隻,所以最多 3 次。至少有 1 張可放出的才能使用
+reg.event("E-051", when=HasOptions(AttachablePartnerPagesInOwnBook()), effect=Choose(
+    OrSkip(AttachablePartnerPagesInOwnBook()), bind="partner_page_1", prompt="pick_partner_in_own_book",
+    then=When(
+        Bound("partner_page_1", None),
+        otherwise=Choose(
+            SlotsForBookPartner(page=Ref("partner_page_1")), bind="slot_1", prompt="pick_mamodo_for_partner",
+            then=Sequence(steps=(
+                AttachPartnerFromBookPage(page=Ref("partner_page_1"), slot=Ref("slot_1")),
+                Choose(
+    OrSkip(AttachablePartnerPagesInOwnBook()), bind="partner_page_2", prompt="pick_partner_in_own_book",
+    then=When(
+        Bound("partner_page_2", None),
+        otherwise=Choose(
+            SlotsForBookPartner(page=Ref("partner_page_2")), bind="slot_2", prompt="pick_mamodo_for_partner",
+            then=Sequence(steps=(
+                AttachPartnerFromBookPage(page=Ref("partner_page_2"), slot=Ref("slot_2")),
+                Choose(
+    OrSkip(AttachablePartnerPagesInOwnBook()), bind="partner_page_3", prompt="pick_partner_in_own_book",
+    then=When(
+        Bound("partner_page_3", None),
+        otherwise=Choose(
+            SlotsForBookPartner(page=Ref("partner_page_3")), bind="slot_3", prompt="pick_mamodo_for_partner",
+            then=Sequence(steps=(
+                AttachPartnerFromBookPage(page=Ref("partner_page_3"), slot=Ref("slot_3")),
+            )),
+        ),
+    ),
+),
+            )),
+        ),
+    ),
+),
+            )),
+        ),
+    ),
+))
+
+# 「このカードを捨て札にする→」効果を持つ魔物(啟動效果、干擾、擲幣改正面);選不到時不能使用
+reg.event("E-054", when=HasOptions(OpponentMamodoWithDiscardCostEffect()), effect=Choose(
+    OpponentMamodoWithDiscardCostEffect(), bind="choice", prompt="pick_opponent_mamodo",
+    then=DiscardChosenOpponentMamodo(),
+))
+
 # Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻
 reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
@@ -409,11 +471,51 @@ reg.event("Ex-047", when=opponent_has_mamodo, effect=Choose(
 # Ex-048:高於 4 的一方算「MPをへらす」、低於 4 的一方算「MPをふやす」
 reg.event("Ex-048", effect=SetBothMp(value=4))
 
+# 比照 E-024:「魔物の効果」與這隻魔物身上搭檔的效果(之後才裝上的也算),不封戰術;雙方的回合
+reg.event("Ex-071", when=opponent_has_mamodo, effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=EFFECTS_LOCKED),
+))
+
+# 「2枚までを選び」:兩次都可不選;沒有可選的卡時看完即結束(比照 E-017),不付費
+reg.event("Ex-072", effect=Sequence(steps=(
+    RevealOpponentBook(),
+    When(
+        HasOptions(OpponentBookCards(None, names=("プロフェッサー・ダルタニアン",))),
+        then=Choose(
+            OrSkip(OpponentBookCards(None, names=("プロフェッサー・ダルタニアン",))), bind="page",
+            prompt="pick_opponent_book_card", then=When(
+                Bound("page", None),
+                otherwise=Sequence(steps=(
+                    DiscardFromOpponentBook(),
+                    Choose(
+                        OrSkip(OpponentBookCards(None, names=("プロフェッサー・ダルタニアン",))), bind="page_2",
+                        prompt="pick_opponent_book_card", then=When(
+                            Bound("page_2", None),
+                            otherwise=DiscardFromOpponentBook(page=Ref("page_2")),
+                        ),
+                    ),
+                )),
+            ),
+        ),
+        otherwise=AwaitBookReviewEnd(),
+    ),
+)))
+
+reg.event("Ex-073", effect=GainMpPerCount(count=OwnDiscardMamodoCards()))
+
 # Ex-074「相手の場のMJ12カード1枚を選び、捨て札にする」:由使用者選
 reg.event("Ex-074", when=HasOptions(OpponentFieldCards(card_type="mj12")), effect=Choose(
     OpponentFieldCards(card_type="mj12"), bind="field", prompt="pick_opponent_field_card",
     then=DiscardChosenOpponentFieldCard(),
 ))
+
+reg.event("Ex-100", effect=Coin(
+    count=2, on=HeadsAtLeast(2),
+    then=GainMp(amount=5),
+))
+
+reg.event("Ex-101", effect=ScheduleEndPhaseMpHalfBattleLoss())
 
 # PR-005「すきな順で」:使用者逐一選下一個效果;沒有負傷魔物時省略回復
 reg.event("PR-005", when=battle_phase_first, effect=UseAllInChosenOrder(entries=(
@@ -430,3 +532,31 @@ reg.event("PR-007", effect=Sequence(steps=(
 )))
 
 reg.event("PR-010", effect=ModifyNamedSpellsThisTurn(mamodo="ガッシュ・ベル", name="ザケル", cost=-1, power=2000))
+
+# 「相手は、自分の魔本を見て、今のページより後ろのイベントカード1枚を選び、捨て札にする。そうしたなら、
+# 相手の魔本を見て…」:對手先選(強制);對手沒有可選的卡時看完即結束,之後不換自己
+reg.event("PR-013", effect=AsOpponent(then=Sequence(steps=(
+    RevealOpponentBook(),
+    When(
+        HasOptions(OpponentBookCards(EVENT, after_current=True)),
+        then=Choose(
+            OpponentBookCards(EVENT, after_current=True), bind="page", prompt="pick_opponent_book_card",
+            auto_single=False, then=Sequence(steps=(
+                DiscardFromOpponentBook(),
+                AsOpponent(then=Sequence(steps=(
+                    RevealOpponentBook(),
+                    When(
+                        HasOptions(OpponentBookCards(EVENT, after_current=True)),
+                        then=Choose(
+                            OpponentBookCards(EVENT, after_current=True), bind="page_2",
+                            prompt="pick_opponent_book_card", auto_single=False,
+                            then=DiscardFromOpponentBook(page=Ref("page_2")),
+                        ),
+                        otherwise=AwaitBookReviewEnd(),
+                    ),
+                ))),
+            )),
+        ),
+        otherwise=AwaitBookReviewEnd(),
+    ),
+))))

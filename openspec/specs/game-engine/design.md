@@ -54,6 +54,8 @@
 - **魔物效果攻防規格的查詢**:一律經 `engine.mamodo_attack_spec` / `mamodo_defense_spec`(引擎、快照、NPC 都用),回傳的規格含使用次數的鍵 `key`。卡號登記的(M-027 等)優先;沒有時看效果賦予的(S-113 的 `granted_fighting` modifier,依當下的家族,`key` 為 `fighting:<來源>:<slot>`,攻防共用)。
 - **不能被對手選擇**(S-121):`primitives.selectable_opponent_slots(game, chooser)` 排除受 `unselectable` modifier(`data["mamodo"]` 為家族)保護的魔物。新的「由效果選對手魔物」的規格或節點都要用它,不要直接讀對手的 `slots`。依家族的不受傷害是 `no_damage` modifier 的 `target_slot` 為 None、`data["mamodo"]` 為家族。
 - **非戰鬥戰術的使用魔物**:handler 收 `user_slot`(效果 ctx 的 `user_slot`,S-136);`reg.spell_no_user` 的戰術在沒有可用的對應魔物時 `user` 為 None(S-140),仍檢查整個玩家的「術を使えない」。
+- **搭檔效果的「使えない」**:一律經 `engine.partner_effect_block_sources(game, player, slot)` / `partner_effects_blocked`:整個玩家的 `NO_PARTNER_EFFECTS`,加上綁在魔物上的 `EFFECTS_LOCKED`(Ex-071,同時擋這隻魔物的魔物效果、不擋戰術)。常駐效果、啟動效果、干擾、擲幣改正面、P-020 的 MP 鎖、P-031 的家族禁止都經過它;新的搭檔效果判斷不要直接讀 `NO_PARTNER_EFFECTS`。
+- **戰鬥階段減少的 MP**(Ex-101):`Game.emit` 在戰鬥階段的 `mp_changed`(delta 為負)時累加到 `PlayerState.battle_phase_mp_lost[turn_no]`(只保留本回合);干擾還原快照時一起還原。
 - **「このカードを捨て札にする→」的限制**(S-144,`NO_DISCARD_COST_EFFECTS`):`ability_block` 擋 `mode="discard"`、`_jammer_holders` 擋 `discard_self`、`primitives._set_heads_sources` 擋全部(登記的都是棄掉自己)。
 - 防禦的追加費用記在 `battle.data["defense_extra_cost"]`,供改變效果的追加(Ex-063,`SpellRider.extra_cost_effect` 決定選項文字)讀取。
 - 攻擊方的宣告時效果不延後:「この攻撃を防御できない」本來要在防禦宣告前作用;其餘(傷害 +N、不能保護、記下對象)要到攻擊成功才用到,攻擊被無效即不發生。魔力加成在魔力勝負時計算,被無效時 `_negate` 使合計魔力歸零。

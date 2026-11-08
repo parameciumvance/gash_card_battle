@@ -231,6 +231,17 @@ def product_rows(page):
         "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
 
 
+def open_products() -> set[str]:
+    """篩選列的產品磚中,有已開放(不在尚未開放清單)卡片的代號,依資料計算;「ex」磚依卡號 Ex-。"""
+    import json as _json
+
+    from gash.engine.cards import DATA_DIR, pending_cards
+    pend = pending_cards()
+    cards = [c for c in _json.loads((DATA_DIR / "cards.json").read_text(encoding="utf-8")) if c["number"] not in pend]
+    found = {s for c in cards for s in c["sets"]} | ({"ex"} if any(c["number"].startswith("Ex-") for c in cards) else set())
+    return found & {p for row in SEASON_ROWS for p in row}
+
+
 SEASON_ROWS = [
     ["level-1"],
     ["level-2", "mahon-file", "ex-sheet-1"],
@@ -254,20 +265,15 @@ def test_product_rows_by_season_when_all_open(browser, server):
 
 
 def test_new_products_hidden_while_pending(page):
-    # 第 4 賽季的卡與 Ex-100、101 大多還沒開放:金手指的產品網格只列有已開放卡片的產品(LEVEL:4 的 MJ12 與
-    # 第 1 批戰術、拡張シート3 的 Ex-074 等、電撃フェスタ的 Ex-050 已開放;構築器照常列出全部,見 test_pending_preview_ui)
+    # 第 4 賽季的卡分批開放:金手指的產品網格只列有已開放卡片的產品(依資料計算;構築器照常列出全部,
+    # 見 test_pending_preview_ui)
     from tests.test_cheat_editor import open_local
     open_local(page)
     filters = page.locator("#cheat-filters")
     filters.locator(".filter-menu[data-group=product]").click()
     assert filters.locator(".filter-panel[data-group=product] .filter-row").evaluate_all(
         "(rows) => rows.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))") == [
-        ["level-1"],
-        ["level-2", "mahon-file", "ex-sheet-1"],
-        ["level-3", "cardset-gash-nakama", "cardset-zeon", "limited-1", "special-box", "mahon-file-2", "ex-sheet-2"],
-        ["level-4", "ex-sheet-3", "festa-2004-spring"],
-        ["ex", "promo"],
-    ]
+        row for row in ([p for p in r if p in open_products()] for r in SEASON_ROWS) if row]
 
 
 def mahon_file_2_pending(route):

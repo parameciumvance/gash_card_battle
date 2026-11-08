@@ -37,6 +37,7 @@ NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其效果(target_slot)與其名稱的戰術(data["mamodo"])(E-024)
+EFFECTS_LOCKED = "effects_locked"          # 指定魔物:禁其魔物效果與它身上搭檔的效果,不禁戰術(target_slot)(Ex-071)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
 NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
 ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁效果與保護,禁其名稱的戰術(E-043)
@@ -158,6 +159,7 @@ class PlayerState:
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
     spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
     spell_names_by_turn: dict[int, set[str]] = field(default_factory=dict)  # 宣告過的戰術卡名(S-129 / S-146)
+    battle_phase_mp_lost: dict[int, int] = field(default_factory=dict)      # 各回合戰鬥階段中減少的 MP(Ex-101)
     # 最近一次自己的行動以效果使自己增加的 MP 與當時的 action_seq(Ex-025「直後」);ジャマー還原時一併還原
     last_effect_mp_gain: dict | None = None
 
@@ -273,6 +275,10 @@ class Game:
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}
+        if type_ == "mp_changed" and payload.get("delta", 0) < 0 and self.state.phase == BATTLE:
+            ps = self.state.players[payload["player"]]   # Ex-101:費用與效果的減少都算,只保留本回合
+            turn = self.state.turn_no
+            ps.battle_phase_mp_lost = {turn: ps.battle_phase_mp_lost.get(turn, 0) - payload["delta"]}
         self.events.append(ev)
         batch.append(ev)
         self._dispatch_triggers(batch, ev)
