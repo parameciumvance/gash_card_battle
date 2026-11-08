@@ -14,7 +14,7 @@
 
 - [x] 3.1 截圖確認桌面與手機的篩選列;快速測試組與卡池、金手指相關的瀏覽器測試;`openspec validate pool-tags-and-order --strict`。(快速組 1697 項;非 slow 瀏覽器測試 529 項;1280px 篩選列溢出,依使用者選擇改緊湊版,見 design D4)
 - [x] 3.2 更新 `deck-builder/design.md`。(todo.md 有使用者未提交的修改,「依標籤搜尋」由使用者更新)
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。(2026-11-08 使用者同意歸檔)
 
 ## Workflow follow-up
 
