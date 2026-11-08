@@ -1844,9 +1844,7 @@ function renderPlayerZone(zone, p, isTop) {
     `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
     `<span class="book-progress">${ps.pos > ps.book_size ? t("ui.book_exhausted")
       : `${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}`}</span>` +
-    (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "") +
-    `<span class="discard-btn">${t("ui.discard", { n: ps.discard.length })}</span>`;
-  rest.querySelector(".discard-btn").onclick = () => showDiscard(p);
+    (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "");
   if (ps.book) rest.querySelector(".review-btn").onclick = () => showBookReview(p);
   head.appendChild(rest);
   zone.appendChild(head);
@@ -1924,9 +1922,117 @@ function renderFieldBlock(p, ps, isTop) {
     mamodoRow.appendChild(mamodoCell);
     partnerRow.appendChild(partnerCell);
   }
+  // 第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區;我方在右、對手在左(對角)
+  const mpCell = document.createElement("div");
+  mpCell.className = "mcell side-cell mp-cell";
+  mpCell.appendChild(mpTrayEl(p, ps.mp));
+  const fieldCell = document.createElement("div");
+  fieldCell.className = "mcell side-cell field-cell";
+  fieldCell.appendChild(fieldCardsEl(p, ps));
+  const put = isTop ? "prepend" : "append";
+  mamodoRow[put](mpCell);
+  partnerRow[put](fieldCell);
   if (isTop) { block.appendChild(partnerRow); block.appendChild(mamodoRow); }
   else { block.appendChild(mamodoRow); block.appendChild(partnerRow); }
   return block;
+}
+
+// 獨立卡區:不裝在魔物上的場上卡片(MJ12 等,快照 field_cards 依出場順序)
+// 寬螢幕由左往右排開,放不下時等距壓疊(最新在右、最上層);窄螢幕 2 張以上改方形小圖示(2×2 / 2×3,超過 6 張「+N」)
+const FIELD_ICON_MAX = 6;
+function fieldCardsEl(p, ps) {
+  const zone = document.createElement("div");
+  zone.className = "field-cards";
+  zone.dataset.fieldCards = p;
+  const cards = ps.field_cards || [];
+  if (!cards.length) {
+    zone.classList.add("empty");
+    zone.textContent = t("ui.slot.empty_field");
+    return zone;
+  }
+  const fieldCard = (entry) => {
+    const ctx = { kind: "field", p, uid: entry.uid };
+    const el = markPickable(markUsable(cardEl(entry.card, { zoomCtx: ctx }), ctx), ctx);
+    el.dataset.fieldUid = entry.uid;
+    el.dataset.card = entry.card;
+    return el;
+  };
+  if (cards.length > 1 && isNarrow()) {
+    const grid = document.createElement("div");
+    grid.className = "field-icons";
+    zone.dataset.grid = cards.length <= 4 ? "2x2" : "2x3";
+    const shown = cards.length > FIELD_ICON_MAX ? cards.slice(0, FIELD_ICON_MAX - 1) : cards;
+    for (const entry of shown) {
+      const ctx = { kind: "field", p, uid: entry.uid };
+      const icon = document.createElement("div");
+      icon.className = "field-icon";
+      icon.dataset.fieldUid = entry.uid;
+      icon.dataset.card = entry.card;
+      icon.title = cname(entry.card);
+      const img = document.createElement("img");
+      img.src = artUrl(entry.card);
+      img.alt = cname(entry.card);
+      img.onerror = () => { img.onerror = null; img.src = "/static/back.jpg"; };
+      icon.appendChild(img);
+      icon.onclick = () => { setDetail(entry.card, ctx); openCardMenu(icon, entry.card, ctx); };
+      bindLongPress(icon, entry.card, ctx);
+      grid.appendChild(markPickable(markUsable(icon, ctx), ctx));
+    }
+    if (shown.length < cards.length) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "field-icon field-more";
+      more.textContent = `+${cards.length - shown.length}`;
+      more.onclick = () => showFieldCards(p);
+      grid.appendChild(more);
+    }
+    zone.appendChild(grid);
+    return zone;
+  }
+  cards.forEach((entry, i) => {
+    const el = fieldCard(entry);
+    el.style.zIndex = String(i + 1);
+    el.style.setProperty("--field-i", i);
+    zone.appendChild(el);
+  });
+  zone.style.setProperty("--field-n", cards.length);
+  return zone;
+}
+
+function showFieldCards(p) {
+  const cards = S.players[p].field_cards || [];
+  showDialog(pname(p) + t("ui.sep.meta") + t("ui.field_cards", { n: cards.length }),
+    cards.map((entry) => ({ cardNum: entry.card, ctx: { kind: "field", p, uid: entry.uid }, keepOpen: true })),
+    null, [], { dismissable: true });
+}
+
+// 棄牌區格:最後進入棄牌區的卡(調暗)與張數;點擊開棄牌區視窗;決策目標在棄牌區時發光
+function discardPileEl(p, ps) {
+  const pile = document.createElement("div");
+  pile.className = "discard-pile";
+  pile.dataset.discardPile = p;
+  pile.setAttribute("role", "button");
+  pile.tabIndex = 0;
+  pile.setAttribute("aria-label", t("ui.discard", { n: ps.discard.length }));
+  pile.title = t("ui.discard", { n: ps.discard.length });
+  if (!ps.discard.length) {
+    pile.classList.add("empty");
+    pile.textContent = t("ui.slot.empty_discard");
+  } else {
+    const last = ps.discard[ps.discard.length - 1];
+    const card = cardEl(last);
+    card.onclick = null;                        // 整格同一個入口:開棄牌區視窗
+    card.dataset.card = last;
+    pile.appendChild(card);
+    const count = document.createElement("span");
+    count.className = "discard-count";
+    count.textContent = `×${ps.discard.length}`;
+    pile.appendChild(count);
+  }
+  if (PICK && PICK.discards.has(p)) pile.classList.add("pickable");
+  pile.onclick = () => showDiscard(p);
+  pile.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); showDiscard(p); } };
+  return pile;
 }
 
 function emptyFrame(label, small) {
@@ -2081,7 +2187,7 @@ function renderBookBlock(p, ps) {
       browse === null, () => browseBook(p, 0)));
   }
   block.appendChild(cover);
-  block.appendChild(mpTrayEl(p, ps.mp));
+  block.appendChild(discardPileEl(p, ps));
   return block;
 }
 
