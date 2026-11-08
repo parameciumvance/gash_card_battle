@@ -118,7 +118,7 @@ def test_discarded_partner_flies_to_discard_pile(browser, server):  # noqa: F811
         await Anim.idle();
         const ghost = document.querySelector('#anim-overlay .fx-to-discard[data-card="P-001"]');
         await new Promise((r) => setTimeout(r, 650));
-        const pile = document.querySelector(`.player-zone[data-player="${me}"] .discard-btn`).getBoundingClientRect();
+        const pile = document.querySelector(`.player-zone[data-player="${me}"] .discard-pile`).getBoundingClientRect();
         const g = ghost && ghost.getBoundingClientRect();
         return {ghost: !!ghost, gone: !document.querySelector('#anim-overlay .fx-to-discard'),
                 pile: {x: pile.left + pile.width / 2, y: pile.top + pile.height / 2},
@@ -146,7 +146,7 @@ def test_borrowed_partner_flies_to_owner_discard_pile(browser, server):  # noqa:
         await Anim.idle();
         const ghost = document.querySelector('#anim-overlay .fx-to-discard[data-card="P-002"]');
         const center = (p) => {
-            const r = document.querySelector(`.player-zone[data-player="${p}"] .discard-btn`).getBoundingClientRect();
+            const r = document.querySelector(`.player-zone[data-player="${p}"] .discard-pile`).getBoundingClientRect();
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
         };
         const g = ghost && {x: parseFloat(ghost.style.left) + parseFloat(ghost.style.width) / 2,
@@ -176,7 +176,7 @@ FROM_DISCARD = """async (borrowed) => {
                 from_discard: true, seq: animSeq};
     if (borrowed) ev.owner = opp;
     const center = (r) => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
-    const pile = (p) => center(document.querySelector(`.player-zone[data-player="${p}"] .discard-btn`)
+    const pile = (p) => center(document.querySelector(`.player-zone[data-player="${p}"] .discard-pile`)
         .getBoundingClientRect());
     const piles = {src: pile(src), other: pile(1 - src)};
     let start = null;                             // 飛卡加入時的位置(之後同步改成終點)

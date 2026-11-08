@@ -114,7 +114,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .pz-head .pname { font-weight: bold; font-size: 15px; }
 .pz-head .mp { color: var(--on-page-blue); font-weight: bold; }
 .pz-head .book-progress { color: var(--on-page-amber); }
-.pz-head .discard-btn { cursor: pointer; color: var(--on-page-dim); text-decoration: underline; }
+
 .pz-head-rest { display: inline-flex; gap: 14px; align-items: center; }
 .pz-head .review-btn { cursor: pointer; color: var(--on-page-amber); text-decoration: underline; }
 /* 行動權標籤(等待輸入的一方);回合玩家由中線的回合轉盤表示 */
@@ -162,16 +162,20 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .review-tag.left { background: #5b6270; color: #d9dde5; }
 .review-tag.used { background: #8a2f2f; color: #ffd9d9; }
 
-/* 場區置中貼中線對峙、魔書區靠外角(對手右上、我方左下對角相對) */
-.zone-body { display: flex; gap: 12px; flex: 1; }
-.player-zone.top .zone-body { align-items: flex-end; }      /* 場區貼中線 */
-.player-zone.bottom .zone-body { align-items: flex-start; }
-.zone-side { flex: 1 1 0; min-width: 0; display: flex; }
-/* 魔書側不可被壓縮到與場區重疊 */
-.zone-side.book-side { align-self: stretch; min-width: max-content; }
-.player-zone.top .zone-side.book-side { justify-content: flex-end; align-items: flex-start; }
-.player-zone.bottom .zone-side.book-side { justify-content: flex-start; align-items: flex-end; }
-.field-block { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+/* 盤面(寬螢幕 ≥1200px):場區置中貼中線對峙,兩側等寬(1fr 取兩側內容的較大者,雙方魔物 3 欄因此上下對齊);
+   魔書區靠外角、第 4 欄貼場區:對手「第 4 欄|場區|魔書」、我方「魔書|場區|第 4 欄」(對角相對) */
+.zone-body { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 12px; row-gap: 6px; flex: 1; }
+/* 場區貼中線:列不撐高(align-content),多出的高度留在外側 */
+.player-zone.bottom .zone-body { grid-template-areas: "book field side"; align-items: start; align-content: start; }
+.player-zone.top .zone-body { grid-template-areas: "side field book"; align-items: end; align-content: end; }
+.zone-body > .book-block { grid-area: book; }
+.zone-body > .field-block { grid-area: field; }
+.zone-body > .side-block { grid-area: side; }
+.player-zone.bottom .zone-body > .book-block { align-self: end; justify-self: start; }
+.player-zone.top .zone-body > .book-block { align-self: start; justify-self: end; }
+.player-zone.bottom .zone-body > .side-block { justify-self: start; }
+.player-zone.top .zone-body > .side-block { justify-self: end; }
+.field-block, .side-block { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
 .field-row { display: flex; gap: 10px; justify-content: center; }
 /* 框格固定尺寸:有無卡片、有無按鈕都不伸縮 */
 .mcell { display: flex; align-items: center; justify-content: center; width: var(--cell-w); }
@@ -208,6 +212,75 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   width: var(--card-w); height: 100%;
 }
 .empty-frame.small { font-size: 10px; }
+
+/* 場區第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區;寬兩張卡,高與魔物格相同 */
+:root { --side-w: calc(var(--card-w) * 2 + 10px); }
+.mcell.side-cell { width: var(--side-w); height: var(--card-h); }
+.mp-cell .mp-tray { width: 100%; height: 100%; box-sizing: border-box; }
+.mp-cell .mp-tokens { width: 100%; height: auto; flex: 1; }
+/* 寬螢幕但盤面放不下兩張卡寬的第 4 欄時(盤面 = 畫面 − 行動記錄 300):場區格寬依畫面寬度縮小(上限 120、下限 84),
+   第 4 欄縮成一格寬;只作用於場區,魔書維持原尺寸 */
+@media (min-width: 701px) and (max-width: 1199px) {
+  /* 魔書列移到外側(對手最上、我方最下),場區與第 4 欄一列;第 4 欄對面留同寬空欄,魔物 3 欄置中對齊 */
+  .player-zone.bottom .zone-body { grid-template-areas: ". field side" "book book book"; }
+  .player-zone.top .zone-body { grid-template-areas: "book book book" "side field ."; }
+  .player-zone.bottom .zone-body > .book-block, .player-zone.top .zone-body > .book-block {
+    justify-self: center; flex-direction: row; align-items: flex-end; }
+  .field-block, .side-block {
+    --cell-w: clamp(64px, calc((100vw - 380px) / 5), 120px); --side-w: var(--cell-w);
+    --card-w: calc(var(--cell-w) - 16px); --card-h: calc(var(--card-w) * 124 / 104);
+    --art-h: calc((var(--card-w) - 16px) * 75 / 88);   /* 卡圖框比例維持 --art-ratio */
+    --injured-h: var(--cell-w); --injured-w: calc(var(--cell-w) * .716);
+  }
+}
+.field-cards { position: relative; width: 100%; height: 100%; isolation: isolate; }
+.field-cards.empty {
+  border: 2px dashed var(--page-frame); border-radius: 8px; box-sizing: border-box;
+  color: rgba(30, 60, 110, .5); font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 由左往右排開;放不下時等距壓疊,最新一張在最右邊、最上層 */
+#board .field-cards > .card {
+  position: absolute; top: 0;
+  left: calc(var(--field-i) * min(var(--card-w) + 10px,
+    (100% - var(--card-w)) / max(var(--field-n) - 1, 1)));
+  box-shadow: -3px 0 6px rgba(0,0,0,.35);
+}
+/* 窄螢幕 2 張以上:方形小圖示(只裁卡圖),2×2 / 2×3 */
+.field-icons { display: grid; gap: 4px; width: 100%; height: 100%;
+  grid-template-columns: repeat(2, var(--field-icon)); align-content: center; justify-content: center; }
+.field-cards[data-grid="2x3"] { --field-icon: min(calc((var(--cell-w) - 4px) / 2), calc((var(--card-h) - 8px) / 3)); }
+.field-cards[data-grid="2x2"] { --field-icon: min(calc((var(--cell-w) - 4px) / 2), calc((var(--card-h) - 4px) / 2)); }
+.field-icon { position: relative; width: var(--field-icon); height: var(--field-icon); box-sizing: border-box;
+  border-radius: 6px; overflow: hidden; cursor: pointer; padding: 0;
+  border: 2px solid #6a3fa0; background: #f5efdc; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.field-icon img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block;
+  transform: scale(1.45); transform-origin: 50% 12%; pointer-events: none; }
+.field-icon.pickable, .field-icon.usable { box-shadow: 0 0 0 2px var(--glow); }
+.field-more { display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+  color: #f3e9ff; background: #3b2f5c; }
+
+/* 棄牌區格:魔書朝中線側,縮小的最後一張卡(調暗)+ 張數 */
+.discard-pile {
+  --card-w: 62px; --card-h: 74px; --art-h: 38px;
+  display: flex; align-items: center; gap: 8px; box-sizing: border-box;
+  width: 130px; height: 80px; padding: 3px; border-radius: 10px; cursor: pointer;
+  background: rgba(18,24,42,.55); border: 1px solid rgba(217,164,65,.45);
+}
+.discard-pile.empty { justify-content: center; background: none;
+  border: 2px dashed var(--page-frame); color: rgba(30, 60, 110, .5); font-size: 11px; }
+#board .discard-pile .card { filter: brightness(.6) saturate(.7); pointer-events: none; }
+#board .discard-pile .card .cname { font-size: 9px; -webkit-line-clamp: 1; line-clamp: 1; }
+#board .discard-pile .card .val-badge, #board .discard-pile .card .badge { display: none; }
+/* 場區卡片縮小時(手機、較窄的寬螢幕)卡名與魔力徽章的字級等比例縮小(以手機原尺寸 88px 的字級為基準) */
+#board .field-block .card .cname { font-size: min(12px, calc(var(--card-w) * 12 / 88)); }
+#board .field-block .card .val-badge.val-power { font-size: min(10px, calc(var(--card-w) * 10 / 88)); }
+.discard-pile .discard-info { display: flex; flex-direction: column; gap: 2px; }
+.discard-pile .discard-label { font-size: 11px; color: var(--gold-soft); white-space: nowrap; }
+.discard-pile.empty .discard-label { color: rgba(30, 60, 110, .5); }
+.discard-pile .discard-count { font-size: 16px; font-weight: bold; color: var(--gold-soft); }
+.discard-pile.pickable { box-shadow: 0 0 0 3px var(--glow), 0 0 12px var(--glow); }
+.discard-pile:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
 .borrowed-badge {
   position: absolute; top: 2px; left: 2px; z-index: 2; pointer-events: none;
   background: #3a1d4a; color: #f0d8ff; border: 1px solid #b07ad0; border-radius: 6px;
@@ -1351,18 +1424,24 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   .pz-head .pname { font-size: 13px; }
   .pz-head-rest { gap: 8px; flex-wrap: wrap; }
 
-  /* 縱向堆疊:zone-body 轉直欄,魔書列以 order 移到外端(對手最上/我方最下) */
-  .zone-body { flex-direction: column; align-items: center; gap: 6px; }
-  .zone-side { flex: 0 0 auto; min-width: 0; }
-  .zone-side.book-side { min-width: 0; align-self: center; }
-  .player-zone.top .zone-side.book-side { order: -1; justify-content: center; }
-  .player-zone.bottom .field-block { order: -1; }
-  .player-zone.bottom .zone-side.book-side { justify-content: center; }
+  /* 縱向堆疊:魔書列在外端(對手最上/我方最下);場區 3 欄 + 第 4 欄,雙方第 4 欄都在右側,魔物欄上下對齊 */
+  .zone-body { grid-template-columns: auto auto; justify-content: center; column-gap: 10px; }
+  .player-zone.bottom .zone-body { grid-template-areas: "field side" "book book"; }
+  .player-zone.top .zone-body { grid-template-areas: "book book" "field side"; }
+  .player-zone.bottom .zone-body > .book-block, .player-zone.top .zone-body > .book-block { justify-self: center; }
 
-  /* 魔書與 MP 托盤同列,壓低整列高度 */
+  /* 魔書與棄牌區格同列,壓低整列高度 */
   .book-block, .player-zone.bottom .book-block { flex-direction: row; align-items: flex-end; gap: 6px; }
-  .mp-tray { width: 130px; height: 70px; padding: 6px; }
-  .mp-tokens { width: 116px; height: 30px; }
+  .discard-pile { --card-w: 54px; --card-h: 64px; --art-h: 32px; width: 110px; height: 70px; }
+
+  /* 場區 4 欄等寬:格寬依畫面寬度均分(上限 92px),卡片等比例;只作用於場區,魔書維持原尺寸 */
+  .field-block, .side-block {
+    --cell-w: min(92px, calc((100vw - 56px) / 4)); --side-w: var(--cell-w);
+    --card-w: calc(var(--cell-w) - 4px); --card-h: calc(var(--card-w) * 112 / 88);
+    --art-h: calc((var(--card-w) - 16px) * 64 / 72);   /* 卡圖框比例維持 --art-ratio */
+    --injured-h: var(--cell-w); --injured-w: calc(var(--cell-w) * .716);
+  }
+  .mp-cell .mp-tray { padding: 5px; }
   .mp-token { width: 12px; height: 12px; }
   .mp-token.big { width: 18px; height: 18px; }
 
