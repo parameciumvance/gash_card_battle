@@ -15,7 +15,7 @@ from ..tree import (
     FinishAttackWithoutDamage, GainMpPerDamage, GrantFullImmune, GrantGuardImmune, HasOptions,
     HeadsAtLeast, HealOwnFamily, HealSlot, IncreaseThisSpellDamage, InjureOpponentMamodoInstead,
     LockChosenOpponentMamodo, MakeAttackUndefendable, MakeNextAttackUndefendable,
-    MarkInjuredMamodoDiscarded, NegateAttack, NegateAttackAtEffectsEnd, NextStartPhase,
+    MarkInjuredMamodoDiscarded, NegateAttack, NextStartPhase, AttackNotNegated, FamilyNoDamageThisTurn,
     OpponentMamodo, OpponentOpenPageCards, OpponentOpenPagesLackSpell, OpponentPartneredMamodo,
     OrSkip, OwnBookCopiesOf, PlayablePartnerInDiscard, ScheduleNextBattleStandby, OwnFieldHas, OwnInjuredMamodo, PeekOpponentOpenPages,
     PlayMamodoFromBook, ReduceOpponentMp, Ref, RememberInBattle, RememberOpponentMamodo,
@@ -24,6 +24,7 @@ from ..tree import (
     SideIs, StackFromBookOnto, Standby, TurnOwnPagesOncePerTurn, UsedSpellPagesThisTurn, When,
     opponent_has_mamodo,
 )
+
 
 # S-022 セウシル / S-024 マ・セシルド / S-028 伏せろ!:防禦獲勝時將攻擊無效 = 防方獲勝本就使攻方
 # 效果不解決,不需註冊(純資料驅動)。純香草戰術卡(攻/防獲勝→魔書傷害)同樣不需註冊:
@@ -65,16 +66,22 @@ reg.spell_rider("S-021", on_declare=When(
     SideIs("defense"),
     then=Coin(
         count=2, on=HeadsAtLeast(1),
-        then=NegateAttackAtEffectsEnd(),
+        then=RememberInBattle(key="defense_coin_heads"),
     ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=NegateAttack(),
 ))
 
 reg.spell_rider("S-025", on_declare=When(
     SideIs("defense"),
     then=Coin(
         count=1, on=HeadsAtLeast(1),
-        then=NegateAttack(),
+        then=RememberInBattle(key="defense_coin_heads"),
     ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=NegateAttack(),
 ))
 
 reg.spell_nonbattle("S-026", effect=Coin(
@@ -86,8 +93,11 @@ reg.spell_rider("S-027", on_declare=When(
     SideIs("defense"),
     then=Coin(
         count=2, on=HeadsAtLeast(1),
-        then=AdjustDefenseDamage(amount=-1),
+        then=RememberInBattle(key="defense_coin_heads"),
     ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=AdjustDefenseDamage(amount=-1),
 ))
 
 reg.spell_rider("S-030", counter=True)
@@ -243,13 +253,16 @@ reg.spell_rider("S-069", on_declare=When(
     )),
     otherwise=Coin(
         count=1, on=HeadsAtLeast(1),
-        then=NegateAttack(),
+        then=RememberInBattle(key="defense_coin_heads"),
     ),
 ), on_win=When(
     BattleRemembered(key="coin_heads"),
     then=AttackBookDamage(),
     otherwise=FinishAttackWithoutDamage(),
-), on_win_owns_damage=True)
+), on_win_owns_damage=True, on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=NegateAttack(),
+))
 
 # 「次の効果の1つを使う」:攻擊宣告時由攻擊方選擇魔書傷害或對手魔物傷害(選魔物時一併選哪一隻;
 # 對手沒有魔物時只有魔書);獲勝時依宣告時的選擇結算。選擇時已明確選了對象,S-057 不改變
@@ -309,10 +322,7 @@ reg.spell_rider("S-078", on_damage=Sequence(steps=(
     ),
 )))
 
-reg.spell_rider("S-079", on_declare=When(
-    SideIs("defense"),
-    then=GrantGuardImmune(mamodo="ウォンレイ"),
-))
+reg.spell_rider("S-079", on_effects_end=GrantGuardImmune(mamodo="ウォンレイ"))
 
 reg.spell_rider("S-081", on_declare=When(
     SideIs("attack"),
@@ -390,13 +400,16 @@ reg.spell_nonbattle("S-094", effect=Coin(
     then=DamageOpponentBookOutsideBattle(),
 ))
 
-# 宣告防禦時擲幣;正面時魔力勝負時(不論勝敗,防禦沒被無效)起本回合自己的キャンチョメ不受傷害
+# 宣告防禦時擲幣;正面時於「効果の使用」的最後(不論勝敗,防禦沒被無效)起本回合自己的キャンチョメ不受傷害
 reg.spell_rider("S-095", on_declare=When(
     SideIs("defense"),
     then=Coin(
         count=1, on=HeadsAtLeast(1),
-        then=RememberInBattle(key="defender_no_damage_family", value="キャンチョメ"),
+        then=RememberInBattle(key="defense_coin_heads"),
     ),
+), on_effects_end=When(
+    BattleRemembered(key="defense_coin_heads"),
+    then=FamilyNoDamageThisTurn(family="キャンチョメ"),
 ))
 
 reg.spell_rider("S-097", extra_cost=(2, 2, 4000, 0))
@@ -464,8 +477,9 @@ reg.spell_rider("S-104", on_win=Sequence(steps=(
     ),
 )))
 
-reg.spell_rider("S-106", on_declare=When(
-    SideIs("defense"),
+# 「そうしたなら」:攻擊在「効果の使用」中已被其他效果無效時,這張沒有使它無效,不翻魔書
+reg.spell_rider("S-106", on_effects_end=When(
+    AttackNotNegated(),
     then=Sequence(steps=(
         NegateAttack(),
         TurnOwnPagesOncePerTurn(leaves=1),

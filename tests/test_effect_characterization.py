@@ -41,6 +41,13 @@ def kinds(events):
     return [(e["type"], e.get("result", e.get("kind"))) for e in events if e["type"] in TRACED]
 
 
+def finish_effects(g, tp, dp):
+    """戰鬥中效果的時機雙方都 pass,回傳魔力勝負事件(防禦效果於此時解決)。"""
+    submit(g, {"type": "pass", "player": tp})
+    events = submit(g, {"type": "pass", "player": dp})
+    return next(e for e in events if e["type"] == "showdown")
+
+
 def pending(g):
     p = g.state.pending
     return None if p is None else (p.kind, p.player, [o["value"] for o in p.options])
@@ -74,9 +81,9 @@ def test_m019_reflip_one_coin():
     give(g, 0, "M-019")
     tp, dp, _ = defend_with_s025(g)
     events = submit(g, {"type": "choose", "player": tp, "value": 0})
-    assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads"),
-                             ("attack_negated", None)]
-    assert g.state.battle.attack_negated is True
+    # 正面:排定於「効果の使用」的最後使攻擊無效(defense-effects-timing)
+    assert kinds(events) == [("ability_used", None), ("coin_flipped", "heads")]
+    assert not g.state.battle.attack_negated
     assert "mamodo:M-019" in g.state.players[tp].used_abilities
     assert g.state.pending is None
     assert g.rng.calls == 2
@@ -205,7 +212,8 @@ def test_s021_two_coin_branches(coins, negated):
     assert len([e for e in events if e["type"] == "coin_flipped"]) == 2
     assert pending(g) is None
     # 宣告時擲幣;無效排定在「効果の使用」的最後(declare-time-resolution)
-    assert ("negate_at_effects_end" in g.state.battle.data) is negated and not g.state.battle.attack_negated
+    assert not g.state.battle.attack_negated
+    assert finish_effects(g, tp, dp)["attack_negated"] is negated
     assert g.rng.calls == 2
 
 
@@ -217,7 +225,7 @@ def test_s021_with_m012_reflip_changes_branch():
     assert pending(g) == ("coin_confirm", dp, [None, 0, 1])
     events = submit(g, {"type": "choose", "player": dp, "value": 1})
     assert kinds(events)[:2] == [("ability_used", None), ("coin_flipped", "heads")]
-    assert "negate_at_effects_end" in g.state.battle.data
+    assert finish_effects(g, tp, dp)["attack_negated"]
     assert g.rng.calls == 3
 
 
@@ -228,7 +236,9 @@ def test_s025_single_coin_branches(coin, negated):
     events = submit(g, {"type": "declare_defense", "player": dp, "page": 2,
                         "slot_uid": slot0(g, dp).uid})
     assert len([e for e in events if e["type"] == "coin_flipped"]) == 1
-    assert g.state.battle.attack_negated is negated
+    # 於「効果の使用」的最後才無效(defense-effects-timing)
+    assert not g.state.battle.attack_negated
+    assert finish_effects(g, tp, dp)["attack_negated"] is negated
     assert g.rng.calls == 1
 
 

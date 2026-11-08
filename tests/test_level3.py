@@ -1002,7 +1002,9 @@ def test_s069_defense_coin_negates(heads, negated):
     st.players[0].mp, st.players[1].mp = 10, 10
     to_battle(g, 0)
     attack(g, 2, defend_page=2)
-    assert st.battle.attack_negated == negated
+    assert not st.battle.attack_negated                  # 於「効果の使用」的最後才無效
+    pass_effects(g)
+    assert bool([e for e in g.events if e["type"] == "attack_negated" and e.get("source") == "S-069"]) == negated
 
 
 @pytest.mark.parametrize("pick_book", [True, False])
@@ -1528,7 +1530,7 @@ def test_s106_negates_and_turns_own_page():
     to_battle(g, 0)
     pos1 = st.players[1].pos
     attack(g, 2, defend_page=2)
-    assert st.battle.attack_negated and st.players[1].pos == pos1 + 2
+    assert not st.battle.attack_negated and st.players[1].pos == pos1   # 於「効果の使用」的最後才解決
     pass_effects(g)
     assert st.battle is None and st.players[1].pos == pos1 + 2
 

@@ -36,7 +36,8 @@ RESERVED_KINDS = frozenset({
 })
 
 # SpellRider 中可以傳效果樹的掛鉤(其餘欄位是旗標或數值查詢,不是效果)
-RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged", "on_counter", "on_protected")
+RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged", "on_counter", "on_protected",
+                    "on_effects_end")
 
 CHOICE_KEY = "tree_choice"   # Choose 建立的 pending:引擎只依此鍵把回應交給 resume
 CONT_KEY = "tree_cont"       # Coin / Standby 的 callback payload,只由 effect_tree_resume 讀取
@@ -1011,6 +1012,7 @@ class NextStartPhase:
     """下一個開始階段;own=True 時為效果擁有者的下一個開始階段(M-067「次の自分のターンのスタートフェイズ」)。"""
     kind: ClassVar[str] = "start_phase"
     own: bool = False
+
 
 
 # ================================================================ 停點節點
@@ -2868,14 +2870,27 @@ class RememberOpponentMamodo(Effect):
 
 
 @dataclass(frozen=True)
-class NegateAttackAtEffectsEnd(Effect):
-    """於「効果の使用」的最後(雙方都 pass、魔力勝負前)使攻擊無效(S-021);由 engine._resolve_showdown 執行,
-    防禦已被無效時不生效。"""
+class AttackNotNegated:
+    """本場戰鬥的攻擊尚未被無效(S-106「そうしたなら」:攻擊已被其他效果無效時,這張沒有使它無效)。"""
+
+    def test(self, game, ctx) -> bool:
+        battle = game.state.battle
+        return battle is not None and not battle.attack_negated
+
+
+@dataclass(frozen=True)
+class FamilyNoDamageThisTurn(Effect):
+    """本回合自己場上 family 家族的魔物不受傷害(S-095,【ステイ】;以解決當下在場的魔物為對象)。"""
+    family: str = ""
 
     def run(self, rt, ctx, path):
-        battle = rt.game.state.battle
-        if battle is not None:
-            battle.data["negate_at_effects_end"] = {"source": ctx["source"], "player": ctx["player"]}
+        from ..engine import family
+        from ..state import DUR_TURN
+        player = ctx["player"]
+        for s in rt.game.state.players[player].slots:
+            if family(rt.game, s) == self.family:
+                add_modifier(rt.game, rt.batch, kind="no_damage", source=ctx["source"], owner=player,
+                             duration=DUR_TURN, target_player=player, target_slot=s.uid)
         return True
 
 
@@ -3974,6 +3989,6 @@ def rider_hook(number: str, hook: str, tree: Effect):
                        {"player": defender, "amount": amount, "source": number})
         return on_defense_damaged
 
-    def handler(game, batch, player):     # on_damage / on_win / on_counter / on_protected
+    def handler(game, batch, player):     # on_damage / on_win / on_counter / on_protected / on_effects_end
         run_effect(game, batch, effect_id, {"player": player, "source": number})
     return handler
