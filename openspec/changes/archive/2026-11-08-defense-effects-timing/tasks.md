@@ -14,7 +14,7 @@
 
 - [x] 3.1 調整以「宣告後攻擊立即無效」為前提的既有測試;快速測試組與相關瀏覽器測試;`openspec validate defense-effects-timing --strict`。(新測試 11 項修正前全部失敗;快速組 1708 項;相關瀏覽器測試 71 項;改寫 10 個舊測試為新時機:test_cards 3、test_effect_characterization 5、test_level3 2)
 - [x] 3.2 reconciliation:`card-effects/design.md`(行為決定與理由:防禦效果的解決時機)、`game-engine/design.md`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。(2026-11-08 使用者同意歸檔)
 
 ## Workflow follow-up
 
