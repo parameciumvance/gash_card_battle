@@ -28,4 +28,4 @@
 
 - [x] 3.1 跑快速測試組、相關瀏覽器測試與新的 slow 測試;執行 `openspec validate season4-events-b --strict`。(新測試 22 項與瀏覽器 2 項,實作前全部失敗,對照組 1 項除外;快速組 1863 項;相關瀏覽器測試 101 項;自我對戰 9 局)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`、capability-map。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
