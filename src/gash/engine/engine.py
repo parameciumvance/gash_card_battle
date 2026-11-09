@@ -2411,6 +2411,8 @@ def _jammer_holders(game: Game, player: int, on: str):
             spec = reg.JAMMER.get(number) if number else None
             if spec is None or spec["on"] != on:
                 continue
+            if game.state.battle is not None and not spec.get("in_battle"):
+                continue                              # 戰鬥中只能使用帶戰鬥圖示的效果(規則頁「アイコン」)
             if spec["per_turn"] is not None and uses_this_turn(ps, f"{zone}:{number}") >= spec["per_turn"]:
                 continue
             if ps.mp < spec["mp_cost"]:

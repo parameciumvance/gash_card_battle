@@ -127,17 +127,29 @@ def test_event_without_battle_icon_rejected_in_battle():
     assert code(g, {"type": "use_book_card", "player": 1, "page": 2}) == "battle.invalid"
 
 
-def test_e053_negated_by_m032():
-    # 對手的ジャマー(M-032:事件卡)照常可用;無效後還原到使用前
-    g = _e053(p0=("M-001", "S-001"))
+@pytest.mark.parametrize("jammer", ["M-032", "Ex-034"])
+def test_e053_not_jammable_in_battle(jammer):
+    # バトル中には「バトル効果」「バトル防御」「バトル」アイコンが付いた効果しか使えません:干擾不能在戰鬥中用
+    g = _e053()
     st = g.state
-    add_slot(g, 0, "M-032")
+    if jammer == "M-032":
+        add_slot(g, 0, "M-032")
+    else:
+        add_slot(g, 0, "Ex-027", partner="Ex-034")
     use_e053(g)
-    assert st.pending.kind == "jammer_negate" and st.pending.player == 0
-    choose(g, True)
-    assert st.battle is not None and not st.battle.attack_negated
-    assert not st.players[1].slots[0].injured
-    assert st.pending is None and st.battle.data["effect_turn"] == 0
+    assert st.pending is None and st.battle.attack_negated
+    assert st.battle.data["effect_turn"] == 0
+
+
+def test_jammers_not_available_in_battle():
+    # M-026 / M-065 也一樣(game-engine「ジャマー效果」);非戰鬥中照常
+    from gash.engine.engine import _jammer_holder
+    g = _e053()
+    for number in ("M-026", "M-065"):
+        add_slot(g, 0, number)
+    assert _jammer_holder(g, 0, "mamodo_effect") is None and _jammer_holder(g, 0, "mp_reduced") is None
+    g.state.battle = None
+    assert _jammer_holder(g, 0, "mamodo_effect") is not None and _jammer_holder(g, 0, "mp_reduced") is not None
 
 
 # ---------------------------------------------------------------- 效果編號

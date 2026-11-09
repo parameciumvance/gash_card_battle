@@ -1347,7 +1347,7 @@ def test_data_registrations_reject_duplicates(monkeypatch):
     assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2, "per_turn": 1}
     reg.jammer("T-960", mp_cost=2)
     assert reg.JAMMER["T-960"] == {"mp_cost": 2, "discard_self": False, "on": "mamodo_effect", "per_turn": 1,
-                                   "coin": False, "redo_cost": None}
+                                   "coin": False, "redo_cost": None, "in_battle": False}
     for call in (lambda: reg.jammer("T-960", mp_cost=1),
                  lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
                  lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):

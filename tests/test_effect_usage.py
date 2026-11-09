@@ -3,6 +3,8 @@
 規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括取消
 戰鬥中使用的攻擊與防禦;規則頁「エンドフェイズ」效果解決在強制翻頁之前。
 """
+import pytest
+
 from gash.api.views import snapshot
 from gash.engine.engine import submit
 from tests.test_level2 import book, mk, to_battle
@@ -82,7 +84,36 @@ def test_mamodo_defense_once_per_turn():
 
 # ---------------------------------------------------------------- M-026 無效魔物效果攻擊 / 防禦
 
-def test_m026_negates_mamodo_attack():
+def test_m026_not_offered_for_mamodo_attack_in_battle():
+    # 魔物效果攻擊使用後即「バトル・イン」:戰鬥中只能使用帶戰鬥圖示的效果,干擾不能用(規則頁「アイコン」)
+    g, armor = _armor(p1=("M-026",))
+    st = g.state
+    mamodo_attack(g, armor)
+    assert st.pending is None and st.battle.step == "defense" and not st.battle.attack_negated
+
+
+def test_m026_not_offered_for_mamodo_defense_in_battle():
+    g, _ = mk(book("M-026", "S-001"), book("M-039"))
+    st = g.state
+    gash = add_slot(g, 0, "M-001")
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    battle_in(g, 2, gash)
+    danny = st.players[1].slots[0]
+    submit(g, {"type": "declare_defense", "player": 1, "mode": "mamodo", "slot_uid": danny.uid})
+    assert st.pending is None and not st.battle.defense_negated and st.battle.step == "effects"
+
+
+
+@pytest.fixture
+def battle_jammer(monkeypatch):
+    """假設的戰鬥中可用干擾:目前沒有這種卡(干擾圖示的效果戰鬥中不能用),以 M-026 標 in_battle 驗證
+    引擎為未來保留的戰鬥中攻防無效化流程(_offer_battle_jammer)。"""
+    from gash.engine.effects import registry as reg
+    monkeypatch.setitem(reg.JAMMER, "M-026", {**reg.JAMMER["M-026"], "in_battle": True})
+
+
+def test_m026_negates_mamodo_attack(battle_jammer):
     g, armor = _armor(p1=("M-026",))
     st = g.state
     pos1 = st.players[1].pos
@@ -97,7 +128,7 @@ def test_m026_negates_mamodo_attack():
     assert code(g, {"type": "declare_attack", "player": 0, "mode": "mamodo", "slot_uid": armor.uid}) == "attack.used"
 
 
-def test_m026_skip_keeps_mamodo_attack():
+def test_m026_skip_keeps_mamodo_attack(battle_jammer):
     g, armor = _armor(p1=("M-026",))
     st = g.state
     pos1 = st.players[1].pos
@@ -109,7 +140,7 @@ def test_m026_skip_keeps_mamodo_attack():
     assert st.players[1].pos == pos1 + 2 * 2
 
 
-def test_m026_chain_restores_mamodo_attack():
+def test_m026_chain_restores_mamodo_attack(battle_jammer):
     g, armor = _armor(p1=("M-026",))
     st = g.state
     add_slot(g, 0, "M-026")
@@ -124,7 +155,7 @@ def test_m026_chain_restores_mamodo_attack():
     assert st.players[1].pos == pos1 + 2 * 2
 
 
-def test_m026_negates_mamodo_defense():
+def test_m026_negates_mamodo_defense(battle_jammer):
     g, _ = mk(book("M-026", "S-001"), book("M-039"))
     st = g.state
     gash = add_slot(g, 0, "M-001")
