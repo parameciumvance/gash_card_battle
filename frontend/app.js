@@ -3139,6 +3139,8 @@ function choiceLabel(opt, results) {
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
     case "discard_opponent_partner": return t("choice.discard_opponent_partner");
+    case "negated_effect":   // E-052:這回合被無效的自己的效果
+      return t("choice.negated_effect", { card: cname(opt.card), kind: t(`choice.negated_effect.kind.${opt.kind}`) });
     case "end_review": return t("choice.end_review");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
@@ -4147,6 +4149,7 @@ function logLine(ev) {
     case "modifier_added": return t("log.modifier_added", { card: cname(ev.source) || ev.source });
     case "effect_applied": return t("log.effect_applied", { source: cname(ev.source) || ev.source });
     case "effect_negated": return t("log.effect_negated", { ...P, source: cname(ev.source), card: cname(ev.negated) });
+    case "effect_undone": return t("log.effect_undone", { ...P, card: cname(ev.card), mp: ev.mp });   // E-052
     case "effect_redone": return t("log.effect_redone", { ...P, source: cname(ev.source), card: cname(ev.card) });
     case "battle_ended": return t("log.battle_ended");
     case "choice_required": return t("log.choice_required", P);

@@ -20,7 +20,7 @@ MJ12 = [f"MJ-{i:03d}" for i in range(1, 7)]                # LEVEL:4 的 MJ12 �
 SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA + MJ12
 DX = ["Ex-100", "Ex-101"]                                   # 第 3 賽季補收:DX赤い魔本附錄
 NEW = SEASON4 + DX
-IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A) | set(EVENTS_B)   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
+IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A) | set(EVENTS_B) | {"E-052"}   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
 
 
 def test_numbers_complete():
@@ -37,7 +37,7 @@ def test_new_cards_pending():
     assert not IMPLEMENTED & pending_cards()
 
 
-@pytest.mark.parametrize("number", ["M-070", "E-052", "Ex-051"])
+@pytest.mark.parametrize("number", ["M-070", "Ex-069", "Ex-051"])
 def test_room_with_new_card_rejected(number):
     pages = list(load_deck(DATA_DIR / "decks/level1.json", card_db()).pages)
     pages[20] = number

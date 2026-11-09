@@ -166,3 +166,21 @@ negated                                                                ← 無�
 - 效果中途造成傷害再續行(`DamageOwnMamodoThen`):傷害 ctx 帶 `after: "effect_tree_resume"` 與續體,`_finish_damage` 在傷害流程(含保護選擇)結束時續行效果樹;同步結束時在 `run` 之中就已續行,所以 `run` 一律回傳 False。
 - 效果編號:`GameState.use_seq` 配發、`current_use` 是解決中的編號(`tree._in_use` 設定並還原外層);`run_effect` 與 `resume` 都經過它,ctx 的 `use_id` 隨續體保存。`add_modifier` / `schedule_standby` 記在 `Modifier.use_id` / `Standby.use_id`,不放進 `data`。效果樹以外(引擎直接建立)的紀錄沒有編號。`SeparateEffects` 讓「●」列出的獨立效果各自配發編號,各步只能同步完成。
 - 提升魔力的判斷(Ex-070):`engine.POWER_UP_MODIFIERS` / `POWER_UP_STANDBYS` 依種類判斷;效果樹的 `Standby` 看觸發時要解決的子樹有沒有標 `raises_power` 且 amount > 0 的節點(`tree.standby_raises_power`)。新增加魔力的持續效果 / 待命種類或節點時要一併登記,否則 Ex-070 取除不了。
+
+## 被無效的效果與 E-052(season4-e052)
+
+- 使用紀錄(`engine.usage_record`):`{card, kind, mp, returns, undo}`。
+  - 事件卡、啟動效果、借用的搭檔效果、非戰鬥戰術:交給 `_queue_action_jammer(..., usage=)`,存在 `game.jammer["usage"]`。
+  - 攻擊與防禦:存在 `battle.data["attack_usage"]` / `["defense_usage"]`。
+  - 自己的干擾:連鎖時的詢問資料帶 `usage`。
+  - `returns` 以 `_discard_return` 在棄掉之前記下原位。
+- 記錄時機:
+  - 干擾無效化成立後(還原快照之後)`record_negated`。快照還原會換掉 `players`,所以一定要在還原之後記。
+  - 連鎖用的快照是在記錄之前取的,所以連鎖成功時,原先被無效的那筆自然消失。
+  - 戰鬥:`_end_battle` 依 `battle.data["<side>_negated_owner"]` 只記對手造成的無效。`NegateAttack`、`NegateOpponentSpell` 與戰鬥中的干擾都會設定這個值。
+- `PlayerState.negated_this_turn` 在回合結束清空。紀錄的 `id` 用 `next_uid` 配發,當作 E-052 的選項值。
+- 還原(`undo_negated_effect`):
+  - 退回 MP 的事件 `mp_changed` 帶 `reason: "refund"`,`_record_action` 不把它算成效果使 MP 增加(Ex-025)。
+  - 回場的魔物用原 uid;原欄位空著時放回原欄。
+  - 不發 `card_played`,所以「場に出たとき」不觸發。
+- 戰術名稱 / 屬性紀錄改為清單(可重複),還原時只移除一筆。`_mark_used` 回傳實際記入的 key(第 2 次以後是 `key#n`)。

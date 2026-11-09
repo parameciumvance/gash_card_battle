@@ -898,5 +898,15 @@
   "error.spell.not_spell": "That card is not a SPELL card",
   "error.spell.restricted": "You cannot use SPELLs now",
   "error.spell.timing": "This NO BATTLE SPELL cannot be used now",
-  "error.spell.used": "This SPELL was already used this turn"
+  "error.spell.used": "This SPELL was already used this turn",
+  "choice.title.pick_negated_effect": "Choose an effect to treat as unused",
+  "choice.negated_effect": "{kind} of “{card}”",
+  "choice.negated_effect.kind.event": "Event card",
+  "choice.negated_effect.kind.ability": "Effect",
+  "choice.negated_effect.kind.borrowed": "Borrowed Partner effect",
+  "choice.negated_effect.kind.nonbattle_spell": "Non-battle Spell",
+  "choice.negated_effect.kind.jammer": "CUT-IN",
+  "choice.negated_effect.kind.attack": "Attack",
+  "choice.negated_effect.kind.defense": "Defense",
+  "log.effect_undone": "{player} treats “{card}” as unused ({mp} MP returned)"
 }

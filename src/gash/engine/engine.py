@@ -22,7 +22,7 @@ from .state import (
     NO_ATTACK, NO_DEFENSE_SPELL_SLOT, NO_EFFECTS_AND_SPELLS, NO_EVENTS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS,
     EFFECTS_LOCKED, NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, FieldCard, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
-    place_slot,
+    free_column, place_slot, slot_columns,
 )
 
 
@@ -640,7 +640,8 @@ def _record_action(game: Game, batch: list[dict], command: dict) -> None:
     player = command.get("player")
     if command.get("type") == "flip_pages" or player not in (0, 1):
         return
-    gain = sum(e["delta"] for e in batch if e["type"] == "mp_changed" and e["player"] == player and e["delta"] > 0)
+    gain = sum(e["delta"] for e in batch if e["type"] == "mp_changed" and e["player"] == player and e["delta"] > 0
+               and e.get("reason") != REFUND_REASON)
     if gain > 0:
         st.players[player].last_effect_mp_gain = {"amount": gain, "seq": st.action_seq}
 
@@ -974,6 +975,8 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     if spec.per_game:
         st.players[player].used_per_game.add(number)
     pay_mp(game, batch, player, spec.mp_cost, f"ability:{number}")
+    usage = usage_record(number, "ability", spec.mp_cost, {"ability": key, "per_game": spec.per_game and number},
+                         [_discard_return(game, player, slot, zone)] if spec.mode == "discard" else None)
     if spec.mode == "discard":
         if zone == "partner":
             discard_attached_partner(game, batch, player, slot, reason="cost")
@@ -987,7 +990,7 @@ def _use_field_ability(game: Game, batch: list[dict], player: int, command: dict
     start = len(batch)
     spec.handler(game, batch, player, slot)
     _check_victory(game, batch)
-    _queue_action_jammer(game, batch, player, number, snapshot, ons, start)
+    _queue_action_jammer(game, batch, player, number, snapshot, ons, start, usage=usage)
 
 
 def _use_field_card_ability(game: Game, batch: list[dict], player: int, command: dict, in_battle: bool) -> None:
@@ -1036,7 +1039,8 @@ def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: 
     snapshot = _jammer_snapshot(game, player, ())   # M-065:借用的搭檔效果使對手 MP 減少時
     start = len(batch)
     spec.handler(game, batch, player, None)
-    _queue_action_jammer(game, batch, player, number, snapshot, (), start)
+    _queue_action_jammer(game, batch, player, number, snapshot, (), start,
+                         usage=usage_record(number, "borrowed", spec.mp_cost, {"borrowed": borrow.source}))
     _check_victory(game, batch)
 
 
@@ -1090,7 +1094,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         start = len(batch)
         handler(game, batch, player, page)
         _check_victory(game, batch)
-        _queue_action_jammer(game, batch, player, number, snapshot, ("event",), start, page=page)
+        _queue_action_jammer(game, batch, player, number, snapshot, ("event",), start, page=page,
+                             usage=usage_record(number, "event", cost, {"events": 1}))
     elif card.type == SPELL:
         if card.effect_icon != "nonbattle":
             raise IllegalCommand("spell.not_nonbattle", "此戰術卡沒有非戰鬥圖示")
@@ -1135,7 +1140,10 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
         start = len(batch)
         handler(game, batch, player, user.uid if user else None)
         _check_victory(game, batch)
-        _queue_action_jammer(game, batch, player, number, snapshot, (), start)
+        _queue_action_jammer(game, batch, player, number, snapshot, (), start,
+                             usage=usage_record(number, "nonbattle_spell", cost,
+                                                {"nonbattle_page": page, "spell_name": card.name_ja,
+                                                 "spell_attr": card.attr_name}))
     else:
         raise IllegalCommand("book.not_usable", "此卡不能留在魔書中使用")
 
@@ -1233,6 +1241,113 @@ def exhausted_spell_pages(game: Game, player: int) -> set[int]:
             and _reuse_standby(game, player, page) is None}
 
 
+# ---------------------------------------------------------------- 使用紀錄與被無效的效果(game-engine「被無效的效果」)
+
+def usage_record(card: str, kind: str, mp: int, undo: dict, returns: list | None = None) -> dict:
+    """一次可被無效的使用:實際支付的 MP、當作費用棄掉的卡的原位(returns)、要重設的使用紀錄(undo)。"""
+    return {"card": card, "kind": kind, "mp": mp, "returns": list(returns or []), "undo": dict(undo)}
+
+
+def _spell_usage(card: CardDef, kind: str, page: int, mp: int) -> dict:
+    return usage_record(card.number, kind, mp, {"spell_page": page, "spell_name": card.name_ja,
+                                                "spell_attr": card.attr_name})
+
+
+def _discard_return(game: Game, player: int, slot: MamodoSlot, zone: str) -> dict:
+    """當作費用棄掉前記下原位:魔物為整疊(含搭檔、負傷狀態、欄位),搭檔為原本裝的魔物。"""
+    if zone == "partner":
+        return {"zone": "partner", "card": slot.partner, "slot_uid": slot.uid,
+                "partner_owner": slot.partner_owner}
+    column = slot_columns(game.state.players[player].slots).get(slot.uid)
+    return {"zone": "mamodo", "uid": slot.uid, "stack": list(slot.stack), "partner": slot.partner,
+            "partner_owner": slot.partner_owner, "injured": slot.injured, "column": column}
+
+
+def record_negated(game: Game, player: int, usage: dict | None) -> None:
+    """player 的使用被對手無效:記進這回合被無效的效果(配發選項用的編號)。"""
+    if usage is None:
+        return
+    rec = copy.deepcopy(usage)
+    rec["id"] = game.state.next_uid()
+    game.state.players[player].negated_this_turn.append(rec)
+
+
+def undo_negated_effect(game: Game, batch: list[dict], player: int, rec_id) -> None:
+    """E-052:把這回合被無效的效果當作沒有使用過(card-effects「第 4 賽季事件卡 E-052」)。
+    退回費用 MP(「もどってくる」不是「ふやす」:不受「MPをふやせない」限制,也不算效果使 MP 增加)、
+    費用棄掉的卡回到原位(回不到時留在棄牌區;回場不算「場に出た」)、重設使用紀錄。"""
+    st = game.state
+    ps = st.players[player]
+    rec = next((r for r in ps.negated_this_turn if r["id"] == rec_id), None)
+    if rec is None:
+        return
+    ps.negated_this_turn.remove(rec)
+    if rec["mp"]:
+        ps.mp += rec["mp"]
+        game.emit(batch, "mp_changed", player=player, delta=rec["mp"], mp=ps.mp, reason=REFUND_REASON)
+    returned = [card for r in rec["returns"] for card in _return_cost_card(game, player, r)]
+    undo = rec["undo"]
+    if undo.get("events"):
+        ps.events_used_this_turn = max(0, ps.events_used_this_turn - undo["events"])
+    if undo.get("ability"):
+        ps.used_abilities.discard(undo["ability"])
+    if undo.get("per_game"):
+        ps.used_per_game.discard(undo["per_game"])
+    if undo.get("borrowed"):
+        for m in st.modifiers:
+            if m.kind == "borrow_partner" and m.owner == player and m.source == undo["borrowed"] and m.data.get("used"):
+                m.data["used"] = False
+                break
+    if undo.get("nonbattle_page") is not None:
+        ps.used_nonbattle_pages.discard(undo["nonbattle_page"])
+    page = undo.get("spell_page")
+    if page is not None and ps.spell_page_uses.get(page):
+        ps.spell_page_uses[page] -= 1
+        if not ps.spell_page_uses[page]:
+            del ps.spell_page_uses[page]
+    for key, records in (("spell_name", ps.spell_names_by_turn), ("spell_attr", ps.spell_attrs_by_turn)):
+        used = records.get(st.turn_no, [])
+        if undo.get(key) in used:
+            used.remove(undo[key])
+    game.emit(batch, "effect_undone", player=player, card=rec["card"], kind=rec["kind"], mp=rec["mp"],
+              returned=returned)
+
+
+REFUND_REASON = "refund"   # E-052 退回的費用:不是效果使 MP 增加(_record_action 不計)
+
+
+def _return_cost_card(game: Game, player: int, r: dict) -> list[str]:
+    """費用棄掉的卡回到原位;回不到時留在棄牌區。回傳回來的卡。"""
+    st = game.state
+    ps = st.players[player]
+    if r["zone"] == "partner":
+        owner = st.players[r["partner_owner"] if r["partner_owner"] is not None else player]
+        target = st.slot_by_uid(player, r["slot_uid"])
+        if target is None or target.partner is not None or r["card"] not in owner.discard:
+            return []
+        owner.discard.remove(r["card"])
+        target.partner, target.partner_owner = r["card"], r["partner_owner"]
+        return [r["card"]]
+    top = r["stack"][-1]
+    if (len(ps.slots) >= MAX_FIELD_MAMODO or same_name_copies(game, player, game.db[top]) >= reg.MAX_COPIES.get(top, 1)
+            or not all(n in ps.discard for n in r["stack"])):
+        return []
+    for n in r["stack"]:
+        ps.discard.remove(n)
+    partner = r["partner"]
+    p_owner = st.players[r["partner_owner"] if r["partner_owner"] is not None else player]
+    if partner is not None and partner in p_owner.discard:
+        p_owner.discard.remove(partner)
+    else:
+        partner = None
+    slot = MamodoSlot(uid=r["uid"], stack=list(r["stack"]), injured=r["injured"], partner=partner,
+                      partner_owner=r["partner_owner"] if partner else None)
+    used = set(slot_columns(ps.slots).values())
+    slot.column = r["column"] if r["column"] is not None and r["column"] not in used else free_column(ps.slots)
+    ps.slots.append(slot)
+    return list(r["stack"]) + ([partner] if partner else [])
+
+
 def _record_spell_use(game: Game, player: int, page: int) -> None:
     st = game.state
     ps = st.players[player]
@@ -1246,9 +1361,9 @@ def _record_spell_attr(game: Game, player: int, card: CardDef) -> None:
     ps = st.players[player]
     ps.spell_attrs_by_turn = {t: a for t, a in ps.spell_attrs_by_turn.items() if t >= st.turn_no - 1}
     if card.attr_name:
-        ps.spell_attrs_by_turn.setdefault(st.turn_no, set()).add(card.attr_name)
+        ps.spell_attrs_by_turn.setdefault(st.turn_no, []).append(card.attr_name)
     ps.spell_names_by_turn = {t: n for t, n in ps.spell_names_by_turn.items() if t >= st.turn_no - 1}
-    ps.spell_names_by_turn.setdefault(st.turn_no, set()).add(card.name_ja)
+    ps.spell_names_by_turn.setdefault(st.turn_no, []).append(card.name_ja)
 
 
 def _spell_usable_by(game: Game, player: int, slot: MamodoSlot, card: CardDef) -> bool:
@@ -1519,9 +1634,12 @@ def uses_this_turn(ps, key: str) -> int:
     return sum(1 for k in ps.used_abilities if k == key or k.startswith(key + "#"))
 
 
-def _mark_used(ps, key: str) -> None:
+def _mark_used(ps, key: str) -> str:
+    """記下 1 次使用,回傳實際記入的 key(E-052 還原時移除它)。"""
     n = uses_this_turn(ps, key)
-    ps.used_abilities.add(key if n == 0 else f"{key}#{n + 1}")
+    used = key if n == 0 else f"{key}#{n + 1}"
+    ps.used_abilities.add(used)
+    return used
 
 
 def _granted_fighting(game: Game, player: int, slot: MamodoSlot):
@@ -1700,7 +1818,8 @@ def _prepare_spell_attack(game: Game, batch: list[dict], bi: dict) -> AttackStar
     slot = st.slot_by_uid(attacker, slot_uid)
     return AttackStart(
         battle={"attack_page": page, "attack_spell": number, "attack_slot": slot_uid},
-        data=_extra_cost_data("attack", number, extra), started={"spell": number, "slot": slot_uid}, is_spell=True,
+        data={**_extra_cost_data("attack", number, extra),
+              "attack_usage": _spell_usage(card, "attack", page, cost + extra)}, started={"spell": number, "slot": slot_uid}, is_spell=True,
         spell_names=spell_names(game, card, using_slot), discount=discount,
         untargeted_damage=spell_has_untargeted_damage(card),
         slot_uid=slot_uid, family=family(game, slot) if slot else None)
@@ -1710,12 +1829,14 @@ def _prepare_mamodo_attack(game: Game, batch: list[dict], bi: dict) -> AttackSta
     """魔物效果攻擊(M-027):合計魔力與傷害為卡片指定固定值,費用為固定 MP。"""
     attacker, slot_uid = bi["attacker"], bi["slot"]
     slot, spec = _validate_mamodo_attack(game, attacker, slot_uid)  # 插入行動可能已改變盤面
-    _mark_used(game.state.players[attacker], spec["key"])
+    ps = game.state.players[attacker]
+    key = _mark_used(ps, spec["key"])
     pay_mp(game, batch, attacker, spec["mp_cost"], spec["key"])
     return AttackStart(
         battle={"attack_page": None, "attack_spell": None, "attack_slot": slot_uid},
         data={"attack_fixed_power": spec["power"], "attack_fixed_source": slot.top,
-              "attack_fixed_damage": spec["damage"]},
+              "attack_fixed_damage": spec["damage"],
+              "attack_usage": usage_record(slot.top, "attack", spec["mp_cost"], {"ability": key})},
         started={"spell": None, "mamodo": slot.top, "slot": slot_uid}, is_spell=False,
         slot_uid=slot_uid, family=family(game, slot))
 
@@ -1976,6 +2097,7 @@ def _declare_mamodo_defense(game: Game, batch: list[dict], player: int, slot_uid
         raise IllegalCommand("defense.mp", "MP 不足")
     st.players[player].used_abilities.add(spec["key"])
     pay_mp(game, batch, player, spec["mp_cost"], spec["key"])
+    battle.data["defense_usage"] = usage_record(slot.top, "defense", spec["mp_cost"], {"ability": spec["key"]})
     battle.defense_slot = slot.uid
     battle.defense_declared = True
     battle.data["defense_fixed_power"] = spec["power"]
@@ -2009,6 +2131,7 @@ def _finish_defense_declaration(game: Game, batch: list[dict], decl: dict) -> No
     extra = _affordable_extra(game, player, cost, decl.get("extra", 0), card)
     _record_spell_use(game, player, page)
     pay_mp(game, batch, player, cost + extra, f"spell:{number}")
+    battle.data["defense_usage"] = _spell_usage(card, "defense", page, cost + extra)
     for k, v in _extra_cost_data("defense", number, extra).items():
         battle.data.setdefault(k, [] if isinstance(v, list) else 0)
         battle.data[k] = battle.data[k] + v
@@ -2556,6 +2679,7 @@ def _battle_jammer_use(game: Game, batch: list[dict], offer: dict) -> None:
     setattr(battle, f"{side}_negated", offer["negate"])
     if offer["negate"]:
         battle.data[f"{side}_negated_by"] = number
+        battle.data[f"{side}_negated_owner"] = player
     else:
         battle.data.pop(f"{side}_negated_by", None)
     game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
@@ -2600,6 +2724,8 @@ def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
     # 連鎖:無效化本身是「魔物の効果」,對手可再以回應魔物效果的ジャマー(M-026)使它失效
     # → 以「已支付本次費用、尚未還原」的狀態當快照
     chain = None
+    own_usage = usage_record(number, "jammer", spec["mp_cost"], {"ability": f"mamodo:{number}"},
+                             [_discard_return(game, player, slot, "mamodo")] if spec["discard_self"] else None)
     if _jammer_holder(game, 1 - player) is not None:
         chain = copy.deepcopy(st)
         chain.players[player].mp -= spec["mp_cost"]
@@ -2616,9 +2742,11 @@ def _jammer_resolver(game: Game, batch: list[dict], value, data) -> None:
             _discard_slot(game, batch, player, restored, reason="cost")
     game.emit(batch, "ability_used", player=player, card=number, slot=slot_uid, zone="mamodo")
     game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
+    record_negated(game, 1 - player, offer.get("usage"))
     _jammer_action_taken(game, player)
     if chain is not None:
-        game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect"}
+        game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect",
+                       "usage": own_usage}
 
 
 reg.CHOICE_RESOLVERS["jammer_negate"] = _jammer_resolver
@@ -2666,8 +2794,10 @@ def _jammer_coin_resolver(game: Game, batch: list[dict], results, data) -> None:
     _restore_effect_state(st, offer["snapshot"])
     _replay_coin_journal(game, data.get("journal", ()))
     game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
-    if chain is not None:
-        game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect"}
+    record_negated(game, 1 - player, offer.get("usage"))
+    if chain is not None:   # M-065 的費用 0、每回合不限次數:沒有要重設的使用紀錄
+        game.jammer = {"player": 1 - player, "negated": number, "snapshot": chain, "on": "mamodo_effect",
+                       "usage": usage_record(number, "jammer", reg.JAMMER[number]["mp_cost"], {})}
 
 
 reg.CHOICE_RESOLVERS["jammer_coin"] = _jammer_coin_resolver
@@ -2715,6 +2845,7 @@ def _redo_event(game: Game, batch: list[dict], offer: dict, number: str, slot_ui
         delta, ps.mp = -ps.mp, 0
         game.emit(batch, "mp_changed", player=opp, delta=delta, mp=0, reason=f"ability:{number}")
     game.emit(batch, "effect_negated", player=player, source=number, negated=offer["negated"])
+    record_negated(game, opp, offer.get("usage"))
 
 
 def _end_battle(game: Game, batch: list[dict]) -> None:
@@ -2725,6 +2856,11 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
     if st.battle is not None and not st.battle.attack_negated:
         for sb in after:
             _apply_after_battle(game, batch, sb)
+    b = st.battle
+    if b is not None:   # 被對手的效果無效的攻擊 / 防禦(E-052;M-055 反面是自己的效果,不算)
+        for side, user in (("attack", b.attacker), ("defense", 1 - b.attacker)):
+            if getattr(b, f"{side}_negated") and b.data.get(f"{side}_negated_owner") == 1 - user:
+                record_negated(game, user, b.data.get(f"{side}_usage"))
     st.modifiers = [m for m in st.modifiers if m.duration != DUR_BATTLE]
     st.standby = [s for s in st.standby if s.data.get("expires") != "battle"]   # 「このバトル中」的待命(P-006)
     st.battle = None
@@ -3324,6 +3460,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.used_abilities.clear()
         p.used_nonbattle_pages.clear()
         p.events_used_this_turn = 0
+        p.negated_this_turn.clear()
         p.dealt_damage_this_turn = False
         p.mp_reduced_by_opponent = 0
         p.start_phase_mp_gain = 0

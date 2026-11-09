@@ -1378,6 +1378,7 @@ class NegateAttack(Effect):
             return True
         battle.attack_negated = True
         battle.data["attack_negated_by"] = ctx["source"]
+        battle.data["attack_negated_owner"] = ctx["player"]   # 被無效的效果(E-052)只算對手的無效
         rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
         return True
 
@@ -2293,10 +2294,12 @@ class NegateOpponentSpell(Effect):
         if side == "attack":
             b.attack_negated = True
             b.data["attack_negated_by"] = ctx["source"]
+            b.data["attack_negated_owner"] = ctx["player"]
             rt.game.emit(rt.batch, "attack_negated", source=ctx["source"], player=ctx["player"])
         elif side == "defense":
             b.defense_negated = True
             b.data["defense_negated_by"] = ctx["source"]
+            b.data["defense_negated_owner"] = ctx["player"]
             rt.game.emit(rt.batch, "defense_negated", source=ctx["source"], player=ctx["player"])
         return True
 
@@ -3203,6 +3206,31 @@ class OwnDiscardMamodoCards:
     def value(self, game, ctx) -> int:
         from ..cards import MAMODO
         return sum(1 for n in game.state.players[ctx["player"]].discard if game.db[n].type == MAMODO)
+
+
+@dataclass(frozen=True)
+class NegatedOwnEffects:
+    """選項規格:這回合被對手無效的自己的效果(game-engine「被無效的效果」;E-052)。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        return [{"value": rec["id"], "label": "negated_effect", "card": rec["card"], "kind": rec["kind"]}
+                for rec in game.state.players[ctx["player"]].negated_this_turn]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in [o["value"] for o in self.options(game, ctx)]:
+            raise IllegalCommand("choose.invalid", "須選擇這回合被無效的自己的效果")
+
+
+@dataclass(frozen=True)
+class UndoNegatedEffect(Effect):
+    """把 target 綁定的被無效的效果當作沒有使用過:退回費用 MP、費用棄掉的卡回到原位、重設使用紀錄(E-052)。"""
+    target: Ref = Ref("record")
+
+    def run(self, rt, ctx, path):
+        from ..engine import undo_negated_effect
+        undo_negated_effect(rt.game, rt.batch, ctx["player"], ctx[self.target.name])
+        return True
 
 
 @dataclass(frozen=True)

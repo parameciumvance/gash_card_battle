@@ -12,7 +12,8 @@ from ..tree import (
     DiscardChosenOpponentFieldCard, OpponentFieldCards,
     DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
     TurnOwnPagesBackOncePerTurn,
-    DamageChosenOpponentMamodo, DamageOwnMamodoThen, ForceProtectWith, NegateAttack, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
+    DamageChosenOpponentMamodo, DamageOwnMamodoThen, ForceProtectWith, NegateAttack, NegatedOwnEffects,
+    UndoNegatedEffect, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
     battle_phase_first, opponent_has_two_or_more_mamodo,
     AddPower, AddPowerPerOwnMamodo, All, Always, AnyOf, AsOpponent, AttachablePartnerPagesInOwnBook, AttachPartnerFromBookPage,
     AttachPartnerFromDiscard, AwaitBookReviewEnd, BoostPartneredMamodo, BorrowPartner, Bound,
@@ -410,6 +411,11 @@ reg.event("E-051", when=HasOptions(AttachablePartnerPagesInOwnBook()), effect=Ch
             )),
         ),
     ),
+))
+
+# 「選ぶ」:沒有被無效的效果時不能使用;非戰鬥中(沒有戰鬥圖示)、雙方的回合
+reg.event("E-052", when=HasOptions(NegatedOwnEffects()), effect=Choose(
+    NegatedOwnEffects(), bind="record", prompt="pick_negated_effect", then=UndoNegatedEffect(target=Ref("record")),
 ))
 
 # 戰鬥圖示:戰鬥中的「効果の使用」使用(引擎判斷時機)。傷害走一般流程(可保護);
