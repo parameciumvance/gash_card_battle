@@ -441,17 +441,19 @@ def max_copies(number: str, n: int):
 
 
 def jammer(number: str, *, mp_cost: int = 0, discard_self: bool = False, on: str = "mamodo_effect",
-           per_turn: int | None = 1, coin: bool = False, redo_cost: int | None = None):
+           per_turn: int | None = 1, coin: bool = False, redo_cost: int | None = None, in_battle: bool = False):
     """ジャマー效果:對手完成 on 的動作後立即詢問是否使用(支付 mp_cost;discard_self 時把這張卡棄掉)使其無效。
     on:mamodo_effect 使用「魔物的效果」(啟動型)/ event 使用事件卡 / mp_reduced 對手的行動使自己的 MP 實際減少(M-065)。
     per_turn 為每回合次數(None 不限,M-065);coin 為擲硬幣正面才無效(M-065);redo_cost 為不無效、改為還原後
-    對手追加支付再重新解決(Ex-034)。魔物卡與搭檔卡都可以;不能主動宣告(不登記為 activated)。"""
+    對手追加支付再重新解決(Ex-034)。魔物卡與搭檔卡都可以;不能主動宣告(不登記為 activated)。
+    in_battle:效果文明寫戰鬥中可用時才為 True;否則依規則頁「バトル中には…アイコンが付いた効果しか使えません」,
+    戰鬥中不能使用(game-engine「ジャマー效果」;目前的ジャマー都是 False)。"""
     if on not in ("mamodo_effect", "event", "mp_reduced"):
         raise ValueError(f"{number} 的 jammer on 須為 mamodo_effect / event / mp_reduced")
     if number in JAMMER:
         raise ValueError(f"{number} 的 jammer 已登記")
     JAMMER[number] = {"mp_cost": mp_cost, "discard_self": discard_self, "on": on, "per_turn": per_turn,
-                      "coin": coin, "redo_cost": redo_cost}
+                      "coin": coin, "redo_cost": redo_cost, "in_battle": in_battle}
 
 
 def coin_reflip(number: str, *, coins: str, mp_cost: int = 0, per_turn: int = 1):

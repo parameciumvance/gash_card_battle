@@ -119,7 +119,8 @@ negated                                                                ← 無�
 - 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
 - 「1 つの效果」以卡號計(`used_abilities` 的鍵是 `zone:卡號`):官方規則書第 20 頁在「このカードを捨て札にする→」明寫「捨て札にしたあとに、新たに同じカードナンバーのカードを場に出したとしても、そのカードの効果を使うことはできません」;「使用を宣言する→」「MPを○へらす→」只寫「1つの効果は、1ターンに1回」,同樣以卡號計是推論,使用者 2026-10-31 確認三種一致。規則頁「效果」一節也寫明相同編號的卡算同一個效果。
 - 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。效果文明示次數時以 `reg.mamodo_attack(per_turn=)` 登記(M-068 為 2);第 2 次以後記為 `"…#2"`,`uses_this_turn` 計數,快照在用滿時才標示 `"turn"`。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
-- M-026 對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
+- 戰鬥中不能使用干擾(season4-events-b,規則頁「バトル中には…アイコンが付いた効果しか使えません」):`_jammer_holders` 在戰鬥中略過 `in_battle` 不為 True 的干擾,目前所有干擾都是 False,所以下面的魔物效果攻防無效化流程只保留給效果文明寫戰鬥中可用的干擾。
+- 戰鬥中可用的干擾對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
 
 ## 保護者
 
@@ -158,3 +159,10 @@ negated                                                                ← 無�
 - 不經ジャマー快照:目前沒有ジャマー回應 MJ12 的效果(M-026 只回應魔物效果;MJ-006 是場にある效果,不能被無效)。
 - MJ-002 / MJ-005 的 modifier `side_power`(`data.side`):`side_breakdown` 的三條路徑(戰術、魔物效果攻擊、魔物效果防禦)都加,明細項 `side_power`。
 - MJ-006(`reg.mp_counter`):掛在 `reduce_opponent_mp` 實際減少之後,以及 E-004 的歸零;以層級參數實作「たがいに1回ずつ」(level 0 → 1 → 2 停)。事件 `field_card_effect`(行動記錄)。
+
+## 戰鬥中使用魔書的事件卡與效果編號(season4-events-b)
+
+- 有戰鬥圖示的事件卡(E-053):`STEP_EFFECTS` 輪到的玩家送 `use_book_card` 時,`_battle_icon_event` 確認那頁是有戰鬥圖示的事件卡,再交給 `_use_book_card`;之後的輪替比照 `use_field_ability`(pass 計數歸零,有 pending 時以 `pending_flip` 等決策解決後再換)。`_use_book_card` 對這類卡在 `STEP_EFFECTS` 以外一律 `event.timing`;`_battle_in_response` 在作廢進入戰鬥確認之前先拒絕,因為 `submit` 不會還原失敗指令已改的狀態。沒有圖示的事件卡在戰鬥中照舊 `battle.invalid`。
+- 效果中途造成傷害再續行(`DamageOwnMamodoThen`):傷害 ctx 帶 `after: "effect_tree_resume"` 與續體,`_finish_damage` 在傷害流程(含保護選擇)結束時續行效果樹;同步結束時在 `run` 之中就已續行,所以 `run` 一律回傳 False。
+- 效果編號:`GameState.use_seq` 配發、`current_use` 是解決中的編號(`tree._in_use` 設定並還原外層);`run_effect` 與 `resume` 都經過它,ctx 的 `use_id` 隨續體保存。`add_modifier` / `schedule_standby` 記在 `Modifier.use_id` / `Standby.use_id`,不放進 `data`。效果樹以外(引擎直接建立)的紀錄沒有編號。`SeparateEffects` 讓「●」列出的獨立效果各自配發編號,各步只能同步完成。
+- 提升魔力的判斷(Ex-070):`engine.POWER_UP_MODIFIERS` / `POWER_UP_STANDBYS` 依種類判斷;效果樹的 `Standby` 看觸發時要解決的子樹有沒有標 `raises_power` 且 amount > 0 的節點(`tree.standby_raises_power`)。新增加魔力的持續效果 / 待命種類或節點時要一併登記,否則 Ex-070 取除不了。

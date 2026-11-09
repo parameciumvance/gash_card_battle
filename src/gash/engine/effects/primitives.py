@@ -50,7 +50,8 @@ def add_modifier(game, batch, *, kind, source, owner, duration,
                  target_player=None, target_slot=None, amount=0, flag=None, data=None):
     m = Modifier(kind=kind, source=source, owner=owner, duration=duration,
                  created_turn=game.state.turn_no, target_player=target_player,
-                 target_slot=target_slot, amount=amount, flag=flag, data=data or {})
+                 target_slot=target_slot, amount=amount, flag=flag, data=data or {},
+                 use_id=game.state.current_use)
     game.state.modifiers.append(m)
     game.emit(batch, "modifier_added", kind=kind, source=source,
               target_player=target_player, target_slot=target_slot,
@@ -83,7 +84,7 @@ def coin_info(results) -> dict:
 
 def schedule_standby(game, batch, *, kind, source, owner, data=None):
     sb = Standby(kind=kind, source=source, owner=owner,
-                 created_turn=game.state.turn_no, data=data or {})
+                 created_turn=game.state.turn_no, data=data or {}, use_id=game.state.current_use)
     game.state.standby.append(sb)
     # 待命指定的對象(S-098 選定的戰術)一併公開,供記錄顯示
     target = {k: sb.data[k] for k in ("card", "page") if k in sb.data}

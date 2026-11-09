@@ -356,6 +356,53 @@ def remove_restrictions(game: Game, batch: list[dict], player: int, categories: 
     return sources
 
 
+# Ex-070「魔物の魔力を上げる」「術の魔力を上げる」「合計魔力を上げる」:持續效果與待命的種類 → 是否提升魔力。
+# 新增加魔力的持續效果 / 待命種類時在此加一列(card-effects「取除提升魔力的效果」)。
+# 減魔力(amount < 0)、「設為某值」(power_set:M-035 / P-011)不算。
+POWER_UP_MODIFIERS = {
+    "power": lambda m: m.amount > 0,
+    "power_partnered": lambda m: m.amount > 0,                 # E-023
+    "power_per_own_mamodo": lambda m: m.amount > 0,            # E-048
+    "attr_power": lambda m: m.amount > 0,                      # S-062
+    "spell_named": lambda m: m.data.get("power", 0) > 0,       # PR-010
+    "side_power": lambda m: m.amount > 0,                      # MJ-002 / MJ-005
+}
+POWER_UP_STANDBYS = {
+    "spell_bonus": lambda sb: sb.data.get("power_delta", 0) > 0,           # P-007 / P-023(M-008 為減)
+    "attack_spell_boost": lambda sb: sb.data.get("power", 0) > 0,          # PR-006
+    "attack_power_from_mamodo": lambda sb: True,                           # S-089
+    "after_battle": lambda sb: sb.data.get("action") == "attr_power",      # S-062(戰鬥結束時才開始)
+}
+
+
+def raises_power(entry) -> bool:
+    """持續效果(Modifier)或待命(Standby)是否為提升魔力的效果(Ex-070)。"""
+    from .effects.tree import standby_raises_power
+    if isinstance(entry, Modifier):
+        test = POWER_UP_MODIFIERS.get(entry.kind)
+        return bool(test and test(entry))
+    test = POWER_UP_STANDBYS.get(entry.kind)
+    return bool(test(entry)) if test else standby_raises_power(entry)
+
+
+def remove_power_ups(game: Game, batch: list[dict], player: int) -> list[str]:
+    """取除雙方持續或待命中的提升魔力效果;同一個效果編號的其他紀錄一併取除(整個效果取除,
+    game-engine「效果編號」)。回傳被取除效果的來源卡(Ex-070)。"""
+    st = game.state
+    hits = [e for e in (*st.modifiers, *st.standby) if raises_power(e)]
+    uses = {e.use_id for e in hits if e.use_id is not None}
+
+    def removed(e) -> bool:
+        return any(e is h for h in hits) or (e.use_id is not None and e.use_id in uses)
+
+    gone = [e for e in (*st.modifiers, *st.standby) if removed(e)]
+    st.modifiers = [m for m in st.modifiers if not removed(m)]
+    st.standby = [sb for sb in st.standby if not removed(sb)]
+    sources = list(dict.fromkeys(e.source for e in gone))
+    game.emit(batch, "power_ups_removed", player=player, sources=sources)
+    return sources
+
+
 def event_limit(game: Game, player: int) -> int:
     """本回合可使用的事件卡張數:1,或效果提高後的張數(E-029:含自己 3 張)。"""
     st = game.state
@@ -993,6 +1040,15 @@ def _use_borrowed_effect(game: Game, batch: list[dict], player: int, in_battle: 
     _check_victory(game, batch)
 
 
+def _battle_icon_event(game: Game, player: int, page) -> bool:
+    """page 是 player 魔書中有戰鬥圖示的事件卡(game-engine「戰鬥中使用魔書的事件卡」);
+    是否翻開、能否使用由 _use_book_card 判斷。"""
+    if not isinstance(page, int) or not 1 <= page <= BOOK_SIZE:
+        return False
+    card = game.db[game.state.players[player].card_at(page)]
+    return card.type == EVENT and card.effect_icon == "battle"
+
+
 def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) -> None:
     st = game.state
     page = command.get("page")
@@ -1003,6 +1059,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
     number = st.players[player].card_at(page) if any_page else _require_open_page(game, player, page)
     card = game.db[number]
     if card.type == EVENT:
+        if card.effect_icon == "battle" and (st.battle is None or st.battle.step != STEP_EFFECTS):
+            raise IllegalCommand("event.timing", "有戰鬥圖示的事件卡只能在戰鬥中的「効果の使用」使用")
         if st.players[player].events_used_this_turn >= event_limit(game, player):
             raise IllegalCommand("event.limit", "本回合已達事件卡的使用上限")
         if card.ad == "A" and player != st.turn_player:
@@ -1567,6 +1625,8 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         _start_battle(game, batch, bi)
         return
     if ctype in ("play_card", "use_field_ability", "use_book_card", "use_action_effect"):
+        if ctype == "use_book_card" and _battle_icon_event(game, player, command.get("page")):
+            raise IllegalCommand("event.timing", "有戰鬥圖示的事件卡只能在戰鬥中的「効果の使用」使用")
         st.battle_in = None
         st.interrupted_attack = {"attacker": bi["attacker"], "page": bi.get("page"),
                                  "mamodo_attack": bool(bi.get("mamodo_attack")), "slot": bi["slot"],
@@ -1878,9 +1938,12 @@ def _battle_command(game: Game, batch: list[dict], player: int, command: dict) -
             else:
                 battle.data["effect_turn"] = 1 - player
             return
-        if ctype in ("use_field_ability", "use_borrowed_effect"):
+        if ctype in ("use_field_ability", "use_borrowed_effect") or (
+                ctype == "use_book_card" and _battle_icon_event(game, player, command.get("page"))):
             if ctype == "use_field_ability":
                 _use_field_ability(game, batch, player, command, in_battle=True)
+            elif ctype == "use_book_card":   # 有戰鬥圖示的事件卡(E-053)
+                _use_book_card(game, batch, player, command)
             else:
                 _use_borrowed_effect(game, batch, player, in_battle=True)
             battle.effect_passes = 0
@@ -2348,6 +2411,8 @@ def _jammer_holders(game: Game, player: int, on: str):
             spec = reg.JAMMER.get(number) if number else None
             if spec is None or spec["on"] != on:
                 continue
+            if game.state.battle is not None and not spec.get("in_battle"):
+                continue                              # 戰鬥中只能使用帶戰鬥圖示的效果(規則頁「アイコン」)
             if spec["per_turn"] is not None and uses_this_turn(ps, f"{zone}:{number}") >= spec["per_turn"]:
                 continue
             if ps.mp < spec["mp_cost"]:

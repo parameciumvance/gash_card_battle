@@ -975,75 +975,83 @@ def test_m024_second_use_needs_two_doubles_at_that_time():
 
 # ---------------------------------------------------------------- M-026《裏切り者》(ジャマー)
 
-def _jammer_battle(p1_mp=5, p0_has_jammer=False):
-    """玩家 0 以 M-017 攻擊並使用其效果(攻擊時 +2000);玩家 1 場上有 M-026。"""
+def _jammer_setup(p1_mp=5, p0_has_jammer=False, use=True):
+    """非戰鬥中:玩家 0 使用 PR-002 的效果(MP 3,本回合 +2000);玩家 1 場上有 M-026。"""
     from gash.engine.state import MamodoSlot
-    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    g, _ = mk(book("PR-002", "S-009"), book("M-001"))
     st = g.state
     st.players[0].mp, st.players[1].mp = 10, p1_mp
     st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     if p0_has_jammer:
         st.players[0].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     to_battle(g, 0)
-    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": st.players[0].slots[0].uid})
-    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    submit(g, {"type": "no_defense", "player": 1})
     mp_before_ability = st.players[0].mp
-    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
-               "slot_uid": st.players[0].slots[0].uid})
+    if use:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+                   "slot_uid": st.players[0].slots[0].uid})
     return g, mp_before_ability
 
 
-def _m017_boost_active(g):
-    return any(m.source == "M-017" and m.kind == "power" for m in g.state.modifiers)
+def _boost_active(g):
+    return any(m.source == "PR-002" and m.kind == "power" for m in g.state.modifiers)
 
 
 def test_m026_offered_right_after_opponent_mamodo_effect_and_negates_it():
-    g, mp0 = _jammer_battle()
+    g, mp0 = _jammer_setup()
     st = g.state
     assert st.pending.kind == "jammer_negate" and st.pending.player == 1
     assert [o["value"] for o in st.pending.options] == [None, "M-026"]   # 第一個是「不使用」,其餘的值為ジャマー卡號
-    assert _m017_boost_active(g)
+    assert _boost_active(g)
     events = submit(g, {"type": "choose", "player": 1, "value": True})
-    assert not _m017_boost_active(g)                                     # 效果被還原
-    assert st.players[0].mp == mp0 - 2 and "mamodo:M-017" in st.players[0].used_abilities   # 費用照付
+    assert not _boost_active(g)                                          # 效果被還原
+    assert st.players[0].mp == mp0 - 3 and "mamodo:PR-002" in st.players[0].used_abilities   # 費用照付
     assert st.players[1].mp == 5 - 2 and "mamodo:M-026" in st.players[1].used_abilities
-    assert [e for e in events if e["type"] == "effect_negated"][0]["negated"] == "M-017"
-    assert st.pending is None and st.battle.data["effect_turn"] == 1       # 輪到防方
+    assert [e for e in events if e["type"] == "effect_negated"][0]["negated"] == "PR-002"
+    assert st.pending is None and st.action_player == 0                 # ジャマー是玩家 1 的行動
 
 
 def test_m026_skip_keeps_effect():
-    g, mp0 = _jammer_battle()
+    g, mp0 = _jammer_setup()
     submit(g, {"type": "choose", "player": 1, "value": None})
-    assert _m017_boost_active(g) and g.state.players[1].mp == 5
-    assert g.state.battle.data["effect_turn"] == 1
+    assert _boost_active(g) and g.state.players[1].mp == 5
+    assert g.state.action_player == 1
 
 
 @pytest.mark.parametrize("setup", ["low_mp", "used", "restricted"])
 def test_m026_not_offered_when_unusable(setup):
     from gash.engine.effects.primitives import add_restriction
     from gash.engine.state import DUR_TURN, NO_MAMODO_EFFECTS
-    from gash.engine.state import MamodoSlot
-    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    g, _ = _jammer_setup(p1_mp=1 if setup == "low_mp" else 5, use=False)
     st = g.state
-    st.players[0].mp, st.players[1].mp = 10, (1 if setup == "low_mp" else 5)
-    st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     if setup == "used":
         st.players[1].used_abilities.add("mamodo:M-026")
     if setup == "restricted":
         add_restriction(g, [], source="E-025", owner=0, target_player=1, flag=NO_MAMODO_EFFECTS,
                         duration=DUR_TURN)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+               "slot_uid": st.players[0].slots[0].uid})
+    assert st.pending is None and _boost_active(g)
+
+
+def test_m026_not_offered_in_battle():
+    # バトル中には「バトル効果」「バトル防御」「バトル」アイコンが付いた効果しか使えません:干擾不能在戰鬥中用
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 5
+    st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     to_battle(g, 0)
     submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": st.players[0].slots[0].uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
     submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
                "slot_uid": st.players[0].slots[0].uid})
-    assert st.pending is None and _m017_boost_active(g)
+    assert st.pending is None and st.players[1].mp == 5
+    assert any(m.source == "M-017" and m.kind == "power" for m in st.modifiers)
 
 
 def test_m026_cannot_be_declared_manually():
-    g, _ = _jammer_battle()
+    g, _ = _jammer_setup()
     submit(g, {"type": "choose", "player": 1, "value": None})
     m026 = g.state.players[1].slots[-1]
     with pytest.raises(IllegalCommand) as e:
@@ -1052,13 +1060,13 @@ def test_m026_cannot_be_declared_manually():
 
 
 def test_m026_chain_original_player_negates_the_negation():
-    g, mp0 = _jammer_battle(p0_has_jammer=True)
+    g, mp0 = _jammer_setup(p0_has_jammer=True)
     st = g.state
-    submit(g, {"type": "choose", "player": 1, "value": True})           # 玩家 1 無效 M-017
+    submit(g, {"type": "choose", "player": 1, "value": True})           # 玩家 1 無效 PR-002
     assert st.pending.kind == "jammer_negate" and st.pending.player == 0
     submit(g, {"type": "choose", "player": 0, "value": True})           # 玩家 0 無效玩家 1 的 M-026
-    assert _m017_boost_active(g)                                         # M-017 的效果回來
-    assert st.players[0].mp == mp0 - 2 - 2 and st.players[1].mp == 5 - 2
+    assert _boost_active(g)                                              # PR-002 的效果回來
+    assert st.players[0].mp == mp0 - 3 - 2 and st.players[1].mp == 5 - 2
     assert st.pending is None                                            # 雙方都用過,不再連鎖
 
 
@@ -1098,7 +1106,7 @@ def test_m026_not_offered_for_partner_effects():
 
 def test_timeout_default_prefers_skip_option():
     from gash.engine.awaiting import default_command
-    g, _ = _jammer_battle()
+    g, _ = _jammer_setup()
     assert default_command(g) == {"type": "choose", "value": None}
 
 

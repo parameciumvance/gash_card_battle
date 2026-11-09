@@ -43,6 +43,7 @@ RIDER_TREE_HOOKS = ("on_declare", "on_damage", "on_win", "on_defense_damaged", "
 CHOICE_KEY = "tree_choice"   # Choose 建立的 pending:引擎只依此鍵把回應交給 resume
 CONT_KEY = "tree_cont"       # Coin / Standby 的 callback payload,只由 effect_tree_resume 讀取
 TOKEN_KEY = "tree_token"
+USE_KEY = "use_id"            # ctx 中的效果編號(game-engine「效果編號」);持續效果 / 待命記在 use_id 欄位
 
 EFFECTS: dict[str, "Effect"] = {}
 TREE_HOOKS: set[tuple[str, str]] = set()   # 已以效果樹註冊的 (卡號, 掛鉤)
@@ -120,6 +121,22 @@ class Sequence(Effect):
         for i, step in enumerate(self.steps):
             if not step.run(rt, ctx, path + (i,)):
                 return False
+        return True
+
+
+@dataclass(frozen=True)
+class SeparateEffects(Sequence):
+    """效果文以「●」列出、各自獨立的效果(Ex-021):依序解決,每一步各自配發效果編號,
+    「整個效果取除」時互不牽連(game-engine「效果編號」)。各步只能同步完成。"""
+
+    def __post_init__(self):
+        if any(step.may_suspend for step in self.steps):
+            raise ValueError("SeparateEffects 的各步只能同步完成,不可包含 Choose / Coin")
+
+    def run(self, rt, ctx, path):
+        for i, step in enumerate(self.steps):
+            sub = {**ctx, USE_KEY: None}
+            _in_use(rt.game, sub, lambda: step.run(rt, sub, path + (i,)))
         return True
 
 
@@ -1304,6 +1321,7 @@ class CoinWithPaidReflip(Effect):
 class AddPower(Effect):
     """對 target 綁定的魔物加魔力(side="opponent" 時為對手的魔物,Ex-002)。執行時才依 UID 重新查找;
     目標已離場則無效果、無事件。"""
+    raises_power: ClassVar[bool] = True   # amount > 0 時是「魔物の魔力を上げる」(Ex-070)
     amount: int = 0
     duration: str = ""
     target: Ref = Ref("slot")
@@ -1326,6 +1344,7 @@ class AddPower(Effect):
 @dataclass(frozen=True)
 class AddPowerPerOwnMamodo(Effect):
     """自己場上所有魔物(含之後放出的)魔力 +amount × 當下自己場上的魔物數,每次查詢重算(E-048)。"""
+    raises_power: ClassVar[bool] = True
     amount: int = 0
     duration: str = DUR_UNTIL_END_NEXT_TURN
 
@@ -1852,6 +1871,7 @@ class DiscardChosenMamodo(Effect):
 @dataclass(frozen=True)
 class BoostPartneredMamodo(Effect):
     """[持續] 自己場上裝有搭檔的魔物魔力加值(E-023)。"""
+    raises_power: ClassVar[bool] = True
     amount: int = 0
     duration: str = ""
 
@@ -3262,6 +3282,7 @@ class ScheduleAfterBattleAttrPower(Effect):
 @dataclass(frozen=True)
 class AddSelfPowerWhenAttacking(Effect):
     """這隻魔物攻擊的戰鬥中魔力 +amount(M-052;只在 engine._attacking_with 成立時計入)。"""
+    raises_power: ClassVar[bool] = True
     amount: int = 0
     duration: str = ""
 
@@ -3969,6 +3990,31 @@ class DamageChosenOpponentMamodo(Effect):
 
 
 @dataclass(frozen=True)
+class DamageOwnMamodoThen(Effect):
+    """對自己 target 綁定的魔物造成 1 次傷害,走一般的保護流程;傷害流程結束後(不論是否受到傷害)
+    續行之後的節點(E-053)。"""
+    target: Ref = Ref("slot")
+
+    @property
+    def may_suspend(self) -> bool:
+        return True
+
+    def run(self, rt, ctx, path):
+        from ..engine import _start_damage
+        player = ctx["player"]
+        uid = ctx[self.target.name]
+        if rt.game.state.slot_by_uid(player, uid) is None:
+            return True
+        _start_damage(rt.game, rt.batch, [{"kind": "slot", "player": player, "slot_uid": uid, "amount": 1}],
+                      {"cause": "effect", "source": ctx["source"], "source_player": player, "amount": 1,
+                       "after": "effect_tree_resume", CONT_KEY: rt.cont(ctx, path)})
+        return False   # 傷害流程結束時由 effect_tree_resume 續行(同步結束時已在其中續行)
+
+    def resume(self, rt, ctx, value, path, floor):
+        _ascend(rt, ctx, path, floor)
+
+
+@dataclass(frozen=True)
 class GuardBookAndNamedMamodo(Effect):
     """自己的魔書與 mamodo(「」名稱完全比對)不受傷害,到 duration 為止(PR-009)。"""
     mamodo: str = ""
@@ -4180,6 +4226,25 @@ def restriction_kinds(number: str) -> frozenset[str]:
     return frozenset(kinds)
 
 
+def standby_raises_power(sb) -> bool:
+    """效果樹的待命(Standby 節點排定)觸發時會解決提升魔力的節點(E-001;Ex-070「スタンバイ」している…)。"""
+    cont = sb.data.get(CONT_KEY)
+    if not cont or cont.get("effect_id") not in EFFECTS:
+        return False
+    node = node_at(EFFECTS[cont["effect_id"]], tuple(cont["path"]))
+    return any(getattr(n, "raises_power", False) and getattr(n, "amount", 0) > 0 for n in _walk(node))
+
+
+@dataclass(frozen=True)
+class RemovePowerUps(Effect):
+    """取除雙方持續或待命中、提升魔物 / 戰術 / 合計魔力的效果,整個效果取除(Ex-070)。"""
+
+    def run(self, rt, ctx, path):
+        from ..engine import remove_power_ups
+        remove_power_ups(rt.game, rt.batch, ctx["player"])
+        return True
+
+
 # ================================================================ 直譯器
 
 def node_at(root: Effect, path) -> Effect:
@@ -4206,10 +4271,24 @@ def _ascend(rt: Run, ctx: dict, path: tuple, floor: int) -> None:
         path = parent_path
 
 
+def _in_use(game, ctx: dict, fn) -> None:
+    """在 ctx 的效果編號下執行 fn(沒有時配發新的);結束後還原外層的編號(game-engine「效果編號」)。"""
+    st = game.state
+    if ctx.get(USE_KEY) is None:
+        st.use_seq += 1
+        ctx[USE_KEY] = st.use_seq
+    outer, st.current_use = st.current_use, ctx[USE_KEY]
+    try:
+        fn()
+    finally:
+        st.current_use = outer
+
+
 def run_effect(game, batch, effect_id: str, ctx: dict) -> None:
     """從根節點開始解決一個效果。"""
     rt = Run(game, batch, effect_id)
-    EFFECTS[effect_id].run(rt, dict(ctx), ())
+    ctx = dict(ctx)
+    _in_use(game, ctx, lambda: EFFECTS[effect_id].run(rt, ctx, ()))
 
 
 def resume(game, batch, value, data: dict) -> None:
@@ -4220,7 +4299,8 @@ def resume(game, batch, value, data: dict) -> None:
     path = tuple(cont["path"])
     node = node_at(EFFECTS[cont["effect_id"]], path)
     handler = node.resume_choice if via_choice else node.resume
-    handler(rt, dict(cont["ctx"]), value, path, cont["floor"])
+    ctx = dict(cont["ctx"])
+    _in_use(game, ctx, lambda: handler(rt, ctx, value, path, cont["floor"]))
 
 
 @reg.choice_resolver("effect_tree_resume")
