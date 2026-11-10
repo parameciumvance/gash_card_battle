@@ -898,5 +898,18 @@
   "error.spell.not_spell": "指定したカードは術カードではない",
   "error.spell.restricted": "今は術を使えない",
   "error.spell.timing": "今はこの NO BATTLE の術を使えるタイミングではない",
-  "error.spell.used": "この術はこのターンすでに使った"
+  "error.spell.used": "この術はこのターンすでに使った",
+  "choice.title.pick_negated_effect": "使っていないことにする効果を選ぶ",
+  "choice.negated_effect": "《{card}》の{kind}",
+  "choice.negated_effect.kind.event": "イベントカード",
+  "choice.negated_effect.kind.ability": "効果",
+  "choice.negated_effect.kind.borrowed": "借りたパートナーの効果",
+  "choice.negated_effect.kind.nonbattle_spell": "非バトルの術",
+  "choice.negated_effect.kind.jammer": "ジャマー",
+  "choice.negated_effect.kind.attack": "攻撃",
+  "choice.negated_effect.kind.defense": "防御",
+  "log.effect_undone": "{player} は《{card}》を使っていないことにした",
+  "log.effect_undone.detail": "({detail})",
+  "log.effect_undone.mp": "MP {mp} がもどった",
+  "log.effect_undone.returned": "{cards} がもとの場所にもどった"
 }

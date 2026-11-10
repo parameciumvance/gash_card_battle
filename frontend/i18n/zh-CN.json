@@ -898,5 +898,18 @@
   "error.spell.not_spell": "指定的卡不是战术卡",
   "error.spell.restricted": "目前不能使用战术卡",
   "error.spell.timing": "现在不是此非战斗战术的使用时机",
-  "error.spell.used": "此战术卡本回合已使用过"
+  "error.spell.used": "此战术卡本回合已使用过",
+  "choice.title.pick_negated_effect": "选择要当作没使用过的效果",
+  "choice.negated_effect": "《{card}》的{kind}",
+  "choice.negated_effect.kind.event": "事件卡",
+  "choice.negated_effect.kind.ability": "效果",
+  "choice.negated_effect.kind.borrowed": "借用的搭档效果",
+  "choice.negated_effect.kind.nonbattle_spell": "非战斗战术",
+  "choice.negated_effect.kind.jammer": "干扰",
+  "choice.negated_effect.kind.attack": "攻击",
+  "choice.negated_effect.kind.defense": "防御",
+  "log.effect_undone": "{player} 把《{card}》当作没使用过",
+  "log.effect_undone.detail": ":{detail}",
+  "log.effect_undone.mp": "退回 {mp} MP",
+  "log.effect_undone.returned": "{cards} 回到原位"
 }

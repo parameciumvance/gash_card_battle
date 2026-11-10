@@ -159,9 +159,12 @@ class PlayerState:
     # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
     dealt_damage_this_turn: bool = False
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
-    spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
-    spell_names_by_turn: dict[int, set[str]] = field(default_factory=dict)  # 宣告過的戰術卡名(S-129 / S-146)
+    # 清單(可重複):E-052 把被無效的使用當作沒用過時只移除一筆
+    spell_attrs_by_turn: dict[int, list[str]] = field(default_factory=dict)
+    spell_names_by_turn: dict[int, list[str]] = field(default_factory=dict)  # 宣告過的戰術卡名(S-129 / S-146)
     battle_phase_mp_lost: dict[int, int] = field(default_factory=dict)      # 各回合戰鬥階段中減少的 MP(Ex-101)
+    # 這回合被對手無效的自己的效果的使用紀錄(game-engine「被無效的效果」;E-052);回合結束清空
+    negated_this_turn: list[dict] = field(default_factory=list)
     # 最近一次自己的行動以效果使自己增加的 MP 與當時的 action_seq(Ex-025「直後」);ジャマー還原時一併還原
     last_effect_mp_gain: dict | None = None
 
