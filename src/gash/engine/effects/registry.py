@@ -197,6 +197,7 @@ BOOK_HIDDEN: set[str] = set()               # 持有者的魔書不能被對手�
 BLOCK_OWN_MAMODO_DISCARD: set[str] = set()  # 對手不能棄掉自己場上的魔物(P-048)
 BLOCK_TURN_BACK: set[str] = set()           # 對手在戰鬥階段不能回翻自己的魔書(P-049)
 BLOCK_EFFECT_PAGE_TURN: set[str] = set()    # 戰鬥階段中雙方不能因傷害以外的效果翻魔書(PR-012)
+OUTSIDE_PAGE_LOCK: set[str] = set()         # 對手不能使用 / 放出 / 棄掉 / 移動自己魔書今のページ以外的卡(Ex-060)
 ATTACK_LOST_MP: dict[str, int] = {}         # 這隻魔物攻擊、魔力勝負攻擊失敗時自己 MP 增加(M-071)
 COIN_THROWN_MP: dict[str, int] = {}         # 自己每擲 1 枚硬幣 MP 增加(M-072)
 COIN_SET_HEADS_USER: dict[str, str] = {}    # 改成正面只適用於這個家族使用的戰術擲的硬幣(P-045)
@@ -405,7 +406,7 @@ def spell_compat(number: str, *, check=None):
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
 PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
                   "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "BLOCK_DISCARD_RETURN", "START_PHASE_MP_CAP", "UNSELECTABLE", "LOCK_AFTER_OWN_SPELL", "LAST_PAGE_LOCK",
-                  "BLOCK_DISCARDED_NAMES", "BOOK_HIDDEN", "BLOCK_OWN_MAMODO_DISCARD", "BLOCK_TURN_BACK", "BLOCK_EFFECT_PAGE_TURN", "ATTACK_LOST_MP", "COIN_THROWN_MP", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
+                  "BLOCK_DISCARDED_NAMES", "BOOK_HIDDEN", "BLOCK_OWN_MAMODO_DISCARD", "BLOCK_TURN_BACK", "BLOCK_EFFECT_PAGE_TURN", "OUTSIDE_PAGE_LOCK", "ATTACK_LOST_MP", "COIN_THROWN_MP", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
                   "BLOCK_OPPONENT_FAMILY", "OPPONENT_EVENT_LOCK")
 
 
@@ -643,6 +644,12 @@ def block_turn_back(number: str):
 def block_effect_page_turn(number: str):
     """「このカードが場にある→」自分も相手も、バトルフェイズに、ダメージ以外の効果で、魔本をめくることはできない(PR-012)。"""
     BLOCK_EFFECT_PAGE_TURN.add(number)
+
+
+def outside_page_lock(number: str):
+    """「このカードが場にある→」相手は、相手自身の魔本の今のページ以外のページのカードを使う効果を使えず、
+    相手自身の魔本の今のページ以外のページのカードを場に出したり、捨て札にしたり、ページを移動させることができない(Ex-060)。"""
+    OUTSIDE_PAGE_LOCK.add(number)
 
 
 def start_phase_mp_cap(number: str, cap: int):

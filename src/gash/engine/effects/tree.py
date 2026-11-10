@@ -465,9 +465,10 @@ class OwnEarlierPages:
     """自己魔書中比目前翻開頁更前面、且卡片仍在魔書中的頁(M-016)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import own_book_pages
         ps = game.state.players[ctx["player"]]
         return [page_option(ctx["player"], p, ps.card_at(p))
-                for p in range(1, ps.pos) if p not in ps.consumed_pages]
+                for p in own_book_pages(game, ctx["player"]) if p < ps.pos]   # Ex-060:前面的頁不能移動
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -481,11 +482,11 @@ class OwnBookPartnerNamed:
     name: str
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import own_book_pages
         ps = game.state.players[ctx["player"]]
         return [page_option(ctx["player"], p, ps.card_at(p))
-                for p in range(1, 33)
-                if p not in ps.consumed_pages
-                and game.db[ps.card_at(p)].type == PARTNER
+                for p in own_book_pages(game, ctx["player"])
+                if game.db[ps.card_at(p)].type == PARTNER
                 and game.db[ps.card_at(p)].name_ja == self.name]
 
     def validate(self, game, ctx, value) -> None:
@@ -499,10 +500,10 @@ class OwnBookEvents:
     """自己魔書中(尚未離開的)事件卡頁,任意頁(Ex-037)。選項值為頁碼。"""
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import own_book_pages
         ps = game.state.players[ctx["player"]]
         return [page_option(ctx["player"], p, ps.card_at(p))
-                for p in range(1, 33)
-                if p not in ps.consumed_pages and game.db[ps.card_at(p)].type == EVENT]
+                for p in own_book_pages(game, ctx["player"]) if game.db[ps.card_at(p)].type == EVENT]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -694,7 +695,7 @@ class AttachablePartnerPagesInOwnBook:
     excluding_self: bool = False
 
     def options(self, game, ctx) -> list[dict]:
-        from ..engine import name_deploy_blocked, same_name_in_play
+        from ..engine import name_deploy_blocked, own_book_pages, same_name_in_play
         player = ctx["player"]
         ps = game.state.players[player]
         # 借用(E-010)時不棄掉搭檔,self_slot 不是使用者的魔物:照一般場面判斷
@@ -702,9 +703,7 @@ class AttachablePartnerPagesInOwnBook:
         if self_slot is not None and self_slot.partner is None:
             self_slot = None
         out = []
-        for p in range(1, 33):
-            if p in ps.consumed_pages:
-                continue
+        for p in own_book_pages(game, player):          # Ex-060
             card = game.db[ps.card_at(p)]
             if card.type != PARTNER or (self.name and card.name_ja != self.name):
                 continue
@@ -862,15 +861,13 @@ class DeployableMamodoInOwnBook:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
-        from ..engine import MAX_FIELD_MAMODO, name_deploy_blocked, same_name_in_play
+        from ..engine import MAX_FIELD_MAMODO, name_deploy_blocked, own_book_pages, same_name_in_play
         from ..cards import MAMODO
         ps = game.state.players[player]
         if len(ps.slots) >= MAX_FIELD_MAMODO:
             return []
         out = []
-        for p in range(1, 33):
-            if p in ps.consumed_pages:
-                continue
+        for p in own_book_pages(game, player):          # Ex-060
             number = ps.card_at(p)
             card = game.db[number]
             if card.type != MAMODO or name_deploy_blocked(game, player, card):   # Ex-053
@@ -1000,10 +997,10 @@ class OwnBookCopiesOf:
     number: str
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import own_book_pages
         ps = game.state.players[ctx["player"]]
         return [page_option(ctx["player"], p, ps.card_at(p))
-                for p in range(1, 33)
-                if p not in ps.consumed_pages and ps.card_at(p) == self.number]
+                for p in own_book_pages(game, ctx["player"]) if ps.card_at(p) == self.number]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -2414,8 +2411,9 @@ class CanStackFromBook:
     number: str
 
     def __call__(self, game, player, slot=None) -> bool:
+        from ..engine import own_book_pages
         ps = game.state.players[player]
-        return (any(p not in ps.consumed_pages and ps.card_at(p) == self.number for p in range(1, 33))
+        return (any(ps.card_at(p) == self.number for p in own_book_pages(game, player))
                 and stack_base(game, player, self.number) is not None)
 
 

@@ -246,8 +246,9 @@ reg.activated("Ex-037", mode="discard", timing="nonbattle", effect=When(
     ),
 ))
 
-# 「このターン中に１回、自分がこのターン中すでに使った『ダニー』の『魔物の効果』1つを、コスト0で」:用過的效果再用 1 次
 # 比照 P-042:下一場以ガッシュ・ベル的戰術或魔物效果攻擊的戰鬥中,對手不能用搭檔效果與事件卡
 reg.activated("Ex-059", mode="discard", timing="nonbattle", own_turn=True,
               effect=ScheduleBattleLock(mamodo="ガッシュ・ベル", flags=(NO_PARTNER_EFFECTS, NO_EVENTS)))
+reg.outside_page_lock("Ex-060")
+# 「このターン中に１回、自分がこのターン中すでに使った『ダニー』の『魔物の効果』1つを、コスト0で」:用過的效果再用 1 次
 reg.activated("Ex-061", mode="discard", timing="nonbattle", effect=ScheduleReuseAbility(family="ダニー"))
