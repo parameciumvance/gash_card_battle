@@ -921,5 +921,15 @@
   "effect.standby.reuse_ability": "このターン中に1回、すでに使った「{mamodo}」の魔物の効果をコスト0で使える",
   "effect.restriction.no_mp_gain": "{target} はMPをふやせない",
   "effect.restriction.mamodo_effects_locked": "{target} は魔物の効果を使えない",
-  "error.attack.condition": "この効果を使う条件を満たしていない"
+  "error.attack.condition": "この効果を使う条件を満たしていない",
+  "error.ability.book_hidden": "相手の魔本は見られないため、相手の魔本を見る効果は使えない",
+  "error.event.book_hidden": "相手の魔本は見られないため、相手の魔本を見る効果は使えない",
+  "error.spell.book_hidden": "相手の魔本は見られないため、相手の魔本を見る効果は使えない",
+  "error.ability.own_discard_blocked": "相手の効果により、自分の場の魔物を捨て札にできない",
+  "error.action_effect.own_discard_blocked": "相手の効果により、自分の場の魔物を捨て札にできない",
+  "error.ability.field_locked": "このカードの効果は今は使えない",
+  "error.play.discarded_name": "相手の効果により、このターン捨て札にしたカードと同名のカードは場に出せない",
+  "choice.title.pick_field_card": "場のカードを選ぶ",
+  "effect.restriction.partner_locked": "{target} のパートナー「{card}」の効果はなくなる(バトルフェイズ)",
+  "effect.restriction.field_locked": "{target} の「{card}」の効果はなくなる(バトルフェイズ)"
 }

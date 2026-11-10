@@ -189,6 +189,14 @@ OPPONENT_EVENT_COST: dict[str, int] = {}
 REVEAL_OPPONENT_PAGES: set[str] = set()
 BLOCK_DISCARD_RETURN: set[str] = set()      # 對手不能把棄牌區的卡放回場上或魔書(M-085)
 START_PHASE_MP_CAP: dict[str, int] = {}     # 對手在對手的開始階段增加的 MP 合計上限(M-076)
+UNSELECTABLE: dict[str, dict] = {}          # 雙方都不能選這隻魔物(M-075;Ex-099 alone)
+LOCK_AFTER_OWN_SPELL: set[str] = set()      # 使用這隻魔物的戰術後,下一回合它的魔物效果不能用(M-075)
+LAST_PAGE_LOCK: set[str] = set()            # 持有者魔書在最後一頁時,對手不能用事件卡與搭檔效果(Ex-051)
+BLOCK_DISCARDED_NAMES: set[str] = set()     # 對手不能放出與本回合進棄牌區的卡同名的卡(Ex-053)
+BOOK_HIDDEN: set[str] = set()               # 持有者的魔書不能被對手看(M-079)
+BLOCK_OWN_MAMODO_DISCARD: set[str] = set()  # 對手不能棄掉自己場上的魔物(P-048)
+BLOCK_TURN_BACK: set[str] = set()           # 對手在戰鬥階段不能回翻自己的魔書(P-049)
+BLOCK_EFFECT_PAGE_TURN: set[str] = set()    # 戰鬥階段中雙方不能因傷害以外的效果翻魔書(PR-012)
 ATTACK_LOST_MP: dict[str, int] = {}         # 這隻魔物攻擊、魔力勝負攻擊失敗時自己 MP 增加(M-071)
 COIN_THROWN_MP: dict[str, int] = {}         # 自己每擲 1 枚硬幣 MP 增加(M-072)
 COIN_SET_HEADS_USER: dict[str, str] = {}    # 改成正面只適用於這個家族使用的戰術擲的硬幣(P-045)
@@ -396,7 +404,8 @@ def spell_compat(number: str, *, check=None):
 # 常駐效果(「このカードが場にある→」,持續中或之後仍可能發動)所在的登記表;快照據此列出失效中的效果。
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
 PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
-                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "BLOCK_DISCARD_RETURN", "START_PHASE_MP_CAP", "ATTACK_LOST_MP", "COIN_THROWN_MP", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
+                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "BLOCK_DISCARD_RETURN", "START_PHASE_MP_CAP", "UNSELECTABLE", "LOCK_AFTER_OWN_SPELL", "LAST_PAGE_LOCK",
+                  "BLOCK_DISCARDED_NAMES", "BOOK_HIDDEN", "BLOCK_OWN_MAMODO_DISCARD", "BLOCK_TURN_BACK", "BLOCK_EFFECT_PAGE_TURN", "ATTACK_LOST_MP", "COIN_THROWN_MP", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
                   "BLOCK_OPPONENT_FAMILY", "OPPONENT_EVENT_LOCK")
 
 
@@ -593,6 +602,47 @@ def attack_lost_mp(number: str, amount: int):
 def coin_thrown_mp(number: str, amount: int):
     """「このカードが場にある→」自分がコイン1個を投げるごとに MP を amount 増加(M-072)。"""
     COIN_THROWN_MP[number] = amount
+
+
+def unselectable(number: str, *, alone: bool = False):
+    """「このカードが場にある→」自分も相手も、カードを選ぶとき、この魔物を選ぶことができない(M-075);
+    alone=自分の場にこの魔物以外の魔物がいないとき(Ex-099)。"""
+    UNSELECTABLE[number] = {"alone": alone}
+
+
+def lock_after_own_spell(number: str):
+    """「このカードが場にある→」自分がこの魔物の術を使ったとき、次のターン中、この魔物の「魔物の効果」を使えない(M-075)。"""
+    LOCK_AFTER_OWN_SPELL.add(number)
+
+
+def last_page_lock(number: str):
+    """「このカードが場にある→」自分の魔本が最後のページのとき、相手はイベントカードやパートナーカードの効果を使えない(Ex-051)。"""
+    LAST_PAGE_LOCK.add(number)
+
+
+def block_discarded_names(number: str):
+    """「このカードが場にある→」相手は、このターン中に捨て札にしたカードと同名のカードを場に出せない(Ex-053)。"""
+    BLOCK_DISCARDED_NAMES.add(number)
+
+
+def book_hidden(number: str):
+    """「このカードが場にある→」自分の魔本は相手に見られない;相手は魔本を見なければ使えない効果を使えない(M-079)。"""
+    BOOK_HIDDEN.add(number)
+
+
+def block_own_mamodo_discard(number: str):
+    """「このカードが場にある→」相手は、相手自身の場の魔物を捨て札にできない(P-048)。"""
+    BLOCK_OWN_MAMODO_DISCARD.add(number)
+
+
+def block_turn_back(number: str):
+    """「このカードが場にある→」相手は、バトルフェイズ中、相手自身の魔本をもどすことができない(P-049)。"""
+    BLOCK_TURN_BACK.add(number)
+
+
+def block_effect_page_turn(number: str):
+    """「このカードが場にある→」自分も相手も、バトルフェイズに、ダメージ以外の効果で、魔本をめくることはできない(PR-012)。"""
+    BLOCK_EFFECT_PAGE_TURN.add(number)
 
 
 def start_phase_mp_cap(number: str, cap: int):

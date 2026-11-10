@@ -921,5 +921,15 @@
   "effect.standby.reuse_ability": "本回合 1 次,已用过的「{mamodo}」的魔物效果可费用 0 再用",
   "effect.restriction.no_mp_gain": "{target} 的 MP 不能增加",
   "effect.restriction.mamodo_effects_locked": "{target} 不能使用魔物卡效果",
-  "error.attack.condition": "不符合此效果的使用条件"
+  "error.attack.condition": "不符合此效果的使用条件",
+  "error.ability.book_hidden": "对手的魔书不能被看,不能使用要看对手魔书的效果",
+  "error.event.book_hidden": "对手的魔书不能被看,不能使用要看对手魔书的效果",
+  "error.spell.book_hidden": "对手的魔书不能被看,不能使用要看对手魔书的效果",
+  "error.ability.own_discard_blocked": "对手的效果使你不能弃掉自己场上的魔物",
+  "error.action_effect.own_discard_blocked": "对手的效果使你不能弃掉自己场上的魔物",
+  "error.ability.field_locked": "这张卡的效果目前不能使用",
+  "error.play.discarded_name": "对手的效果使你不能放出与本回合弃掉的卡同名的卡",
+  "choice.title.pick_field_card": "选择场上的卡",
+  "effect.restriction.partner_locked": "{target} 的搭档《{card}》的效果失效(战斗阶段)",
+  "effect.restriction.field_locked": "{target} 的《{card}》的效果失效(战斗阶段)"
 }
