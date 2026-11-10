@@ -16,4 +16,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試、新 slow 測試;`openspec validate season4-mamodo-b --strict`。(新測試 26 項,實作前除對照組外失敗;快速組 1973 項;相關瀏覽器測試 109 項;自我對戰 9 局。尚未開放卡的瀏覽器測試改用 M-073)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`、capability-map。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
