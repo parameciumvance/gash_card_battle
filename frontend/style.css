@@ -383,6 +383,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .card .cclass-intermediate { background: #2f7d55; }
 .card .cclass-superior { background: #a33a2a; }
 .card .ctag-jammer { background: #6a3fa0; }   /* 干擾:與中級(綠)、上級(紅)區分 */
+.card .ctag-stone { background: #6b6358; }    /* 石版魔物:灰褐 */
 /* 牌組編輯器的詳情按鈕:卡圖右側、卡號下方(不壓到卡名與資訊列),點擊範圍以偽元素擴大 */
 .card .card-detail {
   position: absolute; right: 4px; top: 24px; z-index: 2; width: 20px; height: 20px; padding: 0;

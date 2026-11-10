@@ -20,6 +20,19 @@ PENDING_CARD = "M-070"   # 第 4 賽季,資料已收錄、效果尚未實作
 OPEN_CARD = "M-001"
 
 
+def pending_only_families() -> set[str]:
+    """所有卡片(魔物、搭檔、戰術)都還在尚未開放清單的魔物家族(依資料計算,分批開放時不必改)。"""
+    import json as _json
+
+    from gash.engine.cards import DATA_DIR, pending_cards
+    pend = pending_cards()
+    fams: dict[str, set[bool]] = {}
+    for c in _json.loads((DATA_DIR / "cards.json").read_text(encoding="utf-8")):
+        if c.get("related_mamodo"):
+            fams.setdefault(c["related_mamodo"], set()).add(c["number"] in pend)
+    return {f for f, flags in fams.items() if flags == {True}}
+
+
 def pool_card(page, num, grid="#pool-grid"):
     return page.locator(f'{grid} .card[aria-label^="{num} "]')
 
@@ -95,7 +108,8 @@ def test_cheat_pool_hides_pending(page):
     filters.locator(".filter-menu[data-group=mamodo]").click()
     keys = filters.locator(".filter-panel[data-group=mamodo] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")
-    assert "ゴーレン" not in keys                                              # 只有尚未開放卡片的魔物家族
+    hidden = pending_only_families()                                          # 只有尚未開放卡片的魔物家族
+    assert hidden and not hidden & set(keys)
 
 
 def test_mj12_sorted_after_events(browser, server):

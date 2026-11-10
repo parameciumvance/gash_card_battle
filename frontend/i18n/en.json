@@ -911,5 +911,11 @@
   "log.effect_undone": "{player} treats “{card}” as unused",
   "log.effect_undone.detail": " ({detail})",
   "log.effect_undone.mp": "{mp} MP returned",
-  "log.effect_undone.returned": "{cards} returned to where they were"
+  "log.effect_undone.returned": "{cards} returned to where they were",
+  "breakdown.stone_tablet": "Stone Tablet bonus “{card}”",
+  "effect.modifier.power_stone_tablet": "Your Stone Tablet MAMODO Power +{amount}",
+  "effect.restriction.no_stone_tablet_effects": "{target}'s Stone Tablet MAMODO card effects are lost",
+  "choice.damage_opponent_stone_tablet": "Damage 1 of your opponent's Stone Tablet MAMODO",
+  "choice.damage_opponent_non_stone_tablet": "Damage 1 of your opponent's MAMODO that is not a Stone Tablet MAMODO",
+  "card.tag.stone_tablet": "STONE"
 }

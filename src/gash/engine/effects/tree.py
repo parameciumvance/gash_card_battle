@@ -17,7 +17,7 @@ from ..cards import EVENT, PARTNER
 from ..state import (
     DUR_TURN, DUR_UNTIL_END_NEXT_TURN, MAMODO_LOCKED, NO_ATTACK, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT,
     NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS,
-    ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
+    NO_STONE_TABLET_EFFECTS, ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
 )
 from . import registry as reg
 from .primitives import (
@@ -409,6 +409,9 @@ class PlayablePartnerInDiscard:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
+        from ..engine import discard_return_blocked
+        if discard_return_blocked(game, player):   # M-085
+            return []
         ps = game.state.players[player]
         out = []
         for i, number in enumerate(ps.discard):
@@ -520,8 +523,9 @@ class DiscardedCardsToReturn:
     numbers: tuple = ()
 
     def _targets(self, game, player) -> list[dict]:
+        from ..engine import discard_return_blocked
         ps = game.state.players[player]
-        if not ps.consumed_pages:
+        if not ps.consumed_pages or discard_return_blocked(game, player):   # M-085
             return []
         return [discard_option(player, i, n) for i, n in enumerate(ps.discard) if n in self.numbers]
 
@@ -610,8 +614,9 @@ class DiscardedMamodoToReturn:
 
     def options(self, game, ctx) -> list[dict]:
         from ..cards import MAMODO
+        from ..engine import discard_return_blocked
         ps = game.state.players[ctx["player"]]
-        if not ps.consumed_pages:
+        if not ps.consumed_pages or discard_return_blocked(game, ctx["player"]):   # M-085
             return []
         return [discard_option(ctx["player"], i, n) for i, n in enumerate(ps.discard)
                 if game.db[n].type == MAMODO]
@@ -763,7 +768,9 @@ class OpponentDiscardedPartner:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
-        from ..engine import same_name_in_play
+        from ..engine import discard_return_blocked, same_name_in_play
+        if discard_return_blocked(game, player):   # M-085
+            return []
         opp = 1 - player
         return [discard_option(opp, i, number) for i, number in enumerate(game.state.players[opp].discard)
                 if game.db[number].type == PARTNER and not same_name_in_play(game, player, game.db[number])]
@@ -783,6 +790,9 @@ class PartnerDiscardedThisTurn:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
+        from ..engine import discard_return_blocked
+        if discard_return_blocked(game, player):   # M-085
+            return []
         ps = game.state.players[player]
         out = []
         for i, number in enumerate(ps.discard):
@@ -1611,6 +1621,40 @@ class DiscardChosenOpponentFieldCard(Effect):
         if fc is not None:
             discard_field_card(rt.game, rt.batch, opp, fc, ctx["source"])
         return True
+
+
+@dataclass(frozen=True)
+class AddPowerToOwnStoneTablets(Effect):
+    """自己的石版魔物(含之後放出的)魔力 +amount,到 duration 為止(Ex-069;比照 E-048)。"""
+    raises_power: ClassVar[bool] = True
+    amount: int = 0
+    duration: str = ""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        add_modifier(rt.game, rt.batch, kind="power_stone_tablet", source=ctx["source"], owner=player,
+                     duration=self.duration, target_player=player, amount=self.amount)
+        return True
+
+
+@dataclass(frozen=True)
+class OpponentMamodoByStone:
+    """選項規格:自己場上沒有「同類」魔物時,對手場上該類、可被選擇的魔物(Ex-000)。
+    stone=True:自己沒有石版魔物時,對手的石版魔物;False:自己沒有石版魔物以外的魔物時,對手的石版魔物以外的魔物。"""
+    stone: bool = True
+
+    def options(self, game, ctx) -> list[dict]:
+        from ..engine import is_stone_tablet
+        player = ctx["player"]
+        if any(is_stone_tablet(game, s) == self.stone for s in game.state.players[player].slots):
+            return []
+        return [slot_option(1 - player, s) for s in selectable_opponent_slots(game, player)
+                if is_stone_tablet(game, s) == self.stone]
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇符合條件的對手魔物")
 
 
 @dataclass(frozen=True)
@@ -3635,6 +3679,24 @@ class CanUseSpellsWithAttr:
 
 
 @dataclass(frozen=True)
+class CanUseSpellsOfMamodo:
+    """戰術相容:這隻魔物可使用「mamodo」的戰術(Ex-056「マルス」、Ex-057「エシュロス」)。"""
+    mamodo: str
+
+    def __call__(self, game, player, slot, spell_card) -> bool:
+        return spell_card.related_mamodo == self.mamodo
+
+
+@dataclass(frozen=True)
+class CanUseSpellCardNamed:
+    """戰術相容:這隻魔物可使用名稱「完全等於」name 的戰術卡,不限家族(Ex-058 術カード「ビライツ」)。"""
+    name: str
+
+    def __call__(self, game, player, slot, spell_card) -> bool:
+        return spell_card.name_ja == self.name
+
+
+@dataclass(frozen=True)
 class CanUseSpellNamed:
     """戰術相容:這隻魔物可使用 mamodo 家族中名稱「完全等於」name 的戰術(M-029 可用賈修的「ザケル」;
     「バオウ・ザケルガ」等名稱只是包含 ザケル 的戰術不算)。fn(game, player, slot, spell) -> bool。"""
@@ -4219,6 +4281,7 @@ RESTRICTION_KINDS = {
     NO_DEFENSE_SPELL_SLOT: {SPELLS},
     NO_NAMED_SPELLS: {SPELLS},
     NO_MAMODO_EFFECTS: {MAMODO_EFFECTS},
+    NO_STONE_TABLET_EFFECTS: {MAMODO_EFFECTS},           # Ex-049
     MAMODO_LOCKED: {SPELLS, MAMODO_EFFECTS},
     NO_EFFECTS_AND_SPELLS: {SPELLS, MAMODO_EFFECTS},
     ONLY_MAMODO: {SPELLS, MAMODO_EFFECTS, PROTECT},

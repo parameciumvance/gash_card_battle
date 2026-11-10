@@ -20,7 +20,7 @@
       "blocks": [
         {"p": "Some cards are put into play and some are used from inside the Spell Book. You can only use cards on the pair of pages currently open in your own Spell Book."},
         {"list": [
-          "MAMODO: put into play. You can have up to 3 in play, and only 1 MAMODO with the same name (unless a card says otherwise). Some MAMODO can be stacked on their pre-transformation MAMODO (transformation).",
+          "MAMODO: put into play. You can have up to 3 in play, and only 1 MAMODO with the same name (unless a card says otherwise). Some MAMODO can be stacked on their pre-transformation MAMODO (transformation). MAMODO with a stone tablet icon are Stone Tablet MAMODO: they follow the same rules as other MAMODO, and only effects that name Stone Tablet MAMODO treat them differently.",
           "Partner: equipped to the matching MAMODO in your play area, 1 per MAMODO, and only 1 Partner with the same name. When a MAMODO is discarded, its Partner is discarded with it.",
           "SPELL: used from the Spell Book by paying its cost. The matching MAMODO must be in your play area; command SPELLs (orders to a MAMODO) can be used by any MAMODO. A SPELL that has been used cannot be used again until the next turn.",
           "Event: used from the Spell Book by paying its cost. Each player can use only 1 Event per turn."

@@ -20,7 +20,7 @@ from .state import (
     BATTLE, BOOK_SIZE, DUR_BATTLE, DUR_NEXT_TURN, DUR_TURN, DUR_UNTIL_END_NEXT_TURN,
     DUR_UNTIL_END_OWN_NEXT_TURN, GAME_OVER, MAMODO_LOCKED, MAX_FIELD_MAMODO, NO_ATTACK_SPELL, NO_DEFENSE,
     NO_ATTACK, NO_DEFENSE_SPELL_SLOT, NO_EFFECTS_AND_SPELLS, NO_EVENTS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS,
-    EFFECTS_LOCKED, NO_DISCARD_COST_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
+    EFFECTS_LOCKED, NO_DISCARD_COST_EFFECTS, NO_STONE_TABLET_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS, ONLY_MAMODO, PROTECT_ONLY, SETUP, START, STEP_DEFENSE, STEP_EFFECTS,
     BattleState, FieldCard, Game, GameState, MamodoSlot, Modifier, PendingChoice, PlayerState, Standby,
     free_column, place_slot, slot_columns,
 )
@@ -107,6 +107,10 @@ def power_breakdown(game: Game, player: int, slot: MamodoSlot, _visited: frozens
         # E-048:所有魔物 +N × 當下自己場上的魔物數(每次查詢重算)
         if m.kind == "power_per_own_mamodo" and m.active(st.turn_no) and m.target_player == player:
             items.append(_item("per_mamodo", m.source, m.amount * len(st.players[player].slots)))
+        # Ex-069:自己的石版魔物 +N(之後放出的也加,比照 E-048)
+        if (m.kind == "power_stone_tablet" and m.active(st.turn_no) and m.target_player == player
+                and is_stone_tablet(game, slot)):
+            items.append(_item("stone_tablet", m.source, m.amount))
     raw = sum(i["amount"] for i in items)
     if not _raw:
         visited = _visited | {(player, slot.uid)}
@@ -177,6 +181,7 @@ RESTRICTION_CATEGORIES = {
     NO_SPELLS: {"spells"},
     NO_ATTACK_SPELL: {"spells"},
     NO_MAMODO_EFFECTS: {"mamodo_effects"},
+    NO_STONE_TABLET_EFFECTS: {"mamodo_effects"},       # Ex-049
     MAMODO_LOCKED: {"spells", "mamodo_effects"},
     NO_EFFECTS_AND_SPELLS: {"spells", "mamodo_effects"},
     ONLY_MAMODO: {"spells", "mamodo_effects", "protect"},
@@ -227,13 +232,27 @@ def _other_names(game: Game, player: int, m) -> set[str]:
     return {family(game, s) for s in game.state.players[player].slots if s.uid != m.target_slot}
 
 
+def is_stone_tablet(game: Game, slot: MamodoSlot) -> bool:
+    """場上的魔物是石版魔物:以最上層的卡判斷(game-engine「石版魔物」)。"""
+    return game.db[slot.top].stone_tablet
+
+
+def discard_return_blocked(game: Game, player: int) -> bool:
+    """player 不能把棄牌區的卡放回場上或魔書:對手場上有未被「使えない」擋下的 M-085 類常駐效果
+    (game-engine「不能放回棄牌區的卡」)。"""
+    opp = 1 - player
+    return any(s.top in reg.BLOCK_DISCARD_RETURN and not card_effect_blocked(game, opp, s, s.top)
+               for s in game.state.players[opp].slots)
+
+
 def _mamodo_effect_blocks(game: Game, player: int, slot: MamodoSlot) -> list[tuple[str, str]]:
     """擋下這隻魔物「魔物の効果」的所有(錯誤碼, 來源卡號):P-031 家族禁止、全體限制、只限這隻 / 選定以外的限制。"""
     fam = family(game, slot)
     out = [("mamodo_restricted", number) for number, (blocked, _) in _opponent_family_blocks(game, player)
            if blocked == fam]   # P-031:常駐效果,不是限制,不能被移除
     for m in _restrictions(game, player):
-        if m.flag in (NO_MAMODO_EFFECTS, NO_EFFECTS_AND_SPELLS):
+        if m.flag in (NO_MAMODO_EFFECTS, NO_EFFECTS_AND_SPELLS) or (
+                m.flag == NO_STONE_TABLET_EFFECTS and is_stone_tablet(game, slot)):
             out.append(("mamodo_restricted", m.source))
         elif (m.flag in (MAMODO_LOCKED, EFFECTS_LOCKED) and m.target_slot == slot.uid) or (
                 m.flag == ONLY_MAMODO and m.target_slot != slot.uid):
@@ -363,6 +382,7 @@ POWER_UP_MODIFIERS = {
     "power": lambda m: m.amount > 0,
     "power_partnered": lambda m: m.amount > 0,                 # E-023
     "power_per_own_mamodo": lambda m: m.amount > 0,            # E-048
+    "power_stone_tablet": lambda m: m.amount > 0,              # Ex-069
     "attr_power": lambda m: m.amount > 0,                      # S-062
     "spell_named": lambda m: m.data.get("power", 0) > 0,       # PR-010
     "side_power": lambda m: m.amount > 0,                      # MJ-002 / MJ-005
@@ -1317,9 +1337,12 @@ REFUND_REASON = "refund"   # E-052 退回的費用:不是效果使 MP 增加(_re
 
 
 def _return_cost_card(game: Game, player: int, r: dict) -> list[str]:
-    """費用棄掉的卡回到原位;回不到時留在棄牌區。回傳回來的卡。"""
+    """費用棄掉的卡回到原位;回不到時(含 M-085「捨て札のカードを、場…にもどすことができない」)留在棄牌區。
+    回傳回來的卡。"""
     st = game.state
     ps = st.players[player]
+    if discard_return_blocked(game, player):
+        return []
     if r["zone"] == "partner":
         owner = st.players[r["partner_owner"] if r["partner_owner"] is not None else player]
         target = st.slot_by_uid(player, r["slot_uid"])

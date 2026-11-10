@@ -911,5 +911,11 @@
   "log.effect_undone": "{player} 把《{card}》当作没使用过",
   "log.effect_undone.detail": ":{detail}",
   "log.effect_undone.mp": "退回 {mp} MP",
-  "log.effect_undone.returned": "{cards} 回到原位"
+  "log.effect_undone.returned": "{cards} 回到原位",
+  "breakdown.stone_tablet": "石版魔物的加成《{card}》",
+  "effect.modifier.power_stone_tablet": "自己的石版魔物 魔力 +{amount}",
+  "effect.restriction.no_stone_tablet_effects": "{target} 的石版魔物的魔物卡效果失效",
+  "choice.damage_opponent_stone_tablet": "对对手的 1 只石版魔物造成伤害",
+  "choice.damage_opponent_non_stone_tablet": "对对手的 1 只石版魔物以外的魔物造成伤害",
+  "card.tag.stone_tablet": "石版"
 }

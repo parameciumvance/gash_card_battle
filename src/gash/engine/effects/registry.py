@@ -187,6 +187,7 @@ OPPONENT_EVENT_COST: dict[str, int] = {}
 
 # 此卡在場上時,持有者看得到對手翻開的頁(P-024)
 REVEAL_OPPONENT_PAGES: set[str] = set()
+BLOCK_DISCARD_RETURN: set[str] = set()      # 對手不能把棄牌區的卡放回場上或魔書(M-085)
 
 # pending choice 的解決器: key -> fn(game, batch, choice_value, data)
 CHOICE_RESOLVERS: dict[str, Callable] = {}
@@ -391,7 +392,7 @@ def spell_compat(number: str, *, check=None):
 # 常駐效果(「このカードが場にある→」,持續中或之後仍可能發動)所在的登記表;快照據此列出失效中的效果。
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
 PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
-                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
+                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "BLOCK_DISCARD_RETURN", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
                   "BLOCK_OPPONENT_FAMILY", "OPPONENT_EVENT_LOCK")
 
 
@@ -565,6 +566,11 @@ def opponent_event_cost(number: str, amount: int):
 def reveal_opponent_pages(number: str):
     """此卡在場上時,持有者看得到對手翻開的頁(P-024)。"""
     REVEAL_OPPONENT_PAGES.add(number)
+
+
+def block_discard_return(number: str):
+    """「このカードが場にある→」此卡在場上時,持有者的對手不能把棄牌區的卡放回場上或魔書(M-085)。"""
+    BLOCK_DISCARD_RETURN.add(number)
 
 
 def has_discard_cost_effect(number: str | None) -> bool:
