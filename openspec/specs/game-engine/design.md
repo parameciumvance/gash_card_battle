@@ -191,3 +191,13 @@ negated                                                                ← 無�
 - Ex-049 的旗標 `NO_STONE_TABLET_EFFECTS` 在 `_mamodo_effect_blocks` 依當下判斷(`mamodo_restricted`),所以啟動效果、魔物效果攻防與 `card_effect_blocked` 都經過它。分類為 `mamodo_effects`。
 - Ex-069 是玩家層級 modifier `power_stone_tablet`,`power_breakdown` 的明細項為 `stone_tablet`;列在 `POWER_UP_MODIFIERS`。
 - M-085:`reg.BLOCK_DISCARD_RETURN` 與 `engine.discard_return_blocked(game, player)`(看對手場上未被「使えない」擋下的卡)。目前在 `PlayablePartnerInDiscard`、`PartnerDiscardedThisTurn`、`DiscardedCardsToReturn`、`DiscardedMamodoToReturn`、`OpponentDiscardedPartner` 與 E-052 的 `_return_cost_card` 檢查。新增「從棄牌區放回場上或魔書」的效果時要一併檢查。
+
+## MP 增加的限制、干擾的費用與效果再用(season4-mamodo-a)
+
+- MP 增加集中在 `_allowed_mp_gain`:`gain_mp`、開始階段翻頁、結束階段強制翻頁都經過它。P-044 的旗標 `NO_MP_GAIN` 擋下全部;M-076(`reg.START_PHASE_MP_CAP`)依 `PlayerState.start_phase_mp_total`(本回合開始階段已增加的合計,翻頁與效果)限制。被擋下時發 `mp_gain_prevented`。E-052 的退回直接加 MP,不經過它。
+- 既有的 `start_phase_mp_gain`(P-035)只記開始階段翻頁的量,這次沒有改。
+- 干擾的使用 key 由 `jammer_key(number, zone)` 產生:同一張卡也有啟動效果時加 `:jammer`(M-080 兩個效果分開計次)。一般干擾依 `spec["zone"]` 棄掉魔物或搭檔;只有魔物的干擾提供 M-026 的連鎖。`reg.jammer(opponent_turn=True)` 只在持有者的對手是回合玩家時提供。
+- 魔物效果攻擊的條件 `reg.mamodo_attack(condition=)`(`attack.condition`);快照的 `mamodo_attack` 不送 `condition`。
+- Ex-061 的待命 `reuse_ability`(`data["mamodo"]` 為家族):魔物效果攻擊 / 防禦已用滿次數時才消耗,費用 0。
+- M-071 在魔力勝負判定後(`showdown` 事件之後、傷害之前)依 `reg.ATTACK_LOST_MP` 增加 MP。M-072 在 `flip_coins` 與 `_reflip_one` 擲出時依 `reg.COIN_THROWN_MP` 增加 MP。
+- P-045(`reg.coin_set_heads(spell_user=)`):擲硬幣子階段由 `_coin_spell_user_family` 從效果的續體 ctx(非戰鬥戰術的 `user_slot`;攻防戰術依 `side` 取戰鬥的使用魔物)判斷使用戰術的家族。

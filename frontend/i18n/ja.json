@@ -917,5 +917,9 @@
   "effect.restriction.no_stone_tablet_effects": "{target} の石版魔物の魔物の効果はなくなる",
   "choice.damage_opponent_stone_tablet": "相手の石版魔物1体にダメージ",
   "choice.damage_opponent_non_stone_tablet": "相手の石版魔物以外の魔物1体にダメージ",
-  "card.tag.stone_tablet": "石版"
+  "card.tag.stone_tablet": "石版",
+  "effect.standby.reuse_ability": "このターン中に1回、すでに使った「{mamodo}」の魔物の効果をコスト0で使える",
+  "effect.restriction.no_mp_gain": "{target} はMPをふやせない",
+  "effect.restriction.mamodo_effects_locked": "{target} は魔物の効果を使えない",
+  "error.attack.condition": "この効果を使う条件を満たしていない"
 }

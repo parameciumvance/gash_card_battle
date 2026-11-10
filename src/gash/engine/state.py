@@ -38,6 +38,8 @@ NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其效果(target_slot)與其名稱的戰術(data["mamodo"])(E-024)
 EFFECTS_LOCKED = "effects_locked"          # 指定魔物:禁其魔物效果與它身上搭檔的效果,不禁戰術(target_slot)(Ex-071)
+NO_MP_GAIN = "no_mp_gain"                  # MP 不能增加(翻頁、效果都算)(P-044)
+MAMODO_EFFECTS_LOCKED = "mamodo_effects_locked"   # 指定魔物:只禁其「魔物の効果」(target_slot)(M-081)
 NO_STONE_TABLET_EFFECTS = "no_stone_tablet_effects"   # 禁石版魔物的「魔物の効果」(依當下的最上層判斷)(Ex-049)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
 NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
@@ -157,6 +159,7 @@ class PlayerState:
     # 本回合被對手的效果實際減少的 MP 總量(E-028 / E-035)、本回合開始階段增加的 MP(P-035);回合結束歸零
     mp_reduced_by_opponent: int = 0
     start_phase_mp_gain: int = 0
+    start_phase_mp_total: int = 0   # 本回合開始階段增加的 MP 合計(翻頁與效果;M-076)
     # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
     dealt_damage_this_turn: bool = False
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合

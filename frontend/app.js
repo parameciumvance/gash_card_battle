@@ -2327,6 +2327,7 @@ function blockedBadges(slot, num) {
 
 // 效果已使用(快照的 *_used:"turn" 本回合已用、"game" 一場限 1 次已用)時的停用原因;未使用回傳 null
 function usedReason(used) {
+  if (used === "condition") return t("ui.condition");   // 魔物效果攻擊的使用條件(Ex-052 / Ex-055)
   return used === "game" ? t("ui.ability.used_game") : used ? t("ui.ability.used_turn") : null;
 }
 

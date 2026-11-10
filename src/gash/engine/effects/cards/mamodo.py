@@ -1,6 +1,8 @@
 """魔物卡(M-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS, NO_STONE_TABLET_EFFECTS
+from ...state import (
+    DUR_BATTLE, DUR_GAME, DUR_TURN, MAMODO_EFFECTS_LOCKED, NO_PROTECT_SLOT, NO_SPELLS, NO_STONE_TABLET_EFFECTS,
+)
 from .. import registry as reg
 from ..tree import (
     DeployableAfterDiscard, DeployableMamodoInOwnBook, DiscardChosenMamodo, OpponentBookAtLastPage,
@@ -13,6 +15,7 @@ from ..tree import (
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
     SetSelfPowerToChosenThisTurn,
     CanUseSpellCardNamed, CanUseSpellsOfMamodo, RestrictOpponent,
+    AttachablePartnerPagesInOwnBook, LockChosenOpponentMamodo, SelfHasPartnerNamed, SlotsForBookPartner,
     AttachOpponentPartnerToSelf, OpponentDiscardedPartner,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
@@ -318,6 +321,38 @@ reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
 reg.mamodo_attack("M-068", mp_cost=1, power=6000, damage=1, per_turn=2)
 reg.mamodo_attack("M-069", mp_cost=2, power=6000, damage=2)
 
+# 「自分がこの魔物で攻撃したバトルの魔力勝負で負けたとき」:防禦方較大或相同、攻擊被無效(規則頁「魔力勝負」)
+reg.attack_lost_mp("M-071", 3)
+# 「自分がコイン1個を投げるごとに」:重擲也算,改成正面不算;對手替我擲的不算
+reg.coin_thrown_mp("M-072", 1)
+# 「相手が、相手のスタートフェイズに『ふやせるMPの数』は2まで」:翻頁與開始階段的效果合計
+reg.start_phase_mp_cap("M-076", 2)
+reg.partner_discard_guard("M-078")
+# 《乱入》:ジャマー,只在對手的戰鬥階段(干擾戰鬥中不能用);《バトル乱入》:戰鬥圖示,兩個效果分開計次
+reg.jammer("M-080", discard_self=True, on="event", opponent_turn=True)
+reg.activated("M-080", mode="discard", timing="battle", condition=OpponentIsAttacking(), effect=NegateAttack())
+# 「ゾフィス」としてあつかう;《悪しき力》綁在選定的魔物(FAQ A1:同卡號的新魔物不受影響),只封「魔物の効果」
+reg.treated_as("M-081", "ゾフィス")
+reg.activated("M-081", mode="declare", timing="nonbattle", per_game=True, condition=HasOptions(OpponentMamodo()),
+              effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=MAMODO_EFFECTS_LOCKED, duration=DUR_GAME),
+))
+reg.activated("M-082", mode="mp", mp_cost=2, timing="nonbattle", condition=HasOptions(OpponentMamodo()), effect=Choose(
+    OpponentMamodo(), bind="choice", prompt="pick_opponent_mamodo",
+    then=LockChosenOpponentMamodo(flag=NO_PROTECT_SLOT),
+))
+# 「自分の魔本の好きなページから」:含未翻開的頁(比照 E-051 選頁、選裝備的魔物)
+reg.stack_on("M-083", family="ニャルラト")
+reg.activated("M-083", mode="mp", mp_cost=1, timing="nonbattle",
+              condition=HasOptions(AttachablePartnerPagesInOwnBook(name="詞音")), effect=Choose(
+    AttachablePartnerPagesInOwnBook(name="詞音"), bind="page", prompt="pick_partner_in_own_book",
+    then=Choose(
+        SlotsForBookPartner(page=Ref("page")), bind="slot", prompt="pick_mamodo_for_partner",
+        then=AttachPartnerFromBookPage(page=Ref("page"), slot=Ref("slot")),
+    ),
+))
+
 # 「相手は、捨て札のカードを、場や魔本にもどすことができない」:不論是誰的棄牌區(game-engine「不能放回棄牌區的卡」)
 reg.block_discard_return("M-085")
 
@@ -356,6 +391,10 @@ reg.activated("Ex-032", mode="mp", mp_cost=2, timing="nonbattle",
     OwnBookPartnerNamed("ナゾナゾ博士"), bind="page", prompt="pick_partner_in_own_book",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
+
+# 「この魔物に『リィエン』/『ゴルドー』がついていれば使える」
+reg.mamodo_attack("Ex-052", mp_cost=1, power=7000, damage=1, condition=SelfHasPartnerNamed("リィエン"))
+reg.mamodo_attack("Ex-055", mp_cost=1, power=6500, damage=2, condition=SelfHasPartnerNamed("ゴルドー"))
 
 # 石版魔物の「魔物の効果」:依當下的最上層判斷,之後放出的也算;「このカードが場にある→」也擋
 reg.activated("Ex-049", mode="mp", mp_cost=1, timing="nonbattle",

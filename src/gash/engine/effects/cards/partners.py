@@ -1,7 +1,7 @@
 """搭檔卡(P-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import (
-    DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT, NO_EVENTS, NO_PARTNER_EFFECTS,
+    DUR_NEXT_TURN, DUR_TURN, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT, NO_EVENTS, NO_MP_GAIN, NO_PARTNER_EFFECTS,
     NO_PROTECT_SLOT, PROTECT_ONLY,
 )
 from .. import registry as reg
@@ -20,7 +20,7 @@ from ..tree import (
     SpellsCostZeroThisTurn, StealOpponentMp, TurnOpponentPagesPerMamodoCardDiscarded,
     TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
     DamageChosenOpponentMamodo, DamageOpponentBook, DeferOnOpponentTurnBack, OwnBookAtLastPage, OwnBookEvents,
-    ScheduleAnyPageUse, ScheduleEventFromChosenPage,
+    ScheduleAnyPageUse, ScheduleEventFromChosenPage, ScheduleReuseAbility,
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
@@ -186,6 +186,13 @@ reg.on_attack("P-043", when=AttackByFamily(mamodo="ウォンレイ"), effect=Cho
     ),
 ))
 
+# 比照 P-032:「次のターン中」(FAQ:含開始與結束階段)對手不能增加 MP
+reg.activated("P-044", mode="discard", timing="nonbattle", effect=RestrictOpponent(flag=NO_MP_GAIN, duration=DUR_NEXT_TURN))
+# 效果文「ドンボッチョ」依 FAQ 當作ドンポッチョ:ドンポッチョ使用的戰術(含指令戰術)擲的硬幣
+reg.coin_set_heads("P-045", spell_user="ドンポッチョ")
+reg.jammer("P-046", discard_self=True, on="event")
+reg.activated("P-050", mode="discard", timing="nonbattle", effect=StealOpponentMp(amount=2))
+
 # Ex-007 / 010 / 011 / 012:下一場戰鬥中「該魔物の術」1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
 # 攻防都有作用,不限自己的回合(同 P-007)
 reg.activated("Ex-007", mode="discard", timing="nonbattle",
@@ -226,3 +233,6 @@ reg.activated("Ex-037", mode="discard", timing="nonbattle", effect=When(
         then=ScheduleEventFromChosenPage(cost_delta=1),
     ),
 ))
+
+# 「このターン中に１回、自分がこのターン中すでに使った『ダニー』の『魔物の効果』1つを、コスト0で」:用過的效果再用 1 次
+reg.activated("Ex-061", mode="discard", timing="nonbattle", effect=ScheduleReuseAbility(family="ダニー"))
