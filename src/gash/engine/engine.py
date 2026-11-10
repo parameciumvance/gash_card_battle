@@ -3727,7 +3727,8 @@ def _mamodo_gone_processing(game: Game, batch: list[dict], player: int, next_sta
     while True:
         candidates = [p for p in ps.open_pages()
                       if game.db[ps.card_at(p)].type == MAMODO
-                      and ps.card_at(p) not in reg.STACK_ON]
+                      and ps.card_at(p) not in reg.STACK_ON
+                      and not name_deploy_blocked(game, player, game.db[ps.card_at(p)])]   # Ex-053(使用者決定)
         if len(candidates) == 1:
             _deploy_mamodo_from_page(game, batch, player, candidates[0])
             return True
