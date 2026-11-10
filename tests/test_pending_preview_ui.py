@@ -16,7 +16,7 @@ def level4_open() -> set[str]:
     return {c["number"] for c in cards if "level-4" in c["sets"] and c["number"] not in pending_cards()}
 
 
-PENDING_CARD = "M-070"   # 第 4 賽季,資料已收錄、效果尚未實作
+PENDING_CARD = "M-073"   # 第 4 賽季,資料已收錄、效果尚未實作
 OPEN_CARD = "M-001"
 
 
@@ -109,7 +109,7 @@ def test_cheat_pool_hides_pending(page):
     keys = filters.locator(".filter-panel[data-group=mamodo] .filter-tile[data-key]").evaluate_all(
         "(ts) => ts.map((t) => t.dataset.key)")
     hidden = pending_only_families()                                          # 只有尚未開放卡片的魔物家族
-    assert hidden and not hidden & set(keys)
+    assert not hidden & set(keys)                                           # 分批開放後可能已沒有這類家族
 
 
 def test_mj12_sorted_after_events(browser, server):

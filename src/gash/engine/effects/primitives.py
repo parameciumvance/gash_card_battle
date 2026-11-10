@@ -94,9 +94,22 @@ def schedule_standby(game, batch, *, kind, source, owner, data=None):
 
 # ---------------------------------------------------------------- 翻頁 / MP / 回復
 
+def _page_lock(game, table, holders) -> str | None:
+    """戰鬥階段中,holders 場上未被擋下的 table 登記卡(PR-012 / P-049);沒有時 None。"""
+    from ..engine import _field_cards
+    from ..state import BATTLE
+    if game.state.phase != BATTLE:
+        return None
+    return next((number for p in holders for number, _s in _field_cards(game, p, table)), None)
+
+
 def turn_pages(game, batch, player, leaves, source):
-    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。"""
+    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。PR-012 在場時,戰鬥階段中不翻(傷害的翻頁不經過這裡)。"""
     from ..engine import _game_over
+    lock = _page_lock(game, reg.BLOCK_EFFECT_PAGE_TURN, (0, 1))
+    if lock:
+        game.emit(batch, "page_turn_restricted", player=player, count=leaves, source=lock)
+        return
     ps = game.state.players[player]
     ps.pos += 2 * leaves
     game.emit(batch, "pages_turned", player=player, count=leaves, pos=min(ps.pos, BOOK_SIZE + 2), source=source)
@@ -105,7 +118,12 @@ def turn_pages(game, batch, player, leaves, source):
 
 
 def turn_back_pages(game, batch, player, leaves, source) -> int:
-    """效果造成的回翻,最多回到第一頁;回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。"""
+    """效果造成的回翻,最多回到第一頁;回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。
+    P-049 在對手場上時,戰鬥階段中不回翻(回翻自己魔書的效果)。"""
+    lock = _page_lock(game, reg.BLOCK_TURN_BACK, (1 - player,))
+    if lock:
+        game.emit(batch, "page_turn_restricted", player=player, count=-leaves, source=lock)
+        return 0
     ps = game.state.players[player]
     actual = min(leaves, max(0, (ps.pos - 2) // 2))
     if actual == 0:
@@ -332,14 +350,32 @@ def card_name_key(name: str) -> str:
     return re.sub(r"[（(][^）)]*[）)]", "", name).strip()
 
 
-def selectable_opponent_slots(game, chooser) -> list:
-    """chooser 的效果「選ぶ」時可選的對手魔物:受「相手は…を選ぶことができない」(S-121,依家族、期間中上場的也算)
-    保護的除外。所有「由效果選對手魔物」的地方都用它(game-engine「不能被對手選擇的魔物」)。"""
+def unselectable_by(game, chooser, owner, slot) -> bool:
+    """chooser 的效果「選ぶ」時不能選 owner 的這隻魔物:S-121(「相手は…選ぶことができない」,只對對手,依家族)、
+    M-075 / Ex-099(「自分も相手も…選ぶことができない」,雙方;Ex-099 只在持有者場上只有它時;被「使えない」擋下時不作用)。"""
+    from ..engine import card_effect_blocked
     st = game.state
+    if chooser != owner and any(m.kind == "unselectable" and m.target_player == owner and m.active(st.turn_no)
+                                and m.data.get("mamodo") == family(game, slot) for m in st.modifiers):
+        return True
+    spec = reg.UNSELECTABLE.get(slot.top)
+    if spec is None:
+        return False
+    if spec.get("alone") and len(st.players[owner].slots) != 1:
+        return False
+    return not card_effect_blocked(game, owner, slot, slot.top)
+
+
+def selectable_opponent_slots(game, chooser) -> list:
+    """chooser 的效果「選ぶ」時可選的對手魔物(game-engine「不能被對手選擇的魔物」「雙方都不能選擇的魔物」)。
+    所有「由效果選對手魔物」的地方都用它。"""
     owner = 1 - chooser
-    guards = [m.data.get("mamodo") for m in st.modifiers
-              if m.kind == "unselectable" and m.target_player == owner and m.active(st.turn_no)]
-    return [s for s in st.players[owner].slots if not guards or family(game, s) not in guards]
+    return [s for s in game.state.players[owner].slots if not unselectable_by(game, chooser, owner, s)]
+
+
+def selectable_own_slots(game, player) -> list:
+    """player 的效果「選ぶ」時可選的自己魔物(M-075 / Ex-099 雙方都不能選)。"""
+    return [s for s in game.state.players[player].slots if not unselectable_by(game, player, player, s)]
 
 
 def slot_option(player, slot, card=None, **extra):
@@ -473,8 +509,10 @@ def _set_heads_sources(game, player, data=None):
         need = reg.COIN_SET_HEADS_USER.get(number)
         return need is None or need == user
 
+    from ..engine import own_mamodo_discard_blocked
+    own_block = own_mamodo_discard_blocked(game, player)   # P-048:魔物卡改正面要棄掉自己
     for s in game.state.players[player].slots:
-        if (s.top in reg.COIN_SET_HEADS and s.top not in seen and applies(s.top)
+        if (s.top in reg.COIN_SET_HEADS and s.top not in seen and applies(s.top) and not own_block
                 and not mamodo_effect_block(game, player, s)):
             out.append((s.top, s, "mamodo"))
             seen.add(s.top)

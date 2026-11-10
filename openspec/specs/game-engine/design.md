@@ -201,3 +201,15 @@ negated                                                                ← 無�
 - Ex-061 的待命 `reuse_ability`(`data["mamodo"]` 為家族):魔物效果攻擊 / 防禦已用滿次數時才消耗,費用 0。
 - M-071 在魔力勝負判定後(`showdown` 事件之後、傷害之前)依 `reg.ATTACK_LOST_MP` 增加 MP。M-072 在 `flip_coins` 與 `_reflip_one` 擲出時依 `reg.COIN_THROWN_MP` 增加 MP。
 - P-045(`reg.coin_set_heads(spell_user=)`):擲硬幣子階段由 `_coin_spell_user_family` 從效果的續體 ctx(非戰鬥戰術的 `user_slot`;攻防戰術依 `side` 取戰鬥的使用魔物)判斷使用戰術的家族。
+
+## 雙方都不能選擇、不能棄掉自己的魔物、翻頁與魔書的限制(season4-mamodo-b)
+
+- 不能被選擇集中在 `primitives.unselectable_by(game, chooser, owner, slot)`:S-121 的 `unselectable` modifier(只對對手)與 `reg.UNSELECTABLE`(雙方)。`selectable_opponent_slots` 與新的 `selectable_own_slots` 都經過它;自己選魔物的選項規格(`OwnMamodo`、`OwnOtherMamodo`、`OwnPartneredMamodo`、`OwnInjuredMamodo`、`ReturnableOwnMamodo`)與 `has_own_mamodo` / `has_own_injured_mamodo` 改用 `selectable_own_slots`。
+- 常駐效果的表(`reg.LAST_PAGE_LOCK`、`BLOCK_DISCARDED_NAMES`、`BOOK_HIDDEN`、`BLOCK_OWN_MAMODO_DISCARD`、`BLOCK_TURN_BACK`、`BLOCK_EFFECT_PAGE_TURN`)以 `_field_cards` 查(被「使えない」擋下的不算)。
+- Ex-051:`last_page_lock_sources` 併入 `partner_effect_block_sources` 與事件卡的 `event.restricted`。
+- Ex-053:`name_deploy_blocked` 在 `play_block`(`discarded_name`)與效果放出的選項規格(`AttachablePartnerPagesInOwnBook`、`DeployableMamodoInOwnBook`、`PlayablePartnerInDiscard`、`PartnerDiscardedThisTurn`、`OpponentDiscardedPartner`)檢查。新增放出路徑時要一併檢查。
+- Ex-054:`PARTNER_LOCKED`(`data["card"]`)與 `FIELD_LOCKED`(`data["field_uid"]`);`restriction_live` 依 `data["phase"] == "battle"` 只在戰鬥階段作用。
+- M-079:`book_hidden(game, owner)`、`views_opponent_book(card)`(效果文 regex);事件卡、戰術宣告、非戰鬥戰術、啟動效果(`book_hidden`)、`reveals_open_pages`、`RevealOpponentBook`、`OpponentBookCards` 都檢查。
+- P-048:`own_mamodo_discard_blocked`;檢查點為啟動效果(`own_discard_blocked`)、干擾 `discard_self`、擲幣改正面(魔物)、1 個行動棄掉疊放上層、`DiscardChosenMamodo`、`DiscardOwnMamodoByNumber`、`end_phase_discard` 中自己的魔物。
+- PR-012 / P-049:`primitives._page_lock`,在 `turn_pages` / `turn_back_pages` 擋下並發 `page_turn_restricted`。
+- M-075:`_lock_after_own_spell` 在攻擊、防禦、非戰鬥戰術使用時建立 `MAMODO_EFFECTS_LOCKED`(`DUR_NEXT_TURN`,對象是自己這隻魔物)。

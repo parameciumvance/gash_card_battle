@@ -137,8 +137,9 @@ reg.event("E-017", effect=Sequence(steps=(
 
 reg.event("E-018", effect=ReduceOpponentMpUnlessReducedLastTurn(amount=4))
 
-reg.event("E-019", when=has_own_mamodo, effect=Choose(
-    OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
+# P-048 作用時沒有可選的魔物(不能棄掉自己場上的魔物)
+reg.event("E-019", when=HasOptions(OwnMamodo(discard=True)), effect=Choose(
+    OwnMamodo(discard=True), bind="slot", prompt="pick_own_mamodo",
     then=DiscardChosenMamodo(),
 ))
 

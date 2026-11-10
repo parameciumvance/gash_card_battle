@@ -1,7 +1,8 @@
 """魔物卡(M-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
 from ...state import (
-    DUR_BATTLE, DUR_GAME, DUR_TURN, MAMODO_EFFECTS_LOCKED, NO_PROTECT_SLOT, NO_SPELLS, NO_STONE_TABLET_EFFECTS,
+    DUR_BATTLE, DUR_GAME, DUR_TURN, MAMODO_EFFECTS_LOCKED, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS, NO_PROTECT_SLOT,
+    NO_SPELLS, NO_STONE_TABLET_EFFECTS,
 )
 from .. import registry as reg
 from ..tree import (
@@ -16,6 +17,7 @@ from ..tree import (
     SetSelfPowerToChosenThisTurn,
     CanUseSpellCardNamed, CanUseSpellsOfMamodo, RestrictOpponent,
     AttachablePartnerPagesInOwnBook, LockChosenOpponentMamodo, SelfHasPartnerNamed, SlotsForBookPartner,
+    LockOpponentFieldThisBattlePhase, ScheduleBattleLock,
     AttachOpponentPartnerToSelf, OpponentDiscardedPartner,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
@@ -321,13 +323,22 @@ reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
 reg.mamodo_attack("M-068", mp_cost=1, power=6000, damage=1, per_turn=2)
 reg.mamodo_attack("M-069", mp_cost=2, power=6000, damage=2)
 
+# 比照 P-042:下一場以ガッシュ・ベル的戰術或魔物效果攻擊的戰鬥中,對手不能用魔物效果與搭檔效果
+reg.activated("M-070", mode="declare", timing="nonbattle", own_turn=True,
+              effect=ScheduleBattleLock(mamodo="ガッシュ・ベル", flags=(NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS)))
 # 「自分がこの魔物で攻撃したバトルの魔力勝負で負けたとき」:防禦方較大或相同、攻擊被無效(規則頁「魔力勝負」)
 reg.attack_lost_mp("M-071", 3)
 # 「自分がコイン1個を投げるごとに」:重擲也算,改成正面不算;對手替我擲的不算
 reg.coin_thrown_mp("M-072", 1)
+# 「自分も相手は…その魔物を選ぶことができない」(卡頁解說:誤植,讀作「自分も相手も…この魔物を」);
+# 自己用它的戰術後,下一回合它的魔物效果(含不能被選)不作用
+reg.unselectable("M-075")
+reg.lock_after_own_spell("M-075")
 # 「相手が、相手のスタートフェイズに『ふやせるMPの数』は2まで」:翻頁與開始階段的效果合計
 reg.start_phase_mp_cap("M-076", 2)
 reg.partner_discard_guard("M-078")
+# 「相手は、自分の魔本を見なければ使えない效果を使えない」:效果文含「相手の魔本(の今のページ)を見」的整張卡(使用者決定)
+reg.book_hidden("M-079")
 # 《乱入》:ジャマー,只在對手的戰鬥階段(干擾戰鬥中不能用);《バトル乱入》:戰鬥圖示,兩個效果分開計次
 reg.jammer("M-080", discard_self=True, on="event", opponent_turn=True)
 reg.activated("M-080", mode="discard", timing="battle", condition=OpponentIsAttacking(), effect=NegateAttack())
@@ -392,18 +403,26 @@ reg.activated("Ex-032", mode="mp", mp_cost=2, timing="nonbattle",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
 
-# 「この魔物に『リィエン』/『ゴルドー』がついていれば使える」
-reg.mamodo_attack("Ex-052", mp_cost=1, power=7000, damage=1, condition=SelfHasPartnerNamed("リィエン"))
-reg.mamodo_attack("Ex-055", mp_cost=1, power=6500, damage=2, condition=SelfHasPartnerNamed("ゴルドー"))
-
 # 石版魔物の「魔物の効果」:依當下的最上層判斷,之後放出的也算;「このカードが場にある→」也擋
 reg.activated("Ex-049", mode="mp", mp_cost=1, timing="nonbattle",
               effect=RestrictOpponent(flag=NO_STONE_TABLET_EFFECTS, duration=DUR_TURN))
+# 「自分の魔本が最後のページのとき」:事件卡與搭檔效果(含「このカードが場にある→」),雙方的回合
+reg.last_page_lock("Ex-051")
+# 「この魔物に『リィエン』/『ゴルドー』がついていれば使える」
+reg.mamodo_attack("Ex-052", mp_cost=1, power=7000, damage=1, condition=SelfHasPartnerNamed("リィエン"))
+# 「このターン中に捨て札にしたカード」:對手本回合進棄牌區的卡,不分原因(使用者決定)
+reg.block_discarded_names("Ex-053")
+# 放出時選對手場上可被選擇的卡;只鎖當時的那些卡,只在這回合的戰鬥階段
+reg.on_play("Ex-054", effect=LockOpponentFieldThisBattlePhase())
+reg.mamodo_attack("Ex-055", mp_cost=1, power=6500, damage=2, condition=SelfHasPartnerNamed("ゴルドー"))
 
 # 石版魔物:「このカードが場にある→」戰術相容(被「魔物の効果を使えない」擋下時不能使用)
 reg.spell_compat("Ex-056", check=CanUseSpellsOfMamodo("マルス"))
 reg.spell_compat("Ex-057", check=CanUseSpellsOfMamodo("エシュロス"))
 reg.spell_compat("Ex-058", check=CanUseSpellCardNamed("ビライツ"))
+
+# 「この効果は、自分の場にこの魔物以外の魔物がいないとき使える」:雙方都不能選(含「すべてを選ぶ」,FAQ A1 / A2)
+reg.unselectable("Ex-099", alone=True)
 
 # PR-001「この魔物の術」依名稱(離場後換另一隻ガッシュ・ベル也適用);「コスト3まで」為實際費用,追加費用照付
 reg.activated("PR-001", mode="declare", timing="nonbattle", per_game=True, effect=ScheduleFreeSpell(max_cost=3))
@@ -422,3 +441,5 @@ reg.activated("PR-008", mode="mp", mp_cost=1, timing="nonbattle", condition=HasO
 ))
 
 reg.end_phase("PR-011", when=OwnMpAtMost(1), effect=GainMp(amount=2))
+# 「バトルフェイズに、ダメージ以外の効果で、魔本をめくることはできない」(FAQ:舊「メインフェイズ」讀作バトルフェイズ)
+reg.block_effect_page_turn("PR-012")

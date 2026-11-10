@@ -21,6 +21,7 @@ from ..tree import (
     TurnOwnPagesBackOncePerTurn, TurnOwnPagesOncePerTurn, When,
     DamageChosenOpponentMamodo, DamageOpponentBook, DeferOnOpponentTurnBack, OwnBookAtLastPage, OwnBookEvents,
     ScheduleAnyPageUse, ScheduleEventFromChosenPage, ScheduleReuseAbility,
+    DiscardChosenFieldCard, FieldPassiveNonMamodoCards, Ref,
 )
 
 # 「このカードを捨て札にする→」為 mode="discard"(引擎把此卡棄掉作為費用;E-010 借用時不棄)。
@@ -191,6 +192,17 @@ reg.activated("P-044", mode="discard", timing="nonbattle", effect=RestrictOppone
 # 效果文「ドンボッチョ」依 FAQ 當作ドンポッチョ:ドンポッチョ使用的戰術(含指令戰術)擲的硬幣
 reg.coin_set_heads("P-045", spell_user="ドンポッチョ")
 reg.jammer("P-046", discard_self=True, on="event")
+# 「自分か相手の場の『このカードが場にある→』の効果を持つ、魔物以外のカード」;受 M-049 類保護的對手搭檔除外
+reg.activated("P-047", mode="discard", timing="nonbattle", condition=HasOptions(FieldPassiveNonMamodoCards()),
+              effect=Choose(
+    FieldPassiveNonMamodoCards(), bind="choice", prompt="pick_field_card",
+    then=DiscardChosenFieldCard(target=Ref("choice")),
+))
+# 「相手は、相手自身の場の魔物を捨て札にできない(ダメージで捨て札になるのはよい)」
+reg.block_own_mamodo_discard("P-048")
+# 「相手は、バトルフェイズ中、相手自身の魔本をもどすことができない」;1 個行動棄掉
+reg.block_turn_back("P-049")
+reg.action_discard("P-049", "partner")
 reg.activated("P-050", mode="discard", timing="nonbattle", effect=StealOpponentMp(amount=2))
 
 # Ex-007 / 010 / 011 / 012:下一場戰鬥中「該魔物の術」1 張「本来のコスト」為 0(追加費用照付,Ex-011 舊規則 FAQ);
@@ -235,4 +247,7 @@ reg.activated("Ex-037", mode="discard", timing="nonbattle", effect=When(
 ))
 
 # 「このターン中に１回、自分がこのターン中すでに使った『ダニー』の『魔物の効果』1つを、コスト0で」:用過的效果再用 1 次
+# 比照 P-042:下一場以ガッシュ・ベル的戰術或魔物效果攻擊的戰鬥中,對手不能用搭檔效果與事件卡
+reg.activated("Ex-059", mode="discard", timing="nonbattle", own_turn=True,
+              effect=ScheduleBattleLock(mamodo="ガッシュ・ベル", flags=(NO_PARTNER_EFFECTS, NO_EVENTS)))
 reg.activated("Ex-061", mode="discard", timing="nonbattle", effect=ScheduleReuseAbility(family="ダニー"))

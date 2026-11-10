@@ -921,5 +921,15 @@
   "effect.standby.reuse_ability": "Once this turn, an already used MAMODO card effect of “{mamodo}” can be used again at cost 0",
   "effect.restriction.no_mp_gain": "{target} cannot gain MP",
   "effect.restriction.mamodo_effects_locked": "{target} cannot use MAMODO card effects",
-  "error.attack.condition": "The conditions for this effect are not met"
+  "error.attack.condition": "The conditions for this effect are not met",
+  "error.ability.book_hidden": "Your opponent's Spell Book cannot be viewed, so effects that view it cannot be used",
+  "error.event.book_hidden": "Your opponent's Spell Book cannot be viewed, so effects that view it cannot be used",
+  "error.spell.book_hidden": "Your opponent's Spell Book cannot be viewed, so effects that view it cannot be used",
+  "error.ability.own_discard_blocked": "An opponent's effect prevents you from discarding your own MAMODO in play",
+  "error.action_effect.own_discard_blocked": "An opponent's effect prevents you from discarding your own MAMODO in play",
+  "error.ability.field_locked": "This card's effect cannot be used now",
+  "error.play.discarded_name": "An opponent's effect prevents you from playing a card with the same name as one you discarded this turn",
+  "choice.title.pick_field_card": "Choose a card in play",
+  "effect.restriction.partner_locked": "{target}'s Partner “{card}” effects are lost (Battle Phase)",
+  "effect.restriction.field_locked": "{target}'s “{card}” effects are lost (Battle Phase)"
 }

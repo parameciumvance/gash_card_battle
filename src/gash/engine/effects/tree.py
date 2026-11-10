@@ -25,6 +25,7 @@ from .primitives import (
     discard_from_book, discard_option, discard_partner, flip_coins,
     family, heal_slot, mamodo_name, mark_opp_mp_reduced, mp_guarded, partner_discard_guarded, own_book_turn_effect, page_option, play_mamodo_from_book, reduce_mp,
     mp_counter_after_reduction, reduce_opponent_mp, return_to_book, run_on_play, selectable_opponent_slots,
+    selectable_own_slots,
     card_name_key,
     schedule_standby, slot_option, stack_base, take_from_book,
     turn_pages,
@@ -314,7 +315,8 @@ class HeadsCount:
 # ================================================================ 使用前置條件(reg.event 的 when=,簽名 fn(game, player))
 
 def has_own_mamodo(game, player) -> bool:
-    return bool(game.state.players[player].slots)
+    """自己場上有可被選擇的魔物(M-075 / Ex-099 雙方都不能選)。"""
+    return bool(selectable_own_slots(game, player))
 
 
 def has_partner_discarded_this_turn(game, player) -> bool:
@@ -323,7 +325,7 @@ def has_partner_discarded_this_turn(game, player) -> bool:
 
 
 def has_own_injured_mamodo(game, player) -> bool:
-    return any(s.injured for s in game.state.players[player].slots)
+    return any(s.injured for s in selectable_own_slots(game, player))
 
 
 def mp_reduced_by_opponent(game, player) -> bool:
@@ -391,15 +393,20 @@ class AnyOf:
 
 @dataclass(frozen=True)
 class OwnMamodo:
-    """自己場上的魔物;以穩定的 slot UID 作為選項值。"""
+    """自己場上可被選擇的魔物(M-075 / Ex-099 除外);以穩定的 slot UID 作為選項值。
+    discard:選來棄掉的(E-019),P-048 作用時沒有選項。"""
+    discard: bool = False
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import own_mamodo_discard_blocked
         player = ctx["player"]
-        return [slot_option(player, s) for s in game.state.players[player].slots]
+        if self.discard and own_mamodo_discard_blocked(game, player):
+            return []
+        return [slot_option(player, s) for s in selectable_own_slots(game, player)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
-        if game.state.slot_by_uid(ctx["player"], value if isinstance(value, int) else -1) is None:
+        if value not in {o["value"] for o in self.options(game, ctx)}:
             raise IllegalCommand("choose.invalid", "須選擇自己場上的魔物")
 
 
@@ -409,7 +416,7 @@ class PlayablePartnerInDiscard:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
-        from ..engine import discard_return_blocked
+        from ..engine import discard_return_blocked, name_deploy_blocked
         if discard_return_blocked(game, player):   # M-085
             return []
         ps = game.state.players[player]
@@ -424,6 +431,8 @@ class PlayablePartnerInDiscard:
             if slot is None:
                 continue
             if any(game.db[s.partner].name_ja == card.name_ja for s in ps.slots if s.partner):
+                continue
+            if name_deploy_blocked(game, player, card):   # Ex-053
                 continue
             out.append(discard_option(player, i, number, slot_uid=slot.uid))
         return out
@@ -599,7 +608,7 @@ class OwnOtherMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
-        return [slot_option(player, s) for s in game.state.players[player].slots if s.uid != ctx.get("self_slot")]
+        return [slot_option(player, s) for s in selectable_own_slots(game, player) if s.uid != ctx.get("self_slot")]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -646,7 +655,7 @@ class OwnPartneredMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
-        return [slot_option(player, s, s.partner) for s in game.state.players[player].slots if s.partner]
+        return [slot_option(player, s, s.partner) for s in selectable_own_slots(game, player) if s.partner]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -685,7 +694,7 @@ class AttachablePartnerPagesInOwnBook:
     excluding_self: bool = False
 
     def options(self, game, ctx) -> list[dict]:
-        from ..engine import same_name_in_play
+        from ..engine import name_deploy_blocked, same_name_in_play
         player = ctx["player"]
         ps = game.state.players[player]
         # 借用(E-010)時不棄掉搭檔,self_slot 不是使用者的魔物:照一般場面判斷
@@ -698,6 +707,8 @@ class AttachablePartnerPagesInOwnBook:
                 continue
             card = game.db[ps.card_at(p)]
             if card.type != PARTNER or (self.name and card.name_ja != self.name):
+                continue
+            if name_deploy_blocked(game, player, card):   # Ex-053
                 continue
             if self_slot is None:
                 if _partner_slots(game, player, card):
@@ -738,7 +749,7 @@ class OwnInjuredMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
-        return [slot_option(player, s) for s in game.state.players[player].slots if s.injured]
+        return [slot_option(player, s) for s in selectable_own_slots(game, player) if s.injured]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -772,8 +783,10 @@ class OpponentDiscardedPartner:
         if discard_return_blocked(game, player):   # M-085
             return []
         opp = 1 - player
+        from ..engine import name_deploy_blocked
         return [discard_option(opp, i, number) for i, number in enumerate(game.state.players[opp].discard)
-                if game.db[number].type == PARTNER and not same_name_in_play(game, player, game.db[number])]
+                if game.db[number].type == PARTNER and not same_name_in_play(game, player, game.db[number])
+                and not name_deploy_blocked(game, player, game.db[number])]   # Ex-053
 
     def options(self, game, ctx) -> list[dict]:
         return self._targets(game, ctx["player"])
@@ -790,7 +803,7 @@ class PartnerDiscardedThisTurn:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
-        from ..engine import discard_return_blocked
+        from ..engine import discard_return_blocked, name_deploy_blocked
         if discard_return_blocked(game, player):   # M-085
             return []
         ps = game.state.players[player]
@@ -798,6 +811,8 @@ class PartnerDiscardedThisTurn:
         for i, number in enumerate(ps.discard):
             card = game.db[number]
             if card.type != PARTNER or number not in ps.discarded_this_turn:
+                continue
+            if name_deploy_blocked(game, player, card):   # Ex-053:本回合入墓的搭檔本身就同名
                 continue
             slot = next((s for s in ps.slots
                          if family(game, s) == card.related_mamodo
@@ -847,7 +862,7 @@ class DeployableMamodoInOwnBook:
 
     @staticmethod
     def _targets(game, player) -> list[dict]:
-        from ..engine import MAX_FIELD_MAMODO, same_name_in_play
+        from ..engine import MAX_FIELD_MAMODO, name_deploy_blocked, same_name_in_play
         from ..cards import MAMODO
         ps = game.state.players[player]
         if len(ps.slots) >= MAX_FIELD_MAMODO:
@@ -858,7 +873,7 @@ class DeployableMamodoInOwnBook:
                 continue
             number = ps.card_at(p)
             card = game.db[number]
-            if card.type != MAMODO:
+            if card.type != MAMODO or name_deploy_blocked(game, player, card):   # Ex-053
                 continue
             if number in reg.STACK_ON:
                 if stack_base(game, player, number) is None:
@@ -947,6 +962,9 @@ class OpponentBookCards:
     excluding: str = ""                  # 排除 ctx 中這個綁定已選的頁(Ex-072 的第 2 張)
 
     def options(self, game, ctx) -> list[dict]:
+        from ..engine import book_hidden
+        if book_hidden(game, 1 - ctx["player"]):   # M-079:自分の魔本は相手に見られない
+            return []
         opp = game.state.players[1 - ctx["player"]]
         keys = {card_name_key(game.db[n].name_ja) for n in opp.discard} if self.same_name_as_discard else None
         out = []
@@ -1904,10 +1922,10 @@ class DiscardChosenMamodo(Effect):
     target: Ref = Ref("slot")
 
     def run(self, rt, ctx, path):
-        from ..engine import _discard_slot
+        from ..engine import _discard_slot, own_mamodo_discard_blocked
         player = ctx["player"]
         slot = rt.game.state.slot_by_uid(player, ctx[self.target.name])
-        if slot is None:
+        if slot is None or own_mamodo_discard_blocked(rt.game, player):   # P-048
             return True
         _discard_slot(rt.game, rt.batch, player, slot, reason=ctx["source"])
         return True
@@ -1957,7 +1975,10 @@ class RevealOpponentBook(Effect):
     """對使用者揭露對手魔書中尚未離開的所有頁(E-016 / E-017)。"""
 
     def run(self, rt, ctx, path):
+        from ..engine import book_hidden
         player = ctx["player"]
+        if book_hidden(rt.game, 1 - player):   # M-079:自分の魔本は相手に見られない
+            return True
         opp = rt.game.state.players[1 - player]
         rt.game.emit(rt.batch, "book_revealed", player=1 - player, viewer=player,
                      cards=[{"page": p, "card": opp.card_at(p)}
@@ -2047,8 +2068,10 @@ class DiscardOwnMamodoByNumber(Effect):
     count: int = 1
 
     def run(self, rt, ctx, path):
-        from ..engine import _discard_slot
+        from ..engine import _discard_slot, own_mamodo_discard_blocked
         player = ctx["player"]
+        if own_mamodo_discard_blocked(rt.game, player):   # P-048
+            return True
         targets = [s for s in rt.game.state.players[player].slots if s.top == self.number]
         for s in targets[:self.count]:
             _discard_slot(rt.game, rt.batch, player, s, reason=ctx["source"])
@@ -3173,7 +3196,7 @@ class ReturnableOwnMamodo:
 
     def options(self, game, ctx) -> list[dict]:
         player = ctx["player"]
-        return [slot_option(player, s) for s in game.state.players[player].slots if self._ok(game, player, s)]
+        return [slot_option(player, s) for s in selectable_own_slots(game, player) if self._ok(game, player, s)]
 
     def validate(self, game, ctx, value) -> None:
         from ..engine import IllegalCommand
@@ -3474,6 +3497,77 @@ class SelfHasNoPartner:
 
     def __call__(self, game, player, slot) -> bool:
         return slot.partner is None
+
+
+@dataclass(frozen=True)
+class LockOpponentFieldThisBattlePhase(Effect):
+    """相手の場のカードすべてを選ぶ。このターンのバトルフェイズ中、相手はそのカードの効果を使えない(Ex-054):
+    可被選擇的對手魔物 → MAMODO_EFFECTS_LOCKED,當時裝著的搭檔 → PARTNER_LOCKED(data["card"]),
+    獨立卡區的卡 → FIELD_LOCKED(data["field_uid"]);只在戰鬥階段作用(data["phase"])。"""
+    restricts: ClassVar[tuple[str, ...]] = ("mamodo_effects",)
+
+    def run(self, rt, ctx, path):
+        from ..state import FIELD_LOCKED, MAMODO_EFFECTS_LOCKED, PARTNER_LOCKED
+        game, player = rt.game, ctx["player"]
+        opp = 1 - player
+        locks = []
+        for s in selectable_opponent_slots(game, player):
+            locks.append((MAMODO_EFFECTS_LOCKED, s.uid, {}))
+            if s.partner:
+                locks.append((PARTNER_LOCKED, s.uid, {"card": s.partner}))
+        for fc in game.state.players[opp].field_cards:
+            locks.append((FIELD_LOCKED, None, {"field_uid": fc.uid, "card": fc.card}))
+        for flag, uid, data in locks:
+            m = add_restriction(game, rt.batch, source=ctx["source"], owner=player, target_player=opp,
+                                flag=flag, duration=DUR_TURN)
+            m.target_slot = uid
+            m.data.update(data, phase="battle")
+        return True
+
+
+@dataclass(frozen=True)
+class FieldPassiveNonMamodoCards:
+    """選項規格:雙方場上有「このカードが場にある→」效果、不是魔物的卡(搭檔、MJ12)(P-047)。
+    對手的搭檔受「相手の効果では捨て札にならない」保護時除外。選項值為 "{玩家}:{zone}:{uid}"。"""
+
+    def options(self, game, ctx) -> list[dict]:
+        player = ctx["player"]
+        out = []
+        for p in (player, 1 - player):
+            for s in game.state.players[p].slots:
+                if s.partner and reg.has_passive(s.partner) and not (
+                        p != player and partner_discard_guarded(game, p, s)):
+                    out.append({"value": f"{p}:partner:{s.uid}", "card": s.partner, "player": p, "zone": "partner"})
+            for fc in game.state.players[p].field_cards:
+                if reg.has_passive(fc.card):
+                    out.append({"value": f"{p}:field:{fc.uid}", "card": fc.card, "player": p, "zone": "field"})
+        return out
+
+    def validate(self, game, ctx, value) -> None:
+        from ..engine import IllegalCommand
+        if value not in {o["value"] for o in self.options(game, ctx)}:
+            raise IllegalCommand("choose.invalid", "須選擇有「このカードが場にある→」效果、不是魔物的卡")
+
+
+@dataclass(frozen=True)
+class DiscardChosenFieldCard(Effect):
+    """把 target 綁定的場上卡("{玩家}:{zone}:{uid}",搭檔或獨立卡區)棄掉(P-047)。"""
+    target: Ref = Ref("choice")
+
+    def run(self, rt, ctx, path):
+        from ..engine import discard_attached_partner, discard_field_card
+        game = rt.game
+        p, zone, uid = ctx[self.target.name].split(":")
+        p, uid = int(p), int(uid)
+        if zone == "partner":
+            slot = game.state.slot_by_uid(p, uid)
+            if slot is not None and slot.partner:
+                discard_attached_partner(game, rt.batch, p, slot, reason=ctx["source"])
+        else:
+            fc = game.state.field_card_by_uid(p, uid)
+            if fc is not None:
+                discard_field_card(game, rt.batch, p, fc, reason=ctx["source"])
+        return True
 
 
 @dataclass(frozen=True)
@@ -4335,6 +4429,8 @@ def restriction_kinds(number: str) -> frozenset[str]:
                 kinds |= _node_kinds(node)
     if number in reg.BLOCK_OPPONENT_FAMILY:
         kinds.add(MAMODO_EFFECTS)          # P-031:對手的該家族不能使用「魔物の効果」
+    if number in reg.LOCK_AFTER_OWN_SPELL:
+        kinds.add(MAMODO_EFFECTS)          # M-075:用了它的戰術後,自己下一回合不能用它的「魔物の効果」
     return frozenset(kinds)
 
 
