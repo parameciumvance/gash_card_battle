@@ -13,4 +13,4 @@
 
 - [x] 3.1 快速測試組、`openspec validate ex053-deploy-gaps --strict`。(新測試 5 項,實作前都失敗;快速組 1992 項;第 2 批自我對戰 9 局)
 - [x] 3.2 reconciliation:`card-effects/design.md`(第 2 批的解讀)、`game-engine/design.md`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
