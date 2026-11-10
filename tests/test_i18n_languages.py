@@ -19,10 +19,10 @@ KANA_RE = re.compile(r"[぀-ヿ]")
 
 # 規則書中有、但本遊戲(第一、二彈卡池)不存在的機制,依語言的稱呼
 ABSENT = {
-    "zh-TW": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴爾肯", "飛行"),
-    "zh-CN": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴尔肯", "飞行"),
-    "ja": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "バルカン", "飛行"),
-    "en": ("stone tablet", "w mamodo", "vs mamodo", "s mamodo", "h mamodo", "mj12", "vulcan", "flying"),
+    "zh-TW": ("石版狀態", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴爾肯", "飛行"),
+    "zh-CN": ("石版状态", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴尔肯", "飞行"),
+    "ja": ("石版状態", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "バルカン", "飛行"),
+    "en": ("stone tablet state", "petrified", "w mamodo", "vs mamodo", "s mamodo", "h mamodo", "mj12", "vulcan", "flying"),
 }
 # 「攻(A)」「防(D)」的兩種意思:攻防用的戰術(攻擊 / 防禦時)與事件卡、非戰鬥戰術(回合玩家)
 ICON_TERMS = {
@@ -109,6 +109,16 @@ def test_rules_no_absent_mechanics(lang):
         assert [w for w in ABSENT[lang] if re.search(rf"\b{w}\b", text, re.I)] == []
     else:
         assert [w for w in ABSENT[lang] if w in text] == []
+
+
+# 石版魔物(battle-ui「規則頁的內容範圍」;season4-stone-tablets):卡片種類段落說明,石版狀態仍不寫
+STONE_TABLET = {"zh-TW": "石版魔物", "zh-CN": "石版魔物", "ja": "石版魔物", "en": "Stone Tablet MAMODO"}
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_rules_cards_section_explains_stone_tablet(lang):
+    cards = next(s for s in load(f"rules.{lang}.json")["sections"] if s["id"] == "cards")
+    assert STONE_TABLET[lang] in json.dumps(cards, ensure_ascii=False)
 
 
 @pytest.mark.parametrize("lang", LANGS)

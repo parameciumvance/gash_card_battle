@@ -2,7 +2,7 @@
 
 from ...cards import EVENT
 from ...state import (
-    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, EFFECTS_LOCKED, NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS,
+    DUR_TURN, DUR_UNTIL_END_NEXT_TURN, DUR_UNTIL_END_OWN_NEXT_TURN, EFFECTS_LOCKED, NO_ATTACK, NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_PARTNER_EFFECTS,
     NO_SPELLS,
 )
 from .. import registry as reg
@@ -12,6 +12,7 @@ from ..tree import (
     DiscardChosenOpponentFieldCard, OpponentFieldCards,
     DiscardThisEventFromBook, OpponentOpenPagesHaveEvent, OwnPageIsPartner, PlayableOnOwnOpenPages,
     TurnOwnPagesBackOncePerTurn,
+    AddPowerToOwnStoneTablets, OpponentMamodoByStone,
     DamageChosenOpponentMamodo, DamageOwnMamodoThen, ForceProtectWith, NegateAttack, NegatedOwnEffects,
     UndoNegatedEffect, ScheduleEndPhaseDiscardSlot, SetBothMp, UseAllInChosenOrder,
     battle_phase_first, opponent_has_two_or_more_mamodo,
@@ -432,6 +433,24 @@ reg.event("E-054", when=HasOptions(OpponentMamodoWithDiscardCostEffect()), effec
 ))
 
 # Ex-021「次の効果の両方を使う」:+5000 與結束階段棄掉同一隻;兩個 ● 各自獨立(Ex-070 只取除 +5000)
+# 兩個 ● 各有條件:條件成立且選得到對手對應魔物的才能選;一般保護流程(比照 Ex-024)
+reg.event("Ex-000", when=HasOptions(EffectOptions((
+    ("stone", "damage_opponent_stone_tablet", OpponentMamodoByStone(stone=True)),
+    ("other", "damage_opponent_non_stone_tablet", OpponentMamodoByStone(stone=False)),
+))), effect=Choose(
+    EffectOptions((
+        ("stone", "damage_opponent_stone_tablet", OpponentMamodoByStone(stone=True)),
+        ("other", "damage_opponent_non_stone_tablet", OpponentMamodoByStone(stone=False)),
+    )), bind="mode", prompt="pick_effect",
+    then=When(
+        Bound("mode", "stone"),
+        then=Choose(OpponentMamodoByStone(stone=True), bind="choice", prompt="pick_opponent_mamodo",
+                    then=DamageChosenOpponentMamodo()),
+        otherwise=Choose(OpponentMamodoByStone(stone=False), bind="choice", prompt="pick_opponent_mamodo",
+                         then=DamageChosenOpponentMamodo()),
+    ),
+))
+
 reg.event("Ex-021", when=has_own_mamodo, effect=Choose(
     OwnMamodo(), bind="slot", prompt="pick_own_mamodo",
     then=SeparateEffects(steps=(
@@ -483,6 +502,9 @@ reg.event("Ex-047", when=opponent_has_mamodo, effect=Choose(
 
 # Ex-048:高於 4 的一方算「MPをへらす」、低於 4 的一方算「MPをふやす」
 reg.event("Ex-048", effect=SetBothMp(value=4))
+
+# 「自分の石版魔物すべてを選ぶ」:之後放出的也加(比照 E-048,使用者決定);比照 E-048 沒有使用條件
+reg.event("Ex-069", effect=AddPowerToOwnStoneTablets(amount=2000, duration=DUR_UNTIL_END_OWN_NEXT_TURN))
 
 # 沒有指定對象:雙方的都取除(atwiki 卡頁);複合效果整個取除,減魔力與「設為某值」不算
 reg.event("Ex-070", effect=RemovePowerUps())

@@ -1,6 +1,6 @@
 """魔物卡(M-xxx)的效果登記。依卡號排序,排版規則見 `cards/__init__.py`。"""
 
-from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS
+from ...state import DUR_BATTLE, DUR_GAME, DUR_TURN, NO_SPELLS, NO_STONE_TABLET_EFFECTS
 from .. import registry as reg
 from ..tree import (
     DeployableAfterDiscard, DeployableMamodoInOwnBook, DiscardChosenMamodo, OpponentBookAtLastPage,
@@ -12,6 +12,7 @@ from ..tree import (
     NextStartPhase, Standby, StealOpponentMp, AddSelfPowerWhenAttacking, All, AlwaysImmune,
     OpponentMamodo, OpponentOpenPageCards, ScheduleDetachSelf, ScheduleUndefendableAtTotal,
     SetSelfPowerToChosenThisTurn,
+    CanUseSpellCardNamed, CanUseSpellsOfMamodo, RestrictOpponent,
     AttachOpponentPartnerToSelf, OpponentDiscardedPartner,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
@@ -317,6 +318,9 @@ reg.activated("M-067", mode="discard", timing="nonbattle", effect=Standby(
 reg.mamodo_attack("M-068", mp_cost=1, power=6000, damage=1, per_turn=2)
 reg.mamodo_attack("M-069", mp_cost=2, power=6000, damage=2)
 
+# 「相手は、捨て札のカードを、場や魔本にもどすことができない」:不論是誰的棄牌區(game-engine「不能放回棄牌區的卡」)
+reg.block_discard_return("M-085")
+
 reg.activated("Ex-002", mode="mp", mp_cost=2, timing="nonbattle", condition=HasOptions(OpponentMamodo()),
               effect=Choose(
     OpponentMamodo(), bind="slot", prompt="pick_opponent_mamodo",
@@ -352,6 +356,15 @@ reg.activated("Ex-032", mode="mp", mp_cost=2, timing="nonbattle",
     OwnBookPartnerNamed("ナゾナゾ博士"), bind="page", prompt="pick_partner_in_own_book",
     then=AttachPartnerFromBookPage(slot=Ref("self_slot")),
 ))
+
+# 石版魔物の「魔物の効果」:依當下的最上層判斷,之後放出的也算;「このカードが場にある→」也擋
+reg.activated("Ex-049", mode="mp", mp_cost=1, timing="nonbattle",
+              effect=RestrictOpponent(flag=NO_STONE_TABLET_EFFECTS, duration=DUR_TURN))
+
+# 石版魔物:「このカードが場にある→」戰術相容(被「魔物の効果を使えない」擋下時不能使用)
+reg.spell_compat("Ex-056", check=CanUseSpellsOfMamodo("マルス"))
+reg.spell_compat("Ex-057", check=CanUseSpellsOfMamodo("エシュロス"))
+reg.spell_compat("Ex-058", check=CanUseSpellCardNamed("ビライツ"))
 
 # PR-001「この魔物の術」依名稱(離場後換另一隻ガッシュ・ベル也適用);「コスト3まで」為實際費用,追加費用照付
 reg.activated("PR-001", mode="declare", timing="nonbattle", per_game=True, effect=ScheduleFreeSpell(max_cost=3))

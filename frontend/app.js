@@ -898,6 +898,13 @@ function cardEl(num, opts = {}) {
     tag.textContent = t("card.icon.jammer");
     meta.appendChild(tag);
   }
+  // 石版魔物(battle-ui「資訊列的石版標籤」)
+  if (def.stone_tablet) {
+    const tag = document.createElement("span");
+    tag.className = "cclass ctag-stone";
+    tag.textContent = t("card.tag.stone_tablet");
+    meta.appendChild(tag);
+  }
   el.appendChild(meta);
 
   const eff = document.createElement("div");
@@ -3138,6 +3145,8 @@ function choiceLabel(opt, results) {
       : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
+    case "damage_opponent_stone_tablet": return t("choice.damage_opponent_stone_tablet");          // Ex-000
+    case "damage_opponent_non_stone_tablet": return t("choice.damage_opponent_non_stone_tablet");
     case "discard_opponent_partner": return t("choice.discard_opponent_partner");
     case "negated_effect":   // E-052:這回合被無效的自己的效果
       return t("choice.negated_effect", { card: cname(opt.card), kind: t(`choice.negated_effect.kind.${opt.kind}`) });

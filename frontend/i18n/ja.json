@@ -911,5 +911,11 @@
   "log.effect_undone": "{player} は《{card}》を使っていないことにした",
   "log.effect_undone.detail": "({detail})",
   "log.effect_undone.mp": "MP {mp} がもどった",
-  "log.effect_undone.returned": "{cards} がもとの場所にもどった"
+  "log.effect_undone.returned": "{cards} がもとの場所にもどった",
+  "breakdown.stone_tablet": "石版魔物の修正「{card}」",
+  "effect.modifier.power_stone_tablet": "自分の石版魔物 魔力 +{amount}",
+  "effect.restriction.no_stone_tablet_effects": "{target} の石版魔物の魔物の効果はなくなる",
+  "choice.damage_opponent_stone_tablet": "相手の石版魔物1体にダメージ",
+  "choice.damage_opponent_non_stone_tablet": "相手の石版魔物以外の魔物1体にダメージ",
+  "card.tag.stone_tablet": "石版"
 }
