@@ -18,6 +18,7 @@ from ..tree import (
     CanUseSpellCardNamed, CanUseSpellsOfMamodo, RestrictOpponent,
     AttachablePartnerPagesInOwnBook, LockChosenOpponentMamodo, SelfHasPartnerNamed, SlotsForBookPartner,
     LockOpponentFieldThisBattlePhase, ScheduleBattleLock,
+    EndThisBattlePhase, ScheduleAnyPageUse, TurnOpponentPagesTurnedByOpponent, turned_by_opponent_this_turn,
     AttachOpponentPartnerToSelf, OpponentDiscardedPartner,
     AttachPartnerFromBookPage, AwaitBookReviewEnd, Bound, CanUseSpellNamed, CanUseSpellsWithAttr,
     Choose, DetachedFromSelf, DiscardChosenOpponentMamodo, DiscardChosenPartner,
@@ -330,12 +331,21 @@ reg.activated("M-070", mode="declare", timing="nonbattle", own_turn=True,
 reg.attack_lost_mp("M-071", 3)
 # 「自分がコイン1個を投げるごとに」:重擲也算,改成正面不算;對手替我擲的不算
 reg.coin_thrown_mp("M-072", 1)
+# 「最後のページ以外の『ティオ』の術」:「X の術」依名稱判定;翻開頁照一般規則,從其他頁使用時才消耗、戰後棄掉(使用者決定)
+reg.activated("M-073", mode="declare", timing="nonbattle", effect=ScheduleAnyPageUse(
+    mamodo="ティオ", by_name=True, exclude_last=True, defense_only=True, discard_after_battle=True))
+# 「ゴウ・シュドルク」を使わないと場に出せない(比照 M-046);《超回避》比照 M-049
+reg.stack_on("M-074", family="ウマゴン", spell_only=True)
+reg.action_discard("M-074", "top")
+reg.partner_discard_guard("M-074")
 # 「自分も相手は…その魔物を選ぶことができない」(卡頁解說:誤植,讀作「自分も相手も…この魔物を」);
 # 自己用它的戰術後,下一回合它的魔物效果(含不能被選)不作用
 reg.unselectable("M-075")
 reg.lock_after_own_spell("M-075")
 # 「相手が、相手のスタートフェイズに『ふやせるMPの数』は2まで」:翻頁與開始階段的效果合計
 reg.start_phase_mp_cap("M-076", 2)
+# 《命乞い》:干擾的詢問結束後結束這個戰鬥階段;「このターンのエンドフェイズ」不論誰的回合(使用者決定)
+reg.activated("M-077", mode="declare", timing="nonbattle", per_game=True, effect=EndThisBattlePhase())
 reg.partner_discard_guard("M-078")
 # 「相手は、自分の魔本を見なければ使えない效果を使えない」:效果文含「相手の魔本(の今のページ)を見」的整張卡(使用者決定)
 reg.book_hidden("M-079")
@@ -363,6 +373,9 @@ reg.activated("M-083", mode="mp", mp_cost=1, timing="nonbattle",
         then=AttachPartnerFromBookPage(page=Ref("page"), slot=Ref("slot")),
     ),
 ))
+# 《怨怒霊!》:這回合被對手傷害以外的效果實際翻過的張數(game-engine「被對手的效果翻頁的紀錄」)
+reg.activated("M-084", mode="declare", timing="nonbattle", condition=turned_by_opponent_this_turn,
+              effect=TurnOpponentPagesTurnedByOpponent())
 
 # 「相手は、捨て札のカードを、場や魔本にもどすことができない」:不論是誰的棄牌區(game-engine「不能放回棄牌區的卡」)
 reg.block_discard_return("M-085")

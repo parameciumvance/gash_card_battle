@@ -160,6 +160,7 @@ class PlayerState:
     opp_mp_reduced_turns: set[int] = field(default_factory=set)
     # 本回合被對手的效果實際減少的 MP 總量(E-028 / E-035)、本回合開始階段增加的 MP(P-035);回合結束歸零
     mp_reduced_by_opponent: int = 0
+    pages_turned_by_opponent: int = 0   # 本回合被對手傷害以外的效果實際翻過的張數(M-084)
     start_phase_mp_total: int = 0   # 本回合開始階段增加的 MP 合計(翻頁與效果;M-076、P-035)
     # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
     dealt_damage_this_turn: bool = False

@@ -328,6 +328,11 @@ def has_own_injured_mamodo(game, player) -> bool:
     return any(s.injured for s in selectable_own_slots(game, player))
 
 
+def turned_by_opponent_this_turn(game, player, slot=None) -> bool:
+    """這回合自己的魔書被對手傷害以外的效果翻過(M-084)。"""
+    return game.state.players[player].pages_turned_by_opponent > 0
+
+
 def mp_reduced_by_opponent(game, player) -> bool:
     """本回合自己的 MP 被對手的效果減少過(E-028 / E-035)。"""
     return game.state.players[player].mp_reduced_by_opponent > 0
@@ -1534,7 +1539,7 @@ class TurnPagesForward(Effect):
         if self.target == "self":
             own_book_turn_effect(rt.game, rt.batch, ctx["player"], self.leaves, ctx["source"])
         else:
-            turn_pages(rt.game, rt.batch, _who(ctx, self.target), self.leaves, ctx["source"])
+            turn_pages(rt.game, rt.batch, _who(ctx, self.target), self.leaves, ctx["source"], by=ctx["player"])
         return True
 
 
@@ -2206,6 +2211,30 @@ class ScheduleSkipEndFlip(Effect):
 
 
 @dataclass(frozen=True)
+class EndThisBattlePhase(Effect):
+    """「このバトルフェイズを終了する」:干擾的詢問結束後由引擎結束戰鬥階段(engine._run_deferred_effects);
+    「このターンのエンドフェイズは…『ページをめくってMPを2ふやす』処理はおこなわない」:這回合不論誰的回合(M-077)。"""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="end_battle_phase", source=ctx["source"], owner=ctx["player"])
+        schedule_standby(rt.game, rt.batch, kind="skip_end_flip", source=ctx["source"], owner=ctx["player"],
+                         data={"this_turn": True})
+        return True
+
+
+@dataclass(frozen=True)
+class TurnOpponentPagesTurnedByOpponent(Effect):
+    """對手的魔書翻「本回合自己魔書被對手傷害以外的效果翻過的張數」(M-084)。"""
+
+    def run(self, rt, ctx, path):
+        player = ctx["player"]
+        count = rt.game.state.players[player].pages_turned_by_opponent
+        if count:
+            turn_pages(rt.game, rt.batch, 1 - player, count, ctx["source"], by=player)
+        return True
+
+
+@dataclass(frozen=True)
 class ScheduleEndPhaseMp(Effect):
     """[待命] 本回合自己的結束階段 MP +amount(E-038);由引擎的結束階段效果在強制翻頁之前解決。"""
     amount: int = 0
@@ -2641,19 +2670,24 @@ class ScheduleSpellFromAnyPage(Effect):
 class ScheduleAnyPageUse(Effect):
     """[待命] 本回合一次,可從自己魔書翻開的頁以外使用(engine._spell_any_page_standby):
     mamodo + by_name 為「X の術」(依名稱判定),exclude_last 排除最後一頁,events 也允許事件卡(P-037);
-    any_spell + attack_only 為任何攻擊戰術,只限下一場戰鬥(PR-006)。"""
+    any_spell + attack_only 為任何攻擊戰術,只限下一場戰鬥(PR-006);
+    defense_only 只限防禦,discard_after_battle 時那場戰鬥後棄掉從其他頁使用的戰術卡(M-073)。"""
     mamodo: str = ""
     by_name: bool = False
     exclude_last: bool = False
     events: bool = False
     any_spell: bool = False
     attack_only: bool = False
+    defense_only: bool = False
+    discard_after_battle: bool = False
     next_battle: bool = False
 
     def run(self, rt, ctx, path):
         data = {k: v for k, v in (("mamodo", self.mamodo), ("by_name", self.by_name),
                                   ("exclude_last", self.exclude_last), ("events", self.events),
-                                  ("any_spell", self.any_spell), ("attack_only", self.attack_only)) if v}
+                                  ("any_spell", self.any_spell), ("attack_only", self.attack_only),
+                                  ("defense_only", self.defense_only),
+                                  ("discard_after_battle", self.discard_after_battle)) if v}
         if self.next_battle:
             data["expires"] = "next_battle"
         schedule_standby(rt.game, rt.batch, kind="spell_any_page", source=ctx["source"], owner=ctx["player"],
@@ -2755,7 +2789,7 @@ class TurnOpponentPagesPerMamodoCardDiscarded(Effect):
         else:
             count = 1 if rt.game.db[ev["card"]].type == MAMODO else 0
         if count:
-            turn_pages(rt.game, rt.batch, opp, count, ctx["source"])
+            turn_pages(rt.game, rt.batch, opp, count, ctx["source"], by=ctx["player"])
         return True
 
 

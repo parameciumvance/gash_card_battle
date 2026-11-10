@@ -352,6 +352,7 @@
   "effect.standby.deferred": "Activates after the opponent's effect resolves",
   "effect.standby.negate_damage": "The next damage {target} takes this BATTLE is negated",
   "effect.standby.no_protect": "Next BATTLE: the opponent cannot PROTECT damage with a MAMODO",
+  "effect.standby.end_battle_phase": "End this battle phase",
   "effect.standby.skip_end_flip": "Don't turn the Spell Book at the end of this turn",
   "effect.standby.spell_any_page": "The specified SPELL or Event card can be used from pages other than the current pages",
   "effect.standby.spell_bonus": "Next BATTLE: SPELLs of {mamodo} {changes}",
