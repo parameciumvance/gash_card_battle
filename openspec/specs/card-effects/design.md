@@ -134,7 +134,7 @@ E-013 / S-057 仍以「擁有者攻擊時消耗」實作:兩張只能在自己�
 
 ### MP 紀錄(E-028 / E-035 / P-035)
 
-`PlayerState.mp_reduced_by_opponent`(在 `reduce_opponent_mp` 與 E-004 的歸零累加實際減少量,被 P-021 擋下為 0)與 `start_phase_mp_gain`(開始階段翻頁時記錄),回合結束歸零。
+`PlayerState.mp_reduced_by_opponent`(在 `reduce_opponent_mp` 與 E-004 的歸零累加實際減少量,被 P-021 擋下為 0)與 `start_phase_mp_total`(開始階段增加的 MP 合計,翻頁與開始階段的效果都算;M-076 共用),回合結束歸零。原本只記翻頁,season4-mamodo-a 時專案負責人決定依字面改為一致。
 
 ### 已用戰術的重用(S-098)
 

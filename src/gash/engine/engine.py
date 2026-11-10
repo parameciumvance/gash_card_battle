@@ -790,7 +790,6 @@ def _flip_pages(game: Game, batch: list[dict], player: int, command: dict) -> No
         gained = 0 if st.turn_no == 1 else 2 * count   # 大會規則:先攻の1ターン目はページをめくってもMPを増やせない
         gained = _allowed_mp_gain(game, batch, player, gained)   # P-044 / M-076
         ps.mp += gained
-        ps.start_phase_mp_gain = gained   # P-035
         game.emit(batch, "pages_flipped", player=player, count=count, pos=ps.pos, mp_gained=gained)
     # 開始階段效果解決(翻頁之後)
     for number, fn in list(reg.START_PHASE.items()):
@@ -3562,7 +3561,6 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.negated_this_turn.clear()
         p.dealt_damage_this_turn = False
         p.mp_reduced_by_opponent = 0
-        p.start_phase_mp_gain = 0
         p.start_phase_mp_total = 0
         p.discarded_this_turn.clear()
         p.page_effect_used = False

@@ -51,6 +51,10 @@
 - M-078:`reg.partner_discard_guard`。M-082:選對手魔物、`NO_PROTECT_SLOT`、`DUR_TURN`,雙方回合的非戰鬥。P-050:`StealOpponentMp(amount=2)`。
 - M-083:`reg.stack_on(family="ニャルラト")`;《絆のリボン》MP 1、非戰鬥,選自己魔書任一頁(含未翻開)名為「詞音」的搭檔,再選裝備的ニャルラト(比照 E-051 的流程)。
 
+### D10:P-035 與 M-076 一致
+
+- 使用者決定(2026-11-10):P-035「スタートフェイズにふやしたＭＰ」依字面也算開始階段效果增加的 MP。`ReduceOpponentMpByStartGain` 改讀 `start_phase_mp_total`,移除只記翻頁的 `start_phase_mp_gain`。
+
 ## Risks / Trade-offs
 
 - [MP 增加的路徑分散] → 集中到 `mp_gain_allowed`,測試涵蓋翻頁、效果、結束階段。

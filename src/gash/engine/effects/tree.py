@@ -3412,11 +3412,11 @@ class ScheduleRedirectDamage(Effect):
 
 @dataclass(frozen=True)
 class ReduceOpponentMpByStartGain(Effect):
-    """對手 MP 減少「對手本回合開始階段增加的 MP × multiplier」(P-035)。"""
+    """對手 MP 減少「對手本回合開始階段增加的 MP × multiplier」(P-035;翻頁與開始階段效果的合計,同 M-076)。"""
     multiplier: int = 2
 
     def run(self, rt, ctx, path):
-        gain = rt.game.state.players[1 - ctx["player"]].start_phase_mp_gain
+        gain = rt.game.state.players[1 - ctx["player"]].start_phase_mp_total
         reduce_opponent_mp(rt.game, rt.batch, ctx["player"], gain * self.multiplier, ctx["source"])
         return True
 

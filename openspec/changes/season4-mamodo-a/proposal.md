@@ -29,7 +29,7 @@
 ### Modified Capabilities
 
 - `game-engine`:新增「MP 增加的限制」。
-- `card-effects`:新增「第 4 賽季魔物與搭檔第 1 批」。
+- `card-effects`:新增「第 4 賽季魔物與搭檔第 1 批」兩項;修改「MP 增減的紀錄」(P-035 也算開始階段效果增加的 MP,使用者 2026-11-10 決定)。
 
 ## Impact
 

@@ -195,7 +195,7 @@ negated                                                                ← 無�
 ## MP 增加的限制、干擾的費用與效果再用(season4-mamodo-a)
 
 - MP 增加集中在 `_allowed_mp_gain`:`gain_mp`、開始階段翻頁、結束階段強制翻頁都經過它。P-044 的旗標 `NO_MP_GAIN` 擋下全部;M-076(`reg.START_PHASE_MP_CAP`)依 `PlayerState.start_phase_mp_total`(本回合開始階段已增加的合計,翻頁與效果)限制。被擋下時發 `mp_gain_prevented`。E-052 的退回直接加 MP,不經過它。
-- 既有的 `start_phase_mp_gain`(P-035)只記開始階段翻頁的量,這次沒有改。
+- P-035 原本用只記翻頁的 `start_phase_mp_gain`,專案負責人決定依字面改為與 M-076 一致,共用 `start_phase_mp_total`(舊欄位移除)。
 - 干擾的使用 key 由 `jammer_key(number, zone)` 產生:同一張卡也有啟動效果時加 `:jammer`(M-080 兩個效果分開計次)。一般干擾依 `spec["zone"]` 棄掉魔物或搭檔;只有魔物的干擾提供 M-026 的連鎖。`reg.jammer(opponent_turn=True)` 只在持有者的對手是回合玩家時提供。
 - 魔物效果攻擊的條件 `reg.mamodo_attack(condition=)`(`attack.condition`);快照的 `mamodo_attack` 不送 `condition`。
 - Ex-061 的待命 `reuse_ability`(`data["mamodo"]` 為家族):魔物效果攻擊 / 防禦已用滿次數時才消耗,費用 0。
