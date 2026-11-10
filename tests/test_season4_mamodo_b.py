@@ -151,6 +151,51 @@ def test_ex053_also_blocks_effect_deploy():
     assert AttachablePartnerPagesInOwnBook().options(g, {"player": 1}) == []
 
 
+def test_ex053_blocks_named_partner_deploy_by_ability():
+    # M-020《恵と一緒》:自分の魔本の好きなページから「大海恵」を場に出す(ex053-deploy-gaps)
+    g = setup(("M-020", "S-029", "S-029", "S-029", "S-029", "P-009"))
+    st = g.state
+    add_slot(g, 1, "Ex-053")
+    st.players[0].discarded_this_turn.append("P-033")                    # 別の「大海恵」
+    assert code(g, ability(0, st.players[0].slots[0])) == "ability.condition"
+
+
+@pytest.mark.parametrize("spec, number, discarded", [
+    ("OwnBookCopiesOf", "M-027", "M-027"),                               # S-048
+    ("OwnBookCopiesOf", "M-025", "M-025"),                               # S-043
+])
+def test_ex053_blocks_book_copies(spec, number, discarded):
+    from gash.engine.effects import tree as T
+    g = setup(("M-001",), ("M-001", "S-029", "S-029", "S-029", "S-029", number))
+    st = g.state
+    assert getattr(T, spec)(number).options(g, {"player": 1})
+    add_slot(g, 0, "Ex-053")
+    st.players[1].discarded_this_turn.append(discarded)
+    assert getattr(T, spec)(number).options(g, {"player": 1}) == []
+
+
+def test_ex053_blocks_stack_from_book():
+    from gash.engine.effects.tree import CanStackFromBook
+    g = setup(("M-045", "S-029", "S-029", "S-029", "S-029", "M-046"))
+    st = g.state
+    assert CanStackFromBook("M-046")(g, 0)
+    add_slot(g, 1, "Ex-053")
+    st.players[0].discarded_this_turn.append("M-046")
+    assert not CanStackFromBook("M-046")(g, 0)
+
+
+def test_ex053_blocks_forced_deploy():
+    # 結束階段場上沒有魔物時的強制放出也擋(使用者決定):跳過同名的魔物,繼續翻頁尋找
+    g = setup(("M-001", "M-001", "S-029", "S-029", "M-012"))
+    st = g.state
+    add_slot(g, 1, "Ex-053")
+    st.players[0].slots = []
+    st.players[0].discarded_this_turn.append("M-001")
+    end_turn(g)
+    assert [s.top for s in st.players[0].slots] == ["M-012"]
+    assert 2 not in st.players[0].consumed_pages
+
+
 # ---------------------------------------------------------------- Ex-054
 
 def test_ex054_on_play_locks_opponent_cards_during_battle_phase():

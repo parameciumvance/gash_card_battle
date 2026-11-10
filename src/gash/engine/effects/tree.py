@@ -482,11 +482,12 @@ class OwnBookPartnerNamed:
     name: str
 
     def options(self, game, ctx) -> list[dict]:
-        from ..engine import own_book_pages
+        from ..engine import name_deploy_blocked, own_book_pages
         ps = game.state.players[ctx["player"]]
         return [page_option(ctx["player"], p, ps.card_at(p))
                 for p in own_book_pages(game, ctx["player"])
-                if game.db[ps.card_at(p)].type == PARTNER
+                if not name_deploy_blocked(game, ctx["player"], game.db[ps.card_at(p)])   # Ex-053
+                and game.db[ps.card_at(p)].type == PARTNER
                 and game.db[ps.card_at(p)].name_ja == self.name]
 
     def validate(self, game, ctx, value) -> None:
@@ -997,8 +998,10 @@ class OwnBookCopiesOf:
     number: str
 
     def options(self, game, ctx) -> list[dict]:
-        from ..engine import own_book_pages
+        from ..engine import name_deploy_blocked, own_book_pages
         ps = game.state.players[ctx["player"]]
+        if name_deploy_blocked(game, ctx["player"], game.db[self.number]):   # Ex-053
+            return []
         return [page_option(ctx["player"], p, ps.card_at(p))
                 for p in own_book_pages(game, ctx["player"]) if ps.card_at(p) == self.number]
 
@@ -2411,9 +2414,10 @@ class CanStackFromBook:
     number: str
 
     def __call__(self, game, player, slot=None) -> bool:
-        from ..engine import own_book_pages
+        from ..engine import name_deploy_blocked, own_book_pages
         ps = game.state.players[player]
-        return (any(ps.card_at(p) == self.number for p in own_book_pages(game, player))
+        return (not name_deploy_blocked(game, player, game.db[self.number])   # Ex-053
+                and any(ps.card_at(p) == self.number for p in own_book_pages(game, player))
                 and stack_base(game, player, self.number) is not None)
 
 
