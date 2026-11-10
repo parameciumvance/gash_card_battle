@@ -21,4 +21,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試、新 slow 測試;`openspec validate season4-stone-tablets --strict`。(新測試 22 項與瀏覽器 2 項,實作前除對照組外全部失敗;快速組 1911 項;相關瀏覽器測試 112 項;自我對戰 9 局。金手指魔物家族的測試改為依資料計算)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`、capability-map。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
