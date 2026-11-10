@@ -17,7 +17,7 @@ from ..cards import EVENT, PARTNER
 from ..state import (
     DUR_TURN, DUR_UNTIL_END_NEXT_TURN, MAMODO_LOCKED, NO_ATTACK, NO_ATTACK_SPELL, NO_DEFENSE_SPELL_SLOT,
     NO_EFFECTS_AND_SPELLS, NO_MAMODO_EFFECTS, NO_NAMED_SPELLS, NO_PROTECT, NO_PROTECT_SLOT, NO_SPELLS,
-    NO_STONE_TABLET_EFFECTS, ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
+    MAMODO_EFFECTS_LOCKED, NO_STONE_TABLET_EFFECTS, ONLY_MAMODO, PROTECT_ONLY, PendingChoice,
 )
 from . import registry as reg
 from .primitives import (
@@ -3412,11 +3412,11 @@ class ScheduleRedirectDamage(Effect):
 
 @dataclass(frozen=True)
 class ReduceOpponentMpByStartGain(Effect):
-    """對手 MP 減少「對手本回合開始階段增加的 MP × multiplier」(P-035)。"""
+    """對手 MP 減少「對手本回合開始階段增加的 MP × multiplier」(P-035;翻頁與開始階段效果的合計,同 M-076)。"""
     multiplier: int = 2
 
     def run(self, rt, ctx, path):
-        gain = rt.game.state.players[1 - ctx["player"]].start_phase_mp_gain
+        gain = rt.game.state.players[1 - ctx["player"]].start_phase_mp_total
         reduce_opponent_mp(rt.game, rt.batch, ctx["player"], gain * self.multiplier, ctx["source"])
         return True
 
@@ -3474,6 +3474,26 @@ class SelfHasNoPartner:
 
     def __call__(self, game, player, slot) -> bool:
         return slot.partner is None
+
+
+@dataclass(frozen=True)
+class SelfHasPartnerNamed:
+    """這隻魔物裝著名稱為 name 的搭檔(Ex-052「リィエン」、Ex-055「ゴルドー」;完全相符)。"""
+    name: str
+
+    def __call__(self, game, player, slot) -> bool:
+        return bool(slot.partner) and game.db[slot.partner].name_ja == self.name
+
+
+@dataclass(frozen=True)
+class ScheduleReuseAbility(Effect):
+    """[待命] 這回合 1 次,把已用過的 family 的「魔物の効果」以費用 0 再用(Ex-061)。"""
+    family: str = ""
+
+    def run(self, rt, ctx, path):
+        schedule_standby(rt.game, rt.batch, kind="reuse_ability", source=ctx["source"], owner=ctx["player"],
+                         data={"mamodo": self.family})
+        return True
 
 
 @dataclass(frozen=True)
@@ -4282,6 +4302,7 @@ RESTRICTION_KINDS = {
     NO_NAMED_SPELLS: {SPELLS},
     NO_MAMODO_EFFECTS: {MAMODO_EFFECTS},
     NO_STONE_TABLET_EFFECTS: {MAMODO_EFFECTS},           # Ex-049
+    MAMODO_EFFECTS_LOCKED: {MAMODO_EFFECTS},             # M-081
     MAMODO_LOCKED: {SPELLS, MAMODO_EFFECTS},
     NO_EFFECTS_AND_SPELLS: {SPELLS, MAMODO_EFFECTS},
     ONLY_MAMODO: {SPELLS, MAMODO_EFFECTS, PROTECT},

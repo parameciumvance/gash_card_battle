@@ -107,13 +107,18 @@ def _borrowed_block(game: Game, p: int):
 
 def _attack_used(game, player, ps, slot):
     """魔物效果攻擊本回合已用滿次數(M-068 每回合 2 次)時為 "turn"。"""
+    from ..engine.engine import _ability_reuse_standby, mamodo_attack_condition_ok
     spec = mamodo_attack_spec(game, player, slot)
-    return "turn" if spec and uses_this_turn(ps, spec["key"]) >= spec["per_turn"] else False
+    if spec and not mamodo_attack_condition_ok(game, player, slot, spec):
+        return "condition"                                                  # Ex-052 / Ex-055
+    if spec and uses_this_turn(ps, spec["key"]) >= spec["per_turn"] and _ability_reuse_standby(game, player, slot) is None:
+        return "turn"
+    return False
 
 
 def _public_spec(spec):
     """快照用的魔物效果攻防規格:不送使用次數的內部鍵。"""
-    return None if spec is None else {k: v for k, v in spec.items() if k != "key"}
+    return None if spec is None else {k: v for k, v in spec.items() if k not in ("key", "condition")}
 
 
 def _in_use_pages(game: Game, p: int) -> set[int]:

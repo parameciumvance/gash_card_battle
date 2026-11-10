@@ -425,6 +425,7 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
         results.append(heads)
         game.emit(batch, "coin_flipped", player=player,
                   result="heads" if heads else "tails", source=source)
+    _coin_thrown(game, batch, player, count)   # M-072
     data = dict(data or {})
     data.setdefault("player", player)
     data.update({"results": results, "callback": callback, "flipper": player, "source": source,
@@ -432,26 +433,59 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
     _coin_subphase(game, batch, data)
 
 
-def _set_heads_sources(game, player):
+def _coin_spell_user_family(game, data) -> str | None:
+    """擲幣來源是戰術時,使用那張戰術的魔物的家族(P-045):非戰鬥戰術看效果 ctx 的 user_slot,
+    攻防戰術依 ctx 的 side 取戰鬥的使用魔物。不是戰術或找不到時 None。"""
+    from ..cards import SPELL
+    card = game.db.get(data.get("source")) if data else None
+    if card is None or card.type != SPELL:
+        return None
+    ctx = (data.get("tree_cont") or {}).get("ctx", {})
+    uid = ctx.get("user_slot")
+    battle = game.state.battle
+    if uid is None and ctx.get("side") and battle is not None:
+        uid = battle.attack_slot if ctx["side"] == "attack" else battle.defense_slot
+    slot = game.state.slot_by_uid(data.get("player"), uid) if uid is not None else None
+    return family(game, slot) if slot is not None else None
+
+
+def _coin_thrown(game, batch, player, count):
+    """M-072:自己每擲 1 枚硬幣(含重擲),場上未被「使えない」擋下的該效果使自己 MP 增加。"""
+    from ..engine import card_effect_blocked, gain_mp
+    for s in list(game.state.players[player].slots):
+        amount = reg.COIN_THROWN_MP.get(s.top)
+        if amount and not card_effect_blocked(game, player, s, s.top):
+            gain_mp(game, batch, player, amount * count, s.top, by=player)
+
+
+def _set_heads_sources(game, player, data=None):
     """player 場上可用的「把自己擲的硬幣改成正面」來源 (卡號, 魔物槽, zone):魔物卡(M-034,「魔物の効果」)
-    與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。"""
+    與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。
+    限定戰術使用者的來源(P-045)只在這次擲幣是該家族使用的戰術時列出。"""
     from ..engine import mamodo_effect_block, partner_effects_blocked, restricted
     from ..state import NO_DISCARD_COST_EFFECTS
     out, seen = [], set()
     if restricted(game, player, NO_DISCARD_COST_EFFECTS):   # S-144:登記的都是「このカードを捨て札にする→」
         return out
+    user = _coin_spell_user_family(game, data)
+
+    def applies(number):
+        need = reg.COIN_SET_HEADS_USER.get(number)
+        return need is None or need == user
+
     for s in game.state.players[player].slots:
-        if s.top in reg.COIN_SET_HEADS and s.top not in seen and not mamodo_effect_block(game, player, s):
+        if (s.top in reg.COIN_SET_HEADS and s.top not in seen and applies(s.top)
+                and not mamodo_effect_block(game, player, s)):
             out.append((s.top, s, "mamodo"))
             seen.add(s.top)
-        if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen
+        if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen and applies(s.partner)
                 and not partner_effects_blocked(game, player, s)):
             out.append((s.partner, s, "partner"))
             seen.add(s.partner)
     return out
 
 
-def _flipper_options(game, player, results):
+def _flipper_options(game, player, results, data=None):
     """擲幣者的機會:不使用;可用的重擲(M-012 / Ex-026)每枚可重擲;改成正面(M-034 / P-039)每枚反面可改。
     選項都附來源卡號 card;值是 _coin_value(第一個免費的重擲與魔物的改成正面維持舊格式)。沒有可用效果時 None。"""
     options = [{"value": None, "label": "keep"}]
@@ -463,7 +497,7 @@ def _flipper_options(game, player, results):
         mp_cost, _ = reg.COIN_REFLIP_COST.get(s.top, (0, 1))
         options += [{"value": _coin_value("reflip", s.top, i), "label": "reflip", "coin": i, "card": s.top,
                      "mp": mp_cost} for i in range(len(results))]
-    for card, _s, zone in _set_heads_sources(game, player):
+    for card, _s, zone in _set_heads_sources(game, player, data):
         options += [{"value": _coin_value("heads", card, i, zone), "label": "set_heads", "coin": i, "card": card}
                     for i, r in enumerate(results) if not r]
     return options if len(options) > 1 else None
@@ -477,14 +511,14 @@ def _coin_value(what, card, index, zone="mamodo"):
     return f"heads:{index}" if zone == "mamodo" else f"heads:{card}:{index}"
 
 
-def _parse_coin_value(game, player, value):
+def _parse_coin_value(game, player, value, data=None):
     """擲幣選項的值 → (種類, 來源卡號, 第幾枚)。"""
     if isinstance(value, int):
         return "reflip", next(s.top for s in _reflip_slots(game, player, "self")
                               if reg.COIN_REFLIP_COST.get(s.top, (0, 1)) == (0, 1)), value
     parts = value.split(":")
     if len(parts) == 2:
-        return "heads", next(c for c, _s, z in _set_heads_sources(game, player) if z == "mamodo"), int(parts[1])
+        return "heads", next(c for c, _s, z in _set_heads_sources(game, player, data) if z == "mamodo"), int(parts[1])
     return parts[0], parts[1], int(parts[2])
 
 
@@ -499,7 +533,7 @@ def _opponent_options(game, player, results):
 def _subphase_options(game, data):
     who = data["coin_turn"]
     if who == data["flipper"]:
-        return "coin_confirm", _flipper_options(game, who, data["results"])
+        return "coin_confirm", _flipper_options(game, who, data["results"], data)
     return "opp_coin_redo", _opponent_options(game, who, data["results"])
 
 
@@ -529,6 +563,7 @@ def _reflip_one(game, batch, data, index):
     data["results"][index] = heads
     game.emit(batch, "coin_flipped", player=data["flipper"],
               result="heads" if heads else "tails", source=data["source"], reflip=True)
+    _coin_thrown(game, batch, data["flipper"], 1)   # M-072:重擲也是「投げる」
 
 
 def _check_subphase_choice(game, value, data):
@@ -559,9 +594,9 @@ def _coin_confirm(game, batch, value, data):
     player = data["flipper"]
     if value is not None:
         _check_subphase_choice(game, value, data)
-        what, card, index = _parse_coin_value(game, player, value)
+        what, card, index = _parse_coin_value(game, player, value, data)
         if what == "heads":
-            _card, slot, zone = next(x for x in _set_heads_sources(game, player) if x[0] == card)
+            _card, slot, zone = next(x for x in _set_heads_sources(game, player, data) if x[0] == card)
             game.emit(batch, "ability_used", player=player, card=card, slot=slot.uid, zone=zone)
             if data.get("journal") is not None:
                 data["journal"].append(["discard_partner" if zone == "partner" else "discard_slot", player, slot.uid])

@@ -917,5 +917,9 @@
   "effect.restriction.no_stone_tablet_effects": "{target} 的石版魔物的魔物卡效果失效",
   "choice.damage_opponent_stone_tablet": "對對手的 1 隻石版魔物造成傷害",
   "choice.damage_opponent_non_stone_tablet": "對對手的 1 隻石版魔物以外的魔物造成傷害",
-  "card.tag.stone_tablet": "石版"
+  "card.tag.stone_tablet": "石版",
+  "effect.standby.reuse_ability": "本回合 1 次,已用過的「{mamodo}」的魔物效果可費用 0 再用",
+  "effect.restriction.no_mp_gain": "{target} 的 MP 不能增加",
+  "effect.restriction.mamodo_effects_locked": "{target} 不能使用魔物卡效果",
+  "error.attack.condition": "不符合此效果的使用條件"
 }

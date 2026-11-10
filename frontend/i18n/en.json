@@ -917,5 +917,9 @@
   "effect.restriction.no_stone_tablet_effects": "{target}'s Stone Tablet MAMODO card effects are lost",
   "choice.damage_opponent_stone_tablet": "Damage 1 of your opponent's Stone Tablet MAMODO",
   "choice.damage_opponent_non_stone_tablet": "Damage 1 of your opponent's MAMODO that is not a Stone Tablet MAMODO",
-  "card.tag.stone_tablet": "STONE"
+  "card.tag.stone_tablet": "STONE",
+  "effect.standby.reuse_ability": "Once this turn, an already used MAMODO card effect of “{mamodo}” can be used again at cost 0",
+  "effect.restriction.no_mp_gain": "{target} cannot gain MP",
+  "effect.restriction.mamodo_effects_locked": "{target} cannot use MAMODO card effects",
+  "error.attack.condition": "The conditions for this effect are not met"
 }

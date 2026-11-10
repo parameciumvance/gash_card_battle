@@ -1470,6 +1470,24 @@ def test_p035_reduces_twice_start_phase_gain():
     assert st.players[1].mp == max(0, before - 8)
 
 
+def test_p035_counts_start_phase_effect_gain():
+    # 「スタートフェイズにふやしたＭＰ」は翻頁以外の開始階段效果也算(與 M-076 一致,使用者 2026-11-10)
+    g, _ = mk(book("M-052"), book("M-002"))
+    st = g.state
+    barry = st.players[0].slots[0]
+    barry.partner = "P-035"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    st.players[1].mp = 0
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})               # M-002:MP 2 以下時 +1
+    assert st.players[1].mp == 1
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, ability(0, barry, zone="partner"))
+    assert st.players[1].mp == 0                                            # 1 × 2 減少(不低於 0)
+    assert any(e["type"] == "mp_changed" and e["player"] == 1 and e["delta"] == -1 for e in g.events)
+
+
 def test_s104_damage_plus_two_without_spells_on_open_pages():
     # 相手の魔本を見て、今のページに術カードがないとき、この術のダメージを+2(攻擊成功時才檢視判斷,使用者確認)
     g, _ = mk(book("M-052", "S-104"), book("M-001", "E-024", "E-024"))
