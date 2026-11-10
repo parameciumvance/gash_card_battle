@@ -213,3 +213,9 @@ negated                                                                ← 無�
 - P-048:`own_mamodo_discard_blocked`;檢查點為啟動效果(`own_discard_blocked`)、干擾 `discard_self`、擲幣改正面(魔物)、1 個行動棄掉疊放上層、`DiscardChosenMamodo`、`DiscardOwnMamodoByNumber`、`end_phase_discard` 中自己的魔物。
 - PR-012 / P-049:`primitives._page_lock`,在 `turn_pages` / `turn_back_pages` 擋下並發 `page_turn_restricted`。
 - M-075:`_lock_after_own_spell` 在攻擊、防禦、非戰鬥戰術使用時建立 `MAMODO_EFFECTS_LOCKED`(`DUR_NEXT_TURN`,對象是自己這隻魔物)。
+
+## 今のページ以外的卡的限制(season4-ex060)
+
+- `outside_page_locked(game, player)`:對手場上有未被擋下的 `reg.OUTSIDE_PAGE_LOCK`(Ex-060)。
+- 選自己魔書頁的選項規格一律經 `own_book_pages(game, player)`(受限時只回傳翻開的兩頁):`OwnEarlierPages`、`OwnBookPartnerNamed`、`OwnBookEvents`、`AttachablePartnerPagesInOwnBook`、`DeployableMamodoInOwnBook`、`OwnBookCopiesOf`、`CanStackFromBook`。新增選自己魔書頁的規格時要一併使用;棄掉自己魔書其他頁的卡的效果(之後的 M-073)也要檢查 `outside_page_locked`。
+- 使用其他頁卡片的效果:`uses_other_pages(number)` 走卡片效果樹,找允許從其他頁使用的待命節點;`other_pages_blocked` 在啟動效果(`ability_block` 的 `other_pages`)、事件卡、非戰鬥戰術與戰術宣告檢查(`*.other_pages`)。`_spell_any_page_standby` 在受限時不回傳待命。

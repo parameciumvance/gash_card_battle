@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import copy
+import functools
 import re
 from dataclasses import dataclass
 import random
@@ -318,6 +319,44 @@ _VIEW_BOOK_RE = re.compile(r"相手の魔本(の今のページ)?を見")
 def views_opponent_book(card: CardDef) -> bool:
     """效果文含「相手の魔本(の今のページ)を見」:要看對手魔書才能使用的效果(M-079 整張卡不能用,使用者決定)。"""
     return bool(_VIEW_BOOK_RE.search(card.effect_ja or ""))
+
+
+def outside_page_locked(game: Game, player: int) -> bool:
+    """Ex-060:player 不能使用、放出、棄掉、移動自己魔書今のページ(翻開的兩頁)以外的卡
+    (對手場上有未被擋下的這類卡)。"""
+    return bool(_field_cards(game, 1 - player, reg.OUTSIDE_PAGE_LOCK))
+
+
+def book_page_reachable(game: Game, player: int, page: int) -> bool:
+    """player 的效果能否動到自己魔書的 page(Ex-060 作用中只有翻開的兩頁)。"""
+    return page in game.state.players[player].open_pages() or not outside_page_locked(game, player)
+
+
+def own_book_pages(game: Game, player: int) -> list[int]:
+    """player 的效果能選的自己魔書頁(卡片仍在魔書中):平常是全部,Ex-060 作用中只有翻開的兩頁。"""
+    ps = game.state.players[player]
+    if outside_page_locked(game, player):
+        return ps.open_pages()
+    return [p for p in range(1, BOOK_SIZE + 1) if p not in ps.consumed_pages]
+
+
+@functools.cache
+def uses_other_pages(number: str) -> bool:
+    """卡片的效果樹含「允許從今のページ以外使用卡片」的待命(Ex-060「今のページ以外のページのカードを使う効果」,
+    以卡為單位;P-015、P-025、P-037、PR-006、M-037、S-145、Ex-037)。"""
+    from .effects import tree as T
+    kinds = (T.ScheduleSpellFromAnyPage, T.ScheduleAnyPageUse, T.ScheduleEventFromChosenPage,
+             T.ScheduleSpellFromNextSpreads)
+
+    def walk(node) -> bool:
+        return isinstance(node, kinds) or any(walk(c) for c in node.children())
+
+    return any(walk(root) for key, root in T.EFFECTS.items() if key.split(":", 1)[0] == number)
+
+
+def other_pages_blocked(game: Game, player: int, number: str) -> bool:
+    """Ex-060:player 不能使用 number 的效果(使用其他頁卡片的效果)。"""
+    return uses_other_pages(number) and outside_page_locked(game, player)
 
 
 def own_mamodo_discard_blocked(game: Game, player: int) -> bool:
@@ -1006,6 +1045,7 @@ _ABILITY_ERRORS = {
     "mp": lambda: IllegalCommand("ability.mp", "MP 不足"),
     "condition": lambda: IllegalCommand("ability.condition", "不符合此效果的使用條件"),
     "book_hidden": lambda: IllegalCommand("ability.book_hidden", "對手的魔書不能被看(M-079)"),
+    "other_pages": lambda: IllegalCommand("ability.other_pages", "不能使用今のページ以外的卡的效果(Ex-060)"),
     "own_discard_blocked": lambda: IllegalCommand("ability.own_discard_blocked", "對手的效果使你不能棄掉自己場上的魔物"),
     "field_locked": lambda: IllegalCommand("ability.field_locked", "這張卡的效果目前不能使用"),
 }
@@ -1037,6 +1077,8 @@ def ability_block(game: Game, player: int, zone: str, slot: MamodoSlot | None, n
         return "field_locked"                   # Ex-054
     if views_opponent_book(game.db[number]) and book_hidden(game, 1 - player):
         return "book_hidden"                    # M-079
+    if other_pages_blocked(game, player, number):
+        return "other_pages"                    # Ex-060
     if spec.timing == "battle" and not in_battle:
         return "timing_battle"
     if spec.timing == "nonbattle" and in_battle:
@@ -1184,6 +1226,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
             raise IllegalCommand("event.restricted", "對手的效果使你不能使用事件卡")
         if views_opponent_book(card) and book_hidden(game, 1 - player):
             raise IllegalCommand("event.book_hidden", "對手的魔書不能被看(M-079)")
+        if other_pages_blocked(game, player, number):
+            raise IllegalCommand("event.other_pages", "不能使用今のページ以外的卡的效果(Ex-060)")
         handler = reg.EVENT.get(number)
         if handler is None:
             raise IllegalCommand("event.not_implemented", f"{number} 尚未實作")
@@ -1210,6 +1254,8 @@ def _use_book_card(game: Game, batch: list[dict], player: int, command: dict) ->
             raise IllegalCommand("spell.not_nonbattle", "此戰術卡沒有非戰鬥圖示")
         if views_opponent_book(card) and book_hidden(game, 1 - player):
             raise IllegalCommand("spell.book_hidden", "對手的魔書不能被看(M-079)")
+        if other_pages_blocked(game, player, number):
+            raise IllegalCommand("spell.other_pages", "不能使用今のページ以外的卡的效果(Ex-060)")
         if card.ad == "A" and player != st.turn_player:
             raise IllegalCommand("spell.timing", "此非戰鬥戰術只能在自己的回合使用")
         if card.ad == "D" and player == st.turn_player:
@@ -1275,6 +1321,8 @@ def _spell_any_page_standby(game: Game, player: int, page, slot: MamodoSlot | No
     ps = game.state.players[player]
     if not isinstance(page, int) or not 1 <= page <= BOOK_SIZE or page in ps.consumed_pages:
         return None
+    if outside_page_locked(game, player):
+        return None                             # Ex-060:不能從今のページ以外使用卡片(既有待命也是)
     card = game.db[ps.card_at(page)]
     return next((sb for sb in game.state.standby
                  if sb.kind == "spell_any_page" and sb.owner == player
@@ -1557,6 +1605,8 @@ def _validate_spell_declaration(game: Game, player: int, page, slot_uid, *, atta
         raise IllegalCommand("spell.no_defense_icon", "此戰術沒有防禦圖示")
     if views_opponent_book(card) and book_hidden(game, 1 - player):
         raise IllegalCommand("spell.book_hidden", "對手的魔書不能被看(M-079)")
+    if other_pages_blocked(game, player, number):
+        raise IllegalCommand("spell.other_pages", "不能使用今のページ以外的卡的效果(Ex-060)")
     if (st.players[player].spell_page_uses.get(page, 0) >= spell_use_limit(game, player, card)
             and _reuse_standby(game, player, page) is None):
         raise IllegalCommand("spell.used", "此戰術卡本回合已使用過")
