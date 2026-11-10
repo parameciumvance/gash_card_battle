@@ -908,5 +908,8 @@
   "choice.negated_effect.kind.jammer": "CUT-IN",
   "choice.negated_effect.kind.attack": "Attack",
   "choice.negated_effect.kind.defense": "Defense",
-  "log.effect_undone": "{player} treats “{card}” as unused ({mp} MP returned)"
+  "log.effect_undone": "{player} treats “{card}” as unused",
+  "log.effect_undone.detail": " ({detail})",
+  "log.effect_undone.mp": "{mp} MP returned",
+  "log.effect_undone.returned": "{cards} returned to where they were"
 }

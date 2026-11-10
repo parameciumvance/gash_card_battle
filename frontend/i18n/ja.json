@@ -908,5 +908,8 @@
   "choice.negated_effect.kind.jammer": "ジャマー",
   "choice.negated_effect.kind.attack": "攻撃",
   "choice.negated_effect.kind.defense": "防御",
-  "log.effect_undone": "{player} は《{card}》を使っていないことにした(MP {mp} がもどった)"
+  "log.effect_undone": "{player} は《{card}》を使っていないことにした",
+  "log.effect_undone.detail": "({detail})",
+  "log.effect_undone.mp": "MP {mp} がもどった",
+  "log.effect_undone.returned": "{cards} がもとの場所にもどった"
 }

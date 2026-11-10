@@ -4149,7 +4149,16 @@ function logLine(ev) {
     case "modifier_added": return t("log.modifier_added", { card: cname(ev.source) || ev.source });
     case "effect_applied": return t("log.effect_applied", { source: cname(ev.source) || ev.source });
     case "effect_negated": return t("log.effect_negated", { ...P, source: cname(ev.source), card: cname(ev.negated) });
-    case "effect_undone": return t("log.effect_undone", { ...P, card: cname(ev.card), mp: ev.mp });   // E-052
+    case "effect_undone": {   // E-052:有退回 MP 才寫 MP;費用棄掉的卡列出回到原位的
+      const parts = [];
+      if (ev.mp) parts.push(t("log.effect_undone.mp", { mp: ev.mp }));
+      if (ev.returned && ev.returned.length) {
+        parts.push(t("log.effect_undone.returned",
+          { cards: ev.returned.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) }));
+      }
+      return t("log.effect_undone", { ...P, card: cname(ev.card) })
+        + (parts.length ? t("log.effect_undone.detail", { detail: parts.join(t("ui.sep.list")) }) : "");
+    }
     case "effect_redone": return t("log.effect_redone", { ...P, source: cname(ev.source), card: cname(ev.card) });
     case "battle_ended": return t("log.battle_ended");
     case "choice_required": return t("log.choice_required", P);

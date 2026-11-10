@@ -908,5 +908,8 @@
   "choice.negated_effect.kind.jammer": "干扰",
   "choice.negated_effect.kind.attack": "攻击",
   "choice.negated_effect.kind.defense": "防御",
-  "log.effect_undone": "{player} 把《{card}》当作没使用过(退回 {mp} MP)"
+  "log.effect_undone": "{player} 把《{card}》当作没使用过",
+  "log.effect_undone.detail": ":{detail}",
+  "log.effect_undone.mp": "退回 {mp} MP",
+  "log.effect_undone.returned": "{cards} 回到原位"
 }
