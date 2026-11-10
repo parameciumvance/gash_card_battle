@@ -15,4 +15,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試、新 slow 測試;`openspec validate season4-ex060 --strict`。(新測試 14 項,實作前除 2 項對照組外失敗;快速組 1987 項;相關測試檔 53 項(含瀏覽器的 test_pending_preview_ui、test_nonbattle_ui);自我對戰 9 局,其中 6 局 Ex-060 作用中)
 - [x] 3.2 reconciliation:`card-effects/design.md`、`game-engine/design.md`、capability-map。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
