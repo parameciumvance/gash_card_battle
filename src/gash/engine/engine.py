@@ -14,7 +14,7 @@ import random
 from .cards import EVENT, MAMODO, MJ12, PARTNER, SPELL, CardDef, card_db
 from .effects import registry as reg
 from .effects.primitives import (
-    add_spell_power, can_stack_on, family, mamodo_name, page_option, run_on_play, selectable_opponent_slots, slot_option,
+    add_spell_power, can_stack_on, discard_from_book, family, mamodo_name, page_option, run_on_play, selectable_opponent_slots, slot_option,
     spell_names,
     stack_base,
 )
@@ -792,10 +792,22 @@ def _run_deferred_effects(game: Game, batch: list[dict]) -> None:
     while st.pending is None and game.jammer is None and st.phase != GAME_OVER:
         sb = next((s for s in st.standby if s.kind == "deferred"), None)
         if sb is None:
+            _end_battle_phase_by_effect(game, batch)
             return
         st.standby.remove(sb)
         run_effect(game, batch, sb.data["effect_id"], sb.data["ctx"])
         _check_victory(game, batch)
+
+
+def _end_battle_phase_by_effect(game: Game, batch: list[dict]) -> None:
+    """M-077「このバトルフェイズを終了する」:效果與干擾的詢問都解決後(干擾無效時待命已隨快照消失)進入結束階段。"""
+    st = game.state
+    sb = next((s for s in st.standby if s.kind == "end_battle_phase"), None)
+    if sb is None or st.phase != BATTLE or st.battle is not None or st.battle_in is not None:
+        return
+    st.standby.remove(sb)
+    game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+    _end_phase(game, batch)
 
 
 def _submit(game: Game, command: dict) -> list[dict]:
@@ -1343,6 +1355,8 @@ def _any_page_allows(game: Game, player: int, d: dict, card: CardDef, page: int,
         return False
     if d.get("attack_only") and use not in (None, "attack"):
         return False
+    if d.get("defense_only") and use not in (None, "defense"):
+        return False
     if d.get("any_spell"):
         return page in d["pages"] if "pages" in d else True     # S-145:翻開頁之後 4 個對頁內
     name = d.get("mamodo")
@@ -1364,6 +1378,8 @@ def _consume_any_page(game: Game, batch: list[dict], player: int, page: int,
     if sb is not None:
         game.state.standby.remove(sb)
         game.emit(batch, "standby_resolved", card=sb.source, kind=sb.kind)
+        if sb.data.get("discard_after_battle") and game.state.battle is not None:   # M-073:那場戰鬥後棄掉
+            game.state.battle.data.setdefault("discard_after_battle", []).append([player, page, sb.source])
 
 
 def _reuse_standby(game: Game, player: int, page: int) -> Standby | None:
@@ -3086,6 +3102,10 @@ def _end_battle(game: Game, batch: list[dict]) -> None:
         for sb in after:
             _apply_after_battle(game, batch, sb)
     b = st.battle
+    for player, page, source in (b.data.get("discard_after_battle", []) if b is not None else []):
+        # M-073「そのバトル後に、使った術カードを捨て札にする」(防禦被無效也棄;Ex-060 作用中不能棄掉其他頁)
+        if page not in st.players[player].consumed_pages and book_page_reachable(game, player, page):
+            discard_from_book(game, batch, player, page, source)
     if b is not None:   # 被對手的效果無效的攻擊 / 防禦(E-052;M-055 反面是自己的效果,不算)
         for side, user in (("attack", b.attacker), ("defense", 1 - b.attacker)):
             if getattr(b, f"{side}_negated") and b.data.get(f"{side}_negated_owner") == 1 - user:
@@ -3611,7 +3631,7 @@ def _resolve_end_phase_effect(game: Game, batch: list[dict], effect) -> None:
             amount = st.players[obj.owner].battle_phase_mp_lost.get(st.turn_no, 0) // 2
         gain_mp(game, batch, obj.owner, amount, source, by=obj.owner)
     elif kind == "end_phase_turn_opponent":   # E-041:效果的翻頁,不獲得 MP,翻完即敗
-        turn_pages(game, batch, 1 - obj.owner, obj.data.get("leaves", 1), source)
+        turn_pages(game, batch, 1 - obj.owner, obj.data.get("leaves", 1), source, by=obj.owner)
     elif kind == "end_phase_discard":       # E-042 / Ex-021:使用時選定的魔物(之後已離場的跳過)
         for player, uid in obj.data.get("slots", []):
             slot = st.slot_by_uid(player, uid)
@@ -3630,12 +3650,17 @@ def end_flip_loses(game: Game, player: int) -> bool:
     return end_flip_loses_after(game, player, 0)
 
 
+def _skips_end_flip(sb: Standby, turn_player: int) -> bool:
+    """這回合結束階段不翻頁的待命:M-030 只在自己的回合;M-077(this_turn)不論誰的回合(使用者決定)。"""
+    return sb.kind == "skip_end_flip" and (sb.owner == turn_player or bool(sb.data.get("this_turn")))
+
+
 def end_flip_loses_after(game: Game, player: int, flips: int) -> bool:
     """同 end_flip_loses,但以再翻 flips 張之後的位置判定(開始階段翻頁按鈕的落敗預告)。"""
     st = game.state
     return (st.phase != GAME_OVER and st.turn_player == player
             and st.players[player].pos + 2 * flips + 2 > BOOK_SIZE
-            and not any(s.kind == "skip_end_flip" and s.owner == player for s in st.standby))
+            and not any(_skips_end_flip(s, player) for s in st.standby))
 
 
 def start_flip_end_loses(game: Game, player: int) -> list[bool] | None:
@@ -3661,7 +3686,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
     if st.phase == GAME_OVER:
         return
     # M-030 ヨポポ待命:本回合結束不翻魔書頁直接結束
-    skip = _consume_standby(game, "skip_end_flip", lambda s: s.owner == st.turn_player)
+    skip = _consume_standby(game, "skip_end_flip", lambda s: _skips_end_flip(s, st.turn_player))
     if skip:
         game.emit(batch, "standby_resolved", card=skip[0].source, kind="skip_end_flip")
     else:
@@ -3693,6 +3718,7 @@ def _continue_end_phase(game: Game, batch: list[dict], stage: int) -> None:
         p.negated_this_turn.clear()
         p.dealt_damage_this_turn = False
         p.mp_reduced_by_opponent = 0
+        p.pages_turned_by_opponent = 0
         p.start_phase_mp_total = 0
         p.discarded_this_turn.clear()
         p.page_effect_used = False

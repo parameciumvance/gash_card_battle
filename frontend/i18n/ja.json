@@ -352,6 +352,7 @@
   "effect.standby.deferred": "相手の効果の解決後に使う",
   "effect.standby.negate_damage": "このバトルで {target} が次に受けるダメージを無効にする",
   "effect.standby.no_protect": "次のバトル:相手はダメージを魔物でかばえない",
+  "effect.standby.end_battle_phase": "このバトルフェイズを終了する",
   "effect.standby.skip_end_flip": "このターンのエンドフェイズに魔本をめくらない",
   "effect.standby.spell_any_page": "魔本の今のページ以外から指定の術かイベントカードを使える",
   "effect.standby.spell_bonus": "次のバトル:{mamodo} の術 {changes}",

@@ -627,6 +627,12 @@ reg.spell_rider("S-134", on_declare=When(
     ),
 ), fixed_total={"attack": 7000, "defense": 7000})
 
+# 比照 S-086:「自分の魔本の好きなページから」重疊在(非疊放型的)ウマゴン上
+reg.spell_nonbattle("S-135", when=CanStackFromBook("M-074"), effect=Choose(
+    OwnBookCopiesOf("M-074"), bind="page", prompt="pick_mamodo_in_own_book",
+    then=StackFromBookOnto(),
+))
+
 # ●選んだ相手の魔物の「魔物の効果」や術を使えない ●この術を使うのに使った「ニャルラト」も使えない;
 # 選不到對手的魔物時不能使用(比照 S-074)
 reg.spell_nonbattle("S-136", when=opponent_has_mamodo, effect=Sequence(steps=(

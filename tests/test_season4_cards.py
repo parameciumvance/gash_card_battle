@@ -16,6 +16,7 @@ from tests.test_season4_events_b import BATCH as EVENTS_B
 from tests.test_season4_stone_tablets import BATCH as STONE
 from tests.test_season4_mamodo_a import BATCH as MAMODO_A
 from tests.test_season4_mamodo_b import BATCH as MAMODO_B
+from tests.test_season4_mamodo_c import BATCH as MAMODO_C
 
 RANGES = {"M": (70, 85), "S": (113, 146), "P": (44, 50), "E": (50, 54), "Ex": (51, 74)}
 EXTRA = ["Ex-000", "Ex-049", "Ex-050", "Ex-099", "PR-012", "PR-013"]
@@ -23,7 +24,7 @@ MJ12 = [f"MJ-{i:03d}" for i in range(1, 7)]                # LEVEL:4 的 MJ12 �
 SEASON4 = [f"{p}-{i:03d}" for p, (lo, hi) in RANGES.items() for i in range(lo, hi + 1)] + EXTRA + MJ12
 DX = ["Ex-100", "Ex-101"]                                   # 第 3 賽季補收:DX赤い魔本附錄
 NEW = SEASON4 + DX
-IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A) | set(EVENTS_B) | {"E-052"} | set(STONE) | set(MAMODO_A) | set(MAMODO_B) | {"Ex-060"}   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
+IMPLEMENTED = set(MJ12) | {"Ex-074"} | set(SPELLS_BASIC) | set(SPELLS_2A) | set(SPELLS_2B) | set(EVENTS_A) | set(EVENTS_B) | {"E-052"} | set(STONE) | set(MAMODO_A) | set(MAMODO_B) | {"Ex-060"} | set(MAMODO_C)   # 已實作、移出尚未開放清單(mj12-cards、season4-spells-*)
 
 
 def test_numbers_complete():
@@ -40,8 +41,14 @@ def test_new_cards_pending():
     assert not IMPLEMENTED & pending_cards()
 
 
+def test_all_new_cards_open():
+    assert not set(NEW) & pending_cards()                     # 第 4 賽季全部開放(season4-mamodo-c)
+
+
 @pytest.mark.parametrize("number", ["M-073", "M-077", "S-135"])
-def test_room_with_new_card_rejected(number):
+def test_room_with_new_card_rejected(number, monkeypatch):
+    from gash.engine import deck as deck_mod
+    monkeypatch.setattr(deck_mod, "pending_cards", lambda: frozenset({number}))   # 模擬尚未開放的卡
     pages = list(load_deck(DATA_DIR / "decks/level1.json", card_db()).pages)
     pages[20] = number
     res = TestClient(app).post("/api/rooms", json={"mode": "online", "deck": {"pages": pages}})

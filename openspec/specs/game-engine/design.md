@@ -219,3 +219,9 @@ negated                                                                ← 無�
 - `outside_page_locked(game, player)`:對手場上有未被擋下的 `reg.OUTSIDE_PAGE_LOCK`(Ex-060)。
 - 選自己魔書頁的選項規格一律經 `own_book_pages(game, player)`(受限時只回傳翻開的兩頁):`OwnEarlierPages`、`OwnBookPartnerNamed`、`OwnBookEvents`、`AttachablePartnerPagesInOwnBook`、`DeployableMamodoInOwnBook`、`OwnBookCopiesOf`、`CanStackFromBook`。新增選自己魔書頁的規格時要一併使用;棄掉自己魔書其他頁的卡的效果(之後的 M-073)也要檢查 `outside_page_locked`。
 - 使用其他頁卡片的效果:`uses_other_pages(number)` 走卡片效果樹,找允許從其他頁使用的待命節點;`other_pages_blocked` 在啟動效果(`ability_block` 的 `other_pages`)、事件卡、非戰鬥戰術與戰術宣告檢查(`*.other_pages`)。`_spell_any_page_standby` 在受限時不回傳待命。
+
+## 以效果結束戰鬥階段與被翻頁的紀錄(season4-mamodo-c)
+
+- M-077:`EndThisBattlePhase` 排 `end_battle_phase` 與 `skip_end_flip`(`data["this_turn"]`)待命;`_run_deferred_effects` 在沒有待決事項、待詢問的干擾與 deferred 待命時呼叫 `_end_battle_phase_by_effect` 進入結束階段。干擾無效時快照還原,待命消失。`_skips_end_flip`:擁有者是回合玩家(M-030)或 `this_turn`(M-077)。
+- M-084:`turn_pages(..., by=)` 記錄效果的使用者;`by` 是對手時累加 `PlayerState.pages_turned_by_opponent`(結束時歸零)。新增翻對手魔書的效果時要傳 `by`。
+- M-073:`ScheduleAnyPageUse` 的 `defense_only`、`discard_after_battle`;`_consume_any_page` 記在 `battle.data["discard_after_battle"]`,`_end_battle` 棄掉仍在魔書的那張卡(`book_page_reachable` 檢查 Ex-060)。

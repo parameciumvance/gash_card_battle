@@ -352,6 +352,7 @@
   "effect.standby.deferred": "對手的效果解決後發動",
   "effect.standby.negate_damage": "{target} 本場戰鬥下一次受到的傷害無效",
   "effect.standby.no_protect": "下一場戰鬥:對手不能以魔物保護傷害",
+  "effect.standby.end_battle_phase": "結束這個戰鬥階段",
   "effect.standby.skip_end_flip": "本回合結束時不翻魔書",
   "effect.standby.spell_any_page": "可從魔書翻開的頁以外使用指定的戰術或事件卡",
   "effect.standby.spell_bonus": "下一場戰鬥:{mamodo} 的戰術 {changes}",

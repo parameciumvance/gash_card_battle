@@ -103,8 +103,9 @@ def _page_lock(game, table, holders) -> str | None:
     return next((number for p in holders for number, _s in _field_cards(game, p, table)), None)
 
 
-def turn_pages(game, batch, player, leaves, source):
-    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。PR-012 在場時,戰鬥階段中不翻(傷害的翻頁不經過這裡)。"""
+def turn_pages(game, batch, player, leaves, source, by=None):
+    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。PR-012 在場時,戰鬥階段中不翻(傷害的翻頁不經過這裡)。
+    by 為效果的使用者;是對手時記入 pages_turned_by_opponent(M-084)。"""
     from ..engine import _game_over
     lock = _page_lock(game, reg.BLOCK_EFFECT_PAGE_TURN, (0, 1))
     if lock:
@@ -112,6 +113,8 @@ def turn_pages(game, batch, player, leaves, source):
         return
     ps = game.state.players[player]
     ps.pos += 2 * leaves
+    if by is not None and by != player and leaves > 0:
+        ps.pages_turned_by_opponent += leaves
     game.emit(batch, "pages_turned", player=player, count=leaves, pos=min(ps.pos, BOOK_SIZE + 2), source=source)
     if ps.book_exhausted():
         _game_over(game, batch, winner=1 - player, reason="book_out")
@@ -320,7 +323,7 @@ def own_book_turn_effect(game, batch, player, leaves, source) -> bool:
         ps.page_back_effect_used = True
     else:
         ps.page_effect_used = True
-        turn_pages(game, batch, player, leaves, source)
+        turn_pages(game, batch, player, leaves, source, by=player)
     return True
 
 

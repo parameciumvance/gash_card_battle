@@ -8,24 +8,42 @@ from tests.test_pool_filters_ui import SEASON_ROWS, menu, open_builder, pick, po
 from tests.test_pool_filters_ui import open_products
 
 
+PENDING_CARD = "M-073"   # 模擬的尚未開放卡(第 4 賽季全部開放後,以攔截 pending_cards.json 模擬)
+OPEN_CARD = "M-001"
+
+
+def simulated_pending() -> frozenset[str]:
+    from gash.engine.cards import pending_cards
+    return pending_cards() | {PENDING_CARD}
+
+
+def fulfill_pending(route):
+    import json
+    route.fulfill(status=200, content_type="application/json",
+                  body=json.dumps({"cards": sorted(simulated_pending())}))
+
+
+PENDING_ROUTES = (("**/data/pending_cards.json", fulfill_pending),)
+
+
+def open_pending_builder(browser, server):
+    return open_builder(browser, server, routes=PENDING_ROUTES)
+
+
 def level4_open() -> set[str]:
     import json
 
-    from gash.engine.cards import DATA_DIR, pending_cards
+    from gash.engine.cards import DATA_DIR
     cards = json.loads((DATA_DIR / "cards.json").read_text(encoding="utf-8"))
-    return {c["number"] for c in cards if "level-4" in c["sets"] and c["number"] not in pending_cards()}
-
-
-PENDING_CARD = "M-073"   # 第 4 賽季,資料已收錄、效果尚未實作
-OPEN_CARD = "M-001"
+    return {c["number"] for c in cards if "level-4" in c["sets"] and c["number"] not in simulated_pending()}
 
 
 def pending_only_families() -> set[str]:
     """所有卡片(魔物、搭檔、戰術)都還在尚未開放清單的魔物家族(依資料計算,分批開放時不必改)。"""
     import json as _json
 
-    from gash.engine.cards import DATA_DIR, pending_cards
-    pend = pending_cards()
+    from gash.engine.cards import DATA_DIR
+    pend = simulated_pending()
     fams: dict[str, set[bool]] = {}
     for c in _json.loads((DATA_DIR / "cards.json").read_text(encoding="utf-8")):
         if c.get("related_mamodo"):
@@ -42,7 +60,7 @@ def pages(page):
 
 
 def test_builder_shows_pending_card_dimmed(browser, server):
-    context, page, errors = open_builder(browser, server)
+    context, page, errors = open_pending_builder(browser, server)
     card = pool_card(page, PENDING_CARD)
     assert card.count() == 1
     assert "pending" in card.get_attribute("class").split()
@@ -55,7 +73,7 @@ def test_builder_shows_pending_card_dimmed(browser, server):
 
 
 def test_pending_card_cannot_be_added(browser, server):
-    context, page, errors = open_builder(browser, server)
+    context, page, errors = open_pending_builder(browser, server)
     before = pages(page)
     pool_card(page, PENDING_CARD).click()
     assert pages(page) == before
@@ -79,7 +97,7 @@ def test_open_card_still_added(browser, server):
 
 
 def test_builder_grids_include_pending_only_items(browser, server):
-    context, page, errors = open_builder(browser, server)
+    context, page, errors = open_pending_builder(browser, server)
     menu(page, "product").click()
     assert product_rows(page) == SEASON_ROWS                                   # LEVEL:4 等新產品也列出
     page.keyboard.press("Escape")
@@ -97,6 +115,9 @@ def test_builder_grids_include_pending_only_items(browser, server):
 
 
 def test_cheat_pool_hides_pending(page):
+    page.route(*PENDING_ROUTES[0])
+    page.reload()
+    page.wait_for_function("Object.keys(CARDS).length > 0 && document.querySelector('#cheat-toggle').textContent")
     open_local(page)
     assert pool_card(page, PENDING_CARD, "#cheat-pool-grid").count() == 0
     assert pool_card(page, OPEN_CARD, "#cheat-pool-grid").count() == 1
