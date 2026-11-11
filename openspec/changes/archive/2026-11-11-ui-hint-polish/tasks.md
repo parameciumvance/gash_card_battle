@@ -14,4 +14,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試;`openspec validate ui-hint-polish --strict`。(新測試 6 項,實作前 5 項失敗、1 項為對照組;快速組 2020 項;相關瀏覽器測試 63 項與魔書網格測試;手機截圖確認)
 - [x] 3.2 reconciliation:`battle-ui/design.md`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
