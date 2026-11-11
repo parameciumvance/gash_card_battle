@@ -14,4 +14,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試;`openspec validate card-name-quotes --strict`。(守門測試 9 項,修改前都失敗;快速組 2020 項;瀏覽器測試整組 563 項)
 - [x] 3.2 reconciliation:`battle-ui/design.md`。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
