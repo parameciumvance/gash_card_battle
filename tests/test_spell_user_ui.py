@@ -181,14 +181,14 @@ def test_book_card_used_log_by_type(page):
     if page.evaluate("S.pending"):
         page.evaluate("send({type: 'choose', player: S.pending.player, value: S.pending.options[0].value})")
     names = page.evaluate("[cname('S-026'), cname('M-001'), cname('E-003')]")
-    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用戰術《{names[0]}》')")
+    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用戰術「{names[0]}」')")
     log = page.locator("#log").inner_text()
-    assert f"以〔{names[1]}〕使用戰術《{names[0]}》" in log
-    assert f"使用事件卡《{names[0]}》" not in log
+    assert f"以〔{names[1]}〕使用戰術「{names[0]}」" in log
+    assert f"使用事件卡「{names[0]}」" not in log
     send(page, {"type": "pass", "player": 1 - tp})
     page.wait_for_function(f"S.action_player === {tp}")
     send(page, {"type": "use_book_card", "player": tp, "page": pos + 1})
-    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用事件卡《{names[2]}》')")
+    page.wait_for_function(f"document.getElementById('log').innerText.includes('使用事件卡「{names[2]}」')")
 
 
 

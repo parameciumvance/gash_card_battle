@@ -76,7 +76,7 @@ def test_borrowed_effect_from_action_bar(page):
     assert borrow_button(page).count() == 0
     assert page.evaluate("effectText(S.effects.find((e) => e.kind === 'borrow_partner'))").endswith("(本回合已使用)")
     log = page.locator("#log").inner_text()
-    assert "以《" in log and name in log                                     # 記錄顯示為使用者經 E-010 使用
+    assert "以「" in log and name in log                                     # 記錄顯示為使用者經 E-010 使用
 
 
 def test_entry_remains_after_partner_left(page):

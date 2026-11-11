@@ -1302,7 +1302,7 @@ function zoomDetails(num, ctx) {
   const blocked = slot ? (slot.blocked_effects || []).filter((b) => b.card === num) : [];
   if (blocked.length) {
     sections.push(infoSection(t("ui.effect_blocked.title"), blocked.map((b) => infoRow(
-      t("ui.effect_blocked.item", { card: cname(b.card), by: b.by.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) }),
+      t("ui.effect_blocked.item", { card: cname(b.card), by: b.by.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) }),
       [b.card, ...b.by], "", "")), ""));
   }
   if (!sections.length) return null;
@@ -4077,7 +4077,7 @@ function logLine(ev) {
     case "restrictions_removed":
     case "power_ups_removed":   // Ex-070
       return ev.sources && ev.sources.length
-        ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) })
+        ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) })
         : t("log.restrictions_removed_none", P);
     case "mp_reduction_prevented": return t("log.mp_reduction_prevented", { ...P, source: cname(ev.source) || ev.source });
     case "mp_gain_prevented": return t("log.mp_gain_prevented", { ...P, source: cname(ev.source) || ev.source });
@@ -4135,7 +4135,7 @@ function logLine(ev) {
         : ev.source ? t("log.damage_prevented_by", { ...P, card: cname(ev.source) }) : t("log.damage_prevented", P);
     case "effect_blocked":   // 一次性時點的常駐效果被「使えない」擋下
       return t("log.effect_blocked", { ...P, card: cname(ev.card),
-        by: (ev.by || []).map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) });
+        by: (ev.by || []).map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) });
     case "damage_negated": return t("log.damage_negated", { card: cname(ev.card) });
     case "protected":   // P-027:保護者是對手的魔物時,寫出持有者與被保護的一方
       return ev.target_player !== undefined && ev.target_player !== ev.player
@@ -4164,7 +4164,7 @@ function logLine(ev) {
       if (ev.mp) parts.push(t("log.effect_undone.mp", { mp: ev.mp }));
       if (ev.returned && ev.returned.length) {
         parts.push(t("log.effect_undone.returned",
-          { cards: ev.returned.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) }));
+          { cards: ev.returned.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) }));
       }
       return t("log.effect_undone", { ...P, card: cname(ev.card) })
         + (parts.length ? t("log.effect_undone.detail", { detail: parts.join(t("ui.sep.list")) }) : "");

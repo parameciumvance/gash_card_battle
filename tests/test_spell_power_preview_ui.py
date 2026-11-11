@@ -50,8 +50,8 @@ def test_one_section_per_user(page):
     }}""")
     zoom_page(page, me, 3)
     titles = [s["title"] for s in sections(page)]
-    assert page.evaluate("`《${cname('M-001')}》的預估合計魔力 6000`") in titles
-    assert page.evaluate("`《${cname('M-014')}》的預估合計魔力 7000`") in titles
+    assert page.evaluate("`「${cname('M-001')}」的預估合計魔力 6000`") in titles
+    assert page.evaluate("`「${cname('M-014')}」的預估合計魔力 7000`") in titles
 
 
 def test_pick_user_note_has_total_and_cost(page):
