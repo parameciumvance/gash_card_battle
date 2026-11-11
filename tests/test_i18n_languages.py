@@ -353,3 +353,26 @@ def test_feedback_button_matches_dialog_title(lang):
     d = load(f"{lang}.json")
     assert d["ui.feedback.toggle"] in d["ui.feedback.title"]
     assert d["ui.landing.feedback"] == d["ui.feedback.title"]
+
+
+# ---------------------------------------------------------------- 卡名的括號(battle-ui「卡名的括號」,card-name-quotes)
+
+CARD_PARAMS = ("card", "spell", "source")
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_card_names_not_in_double_angle_brackets(lang):
+    # 魔物卡名帶效果名(「{name}《{attr}》」),再以《》括住會變成《…《…》》:卡名一律用「」(en 用 “ ”)
+    bad = {k: v for k, v in load(f"{lang}.json").items()
+           if isinstance(v, str) and any(f"《{{{p}}}》" in v for p in CARD_PARAMS)}
+    assert bad == {}
+
+
+def test_app_js_does_not_wrap_card_names():
+    app = (ROOT / "frontend/app.js").read_text(encoding="utf-8")
+    assert "《${" not in app
+
+
+@pytest.mark.parametrize("lang, quoted", [("zh-TW", "「X」"), ("zh-CN", "「X」"), ("ja", "「X」"), ("en", "“X”")])
+def test_quoted_card_template(lang, quoted):
+    assert load(f"{lang}.json")["ui.quoted_card"].replace("{card}", "X") == quoted

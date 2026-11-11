@@ -93,7 +93,7 @@ def test_opponent_mamodo_guards_own_book(anim_page):
     names = page.evaluate(f"[pname({dp}), pname({tp}), cname(S.players[{tp}].slots[0].top)]")
     page.wait_for_function("!document.querySelector('.fx-guard-wrap')", timeout=5000)
     log = page.locator("#log").inner_text()
-    assert f"{names[0]} 以{names[1]}的《{names[2]}》保護魔書" in log
+    assert f"{names[0]} 以{names[1]}的「{names[2]}」保護魔書" in log
 
 
 def test_mp_reduction_prevented_log(page):
@@ -251,7 +251,7 @@ def test_batch4_log_lines(page):
     start(page)
     name, card = page.evaluate("[pname(0), cname('M-034')]")
     assert page.evaluate("logLine({type: 'coin_set', player: 0, card: 'M-034', index: 0})") == \
-        f"{name} 以《{card}》把第 1 枚硬幣改成正面"
+        f"{name} 以「{card}」把第 1 枚硬幣改成正面"
     assert "1 個行動" in page.evaluate("logLine({type: 'action_effect_used', player: 0, card: 'M-046'})")
     assert "魔物效果防禦" in page.evaluate(
         "logLine({type: 'defense_declared', player: 0, spell: null, mamodo: 'M-039', slot: 1})")
@@ -281,7 +281,7 @@ def test_end_phase_order_buttons(page):
     set_pending(page, {"kind": "end_phase_order", "player": p, "source": None, "options": opts})
     buttons = page.locator("#action-bar .choice-prompt .choice-options button")
     names = page.evaluate("[cname('E-041'), cname('E-042')]")
-    assert buttons.all_text_contents() == [f"先解決《{names[0]}》", f"先解決《{names[1]}》"]
+    assert buttons.all_text_contents() == [f"先解決「{names[0]}」", f"先解決「{names[1]}」"]
     buttons.nth(1).click()
     assert sent(page) == [{"type": "choose", "player": p, "value": 1}]
 

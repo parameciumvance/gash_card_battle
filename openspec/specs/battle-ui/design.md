@@ -477,3 +477,9 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - **金手指的目前頁**:面板上方 `#cheat-current` 摘要雙方目前翻開的頁;網格以 `cheatMark` 標記目前翻開的兩頁(`cheat-open`,框線與「目前」)與已離開魔書的頁(`cheat-gone`)。資料取自快照的 `pos` / `consumed_pages`,不取自草稿:提示代表目前的對局狀態,草稿裡換了卡也不會變。`debug-state` 不必擴充。
 - **保護決策的傷害**:`choicePromptEl` 讀 `pending.info.damage`,以 `protectDamageText` 在標題下加一行(魔書傷害值,會耗盡時加註;魔物將負傷或將進入棄牌區)。資訊來自公開脈絡,對手與觀戰者也看得到。
 - **先攻**:本機模式固定玩家 1 先攻,記錄 `first_player_set` 寫「自由調查時間:玩家 1 先攻」。
+
+## 卡名的括號(card-name-quotes)
+
+- 卡名與戰術名用「」(en 用 “ ”),《》只用於效果名(`ui.card_with_attr`、《格闘》)與魔書名(`builder.new_from_deck`),場上的某一隻魔物用〔〕。原因:魔物卡名帶效果名,以《》括住會出現《布拉葛《嘲笑》》;卡片效果文本身也是「卡名」《效果名》的寫法(使用者 2026-11-11 決定)。
+- 範本括卡名一律寫在翻譯檔(`{card}`、`{spell}`、`{source}`);app.js 要括卡名時用 `t("ui.quoted_card", { card })`,不可直接寫《${…}》。守門測試在 `tests/test_i18n_languages.py`。
+
