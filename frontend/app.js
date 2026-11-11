@@ -2160,11 +2160,15 @@ function renderBookBlock(p, ps) {
   if (bookBrowsable(p)) {   // 左右鍵在書皮兩緣;「回到目前頁」在上緣,不在目前頁時變亮
     const at = browse ?? Math.min(ps.pos, 32);
     cover.classList.toggle("browsing", browse !== null);
-    cover.appendChild(bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1)));
+    const prev = bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1));
     const next = bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1));
-    // 開始階段的翻頁提醒:回合玩家還能再往後翻閱(未達最多能翻的張數)時發光
-    if (S.phase === "start" && p === S.turn_player && iControl(p) && !S.pending
-        && (at - ps.pos) / 2 < maxFlips(ps.pos)) next.classList.add("flip-glow");
+    // 開始階段的翻頁提醒:往該方向還有合法的翻閱位置(翻 0 到最多能翻的張數)時發光
+    const maxFlip = maxFlips(ps.pos);
+    if (S.phase === "start" && p === S.turn_player && iControl(p) && !S.pending && maxFlip > 0) {
+      if (at > ps.pos) prev.classList.add("flip-glow");
+      if (at < ps.pos + 2 * maxFlip) next.classList.add("flip-glow");
+    }
+    cover.appendChild(prev);
     cover.appendChild(next);
     cover.appendChild(bookNavButton("book-current", t("ui.book.current"), t("ui.book.current"),
       browse === null, () => browseBook(p, 0)));

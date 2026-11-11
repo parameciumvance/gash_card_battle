@@ -141,14 +141,15 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .review-spread.single { background: rgba(60,40,70,.35); }
 .review-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; width: var(--review-card-w); }
 .review-cell .card { flex: 1; width: var(--review-card-w); }   /* 隨列高拉伸:同一列的卡片等高;卡背同寬 */
-.review-cell.open { outline: 2px solid var(--glow); outline-offset: 1px; border-radius: 8px; }
+/* 目前翻開的頁用藍色:與可選目標的金色光暈區分 */
+.review-cell.open { outline: 2px solid var(--accent-blue); outline-offset: 1px; border-radius: 8px; }
 .review-cell .card { cursor: default; }
 .review-cell .card:hover { transform: none; box-shadow: none; }
 .review-foot { display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
   justify-content: center; font-size: 9px; }
 .review-pno { color: var(--gold-soft); }
 .review-tag { padding: 0 5px; border-radius: 6px; font-size: 9px; }
-.review-tag.cur { background: var(--glow); color: #3a2a08; }
+.review-tag.cur { background: var(--accent-blue); color: #0b2a40; }
 .review-tag.left { background: #5b6270; color: #d9dde5; }
 .review-tag.used { background: #8a2f2f; color: #ffd9d9; }
 
@@ -1523,6 +1524,9 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   #turn-cluster { --dial-w: 88px; --dial-h: 48px; gap: 4px; }
   #turn-dial { --pad-x: 24px; --pad-y: 19px; }
   #action-bar { gap: 6px; padding: 8px 10px; }
+  /* 提示開關排在提示清單正上方,不被行動按鈕隔開(桌機排版不變) */
+  #action-bar .hint-toggle { order: 98; }
+  #action-bar .hint-details { order: 99; }
   #turn-dial .dial-tab-text { font-size: 10px; padding: 1px 5px; }
   #turn-dial .dial-center { font-size: 11px; }
   #turn-cluster .turn-side { width: 84px; }
