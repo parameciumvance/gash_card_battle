@@ -21,6 +21,7 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 - `Dockerfile` 與開發容器分開,只裝核心依賴,不含 `tests/`、`tools/`、`.devcontainer/`、`ref/`。
 - MUST 用 editable 安裝(`pip install -e .`):`src/gash/paths.py` 以 `__file__` 往上推算 repo 根目錄來定位 `frontend/`、`data/`,非 editable 安裝會把檔案複製進 site-packages 而算錯路徑。
 - 卡圖不在映像檔內,放在具名 volume `card-assets`(掛到 `GASH_ASSETS_DIR`),換映像檔、重建容器都不會動到。
+- **相依鎖定**(ci-supply-chain):相依依 `requirements.lock`(pip-compile,帶 hash,含建置用的 setuptools)以 `--require-hashes` 安裝,專案本身 `--no-deps --no-build-isolation -e .`;基底映像檔以 digest 指定。理由:原本打 tag 當下才解析版本,PyPI 上當時有什麼就上線什麼、事後也無法重現;`-e .` 的建置隔離還會另外下載沒有 hash 的 setuptools。
 
 ## 單一行程
 
@@ -32,6 +33,8 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
 - **CI 測試**(ci-full-suite):`test.yml` 在 push / PR 到 `main`、`dev` 時執行全套,含瀏覽器測試(安裝 `chromium-headless-shell`;原本沒有安裝,`browser` fixture 啟動失敗而整批略過,CI 綠燈只代表引擎與 API)。Python 3.14 與 production 映像檔、開發容器相同(python-314:原本 CI 與正式站 3.12、開發容器 3.14,本機用到新版寫法要到 CI 才發現;改為一致升到 3.14。`requires-python` 仍為 `>=3.12`,3.12 下全套亦通過)。`cache: pip`、依 playwright 版本快取 `~/.cache/ms-playwright`(系統套件每次 apt 安裝);`concurrency` 以 `test-<ref>` 分組、取消同分支的舊執行;`timeout-minutes: 30`(平常約 10 分鐘,字型套件的鏡像站偶爾很慢)。
 - **發布前的測試關卡**:`deploy.yml` 的 `test` job 以 `workflow_call` 呼叫同一份 `test.yml`,`build-and-push` 設 `needs: test`。兩邊用同一份定義,不會漏改;不採「查詢該 commit 的 Test 結果」,因為 tag 可能打在沒有對應 Test 執行的 commit 上。被呼叫時 `github.ref` 是 tag,concurrency 各自一組,不會取消別的發布。
 - **失敗截圖**:`tests/conftest.py` 的 `pytest_runtest_makereport` 在瀏覽器測試本體失敗時,截下 `browser` 所有 context 的頁面到 `test-results/`(fixture 尚未 teardown,頁面都還開著);`test.yml` 失敗時上傳為 artifact,保留 7 天。
+- **權限與釘版本**(ci-supply-chain,2026-11-11 盤點):repo 的預設 workflow 權限為唯讀;`test.yml` 宣告 `contents: read`(被 `workflow_call` 呼叫時也不會超過),`deploy.yml` 預設 `permissions: {}`,只有 `build-and-push` 可寫入。第三方 action 以 commit SHA 引用、註解版本號;CI 依 `requirements-dev.lock` 安裝。Dependabot 每週為 action、pip、Dockerfile、compose 開分組 PR 到 `dev`。守門測試 `tests/test_ci_supply_chain.py`。
+  - 理由:原本預設權限可寫入、`test.yml` 沒有宣告,每次 push 時未鎖版本的相依與第三方 action 都以可推 GHCR 的 token 執行,任一環節被入侵即可推映像檔,由 watchtower 自動上線,不必等打 tag。
 - VPS 端由 watchtower 每 300 秒輪詢,有新版就拉取並重啟該容器。CI 不持有任何能連進 VPS 的憑證(SSH 金鑰、VPN 授權)。
   - 理由:只要 CI 有能力觸發 VPS 執行指令,Secrets 外洩時這個能力就會一起外洩,加固憑證只能縮小傷害範圍。直接拿掉這個能力,外洩時最多只能推一個惡意映像檔到 registry。代價是部署要等下一次輪詢。
 - `app` 只在打 tag 時才有新版,維護者藉此挑對局少的時間發布(重啟會讓對局消失)。
@@ -40,7 +43,9 @@ VPS 上的實際操作步驟(一次性設置、發布、卡圖、遷移與回退
   - 檢查放在 deploy 而非 test:一般 push 時還沒有 tag,無從比對。
   - Release 在推送之後才建立:建立失敗(權限、網路)不影響部署,可用同一個工具的輸出手動補建。
   - 工具只用標準函式庫,CI 不必安裝專案依賴;映像檔不含 `tools/`,工具只在 CI 用。
+- watchtower 本身以版本與 digest 指定,不自動更新(ci-supply-chain):它掛載 Docker socket,等於 VPS 的 root 權限。升級由 Dependabot 的 PR 提醒;VPS 的 compose 檔是手動複製的快照,合併後要重新 `scp` 並 `docker compose up -d watchtower`。
 - `cloudflared` 使用 `latest`,有新版就自動更新,容器內關閉它自己的更新機制(`--no-autoupdate`)。
+  - 2026-11-11 盤點後使用者決定維持自動更新(讓 Cloudflare 的修正自動套用),不釘版本。
   - 理由:重啟 `cloudflared` 不會重啟 `app`,房間狀態保留,前端的 WebSocket 斷線後 1.5 秒自動重連並由 `welcome` 取回完整狀態,所以不需要挑時間;不更新反而會逐漸落後於 Cloudflare 支援的版本。新版有問題時,把 image 改釘到上一個正常的版本。
 
 ## 版本號
