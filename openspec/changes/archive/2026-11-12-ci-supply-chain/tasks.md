@@ -16,5 +16,5 @@
 
 - [x] 3.1 快速測試組;`openspec validate ci-supply-chain --strict`。(快速組 2032 項,含守門測試 12 項)
 - [x] 3.2 reconciliation:`docker-deployment/design.md`、capability-map。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
 - [ ] 3.4 合併後:push 到 dev 時確認 CI 的 token 只有 read、測試照常通過;下次打 tag 時確認映像檔建置成功;VPS 重新 scp compose 並 `docker compose up -d watchtower`。
