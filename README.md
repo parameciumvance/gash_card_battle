@@ -231,6 +231,32 @@ tag 名稱就是版本號:CI 以 build arg `GASH_VERSION` 帶進映像檔,首頁
 JS / CSS 改寫成快取 4 小時。請在 Cloudflare 後台 Caching → Configuration →
 Browser Cache TTL 設為 **Respect Existing Headers**,部署後玩家才會立刻拿到新版。
 
+### 相依套件與 CI 的安全設定
+
+CI 能推映像檔,watchtower 又會自動上線,所以鏈上會自動取用新版的地方都釘死了,升級一律經過 PR:
+
+- **token 權限**:repo 的 Actions 預設權限是唯讀(Settings → Actions → General → Workflow permissions);
+  `test.yml` 宣告 `contents: read`,`deploy.yml` 預設 `permissions: {}`,只有建置 job 有
+  `contents: write`、`packages: write`。新增 workflow 時也要寫明最小權限。
+- **action**:一律以 commit SHA 引用,後面註解版本號(`actions/checkout@<sha> # v4.4.0`),
+  測試會檢查。
+- **Python 相依**:`requirements.lock`(正式映像檔)與 `requirements-dev.lock`(CI)由
+  `pyproject.toml` 產生,帶每個套件的 hash,安裝時 `--require-hashes`。改了 `pyproject.toml`
+  的相依後要重新產生(需要 `pip install pip-tools`):
+  ```bash
+  pip-compile --generate-hashes --strip-extras --allow-unsafe --all-build-deps -o requirements.lock pyproject.toml
+  pip-compile --generate-hashes --strip-extras --allow-unsafe --all-build-deps --extra dev -o requirements-dev.lock pyproject.toml
+  ```
+  開發容器照舊 `pip install -e ".[dev]"`,不受影響。
+- **映像檔**:`Dockerfile` 的基底映像檔、`docker-compose.yml` 的 watchtower 都釘 digest。
+  watchtower 掛載 Docker socket(等於 VPS 的 root 權限),不自動換新;`cloudflared` 維持
+  `:latest` 由 watchtower 自動更新,讓 Cloudflare 的修正自動套用。
+- **Dependabot**(`.github/dependabot.yml`):每週檢查 action、Python 相依、基底映像檔與
+  watchtower 的新版,分組開 PR 到 `dev`。CI 跑完全套測試、看過變更(主版本升級先看 release notes)
+  再合併。VPS 上的 `docker-compose.yml` 是手動複製的快照:watchtower 的 PR 合併後,
+  **(本機)** 重新 `scp docker-compose.yml` 到 VPS 部署目錄,**(VPS)** 再
+  `docker compose up -d watchtower` 才會換上新版。
+
 ### 網域與 Cloudflare Tunnel
 
 服務網址是 `https://card-battle.zatchholic.com`。轉送規則(Public Hostname →
