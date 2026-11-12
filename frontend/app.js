@@ -4413,12 +4413,13 @@ const MAIN_POOL_TYPES = ["mamodo", "partner", "spell", "event"];
 const POOL_TYPES = [...MAIN_POOL_TYPES, "other"];
 function poolType(def) { return MAIN_POOL_TYPES.includes(def.type) ? def.type : "other"; }
 
-// 標籤篩選(deck-builder「卡池標籤篩選」):干擾、中級 / 上級、戰術屬性(依卡數多寡)。
+// 標籤篩選(deck-builder「卡池標籤篩選」):干擾、石版、中級 / 上級、戰術屬性(依卡數多寡)。
 // 同一組(group)互斥:中級與上級、各屬性之間只能選一個;不同組要同時符合
 const TAG_ATTRS = ["雷", "重力", "土", "風", "水", "氷", "木", "火"];
 const POOL_TAGS = [
   { key: "jammer", group: "jammer", label: () => t("card.icon.jammer"),
     has: (def) => (def.effect_icons || [def.effect_icon]).includes("jammer") },
+  { key: "stone_tablet", group: "stone", label: () => t("card.tag.stone_tablet"), has: (def) => !!def.stone_tablet },
   { key: "intermediate", group: "class", label: () => t("card.class.intermediate"), has: (def) => def.class === "intermediate" },
   { key: "superior", group: "class", label: () => t("card.class.superior"), has: (def) => def.class === "superior" },
   ...TAG_ATTRS.map((a) => ({ key: `attr:${a}`, group: "attr", label: () => t(`attr.${a}`), has: (def) => def.attr_name === a })),
@@ -4637,10 +4638,10 @@ function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
       tiles[item.key] = tile;
       return tile;
     };
-    if (group === "tag") {   // 每組一列:干擾 / 中級・上級 / 屬性
-      for (const tagGroup of ["jammer", "class", "attr"]) {
+    if (group === "tag") {   // 分三列:干擾・石版(兩組,不互斥)/ 中級・上級 / 屬性
+      for (const rowGroups of [["jammer", "stone"], ["class"], ["attr"]]) {
         const line = el("div", "filter-tag-row");
-        for (const tag of POOL_TAGS.filter((x) => x.group === tagGroup)) line.appendChild(tileFor(g.items.find((it) => it.key === tag.key)));
+        for (const tag of POOL_TAGS.filter((x) => rowGroups.includes(x.group))) line.appendChild(tileFor(g.items.find((it) => it.key === tag.key)));
         panel.appendChild(line);
       }
     } else if (group === "product") {

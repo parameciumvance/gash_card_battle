@@ -25,7 +25,7 @@ def test_type_badge_shows_check_when_selected(builder):  # noqa: F811
 def test_tag_grid_lists_tags(builder):  # noqa: F811
     menu(builder, "tag").click()
     keys = panel(builder, "tag").locator(".filter-tile[data-key]").evaluate_all("(ts) => ts.map((t) => t.dataset.key)")
-    assert keys == ["jammer", "intermediate", "superior"] + [f"attr:{a}" for a in ATTRS]
+    assert keys == ["jammer", "stone_tablet", "intermediate", "superior"] + [f"attr:{a}" for a in ATTRS]
     assert tile(builder, "tag", "attr:氷").inner_text().strip().endswith("冰")      # 屬性名依語言
 
 
@@ -65,6 +65,17 @@ def test_tags_exclusive_within_group(builder):  # noqa: F811
     assert pool_numbers(builder) == []                                       # 沒有同時是干擾、上級、水屬性的卡
 
 
+def test_stone_tablet_tag(builder):  # noqa: F811
+    # 石版卡(資料的 stone_tablet);與干擾同一列、不互斥(stone-tag-filter,使用者決定)
+    menu(builder, "tag").click()
+    assert tile(builder, "tag", "stone_tablet").inner_text().strip().endswith("石版")
+    tile(builder, "tag", "stone_tablet").click()
+    assert pool_numbers(builder) == ["Ex-056", "Ex-057", "Ex-058"]
+    tile(builder, "tag", "jammer").click()
+    assert pressed(builder, "jammer") and pressed(builder, "stone_tablet")
+    assert pool_numbers(builder) == []                                       # 沒有同時是干擾與石版的卡
+
+
 def test_attr_tag_with_type(builder):  # noqa: F811
     type_badge(builder, "spell").click()
     menu(builder, "tag").click()
@@ -80,6 +91,10 @@ def test_cheat_pool_has_tag_filter(page):
     filters.locator(".filter-panel[data-group=tag] .filter-tile[data-key=intermediate]").click()
     numbers = page.locator("#cheat-pool-grid .card .cnum").all_text_contents()
     assert numbers and all(page.evaluate(f"CARDS['{n}'].class") == "intermediate" for n in numbers)
+    filters.locator(".filter-panel[data-group=tag] .filter-all").click()       # 清除後只勾石版
+    filters.locator(".filter-panel[data-group=tag] .filter-tile[data-key=stone_tablet]").click()
+    stones = page.locator("#cheat-pool-grid .card .cnum").all_text_contents()
+    assert stones and all(page.evaluate(f"CARDS['{n}'].stone_tablet") for n in stones)
 
 
 # ---------------------------------------------------------------- 網格收起、分列、重置、寬度
@@ -99,7 +114,7 @@ def test_tag_grid_rows_by_group(builder):  # noqa: F811
     menu(builder, "tag").click()
     rows = panel(builder, "tag").locator(".filter-tag-row").evaluate_all(
         "(rs) => rs.map((r) => [...r.querySelectorAll('.filter-tile')].map((t) => t.dataset.key))")
-    assert rows == [["jammer"], ["intermediate", "superior"], [f"attr:{a}" for a in ATTRS]]
+    assert rows == [["jammer", "stone_tablet"], ["intermediate", "superior"], [f"attr:{a}" for a in ATTRS]]
 
 
 def test_reset_clears_all_filters(builder):  # noqa: F811
