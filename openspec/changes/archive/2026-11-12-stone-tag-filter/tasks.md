@@ -12,4 +12,4 @@
 
 - [x] 3.1 快速測試組、相關瀏覽器測試;`openspec validate stone-tag-filter --strict`。(標籤篩選測試 4 項修改前失敗;快速組 2020 項;相關瀏覽器測試 57 項)
 - [x] 3.2 reconciliation:`deck-builder/design.md`(如有相關段落)。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
