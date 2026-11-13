@@ -755,6 +755,7 @@
   "ui.cheat.gone_tag": "なし",
   "ui.cheat.open_tag": "今",
   "ui.cheat.current_pages": "{player}:今のページ {a}・{b}",
+  "ui.cheat.current_page": "{player}:今のページ {n}",
   "ui.cheat.selected_page": "選択中:{n} ページ",
   "ui.cheat.loading": "処理中…",
   "ui.cheat.bad_book": "{player} の魔本は32ページすべてが正しいカード番号である必要があります",

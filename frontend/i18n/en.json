@@ -755,6 +755,7 @@
   "ui.cheat.gone_tag": "Gone",
   "ui.cheat.open_tag": "Open",
   "ui.cheat.current_pages": "{player}: open pages {a} and {b}",
+  "ui.cheat.current_page": "{player}: open page {n}",
   "ui.cheat.selected_page": "Selected: page {n}",
   "ui.cheat.loading": "Working…",
   "ui.cheat.bad_book": "{player}'s Spell Book must have all 32 pages with valid card numbers",

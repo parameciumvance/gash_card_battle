@@ -173,3 +173,14 @@ def test_start_phase_limited_by_remaining_pages(page):
     nav(page, tp, "next").click()
     assert flip_buttons(page) == ["翻 1 張(MP +2)"]
     assert nav(page, tp, "next").is_disabled()                               # 翻閱與張數同樣以第 32 頁為界
+
+
+def test_current_spread_at_page_one(page):
+    # 回翻到第 1 頁(pos 0,turn-back-to-page-one):魔書區左邊空位、右邊第 1 頁,‹ 停用;› 可往後翻閱
+    tp = start_local(page)
+    page.evaluate(f"S = {{...S, players: S.players.map((ps, i) => i !== {tp} ? ps : {{...ps, pos: 0, open_pages: []}})}}; render()")
+    assert shown(page, tp) == [(1, "consumed")]                             # 起始魔物已上場
+    assert block(page, tp).locator(".book-pages .page-void").count() == 1
+    assert nav(page, tp, "prev").is_disabled() and nav(page, tp, "current").is_disabled()
+    nav(page, tp, "next").click()
+    assert [pg for pg, _ in shown(page, tp)] == [2, 3]

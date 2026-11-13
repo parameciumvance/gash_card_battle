@@ -595,7 +595,7 @@ def test_e005_two_heads_turn_back():
     # pos 10 → 開 10,11 頁;E-005 不在該頁 → 改放頁面
     g.state.players[0].pos = 2
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert g.state.players[0].pos == 2  # 已在最前,回翻不低於 2
+    assert g.state.players[0].pos == 0  # 正正回翻 2 張,但第 2、3 頁只能再回翻 1 張到第 1 頁(turn-back-to-page-one)
 
 
 def test_e006_heads_heals():
