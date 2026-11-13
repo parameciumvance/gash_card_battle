@@ -538,6 +538,7 @@
   "ui.resume.npc": "NPC",
   "ui.resume.opponent": "相手",
   "ui.resume.home": "トップに戻る",
+  "ui.resume.seat": "{player}として参加",
   "ui.resume.close": "閉じる",
   "ui.resume.close_label": "ルーム {code} の対戦を閉じる",
   "ui.resume.forfeit_note": "対戦中のため、閉じると投了になります(相手の勝ち)",

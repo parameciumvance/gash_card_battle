@@ -538,6 +538,7 @@
   "ui.resume.npc": "NPC",
   "ui.resume.opponent": "Opponent",
   "ui.resume.home": "Back to home",
+  "ui.resume.seat": "Playing as {player}",
   "ui.resume.close": "Close",
   "ui.resume.close_label": "Close the game in room {code}",
   "ui.resume.forfeit_note": "This game is in progress. Closing it forfeits (your opponent wins)",

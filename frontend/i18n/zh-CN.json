@@ -538,6 +538,7 @@
   "ui.resume.npc": "NPC",
   "ui.resume.opponent": "对手",
   "ui.resume.home": "回到首页",
+  "ui.resume.seat": "身分:{player}",
   "ui.resume.close": "关闭",
   "ui.resume.close_label": "关闭房号 {code} 的对局",
   "ui.resume.forfeit_note": "对局进行中,关闭会弃权(对手获胜)",

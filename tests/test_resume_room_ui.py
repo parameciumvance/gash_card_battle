@@ -118,3 +118,50 @@ def test_close_waiting_table_leaves_table(page, server):
     page.wait_for_function(f"localStorage.getItem('gash-room-{code}') === null")
     tables = page.request.get(f"{server}/api/tables").json()
     assert tables["tables"][4]["state"] == "empty"
+
+
+def seat_tab(context, server, code, viewer, token):
+    """同一個瀏覽器的分頁,以 app 自己的 saveSession 記下這個座位的身分(與進房時相同)。"""
+    tab = context.new_page()
+    tab.goto(server)
+    tab.wait_for_function("Object.keys(CARDS).length > 0")
+    tab.evaluate(f"""() => {{ SESSION = {{code: '{code}', mode: 'online', viewer: {viewer}, tokens: {{me: '{token}'}}}};
+        saveSession(); }}""")
+    return tab
+
+
+def test_two_tabs_same_browser_list_each_seat_and_close_own_seat(browser, server):
+    # 同一個瀏覽器兩個分頁對打:分頁 A 離開後從首頁關閉,棄權的是 A 自己的座位(原本會用到 B 的身分,B 判負)
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-TW")
+    a = context.request.post(f"{server}/api/rooms", data={"mode": "online", "seed": 5}).json()
+    b = context.request.post(f"{server}/api/rooms/{a['code']}/join").json()
+    code = a["code"]
+    tab_a = seat_tab(context, server, code, 0, a["player_token"])
+    seat_tab(context, server, code, 1, b["player_token"])                   # B 後加入:原本會覆蓋 A 的記錄
+    tab_a.evaluate("leaveRoom()")
+    resume_items(tab_a)
+    viewers = tab_a.evaluate("[...document.querySelectorAll('#landing-resume .resume-item')].map(b => b.dataset.viewer)")
+    assert viewers == ["0", "1"]                                              # 分座位列出
+    assert "身分:玩家 1" in tab_a.locator('.resume-item[data-viewer="0"]').text_content()
+    seat_a = tab_a.locator('#landing-resume .resume-row:has(.resume-item[data-viewer="0"])')
+    seat_a.locator(".resume-close").click()
+    seat_a.locator(".resume-confirm").click()
+    tab_a.wait_for_function("document.querySelectorAll('#landing-resume .resume-item').length === 0")
+    state = context.request.get(f"{server}/api/rooms/{code}/state",
+                                headers={"X-Player-Token": b["player_token"]}).json()["state"]
+    assert state["winner"] == 1 and state["end_reason"] == "forfeit"         # A 棄權,B 獲勝
+    context.close()
+
+
+def test_two_tabs_resume_chosen_seat(browser, server):
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-TW")
+    a = context.request.post(f"{server}/api/rooms", data={"mode": "online", "seed": 5}).json()
+    b = context.request.post(f"{server}/api/rooms/{a['code']}/join").json()
+    tab_a = seat_tab(context, server, a["code"], 0, a["player_token"])
+    seat_tab(context, server, a["code"], 1, b["player_token"])
+    tab_a.evaluate("leaveRoom()")
+    resume_items(tab_a)
+    tab_a.locator('.resume-item[data-viewer="0"]').click()
+    tab_a.wait_for_function(f"SESSION && SESSION.code === '{a['code']}' && R && R.started")
+    assert tab_a.evaluate("SESSION.viewer") == 0                             # 以選的座位接回,不是後加入的 B
+    context.close()
