@@ -1159,6 +1159,19 @@ html.motion-off .book-nav.flip-glow { animation: none; }
   background: #fff3c4; color: #5a3d00; border: 1px solid #e0b84a;
 }
 #landing-resume .resume-item:hover { background: #ffe9a0; }
+/* 每一項:左側返回(撐滿),右側關閉;對局中按關閉時換成棄權確認 */
+#landing-resume .resume-row { display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap; }
+#landing-resume .resume-row .resume-item { flex: 1 1 260px; min-width: 0; }
+#landing-resume .resume-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#landing-resume .resume-actions button {
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: transparent; color: var(--on-page); border: 1px solid var(--page-line);
+}
+#landing-resume .resume-actions button:hover, #landing-resume .resume-actions button:focus-visible { border-color: var(--on-page); }
+#landing-resume .resume-actions .resume-confirm { background: #8a2f2f; border-color: #8a2f2f; color: #fff; font-weight: bold; }
+#landing-resume .resume-confirm-note { font-size: 12px; color: var(--on-page); }
+/* 確認中:確認區一律獨佔一行(否則依文字長短可能擠進同一行,把返回按鈕壓窄、文字斷行) */
+#landing-resume .resume-actions.confirming { flex-basis: 100%; }
 #title { cursor: pointer; }
 #landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
   max-width: 820px; }

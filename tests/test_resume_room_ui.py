@@ -57,3 +57,111 @@ def test_title_goes_home_from_builder_and_game(page):
     page.wait_for_function("!document.getElementById('landing').classList.contains('hidden')")
     assert page.evaluate("SESSION") is None
     assert resume_items(page) == [code]                                        # 對局仍可返回
+
+
+# ---------------------------------------------------------------- 關閉(close-rooms)
+
+def remember(page, code, mode, token, viewer=0):
+    """讓瀏覽器記得這個房間(與進房時存的格式相同),回到首頁重新列出。"""
+    page.evaluate(f"""() => localStorage.setItem('gash-room-{code}',
+        JSON.stringify({{code: '{code}', mode: '{mode}', viewer: {viewer}, tokens: {{me: '{token}'}}}}))""")
+    page.evaluate("show('landing')")
+
+
+def row(page, code):
+    return page.locator(f'#landing-resume .resume-row:has(.resume-item[data-code="{code}"])')
+
+
+def test_close_local_room_without_confirm(page, server):
+    start_as(page, "all")
+    code = page.evaluate("SESSION.code")
+    token = page.evaluate("Object.values(SESSION.tokens)[0]")
+    page.locator("#leave-room").click()
+    assert resume_items(page) == [code]
+    row(page, code).locator(".resume-close").click()
+    page.wait_for_function("document.getElementById('landing-resume').classList.contains('hidden')")
+    assert page.evaluate(f"localStorage.getItem('gash-room-{code}')") is None
+    res = page.request.get(f"{server}/api/rooms/{code}/state", headers={"X-Player-Token": token})
+    assert res.status == 404                                                   # 伺服器上的房間已刪除
+
+
+def test_close_started_online_room_confirms_then_forfeits(page, server):
+    a = page.request.post(f"{server}/api/rooms", data={"mode": "online", "seed": 5}).json()
+    page.request.post(f"{server}/api/rooms/{a['code']}/join")
+    code = a["code"]
+    remember(page, code, "online", a["player_token"])
+    assert resume_items(page) == [code]
+    item_width = row(page, code).locator(".resume-item").bounding_box()["width"]
+    row(page, code).locator(".resume-close").click()
+    assert row(page, code).locator(".resume-confirm").is_visible()           # 先確認,不直接棄權
+    item = row(page, code).locator(".resume-item").bounding_box()
+    actions = row(page, code).locator(".resume-actions").bounding_box()
+    assert actions["y"] >= item["y"] + item["height"] - 1                    # 確認區獨佔一行,在該項下方
+    assert item["width"] >= item_width                                       # 返回按鈕不被壓窄
+    row(page, code).locator(".resume-cancel").click()
+    assert row(page, code).locator(".resume-close").is_visible()
+    row(page, code).locator(".resume-close").click()
+    row(page, code).locator(".resume-confirm").click()
+    page.wait_for_function(f"localStorage.getItem('gash-room-{code}') === null")
+    state = page.request.get(f"{server}/api/rooms/{code}/state",
+                             headers={"X-Player-Token": a["player_token"]}).json()["state"]
+    assert state["phase"] == "game_over" and state["winner"] == 1 and state["end_reason"] == "forfeit"
+
+
+def test_close_waiting_table_leaves_table(page, server):
+    host = page.request.post(f"{server}/api/tables/5/sit",
+                             data={"name": "測試", "expect": "empty", "timer_seconds": 60}).json()
+    code = host["code"]
+    remember(page, code, "online", host["player_token"])
+    assert resume_items(page) == [code]
+    row(page, code).locator(".resume-close").click()
+    page.wait_for_function(f"localStorage.getItem('gash-room-{code}') === null")
+    tables = page.request.get(f"{server}/api/tables").json()
+    assert tables["tables"][4]["state"] == "empty"
+
+
+def seat_tab(context, server, code, viewer, token):
+    """同一個瀏覽器的分頁,以 app 自己的 saveSession 記下這個座位的身分(與進房時相同)。"""
+    tab = context.new_page()
+    tab.goto(server)
+    tab.wait_for_function("Object.keys(CARDS).length > 0")
+    tab.evaluate(f"""() => {{ SESSION = {{code: '{code}', mode: 'online', viewer: {viewer}, tokens: {{me: '{token}'}}}};
+        saveSession(); }}""")
+    return tab
+
+
+def test_two_tabs_same_browser_list_each_seat_and_close_own_seat(browser, server):
+    # 同一個瀏覽器兩個分頁對打:分頁 A 離開後從首頁關閉,棄權的是 A 自己的座位(原本會用到 B 的身分,B 判負)
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-TW")
+    a = context.request.post(f"{server}/api/rooms", data={"mode": "online", "seed": 5}).json()
+    b = context.request.post(f"{server}/api/rooms/{a['code']}/join").json()
+    code = a["code"]
+    tab_a = seat_tab(context, server, code, 0, a["player_token"])
+    seat_tab(context, server, code, 1, b["player_token"])                   # B 後加入:原本會覆蓋 A 的記錄
+    tab_a.evaluate("leaveRoom()")
+    resume_items(tab_a)
+    viewers = tab_a.evaluate("[...document.querySelectorAll('#landing-resume .resume-item')].map(b => b.dataset.viewer)")
+    assert viewers == ["0", "1"]                                              # 分座位列出
+    assert "身分:玩家 1" in tab_a.locator('.resume-item[data-viewer="0"]').text_content()
+    seat_a = tab_a.locator('#landing-resume .resume-row:has(.resume-item[data-viewer="0"])')
+    seat_a.locator(".resume-close").click()
+    seat_a.locator(".resume-confirm").click()
+    tab_a.wait_for_function("document.querySelectorAll('#landing-resume .resume-item').length === 0")
+    state = context.request.get(f"{server}/api/rooms/{code}/state",
+                                headers={"X-Player-Token": b["player_token"]}).json()["state"]
+    assert state["winner"] == 1 and state["end_reason"] == "forfeit"         # A 棄權,B 獲勝
+    context.close()
+
+
+def test_two_tabs_resume_chosen_seat(browser, server):
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-TW")
+    a = context.request.post(f"{server}/api/rooms", data={"mode": "online", "seed": 5}).json()
+    b = context.request.post(f"{server}/api/rooms/{a['code']}/join").json()
+    tab_a = seat_tab(context, server, a["code"], 0, a["player_token"])
+    seat_tab(context, server, a["code"], 1, b["player_token"])
+    tab_a.evaluate("leaveRoom()")
+    resume_items(tab_a)
+    tab_a.locator('.resume-item[data-viewer="0"]').click()
+    tab_a.wait_for_function(f"SESSION && SESSION.code === '{a['code']}' && R && R.started")
+    assert tab_a.evaluate("SESSION.viewer") == 0                             # 以選的座位接回,不是後加入的 B
+    context.close()

@@ -210,7 +210,54 @@ const TAB_SESSION_KEY = "gash-session";
 function saveSession() {
   const raw = JSON.stringify(SESSION);
   try { sessionStorage.setItem(TAB_SESSION_KEY, raw); } catch (_) { /* 無法儲存:退回瀏覽器記得的身分 */ }
-  localStorage.setItem(`gash-room-${SESSION.code}`, raw);
+  // 朋友房另外記下這個瀏覽器拿過的每個座位(seats:座位 → token),同一個瀏覽器的兩個分頁對打時不互相覆蓋;
+  // 首頁「返回進行中的對局」依此分座位列出(close-rooms)
+  const key = `gash-room-${SESSION.code}`;
+  let seats;
+  if (SESSION.mode === "online" && (SESSION.viewer === 0 || SESSION.viewer === 1)) {
+    seats = {};
+    try {
+      const prev = JSON.parse(localStorage.getItem(key) || "null");
+      if (prev && prev.code === SESSION.code) Object.assign(seats, rememberedSeatTokens(prev));
+    } catch (_) { /* 舊記錄讀不到:只記這一個 */ }
+    seats[SESSION.viewer] = SESSION.tokens.me;
+  }
+  localStorage.setItem(key, seats ? JSON.stringify({ ...SESSION, seats }) : raw);
+}
+
+// 記錄中的座位 → token(舊格式沒有 seats 時,以記錄本身的座位)
+function rememberedSeatTokens(record) {
+  if (record.seats) return { ...record.seats };
+  if ((record.viewer === 0 || record.viewer === 1) && record.tokens && record.tokens.me) return { [record.viewer]: record.tokens.me };
+  return {};
+}
+
+// 瀏覽器記得的這一房的身分:朋友房拿過兩個座位時各一份(依座位排序),其他情況就是記錄本身
+function rememberedSessions(code) {
+  const record = JSON.parse(localStorage.getItem(`gash-room-${code}`) || "null");
+  if (!record) return [];
+  const seats = record.mode === "online" ? rememberedSeatTokens(record) : {};
+  if (Object.keys(seats).length < 2) return [record];
+  return Object.keys(seats).sort().map((v) => {
+    const { seats: _all, ...base } = record;
+    return { ...base, viewer: Number(v), tokens: { me: seats[v] } };
+  });
+}
+
+// 從瀏覽器記錄移除一個座位(其他座位保留;沒有剩下的座位時整筆移除)
+function forgetRememberedSeat(code, viewer) {
+  const key = `gash-room-${code}`;
+  try {
+    const record = JSON.parse(localStorage.getItem(key) || "null");
+    const seats = record && record.mode === "online" ? rememberedSeatTokens(record) : {};
+    delete seats[viewer];
+    const left = Object.keys(seats);
+    if (!record || viewer === null || viewer === undefined || !left.length) { localStorage.removeItem(key); return; }
+    const v = Number(left[0]);
+    const { seats: _all, ...base } = record;
+    localStorage.setItem(key, JSON.stringify(left.length > 1 ? { ...base, seats }
+      : { ...base, viewer: v, tokens: { me: seats[v] }, seats }));
+  } catch (_) { /* 忽略 */ }
 }
 
 function loadSession(code) {
@@ -768,19 +815,21 @@ async function refreshResumeRooms() {
       if (key && key.startsWith("gash-room-")) codes.push(key.slice("gash-room-".length));
     }
   } catch (_) { /* 無法讀取:不顯示 */ }
-  const found = await Promise.all(codes.map(async (code) => {
-    let saved;
-    try { saved = loadSession(code); } catch (_) { return null; }
+  // 每個記得的身分一項:同一個瀏覽器拿過朋友房的雙方座位時分座位列出,返回與關閉都以該座位進行
+  const entries = [];
+  for (const code of codes) {
+    try { for (const saved of rememberedSessions(code)) entries.push({ code, saved }); } catch (_) { /* 記錄損壞:略過 */ }
+  }
+  const multi = new Set(entries.map((e) => e.code).filter((c, i, all) => all.indexOf(c) !== i));
+  const found = await Promise.all(entries.map(async ({ code, saved }) => {
     if (!saved || !saved.tokens) return null;
     const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
     try {
       const body = await api(`/api/rooms/${code}/state`, { headers: { "X-Player-Token": token } });
       if (body.state && body.state.phase === "game_over") return null;
-      return { code, saved, body };
+      return { code, saved, body, seated: multi.has(code) };
     } catch (err) {
-      if (roomGone(err)) {   // 網路或代理錯誤時保留記錄,這次不列出
-        try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
-      }
+      if (roomGone(err)) forgetRememberedSeat(code, multi.has(code) ? saved.viewer : null);   // 網路或代理錯誤時保留記錄,這次不列出
       return null;
     }
   }));
@@ -788,10 +837,13 @@ async function refreshResumeRooms() {
   const items = found.filter(Boolean);
   box.classList.toggle("hidden", !items.length);
   box.querySelector(".resume-title").textContent = t("ui.resume.title");
-  box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body }) => {
+  box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body, seated }) => {
+    const row = document.createElement("div");
+    row.className = "resume-row";
     const btn = document.createElement("button");
     btn.className = "resume-item";
     btn.dataset.code = code;
+    if (seated) btn.dataset.viewer = saved.viewer;
     const room = body.room || {};
     const names = room.names || [];
     const me = saved.viewer === 0 || saved.viewer === 1 ? saved.viewer : null;
@@ -799,14 +851,70 @@ async function refreshResumeRooms() {
     const status = room.started && body.state ? t("ui.turn", { n: body.state.turn_no }) : t("ui.resume.waiting");
     const parts = [t(`ui.landing.${saved.mode === "online" ? "friend" : saved.mode}`)];
     if (opp && saved.mode !== "local") parts.push(t("ui.resume.vs", { name: opp }));
+    if (seated) parts.push(t("ui.resume.seat", { player: names[me] || t("ui.player", { n: me + 1 }) }));
     parts.push(t("ui.resume.code", { code }), status);
     btn.textContent = parts.join(t("ui.sep.bar"));
     btn.onclick = () => {
+      // 以這一項的座位接回:先設成這個分頁的身分(loadSession 優先使用)
+      if (seated) { try { sessionStorage.setItem(TAB_SESSION_KEY, JSON.stringify(saved)); } catch (_) { /* 退回瀏覽器記得的 */ } }
       history.replaceState(null, "", `/?room=${code}`);
       resumeRoom(code);
     };
-    return btn;
+    row.append(btn, resumeCloseControls(code, saved, room, seated));
+    return row;
   }));
+}
+
+// 「返回進行中的對局」的關閉(battle-ui「返回進行中的對局」;online-room「關閉房間」):
+// 自由調查、NPC、等待對手的朋友房直接關閉房間;等待中的牌桌離開牌桌;對局中的朋友房與牌桌先確認,確定後棄權
+function resumeCloseAction(saved, room) {
+  const table = room.table;
+  if (table) return table.state === "waiting" ? "leave_table" : "forfeit";
+  if (room.mode === "online" && room.started) return "forfeit";
+  return "close";
+}
+
+function resumeCloseControls(code, saved, room, seated = false) {
+  const box = document.createElement("div");
+  box.className = "resume-actions";
+  const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
+  const action = resumeCloseAction(saved, room);
+  const run = async () => {
+    try {
+      const headers = { "X-Player-Token": token };
+      if (action === "close") await api(`/api/rooms/${code}/close`, { method: "POST", headers });
+      else if (action === "leave_table") await api(`/api/tables/${room.table.number}/leave`, { method: "POST", headers });
+      else await api(`/api/rooms/${code}/forfeit`, { method: "POST", headers });
+    } catch (err) {
+      if (!roomGone(err)) { toast(err.message); return; }   // 房間已不存在:照樣移除記錄
+    }
+    forgetRememberedSeat(code, seated ? saved.viewer : null);   // 分座位列出時只移除這個座位
+    refreshResumeRooms();
+  };
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "resume-close";
+  closeBtn.textContent = t("ui.resume.close");
+  closeBtn.title = closeBtn.ariaLabel = t("ui.resume.close_label", { code });
+  closeBtn.onclick = () => {
+    if (action !== "forfeit") { run(); return; }
+    // 對局中:頁面內確認(棄權後對手獲勝)
+    const note = document.createElement("span");
+    note.className = "resume-confirm-note";
+    note.textContent = t("ui.resume.forfeit_note");
+    const yes = document.createElement("button");
+    yes.className = "resume-confirm";
+    yes.textContent = t("ui.resume.forfeit_confirm");
+    yes.onclick = run;
+    const no = document.createElement("button");
+    no.className = "resume-cancel";
+    no.textContent = t("ui.resume.cancel");
+    no.onclick = () => { box.classList.remove("confirming"); box.replaceChildren(closeBtn); };
+    box.classList.add("confirming");
+    box.replaceChildren(note, yes, no);
+    yes.focus();
+  };
+  box.appendChild(closeBtn);
+  return box;
 }
 
 // 頂欄標題字:回到首頁(在房間中等同離開房間,對局仍可從首頁返回)
