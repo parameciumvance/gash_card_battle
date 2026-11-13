@@ -15,4 +15,4 @@
 - [x] 3.1 快速測試組、相關瀏覽器測試;`openspec validate close-rooms --strict`。(API 測試 8 項,實作前 7 項失敗、1 項(不存在的房間)端點不存在時同樣 404;瀏覽器測試 3 項,前端改動收起時失敗;快速組 2040 項;桌機與手機截圖確認)
 - [x] 3.2 reconciliation:`online-room/design.md`、`battle-ui/design.md`。
 - [x] 3.4 同一個瀏覽器兩個座位分開記錄與列出(D3;瀏覽器測試 2 項,修正前失敗)。
-- [ ] 3.3 使用者確認。
+- [x] 3.3 使用者確認。
