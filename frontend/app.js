@@ -855,7 +855,8 @@ function resumeCloseControls(code, saved, room) {
     const no = document.createElement("button");
     no.className = "resume-cancel";
     no.textContent = t("ui.resume.cancel");
-    no.onclick = () => box.replaceChildren(closeBtn);
+    no.onclick = () => { box.classList.remove("confirming"); box.replaceChildren(closeBtn); };
+    box.classList.add("confirming");
     box.replaceChildren(note, yes, no);
     yes.focus();
   };

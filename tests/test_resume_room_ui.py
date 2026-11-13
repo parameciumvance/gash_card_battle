@@ -91,8 +91,13 @@ def test_close_started_online_room_confirms_then_forfeits(page, server):
     code = a["code"]
     remember(page, code, "online", a["player_token"])
     assert resume_items(page) == [code]
+    item_width = row(page, code).locator(".resume-item").bounding_box()["width"]
     row(page, code).locator(".resume-close").click()
     assert row(page, code).locator(".resume-confirm").is_visible()           # 先確認,不直接棄權
+    item = row(page, code).locator(".resume-item").bounding_box()
+    actions = row(page, code).locator(".resume-actions").bounding_box()
+    assert actions["y"] >= item["y"] + item["height"] - 1                    # 確認區獨佔一行,在該項下方
+    assert item["width"] >= item_width                                       # 返回按鈕不被壓窄
     row(page, code).locator(".resume-cancel").click()
     assert row(page, code).locator(".resume-close").is_visible()
     row(page, code).locator(".resume-close").click()

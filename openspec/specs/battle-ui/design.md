@@ -492,5 +492,5 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 
 ## 返回進行中的對局的關閉(close-rooms)
 
-- 每一項是一列:左側返回按鈕(`.resume-item`,`data-code`),右側「關閉」(`.resume-close`)。動作由 `resumeCloseAction` 依房間資訊決定:自由調查、NPC、等待中的朋友房呼叫 close(不確認,使用者決定);等待中的牌桌呼叫牌桌的離開;對局中的朋友房與牌桌在同一列換成說明與「棄權並移除 / 取消」,確定後呼叫既有的 forfeit。
+- 每一項是一列:左側返回按鈕(`.resume-item`,`data-code`),右側「關閉」(`.resume-close`)。動作由 `resumeCloseAction` 依房間資訊決定:自由調查、NPC、等待中的朋友房呼叫 close(不確認,使用者決定);等待中的牌桌呼叫牌桌的離開;對局中的朋友房與牌桌在同一列換成說明與「棄權並移除 / 取消」,確定後呼叫既有的 forfeit。確認中的區塊(`.resume-actions.confirming`)一律獨佔一行、排在該項下方:否則依說明文字長短(中文短、日文長)可能擠進同一行,把返回按鈕壓窄、文字斷行。
 - 成功或伺服器回應房間已不存在時移除 `gash-room-<房號>` 並重新整理清單;其他錯誤以 toast 顯示並保留記錄。
