@@ -1960,7 +1960,7 @@ def _battle_in_response(game: Game, batch: list[dict], player: int, command: dic
         st.battle_in = None
         _start_battle(game, batch, bi)
         return
-    if ctype in ("play_card", "use_field_ability", "use_book_card", "use_action_effect"):
+    if ctype in ("play_card", "use_field_ability", "use_borrowed_effect", "use_book_card", "use_action_effect"):
         if ctype == "use_book_card" and _battle_icon_event(game, player, command.get("page")):
             raise IllegalCommand("event.timing", "有戰鬥圖示的事件卡只能在戰鬥中的「効果の使用」使用")
         st.battle_in = None

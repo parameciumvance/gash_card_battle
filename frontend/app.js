@@ -2550,7 +2550,8 @@ function pageButtons(p, entry) {
       // 有戰鬥圖示的事件卡(E-053)只能在戰鬥中的「効果の使用」使用
       buttons.push(eventButton(p, entry, def, def.effect_icon === "battle" ? t("ui.why.battle_only") : null));
     }
-    if (def.type === "spell" && def.effect_icon === "nonbattle" && inNonBattle()) {
+    // 非戰鬥戰術:非戰鬥中輪到自己,或確認進入戰鬥時非回合玩家插入的 1 個行動(由 canActNow 判斷)
+    if (def.type === "spell" && def.effect_icon === "nonbattle") {
       const u = nonbattleSpellUsable(p, entry);
       buttons.push({
         label: t("ui.use_event"), primary: true, disabled: !u.ok, reason: u.reason,
@@ -3016,6 +3017,14 @@ function renderActionBar() {
     bar.appendChild(btn);
   };
 
+  const addBorrowBtn = () => {
+    const borrow = borrowedEffect(awaited);          // E-010:借來的搭檔效果(該搭檔離場也在)
+    if (borrow) {
+      addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
+        () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
+    }
+  };
+
   if (mine && !S.pending) {
     if (timing === "start") {
       // 依魔書翻閱到的對頁決定翻幾張:目前頁 = 不翻頁,往後第 n 個對頁 = 翻 n 張;不對應時只給提示
@@ -3042,6 +3051,7 @@ function renderActionBar() {
     } else if (timing === "battle_in") {
       addBtn(t("ui.allow_battle"),
         () => send({ type: "battle_in_response", player: awaited, allow: true }), true, t("ui.allow_battle_note"));
+      addBorrowBtn();                                 // E-010:借來的搭檔效果也能當插入的 1 個行動
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
@@ -3052,11 +3062,7 @@ function renderActionBar() {
         : endsTurnAndLoses ? "ui.pass_note.end_flip_loses"
         : awaited === S.turn_player ? "ui.pass_note.own_turn" : "ui.pass_note.opp_turn";
       addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }), false, t(passNote));
-      const borrow = borrowedEffect(awaited);        // E-010:借來的搭檔效果(該搭檔離場也在)
-      if (borrow) {
-        addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
-          () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
-      }
+      addBorrowBtn();
     }
     if (timing !== "start") {
       // P-015 等:待命允許從魔書任意頁使用的卡,只要現在有一張按得下去(網格卡片選單有未停用的按鈕,

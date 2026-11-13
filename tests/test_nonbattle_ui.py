@@ -91,13 +91,14 @@ def test_reasons_and_latest_snapshot(page):
     assert page.locator("#zoom-actions button").is_enabled()
 
 
-@pytest.mark.parametrize('window', ['battle', 'battle_in', 'pending', 'no_control', 'no_priority'])
+@pytest.mark.parametrize('window', ['battle', 'battle_in', 'battle_in_insert', 'pending', 'no_control', 'no_priority'])
 def test_nonbattle_no_actions_outside_window(page, window):
     setup_spell(page)
     page.evaluate("""window => {
       const p=S.turn_player;
       if(window==='battle') S.battle={step:'defense',attacker:1-p};
-      if(window==='battle_in') S.battle_in={attacker:1-p};
+      if(window==='battle_in') S.battle_in={attacker:p};          // 自己是攻擊方:等對手確認
+      if(window==='battle_in_insert') S.battle_in={attacker:1-p};  // 對手攻擊:可插入 1 個行動(nonbattle-spell-insert)
       if(window==='pending') S.pending={};
       if(window==='no_control') SESSION.viewer='spectator';
       if(window==='no_priority') S.action_player=1-p;
@@ -106,6 +107,8 @@ def test_nonbattle_no_actions_outside_window(page, window):
     buttons = page.locator('#zoom-actions button')
     if window in ('battle', 'no_control'):       # 防禦宣告中的防方、非操作方:沒有按鈕
         assert buttons.count() == 0
+    elif window == 'battle_in_insert':
+        assert buttons.count() == 1 and buttons.is_enabled()
     else:                                         # 現在不能用:停用按鈕附原因(battle-ui「停用按鈕的原因」)
         assert buttons.count() == 1 and buttons.is_disabled()
         reason = {'battle_in': 'ui.why.in_battle', 'pending': 'ui.why.pending', 'no_priority': 'ui.why.not_your_action'}
