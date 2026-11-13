@@ -490,3 +490,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 - 窄螢幕的行動欄以 flex `order` 把提示開關與提示清單排到最後,開關緊接在清單上方;桌機 DOM 順序不變。
 - 擲硬幣子階段依規則「沒有可用效果不詢問」,與戰鬥階段的自動 pass 開關分開(使用者確認維持)。
 
+## 返回進行中的對局的關閉(close-rooms)
+
+- 每一項是一列:左側返回按鈕(`.resume-item`,`data-code`),右側「關閉」(`.resume-close`)。動作由 `resumeCloseAction` 依房間資訊決定:自由調查、NPC、等待中的朋友房呼叫 close(不確認,使用者決定);等待中的牌桌呼叫牌桌的離開;對局中的朋友房與牌桌在同一列換成說明與「棄權並移除 / 取消」,確定後呼叫既有的 forfeit。
+- 成功或伺服器回應房間已不存在時移除 `gash-room-<房號>` 並重新整理清單;其他錯誤以 toast 顯示並保留記錄。

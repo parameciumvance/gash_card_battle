@@ -789,6 +789,8 @@ async function refreshResumeRooms() {
   box.classList.toggle("hidden", !items.length);
   box.querySelector(".resume-title").textContent = t("ui.resume.title");
   box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body }) => {
+    const row = document.createElement("div");
+    row.className = "resume-row";
     const btn = document.createElement("button");
     btn.className = "resume-item";
     btn.dataset.code = code;
@@ -805,8 +807,60 @@ async function refreshResumeRooms() {
       history.replaceState(null, "", `/?room=${code}`);
       resumeRoom(code);
     };
-    return btn;
+    row.append(btn, resumeCloseControls(code, saved, room));
+    return row;
   }));
+}
+
+// 「返回進行中的對局」的關閉(battle-ui「返回進行中的對局」;online-room「關閉房間」):
+// 自由調查、NPC、等待對手的朋友房直接關閉房間;等待中的牌桌離開牌桌;對局中的朋友房與牌桌先確認,確定後棄權
+function resumeCloseAction(saved, room) {
+  const table = room.table;
+  if (table) return table.state === "waiting" ? "leave_table" : "forfeit";
+  if (room.mode === "online" && room.started) return "forfeit";
+  return "close";
+}
+
+function resumeCloseControls(code, saved, room) {
+  const box = document.createElement("div");
+  box.className = "resume-actions";
+  const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
+  const action = resumeCloseAction(saved, room);
+  const run = async () => {
+    try {
+      const headers = { "X-Player-Token": token };
+      if (action === "close") await api(`/api/rooms/${code}/close`, { method: "POST", headers });
+      else if (action === "leave_table") await api(`/api/tables/${room.table.number}/leave`, { method: "POST", headers });
+      else await api(`/api/rooms/${code}/forfeit`, { method: "POST", headers });
+    } catch (err) {
+      if (!roomGone(err)) { toast(err.message); return; }   // 房間已不存在:照樣移除記錄
+    }
+    try { localStorage.removeItem(`gash-room-${code}`); } catch (_) { /* 忽略 */ }
+    refreshResumeRooms();
+  };
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "resume-close";
+  closeBtn.textContent = t("ui.resume.close");
+  closeBtn.title = closeBtn.ariaLabel = t("ui.resume.close_label", { code });
+  closeBtn.onclick = () => {
+    if (action !== "forfeit") { run(); return; }
+    // 對局中:頁面內確認(棄權後對手獲勝)
+    const note = document.createElement("span");
+    note.className = "resume-confirm-note";
+    note.textContent = t("ui.resume.forfeit_note");
+    const yes = document.createElement("button");
+    yes.className = "resume-confirm";
+    yes.textContent = t("ui.resume.forfeit_confirm");
+    yes.onclick = run;
+    const no = document.createElement("button");
+    no.className = "resume-cancel";
+    no.textContent = t("ui.resume.cancel");
+    no.onclick = () => box.replaceChildren(closeBtn);
+    box.replaceChildren(note, yes, no);
+    yes.focus();
+  };
+  box.appendChild(closeBtn);
+  return box;
 }
 
 // 頂欄標題字:回到首頁(在房間中等同離開房間,對局仍可從首頁返回)

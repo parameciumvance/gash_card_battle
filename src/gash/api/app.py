@@ -881,6 +881,28 @@ async def forfeit(code: str, x_player_token: str | None = Header(default=None)):
     return {"actor": viewer, "events": filter_events(events, viewer), **_state_payload(room, viewer)}
 
 
+@app.post("/api/rooms/{code}/close")
+async def close_room(code: str, x_player_token: str | None = Header(default=None)):
+    """關閉房間(online-room「關閉房間」):自由調查時間、NPC 房的真人、對手尚未加入的朋友房建房者可關閉;
+    已開局的朋友房請棄權,牌桌的房間依牌桌的離開規則。"""
+    try:
+        room = store.get(code)
+        viewer = room.viewer_of(x_player_token or "")
+    except RoomError as exc:
+        raise _http_error(exc)
+    if viewer == "spectator":
+        raise HTTPException(403, detail={"code": "room.close_spectator", "message": "觀戰者不能關閉房間"})
+    if room.table is not None:
+        raise HTTPException(409, detail={"code": "room.close_table", "message": "牌桌的房間請離開牌桌"})
+    if room.mode == "online" and room.game is not None:
+        raise HTTPException(409, detail={"code": "room.close_started", "message": "對局已開始,請棄權"})
+    async with _lock(room.code):
+        if room.npc is not None and room.npc.task is not None and not room.npc.task.done():
+            room.npc.task.cancel()                                  # NPC 驅動不再對已刪除的房間出手
+        await _close_room(room)
+    return {"ok": True}
+
+
 @app.post("/api/rooms/{code}/absence")
 async def absence(code: str, body: AbsenceBody, x_player_token: str | None = Header(default=None)):
     """對手沒有回應時:end = 結束對局(對手判負,原因 absent);wait = 繼續等(之後再次符合條件才再問)。"""
