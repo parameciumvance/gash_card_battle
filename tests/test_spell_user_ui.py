@@ -261,6 +261,49 @@ def test_any_page_spell_while_browsing(page):
     assert sent(page) == [{"type": "declare_attack", "player": tp, "page": 20, "slot_uid": slots["M-001"]}]
 
 
+def to_defense(page):
+    """先攻方以翻開的「ザケル」攻擊、後攻方同意進入戰鬥,停在後攻方宣告防禦的時機。回傳 (攻方, 守方)。"""
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos + 1: "S-001"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.phase === 'battle' && S.action_player === {tp}")
+    send(page, {"type": "declare_attack", "player": tp, "page": pos + 1,
+                "slot_uid": page.evaluate(f"S.players[{tp}].slots[0].uid")})
+    page.wait_for_function("S.battle_in")
+    send(page, {"type": "battle_in_response", "player": 1 - tp, "allow": True})
+    page.wait_for_function("S.battle && S.battle.step === 'defense'")
+    return tp, 1 - tp
+
+
+def put_any_page(page, p, card, uid):
+    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {p} ? ps : {{...ps,
+      book: ps.book.map((c, k) => k === 19 ? '{card}' : c),
+      any_page_spells: [{{page: 20, card: '{card}', cost: 2, users: [{{slot_uid: {uid}, cost: 2, locked: false}}]}}]}})}};
+      render()""")
+
+
+def test_any_page_spell_entry_on_defense(page):
+    # 對手回合用 P-015 後,防禦時機也能從魔書使用其他頁的ビライツ(使用者回報:原本行動欄沒有入口)
+    _tp, dp = to_defense(page)
+    uid = page.evaluate(f"S.players[{dp}].slots[0].uid")
+    put_any_page(page, dp, "S-042", uid)                                     # ビライツ:攻防兩用
+    stub_send(page)
+    entry = page.locator("#action-bar button", has_text="從魔書使用")
+    assert entry.count() == 1
+    entry.click()
+    page.wait_for_function("!document.getElementById('book-review-overlay').classList.contains('hidden')")
+    page.locator('#book-review-grid .review-cell[data-page="20"] .card').click()
+    page.locator("#card-menu button", has_text="防禦").click()
+    assert sent(page) == [{"type": "declare_defense", "player": dp, "page": 20, "slot_uid": uid}]
+
+
+def test_any_page_attack_only_spell_no_entry_on_defense(page):
+    _tp, dp = to_defense(page)
+    put_any_page(page, dp, "S-023", page.evaluate(f"S.players[{dp}].slots[0].uid"))   # サイス:只有攻擊圖示
+    assert page.locator("#action-bar button", has_text="從魔書使用").count() == 0
+
+
 # ---------------------------------------------------------------- 搭檔卡的裝備對象
 
 def _two_gash(page, first_partner=None):
