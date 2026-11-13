@@ -6,4 +6,4 @@
 - [x] 2.1 `turn_back_pages` 下限改為第 1 頁(D1)。
 - [x] 2.2 金手指摘要與四語 `ui.cheat.current_page`(D3)。
 - [x] 3.1 快速測試組、相關瀏覽器測試(239 項)、非瀏覽器的 slow 測試(185 項,含自我對戰);`openspec validate turn-back-to-page-one --strict`。
-- [ ] 3.2 使用者確認。
+- [x] 3.2 使用者確認(2026-11-13)。
