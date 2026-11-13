@@ -225,3 +225,7 @@ negated                                                                ← 無�
 - M-077:`EndThisBattlePhase` 排 `end_battle_phase` 與 `skip_end_flip`(`data["this_turn"]`)待命;`_run_deferred_effects` 在沒有待決事項、待詢問的干擾與 deferred 待命時呼叫 `_end_battle_phase_by_effect` 進入結束階段。干擾無效時快照還原,待命消失。`_skips_end_flip`:擁有者是回合玩家(M-030)或 `this_turn`(M-077)。
 - M-084:`turn_pages(..., by=)` 記錄效果的使用者;`by` 是對手時累加 `PlayerState.pages_turned_by_opponent`(結束時歸零)。新增翻對手魔書的效果時要傳 `by`。
 - M-073:`ScheduleAnyPageUse` 的 `defense_only`、`discard_after_battle`;`_consume_any_page` 記在 `battle.data["discard_after_battle"]`,`_end_battle` 棄掉仍在魔書的那張卡(`book_page_reachable` 檢查 Ex-060)。
+
+## 進入戰鬥確認時插入的行動(nonbattle-spell-insert)
+
+- `_battle_in_response` 接受的插入行動原本是 `play_card` / `use_field_ability` / `use_book_card` / `use_action_effect`,漏了 `use_borrowed_effect`;E-010 借用的搭檔效果同樣是使用效果的 1 個行動,改為一併放行(使用者 2026-11-13 決定)。非戰鬥戰術經 `use_book_card` 原本就可插入,補測試記錄。

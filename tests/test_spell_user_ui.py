@@ -332,6 +332,39 @@ def test_any_page_event_entry_on_battle_in(page):
     use_event_from_book(page, dp)
 
 
+def test_nonbattle_spell_insert_on_battle_in(page):
+    # 確認進入戰鬥時可插入攻防圖示的非戰鬥戰術(PR-009 ラウザルク):翻開的頁提供「使用」
+    _tp, dp = to_battle_in(page)
+    uid = page.evaluate(f"S.players[{dp}].slots[0].uid")
+    pg = page.evaluate(f"S.players[{dp}].open_pages[0].page")
+    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {dp} ? ps : {{...ps, mp: 10,
+      open_pages: ps.open_pages.map((e) => e.page !== {pg} ? e : {{...e, card: 'PR-009', cost: 3, condition_ok: true,
+        users: [{{slot_uid: {uid}, cost: 3, locked: false}}]}})}})}}; render()""")
+    stub_send(page)
+    open_page_zoom(page, dp, pg)
+    use = page.locator("#zoom-actions button", has_text="使用")
+    assert use.is_enabled()
+    use.click()
+    assert sent(page) == [{"type": "use_book_card", "player": dp, "page": pg, "slot_uid": uid}]
+
+
+def test_borrowed_effect_entry_on_battle_in(page):
+    # E-010 借用的搭檔效果在確認進入戰鬥時也能插入:行動欄除了「同意進入戰鬥」還有借用效果
+    _tp, dp = to_battle_in(page)
+    page.evaluate(f"""S = {{...S, effects: [...(S.effects || []), {{type: 'standby', kind: 'borrow_partner',
+        source: 'E-010', owner: {dp}, card: 'Ex-007', used: false,
+        ability: {{mp_cost: 0, timing: 'nonbattle', own_turn: false, mode: 'discard'}}}}],
+      players: S.players.map((ps, i) => i !== {dp} ? ps : {{...ps, borrowed_block: null}})}}; render()""")
+    stub_send(page)
+    entry = page.locator("#action-bar button", has_text="借用效果")
+    assert entry.count() == 1
+    entry.click()
+    use = page.locator("#zoom-actions button", has_text="使用")
+    assert use.is_enabled()
+    use.click()
+    assert sent(page) == [{"type": "use_borrowed_effect", "player": dp}]
+
+
 def test_any_page_no_entry_when_nothing_usable(page):
     # 對手回合非戰鬥中,其他頁只有攻擊用的戰術(只能停用):不顯示入口
     _tp, op = to_opponent_nonbattle(page)
