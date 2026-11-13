@@ -1695,8 +1695,13 @@ function renderCheatFields() {
     holder.appendChild(button);
   }
   // 雙方目前翻開的頁(依對局狀態,不受草稿修改影響)
-  document.getElementById("cheat-current").textContent = [0, 1].map((p) => t("ui.cheat.current_pages",
-    { player: pname(p), a: S.players[p].pos, b: S.players[p].pos + 1 })).join(t("ui.sep.bar"));
+  // 第 1 頁(回翻到 pos 0)與第 32 頁的對頁只有一頁,不寫出不存在的頁碼
+  document.getElementById("cheat-current").textContent = [0, 1].map((p) => {
+    const ps = S.players[p];
+    const open = [ps.pos, ps.pos + 1].filter((pg) => pg >= 1 && pg <= ps.book_size);
+    return open.length === 1 ? t("ui.cheat.current_page", { player: pname(p), n: open[0] })
+      : t("ui.cheat.current_pages", { player: pname(p), a: ps.pos, b: ps.pos + 1 });
+  }).join(t("ui.sep.bar"));
   const mp = document.getElementById("cheat-mp");
   document.getElementById("cheat-mp-label").textContent = t("ui.cheat.mp_label", { player: pname(editor.active) });
   mp.value = editor.players ? editor.players[editor.active].mp : "";

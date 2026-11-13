@@ -363,7 +363,7 @@ def test_p041_book_damage():
 
 
 def test_p041_no_trigger_when_nothing_turned_back():
-    g, holder, _ = _p041(opp_pos=2)                                # 第一頁:回翻 0 張
+    g, holder, _ = _p041(opp_pos=0)                                # 第 1 頁:回翻 0 張
     submit(g, ability(1, holder, zone="partner"))
     assert g.state.pending is None
 

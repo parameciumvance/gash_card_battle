@@ -121,14 +121,15 @@ def turn_pages(game, batch, player, leaves, source, by=None):
 
 
 def turn_back_pages(game, batch, player, leaves, source) -> int:
-    """效果造成的回翻,最多回到第一頁;回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。
+    """效果造成的回翻,最多回到第 1 頁(pos 0:左邊是封面內側、右邊第 1 頁;1 張 = 2 頁,第 2、3 頁回翻 1 張即到
+    第 1 頁);回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。
     P-049 在對手場上時,戰鬥階段中不回翻(回翻自己魔書的效果)。"""
     lock = _page_lock(game, reg.BLOCK_TURN_BACK, (1 - player,))
     if lock:
         game.emit(batch, "page_turn_restricted", player=player, count=-leaves, source=lock)
         return 0
     ps = game.state.players[player]
-    actual = min(leaves, max(0, (ps.pos - 2) // 2))
+    actual = min(leaves, max(0, ps.pos // 2))
     if actual == 0:
         return 0
     ps.pos -= 2 * actual

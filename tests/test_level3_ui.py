@@ -200,6 +200,17 @@ def test_cheat_panel_shows_current_pages(page):
     assert grid.locator(".cheat-gone").count() >= 1                           # 第 1 頁的魔物已放出
 
 
+def test_cheat_panel_single_open_page(page):
+    # 回翻到第 1 頁(pos 0)或在第 32 頁時只翻開一頁:不寫出不存在的第 0 / 33 頁(turn-back-to-page-one)
+    start(page)
+    page.evaluate("S = {...S, players: S.players.map((ps, i) => ({...ps, pos: i === 0 ? 0 : 32}))}")
+    page.evaluate("openCheat()")
+    page.wait_for_function("CHEAT && CHEAT.players")
+    summary = page.locator("#cheat-current").inner_text()
+    assert "第 1 頁" in summary and "第 32 頁" in summary
+    assert "第 0" not in summary and "33" not in summary
+
+
 def test_first_player_log(page):
     start(page)
     assert page.evaluate("logLine({type: 'first_player_set', player: 0, reason: 'local'})") == \
