@@ -3044,15 +3044,6 @@ function renderActionBar() {
         () => send({ type: "battle_in_response", player: awaited, allow: true }), true, t("ui.allow_battle_note"));
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
-      // P-015 等:待命允許從魔書任意頁使用、可用來防禦的戰術(防 / 攻防圖示),同樣以一個按鈕開魔書網格
-      const defendable = (S.players[awaited].any_page_spells || []).filter((e) => {
-        const def = CARDS[e.card];
-        return def && def.type === "spell" && def.effect_icon !== "nonbattle" && ["D", "AD"].includes(def.ad);
-      });
-      if (defendable.length) {
-        addBtn(defendable.length === 1 ? t("ui.any_page_spell", { card: cname(defendable[0].card) })
-          : t("ui.any_page_cards", { n: defendable.length }), () => showBookReview(awaited));
-      }
     } else {
       // 非戰鬥中對手已 pass 一次:回合玩家再 pass 就結束戰鬥階段,在最後一對頁時會落敗
       const endsTurnAndLoses = timing !== "effects" && !S.battle && !S.battle_in && awaited === S.turn_player
@@ -3066,10 +3057,14 @@ function renderActionBar() {
         addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
           () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
       }
-      // P-015:待命允許從魔書任意頁使用的戰術,在可宣告攻擊時從魔書網格使用(防禦時機見上方的 defense 分支)
-      const anyPage = S.players[awaited].any_page_spells || [];
-      if (anyPage.length && awaited === S.turn_player && !S.battle && !S.battle_in) {
-        // 只放一個按鈕開魔書網格,可用的頁在網格上標示(P-037 可用的卡很多,每頁一個按鈕會塞滿行動列)
+    }
+    if (timing !== "start") {
+      // P-015 等:待命允許從魔書任意頁使用的卡,只要現在有一張按得下去(網格卡片選單有未停用的按鈕,
+      // 與翻開的頁同一判斷)就放入口:攻擊、防禦、對手回合的非戰鬥中、插入行動、戰鬥中的效果使用都一致。
+      // 只放一個按鈕開魔書網格,可用的頁在網格上標示(P-037 可用的卡很多,每頁一個按鈕會塞滿行動列)
+      const anyPage = (S.players[awaited].any_page_spells || [])
+        .filter((e) => CARDS[e.card] && anyPageButtons(awaited, e).some((b) => !b.disabled));
+      if (anyPage.length) {
         addBtn(anyPage.length === 1 ? t("ui.any_page_spell", { card: cname(anyPage[0].card) })
           : t("ui.any_page_cards", { n: anyPage.length }), () => showBookReview(awaited));
       }

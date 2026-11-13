@@ -277,10 +277,66 @@ def to_defense(page):
 
 
 def put_any_page(page, p, card, uid):
-    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {p} ? ps : {{...ps,
+    page.evaluate(f"""S = {{...S, players: S.players.map((ps, i) => i !== {p} ? ps : {{...ps, mp: 10,
       book: ps.book.map((c, k) => k === 19 ? '{card}' : c),
       any_page_spells: [{{page: 20, card: '{card}', cost: 2, users: [{{slot_uid: {uid}, cost: 2, locked: false}}]}}]}})}};
       render()""")
+
+
+def to_opponent_nonbattle(page):
+    """先攻方 pass 一次,停在後攻方於對手回合非戰鬥中的行動權。回傳 (回合玩家, 非回合玩家)。"""
+    tp = start_local(page)
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.phase === 'battle' && S.action_player === {tp}")
+    send(page, {"type": "pass", "player": tp})
+    page.wait_for_function(f"S.action_player === {1 - tp} && !S.pending")
+    return tp, 1 - tp
+
+
+def to_battle_in(page):
+    """先攻方以翻開的「ザケル」攻擊,停在後攻方確認進入戰鬥(可插入一個行動)的時機。"""
+    tp = start_local(page)
+    pos = page.evaluate(f"S.players[{tp}].pos")
+    set_book(page, tp, {pos + 1: "S-001"})
+    send(page, {"type": "flip_pages", "player": tp, "count": 0})
+    page.wait_for_function(f"S.phase === 'battle' && S.action_player === {tp}")
+    send(page, {"type": "declare_attack", "player": tp, "page": pos + 1,
+                "slot_uid": page.evaluate(f"S.players[{tp}].slots[0].uid")})
+    page.wait_for_function("S.battle_in && !S.pending")
+    return tp, 1 - tp
+
+
+def use_event_from_book(page, p):
+    entry = page.locator("#action-bar button", has_text="從魔書使用")
+    assert entry.count() == 1
+    entry.click()
+    page.wait_for_function("!document.getElementById('book-review-overlay').classList.contains('hidden')")
+    page.locator('#book-review-grid .review-cell[data-page="20"] .card').click()
+    page.locator("#card-menu button", has_text="使用").click()
+    assert sent(page) == [{"type": "use_book_card", "player": p, "page": 20}]
+
+
+def test_any_page_event_entry_on_opponent_nonbattle(page):
+    # P-037 / Ex-037:防禦圖示的事件卡在對手回合的非戰鬥中也能從魔書使用(入口不只限回合玩家)
+    _tp, op = to_opponent_nonbattle(page)
+    put_any_page(page, op, "E-031", page.evaluate(f"S.players[{op}].slots[0].uid"))   # ナオミちゃんの助け:防
+    stub_send(page)
+    use_event_from_book(page, op)
+
+
+def test_any_page_event_entry_on_battle_in(page):
+    # 確認進入戰鬥時非回合玩家插入的行動,也能用其他頁的防禦圖示事件卡
+    _tp, dp = to_battle_in(page)
+    put_any_page(page, dp, "E-031", page.evaluate(f"S.players[{dp}].slots[0].uid"))
+    stub_send(page)
+    use_event_from_book(page, dp)
+
+
+def test_any_page_no_entry_when_nothing_usable(page):
+    # 對手回合非戰鬥中,其他頁只有攻擊用的戰術(只能停用):不顯示入口
+    _tp, op = to_opponent_nonbattle(page)
+    put_any_page(page, op, "S-042", page.evaluate(f"S.players[{op}].slots[0].uid"))
+    assert page.locator("#action-bar button", has_text="從魔書使用").count() == 0
 
 
 def test_any_page_spell_entry_on_defense(page):
