@@ -5,4 +5,4 @@
 - [x] 2.1 `data/decks/ref-makai-*.json` 與四語名稱(組別保留英文,使用者決定)。
 - [x] 2.2 更新 NPC 隨機候選清單的兩個瀏覽器測試(行為不變,清單多了第 2 賽季的三副)。
 - [x] 3.1 快速測試組、牌組相關瀏覽器測試;`openspec validate tournament-decks --strict`;card-data design 記錄來源與賽季。
-- [ ] 3.2 使用者確認。
+- [x] 3.2 使用者確認(2026-11-14)。
