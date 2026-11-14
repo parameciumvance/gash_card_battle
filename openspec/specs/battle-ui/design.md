@@ -511,3 +511,7 @@ Anim.apply(events, prevState, renderFn, actor)   每批事件排隊,前一批播
 ## 只翻開一頁時的顯示(turn-back-to-page-one)
 
 - 回翻可以到第 1 頁(`pos = 0`)。魔書區與魔書網格原本就把第 0 頁畫成空位、網格以 `Math.max(pos, 1)` 捲動,不必改;金手指的目前頁摘要原本一律寫「第 pos、pos+1 頁」,只翻開一頁(第 1 頁或第 32 頁)時改用 `ui.cheat.current_page`,不寫出第 0 / 33 頁。
+
+## 首頁的教學入口(tutorial)
+
+- 首頁的教學入口排在與朋友對戰之後、牌組構築之前(使用者指定)。入口直接開始,不經設定頁。尚未完成時醒目提示(`.entry.todo`:發光、緩慢脈動、「第一次玩?從這裡開始」標籤),讓新手不必靠排在第一個也看得到;完成後(`gash-tutorial-done`)改為一般樣式並標示「已完成」。教學本身見 `tutorial` 的 design。

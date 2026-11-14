@@ -38,7 +38,8 @@ class IllegalCommand(Exception):
 
 def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
              db: dict[str, CardDef] | None = None,
-             decks: tuple[list[str], list[str]] | None = None, first_player: int | None = None) -> Game:
+             decks: tuple[list[str], list[str]] | None = None, first_player: int | None = None,
+             first_player_reason: str = "local") -> Game:
     """準備階段:雙方放出第 1 頁魔物、翻開第 2-3 頁(MP+2)、擲硬幣決定先攻。
     first_player 指定時不擲硬幣(自由調查時間固定玩家 1 先攻)。"""
     db = db or card_db()
@@ -66,7 +67,7 @@ def new_game(deck_pages: list[str] | tuple[str, ...], seed: int | None = None,
         game.emit(batch, "coin_flipped", player=first, result="first_player", source="setup")
     else:
         first = first_player
-        game.emit(batch, "first_player_set", player=first, reason="local")
+        game.emit(batch, "first_player_set", player=first, reason=first_player_reason)   # local / tutorial
     game.state.turn_player = first
     game.state.phase = START
     game.emit(batch, "turn_started", turn=1, player=first)

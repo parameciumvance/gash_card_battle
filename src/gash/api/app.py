@@ -29,6 +29,7 @@ from ..engine.state import BOOK_SIZE, GAME_OVER
 from ..npc import LEVELS as NPC_LEVELS
 from ..npc import decide, submit_ranked
 from ..paths import frontend_dir, resolve_assets
+from ..tutorial import TailsRng, opponent_commands, tutorial_decks
 from ..version import app_version
 from .rooms import NpcSeat, Room, RoomError, RoomStore
 from . import tables as tables_mod
@@ -335,9 +336,12 @@ def _start_game(room: Room) -> None:
     default = _default_deck()
     deck0 = room.decks[0] or default
     deck1 = room.decks[1] or default
-    # 自由調查時間(本機模式)固定玩家 1 先攻;其他模式擲硬幣
+    # 自由調查時間(本機模式)與教學固定玩家 1 先攻;其他模式擲硬幣
     room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)),
-                         first_player=0 if room.mode == "local" else None)
+                         first_player=0 if room.mode in ("local", "tutorial") else None,
+                         first_player_reason=room.mode if room.mode == "tutorial" else "local")
+    if room.mode == "tutorial":
+        room.game.rng = TailsRng()                     # tutorial「教學局面」:擲硬幣一律反面
     room.reset_deadline()
 
 
@@ -453,6 +457,9 @@ async def create_room(body: CreateRoom):
     npc_seat = None
     if body.mode == "npc":
         npc_seat, resolved[1] = _npc_seat(body, season)
+    elif body.mode == "tutorial":                      # 固定局面,不受賽季與合法性限制(tutorial「教學對局的開始」)
+        resolved = [tuple(p) for p in tutorial_decks()]
+        npc_seat = NpcSeat(level="tutorial", rng=random.Random(0))
     if body.mode == "local" and body.names is not None:
         names = [_clean_name(body.names[0] if len(body.names) > 0 else None),
                  _clean_name(body.names[1] if len(body.names) > 1 else None)]
@@ -477,7 +484,7 @@ async def create_room(body: CreateRoom):
         resp["player_tokens"] = [token0, token1]
         resp["events"] = filter_events(room.game.events, "all")
         resp.update(_state_payload(room, 0))
-    elif room.mode == "npc":
+    elif room.mode in ("npc", "tutorial"):
         room.npc = npc_seat
         _start_game(room)
         resp["player_token"] = token0
@@ -532,10 +539,23 @@ async def post_command(code: str, body: CommandBody,
         room.touch()
         room.reset_deadline()
         _note_action(room, viewer)
+        if room.mode == "tutorial":
+            room.tutorial_hold = True                  # 等教學面板的「下一步」再讓對手出手
     await _broadcast(room, events, actor=viewer)
     _kick_npc(room)
     ev = _effective_viewer(room, viewer)
     return {"actor": viewer, "events": filter_events(events, ev), **_state_payload(room, viewer)}
+
+
+@app.post("/api/rooms/{code}/tutorial/continue")
+async def tutorial_continue(code: str, x_player_token: str | None = Header(default=None)):
+    """教學房的「下一步」:放行腳本對手(tutorial「對手腳本的節奏」)。"""
+    room, viewer = _player_room(code, x_player_token)
+    if room.mode != "tutorial":
+        raise HTTPException(409, detail={"code": "room.not_tutorial", "message": "不是教學房"})
+    room.tutorial_hold = False
+    _kick_npc(room)
+    return {"ok": True}
 
 
 def _debug_state_payload(room: Room) -> dict:
@@ -1045,7 +1065,7 @@ async def _npc_pause(seconds: float) -> None:
 def _npc_turn(room: Room) -> bool:
     game = room.game
     return (room.npc is not None and game is not None and game.state.phase != GAME_OVER
-            and awaited_player(game) == room.npc.seat)
+            and awaited_player(game) == room.npc.seat and not room.tutorial_hold)
 
 
 def _kick_npc(room: Room) -> None:
@@ -1061,6 +1081,8 @@ def _kick_npc(room: Room) -> None:
 def _npc_decide(room: Room) -> list[dict]:
     seat = room.npc
     try:
+        if seat.level == "tutorial":                   # 教學的腳本對手(tutorial「自由步驟的偏離」)
+            return opponent_commands(room.game, seat.seat)
         return decide(room.game, seat.seat, seat.level, seat.rng)
     except Exception:       # 模擬中的引擎錯誤不可拖垮房間:退回安全預設
         _log.exception("NPC 決策失敗(房間 %s)", room.code)
