@@ -61,7 +61,8 @@ def test_random_npc_deck_sends_presets_and_valid_saved_decks(page):
     assert page.locator("#deck-npc-opp").input_value() == "npc:random"
     start_npc(page)
     candidates = posts[-1]["npc_decks"]
-    presets = page.evaluate("PRESETS.map(p => ({preset: p.id}))")
+    season = int(page.locator("#season-npc").input_value())
+    presets = page.evaluate(f"PRESETS.filter(p => !(p.season > {season})).map(p => ({{preset: p.id}}))")   # 只含所選賽季可用的
     mine = page.evaluate("DeckStore.list().find(d => d.name === 'mine').pages")
     assert candidates == presets + [{"pages": mine}]                          # 不合法牌組不列入
     assert "npc_deck" not in posts[-1]

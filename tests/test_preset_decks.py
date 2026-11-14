@@ -113,3 +113,24 @@ def test_reference_decks():
         assert decks[deck_id]["season"] == 2
         pages = json.loads((appmod.DECKS_DIR / f"{deck_id}.json").read_text(encoding="utf-8"))["pages"]
         assert len(pages) == 32 and pages[0] == first and pages[-1] == last
+
+
+TOURNAMENT_DECKS = (                          # 魔界王決定戦 第 1、2 回各組優勝(atwiki pages/1878)
+    ("ref-makai-1-junior", "M-030", "S-021", 2),
+    ("ref-makai-1-middle", "Ex-003", "S-021", 2),
+    ("ref-makai-1-senior", "Ex-003", "S-021", 2),
+    ("ref-makai-2-junior", "M-053", "S-036", 4),
+    ("ref-makai-2-middle", "Ex-003", "S-090", 4),
+    ("ref-makai-2-senior", "Ex-003", "S-090", 4),
+)
+
+
+def test_tournament_decks():
+    # 第 1 回(2003-11)為第 2 賽季、第 2 回(2004-03)為第 4 賽季;依 atwiki 魔本リスト的頁序
+    _rescan()
+    decks = {d["id"]: d for d in client.get("/api/decks").json()["decks"]}
+    for deck_id, first, last, season in TOURNAMENT_DECKS:
+        assert decks[deck_id]["name_key"] == f"deck.{deck_id}"
+        assert decks[deck_id]["season"] == season
+        pages = json.loads((appmod.DECKS_DIR / f"{deck_id}.json").read_text(encoding="utf-8"))["pages"]
+        assert len(pages) == 32 and pages[0] == first and pages[-1] == last
