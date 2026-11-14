@@ -18,14 +18,12 @@ def family(game, slot) -> str:
 
 
 def spell_names(game, card, slot) -> frozenset:
-    """這個戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」):戰術卡的對應魔物,與使用它的魔物
-    (slot,未定時為 None)的名稱。指令戰術沒有對應魔物,只看使用者。"""
-    names = set()
+    """這個戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」):只看戰術卡的對應魔物。
+    「X の術」是所屬,不看使用者:效果文另有「『X』で使った術」(P-045)的寫法指由 X 使用的戰術
+    (spell-ownership-literal)。指令戰術沒有對應魔物,不是任何魔物的戰術。slot 保留給呼叫端的介面一致。"""
     if card is not None and not card.is_command_spell and card.related_mamodo:
-        names.add(card.related_mamodo)
-    if slot is not None:
-        names.add(family(game, slot))
-    return frozenset(names)
+        return frozenset((card.related_mamodo,))
+    return frozenset()
 
 
 def mamodo_name(game, slot) -> str:

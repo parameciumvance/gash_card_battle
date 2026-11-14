@@ -76,8 +76,8 @@ def test_m054_applies_when_zeon_uses_zakeru():
     assert defend_code(_m054("M-029")) == "defense.undefendable"
 
 
-def test_p022_applies_when_furigaro_uses_other_ice_spell():
-    # 由 フリガロ 使用的戰術算「フリガロ」の術(既有行為)
+def test_p022_not_applied_when_furigaro_uses_other_ice_spell():
+    # 「X の術」= 對應魔物為 X 的戰術(spell-ownership-literal):フリガロ 使用レイコム的氷屬性戰術不是「フリガロ」の術
     g, _ = mk(book("M-036", "S-006"), book("M-001"))
     st = g.state
     furi = st.players[0].slots[0]
@@ -95,7 +95,7 @@ def test_p022_applies_when_furigaro_uses_other_ice_spell():
         submit(g, {"type": "pass", "player": st.battle.data["effect_turn"]})
     while st.pending is not None and st.pending.kind in ("protect", "damage_order"):
         choose(g, 0 if st.pending.kind == "damage_order" else None)
-    assert b.injured and not a.injured
+    assert not b.injured and not a.injured                              # 傷害照常給魔書,不轉給選定的魔物
 
 
 def test_m005_applies_when_other_brago_attacks_with_brago_spell():
@@ -171,6 +171,21 @@ def test_e047_blocks_zeon_using_zakeru_but_not_own_spell():
     assert g.state.battle.defense_spell == "S-099"
 
 
+def test_e047_does_not_block_command_spells():
+    # 「その魔物の術」= 對應魔物為選定魔物名稱的戰術;指令戰術不屬於任何魔物,選定的魔物照樣能用
+    g, _ = mk(book("M-001", "E-047", "S-001"), book("M-001", "S-028"))
+    st = g.state
+    st.players[0].mp = 5
+    to_battle(g, 0)
+    gash = st.players[1].slots[0]
+    st.players[1].mp = 10
+    use_event(g, 2)                                                     # 只有一隻:自動選定
+    submit(g, {"type": "pass", "player": 1})
+    battle_in(g, 3)
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": gash.uid})
+    assert g.state.battle.defense_spell == "S-028"
+
+
 def test_e047_still_applies_after_chosen_leaves():
     g, chosen, (other,) = _e047(others=("M-002",))
     st = g.state
@@ -212,8 +227,8 @@ def test_p033_blocks_same_name_attack():
     assert code(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": b.uid}) == "spell.attack_restricted"
 
 
-def test_pr009_blocks_gash_using_command_defense_spell():
-    # 自分は、「ガッシュ・ベル」の術を使えない:ガッシュ・ベル 使用的指令戰術也是 ガッシュ・ベル 的戰術
+def test_pr009_allows_gash_using_command_defense_spell():
+    # 自分は、「ガッシュ・ベル」の術を使えない:指令戰術沒有對應魔物,不是「ガッシュ・ベル」の術(spell-ownership-literal)
     g, _ = mk(book("M-001", "PR-009", "S-029", "S-028"), book("M-001", "S-001"))
     st = g.state
     st.players[0].mp = 10
@@ -226,8 +241,8 @@ def test_pr009_blocks_gash_using_command_defense_spell():
     next_turn(g)
     submit(g, {"type": "declare_attack", "player": 1, "page": 2})
     submit(g, {"type": "battle_in_response", "player": 0, "allow": True})
-    assert code(g, {"type": "declare_defense", "player": 0, "page": 4, "slot_uid": gash.uid}) == "spell.restricted"
-    submit(g, {"type": "declare_defense", "player": 0, "page": 4, "slot_uid": tio.uid})   # 其他魔物可以
+    assert tio is not None
+    submit(g, {"type": "declare_defense", "player": 0, "page": 4, "slot_uid": gash.uid})
     assert st.battle.defense_spell == "S-028"
 
 
@@ -265,7 +280,8 @@ def test_e043_same_name_other_blocks_chosen_spells():
     assert mamodo_effect_block(g, 1, a1) is None                        # A(1) 的魔物效果可以使用
     battle_in(g, 3)
     assert defend_code(g, page=2, slot=a1) == "spell.mamodo_locked"
-    assert defend_code(g, page=3, slot=a1) == "spell.mamodo_locked"     # 指令戰術由 A(1) 使用也是 A 的戰術
+    submit(g, {"type": "declare_defense", "player": 1, "page": 3, "slot_uid": a1.uid})   # 指令戰術不屬於任何魔物
+    assert g.state.battle.defense_spell == "S-028"
 
 
 def test_e043_chosen_without_same_name_can_use_spells():

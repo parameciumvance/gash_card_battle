@@ -202,10 +202,12 @@ def _defend_with(m058_defends):
     return g, {"type": "declare_defense", "player": 1, "page": 2, "slot_uid": slot.uid}
 
 
-def test_m058_cannot_use_command_spell():
-    # 使用者的判定:M-058 使用的指令戰術也是「この魔物の術」
+def test_m058_can_use_command_spell():
+    # 「この魔物の術」= ウマゴン的戰術;指令戰術不屬於任何魔物,M-058 可以使用(spell-ownership-literal;
+    # 與 atwiki 卡頁評論「コマンドの術は、使用することができる」一致)
     g, cmd = _defend_with(True)
-    assert code(g, cmd) == "spell.restricted"
+    submit(g, cmd)
+    assert g.state.battle.defense_spell == "S-028"
 
 
 def test_other_mamodo_can_use_command_spell():
