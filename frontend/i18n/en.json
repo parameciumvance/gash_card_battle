@@ -951,6 +951,7 @@
   "ui.landing.tutorial": "Tutorial",
   "ui.landing.tutorial_desc": "About 5 minutes: follow the steps through three turns and learn the basics",
   "tutorial.done_badge": "Completed",
+  "tutorial.todo_badge": "New? Start here",
   "tutorial.progress": "Tutorial {n} / {total}",
   "tutorial.leave": "Leave tutorial",
   "tutorial.next": "Next",

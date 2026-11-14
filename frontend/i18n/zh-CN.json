@@ -951,6 +951,7 @@
   "ui.landing.tutorial": "教学",
   "ui.landing.tutorial_desc": "约 5 分钟,跟着步骤打完三个回合,学会基本玩法",
   "tutorial.done_badge": "已完成",
+  "tutorial.todo_badge": "第一次玩?从这里开始",
   "tutorial.progress": "教学 {n} / {total}",
   "tutorial.leave": "离开教学",
   "tutorial.next": "下一步",

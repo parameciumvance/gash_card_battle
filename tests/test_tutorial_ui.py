@@ -56,11 +56,13 @@ def sent_spy(page):
 
 # ---------------------------------------------------------------- 入口與基本行為
 
-def test_entry_is_first_and_starts_tutorial(page):
+def test_entry_after_friend_and_starts_tutorial(page):
     entries = page.locator("#landing-cards .entry").evaluate_all("(es) => es.map((e) => e.id)")
-    assert entries[0] == "entry-tutorial" and entries[1] == "entry-npc"
-    assert page.locator("#entry-tutorial .entry-title").inner_text() == "教學"
-    assert not page.locator("#entry-tutorial .entry-badge").is_visible()
+    assert entries.index("entry-tutorial") == entries.index("entry-friend") + 1
+    entry = page.locator("#entry-tutorial")
+    assert entry.locator(".entry-title").inner_text() == "教學"
+    assert "todo" in entry.get_attribute("class")                                 # 未完成:醒目提示
+    assert entry.locator(".entry-badge").inner_text() == "第一次玩?從這裡開始"
     start(page)
     assert step(page) == 1
     assert page.evaluate("[S.turn_player, SESSION.mode, myViewer()]") == [0, "tutorial", 0]
@@ -191,5 +193,6 @@ def test_play_through(page, protect):
     panel.locator("button", has_text="開始 NPC 對戰").click()
     page.wait_for_function("!SESSION && !document.getElementById('setup').classList.contains('hidden')")
     page.locator("#setup-back").click()
-    assert page.locator("#entry-tutorial .entry-badge").is_visible()
-    assert page.locator("#entry-tutorial .entry-badge").inner_text() == "已完成"
+    entry = page.locator("#entry-tutorial")
+    assert entry.locator(".entry-badge").inner_text() == "已完成"
+    assert "todo" not in entry.get_attribute("class") and "done" in entry.get_attribute("class")

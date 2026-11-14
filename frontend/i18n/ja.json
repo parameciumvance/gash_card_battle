@@ -951,6 +951,7 @@
   "ui.landing.tutorial": "チュートリアル",
   "ui.landing.tutorial_desc": "約5分。手順にそって3ターンを遊び、基本の流れを覚える",
   "tutorial.done_badge": "完了",
+  "tutorial.todo_badge": "はじめての方はここから",
   "tutorial.progress": "チュートリアル {n} / {total}",
   "tutorial.leave": "チュートリアルをやめる",
   "tutorial.next": "次へ",

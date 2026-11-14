@@ -5595,9 +5595,12 @@ function renderLanding() {
     entry.querySelector(".entry-desc").textContent = t(`ui.landing.${key}_desc`);
     entry.onclick = onclick;
   }
-  const tutorialEntry = document.getElementById("entry-tutorial");   // 已完成教學:入口標示已完成
-  tutorialEntry.classList.toggle("done", tutorialDone());
-  tutorialEntry.querySelector(".entry-badge").textContent = t("tutorial.done_badge");
+  // 教學入口:未完成時醒目提示(發光、「第一次玩?」標籤),完成後改為一般樣式加「已完成」
+  const tutorialEntry = document.getElementById("entry-tutorial");
+  const done = tutorialDone();
+  tutorialEntry.classList.toggle("done", done);
+  tutorialEntry.classList.toggle("todo", !done);
+  tutorialEntry.querySelector(".entry-badge").textContent = t(done ? "tutorial.done_badge" : "tutorial.todo_badge");
   document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
   document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
   document.getElementById("landing-version").textContent = META.version ? t("ui.version", { v: META.version }) : "";

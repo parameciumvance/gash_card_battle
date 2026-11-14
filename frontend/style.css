@@ -1646,8 +1646,14 @@ body.sending #card-menu button { pointer-events: none; opacity: .6; }
 /* ---------------- 教學(tutorial) ---------------- */
 .entry-badge { display: none; align-self: flex-start; font-size: 11px; font-weight: bold; padding: 1px 8px;
   border-radius: 999px; background: #1f7a46; color: #fff; }
-.entry.done .entry-badge { display: inline-block; }
-#entry-tutorial { border-color: var(--glow); }
+.entry.done .entry-badge, .entry.todo .entry-badge { display: inline-block; }
+/* 教學未完成:醒目提示 */
+.entry.todo { border: 2px solid var(--glow); box-shadow: 0 0 0 3px rgba(255, 209, 102, .35), 0 0 18px rgba(255, 209, 102, .55);
+  animation: entry-todo-pulse 2.4s ease-in-out infinite; }
+.entry.todo .entry-badge { background: var(--glow); color: #1c2d4a; }
+@keyframes entry-todo-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(255, 209, 102, .35), 0 0 18px rgba(255, 209, 102, .55); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 209, 102, .15), 0 0 26px rgba(255, 209, 102, .8); } }
+@media (prefers-reduced-motion: reduce) { .entry.todo { animation: none; } }
 /* 教學面板:貼在行動欄上方(bottom 由 renderTutorial 依行動欄高度設定) */
 #tutorial-panel {
   position: sticky; z-index: 5; margin: 0 10px 6px; padding: 10px 14px; border-radius: 10px;
