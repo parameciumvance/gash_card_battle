@@ -338,7 +338,8 @@ def _start_game(room: Room) -> None:
     deck1 = room.decks[1] or default
     # 自由調查時間(本機模式)與教學固定玩家 1 先攻;其他模式擲硬幣
     room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)),
-                         first_player=0 if room.mode in ("local", "tutorial") else None)
+                         first_player=0 if room.mode in ("local", "tutorial") else None,
+                         first_player_reason=room.mode if room.mode == "tutorial" else "local")
     if room.mode == "tutorial":
         room.game.rng = TailsRng()                     # tutorial「教學局面」:擲硬幣一律反面
     room.reset_deadline()

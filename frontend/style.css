@@ -1642,3 +1642,40 @@ body.sending #card-menu button { pointer-events: none; opacity: .6; }
   font-weight: bold; color: #fff; background: rgba(176, 120, 40, .85); border: 1px solid var(--gold-soft);
   border-radius: 6px; padding: 5px 10px; }
 #forfeit { padding: 4px 12px; border: 1px solid #7a3a3a; background: #3a1f24; color: var(--ink); border-radius: 6px; cursor: pointer; }
+
+/* ---------------- 教學(tutorial) ---------------- */
+.entry-badge { display: none; align-self: flex-start; font-size: 11px; font-weight: bold; padding: 1px 8px;
+  border-radius: 999px; background: #1f7a46; color: #fff; }
+.entry.done .entry-badge { display: inline-block; }
+#entry-tutorial { border-color: var(--glow); }
+/* 教學面板:貼在行動欄上方(bottom 由 renderTutorial 依行動欄高度設定) */
+#tutorial-panel {
+  position: sticky; z-index: 5; margin: 0 10px 6px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(18, 24, 42, .96); color: var(--ink); border: 2px solid var(--glow);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .35); display: flex; flex-direction: column; gap: 6px;
+}
+#tutorial-panel.hidden { display: none; }
+#tutorial-panel .tutorial-head { display: flex; align-items: center; gap: 10px; }
+#tutorial-panel .tutorial-progress { font-size: 12px; font-weight: bold; color: var(--glow); flex: 1; }
+#tutorial-panel .tutorial-leave { font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid var(--panel-line); background: transparent; color: var(--ink-dim); cursor: pointer; }
+#tutorial-panel .tutorial-text { font-size: 14px; line-height: 1.6; white-space: pre-line; }
+#tutorial-panel .tutorial-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#tutorial-panel .tutorial-actions button { padding: 6px 14px; border-radius: 6px; cursor: pointer; font: inherit;
+  border: 1px solid var(--panel-line); background: #2a3556; color: var(--ink); }
+#tutorial-panel .tutorial-actions button.primary { background: var(--glow); color: #1c2d4a; font-weight: bold; border-color: var(--glow); }
+#tutorial-panel.nudge { animation: tutorial-nudge .45s; }
+@keyframes tutorial-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+/* 這一步要操作的目標 */
+.tutorial-target { outline: 3px solid var(--glow); outline-offset: 2px; animation: tutorial-pulse 1.2s ease-in-out infinite; }
+@keyframes tutorial-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, .9); } 50% { box-shadow: 0 0 0 8px rgba(255, 209, 102, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-target, #tutorial-panel.nudge { animation: none; }
+}
+@media (max-width: 700px) {
+  #tutorial-panel { margin: 0 4px 4px; padding: 8px 10px; }
+  #tutorial-panel .tutorial-text { font-size: 13px; }
+}
+#tutorial-panel .tutorial-fold { font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid var(--panel-line); background: transparent; color: var(--ink-dim); cursor: pointer; }
+#tutorial-panel.collapsed { gap: 4px; padding-top: 6px; padding-bottom: 6px; }

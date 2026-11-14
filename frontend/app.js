@@ -210,6 +210,7 @@ const TAB_SESSION_KEY = "gash-session";
 function saveSession() {
   const raw = JSON.stringify(SESSION);
   try { sessionStorage.setItem(TAB_SESSION_KEY, raw); } catch (_) { /* 無法儲存:退回瀏覽器記得的身分 */ }
+  if (SESSION.mode === "tutorial") return;   // 教學不列在「返回進行中的對局」(tutorial「教學的離開與完成」)
   // 朋友房另外記下這個瀏覽器拿過的每個座位(seats:座位 → token),同一個瀏覽器的兩個分頁對打時不互相覆蓋;
   // 首頁「返回進行中的對局」依此分座位列出(close-rooms)
   const key = `gash-room-${SESSION.code}`;
@@ -335,6 +336,7 @@ async function roomAction(path, body = {}) {
 
 async function send(command) {
   if (SENDING) return;   // 送出中不再送(鍵盤等 CSS 擋不到的途徑)
+  if (!tutorialAllows(command)) return;   // 教學的鎖定步驟:不是要求的操作就不送出
   setSending(true);
   try {
     const body = await api(`/api/rooms/${SESSION.code}/commands`, {
@@ -370,6 +372,7 @@ function applyPayload(body) {
     render();
     S = next;
   }
+  tutorialUpdate(fresh);
   const played = Anim.apply(fresh, prevS, render, body.actor);
   // 檢視對手頁面(E-014 / M-018):只對即時批次(有行動者)在演出結束後跳出;
   // 伺服器已依視角過濾,帶 cards 的就是自己檢視的
@@ -919,6 +922,7 @@ function resumeCloseControls(code, saved, room, seated = false) {
 
 // 頂欄標題字:回到首頁(在房間中等同離開房間,對局仍可從首頁返回)
 function goHome() {
+  if (isTutorial()) { leaveTutorial(); return; }
   if (SESSION) { leaveRoom(); return; }
   history.replaceState(null, "", "/");
   renderLanding();
@@ -1630,6 +1634,7 @@ function render() {
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
   refreshCardMenu();
   renderDetailPanel();
+  renderTutorial();
 }
 
 // log 抽屜頁籤(窄螢幕):點擊展開/收合;收合時由 CSS 只顯示最新 4 條
@@ -1870,7 +1875,7 @@ function renderTopbar() {
   leave.classList.toggle("hidden", !SESSION);
   const forfeitBtn = document.getElementById("forfeit");   // 棄權:對局中的玩家(自由調查時間除外)
   forfeitBtn.textContent = t("ui.forfeit");
-  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && SESSION.mode !== "local"
+  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && !["local", "tutorial"].includes(SESSION.mode)
     && (myViewer() === 0 || myViewer() === 1)));
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
   document.getElementById("feedback-toggle").textContent = t("ui.feedback.toggle");
@@ -2868,6 +2873,7 @@ const AUTO_PASS_MS = 3000;
 let AUTO_PASS = null;   // { key, cmd, player, elapsed, running, timer }
 
 function autoPassOn() {
+  if (isTutorial()) return false;   // 教學中由玩家自己回應(自動回應會繞過鎖定步驟)
   try { return localStorage.getItem(AUTO_PASS_KEY) !== "off"; } catch (_) { return true; }
 }
 
@@ -3087,7 +3093,7 @@ function renderActionBar() {
       bar.appendChild(hint);
     }
   }
-  if (me === 0 || me === 1 || me === "all") bar.appendChild(autoPassToggleEl());   // 觀戰者不顯示
+  if ((me === 0 || me === 1 || me === "all") && !isTutorial()) bar.appendChild(autoPassToggleEl());   // 觀戰者、教學不顯示
   if (details) bar.appendChild(details);
 }
 
@@ -4277,7 +4283,8 @@ function logLine(ev) {
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });
     case "card_discarded": return t("log.card_discarded", { ...P, card: cname(ev.card) });
     case "field_card_effect": return t("log.field_card_effect", { ...P, card: cname(ev.card), n: ev.amount });
-    case "first_player_set": return t("log.first_player_set", { player: pname(ev.player) });
+    case "first_player_set":
+      return t(ev.reason === "tutorial" ? "log.first_player_set_tutorial" : "log.first_player_set", { player: pname(ev.player) });
     case "standby_set":
       return ev.kind === "spell_reuse" && ev.card   // S-098:寫出選定的戰術
         ? t("log.spell_reuse_set", { player: pname(ev.owner), source: cname(ev.source), card: cname(ev.card), page: ev.page })
@@ -5570,6 +5577,7 @@ document.addEventListener("visibilitychange", syncOnline);
 function renderLanding() {
   document.getElementById("landing-title").setAttribute("aria-label", t("app.title"));
   const entries = {
+    tutorial: () => startTutorial(),
     npc: () => openSetup("npc"),
     tables: () => openTables(),
     friend: () => openSetup("friend"),
@@ -5587,6 +5595,9 @@ function renderLanding() {
     entry.querySelector(".entry-desc").textContent = t(`ui.landing.${key}_desc`);
     entry.onclick = onclick;
   }
+  const tutorialEntry = document.getElementById("entry-tutorial");   // 已完成教學:入口標示已完成
+  tutorialEntry.classList.toggle("done", tutorialDone());
+  tutorialEntry.querySelector(".entry-badge").textContent = t("tutorial.done_badge");
   document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
   document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
   document.getElementById("landing-version").textContent = META.version ? t("ui.version", { v: META.version }) : "";
@@ -5681,7 +5692,7 @@ function renderLanding() {
       setTimeout(() => { btn.textContent = t("ui.copy"); }, 1500);
     };
   }
-  document.getElementById("leave-room").onclick = leaveRoom;
+  document.getElementById("leave-room").onclick = () => (isTutorial() ? leaveTutorial() : leaveRoom());
   document.getElementById("forfeit").onclick = () => showDialog(t("ui.forfeit.confirm"), [
     { label: t("ui.forfeit"), onpick: () => roomAction("forfeit") },
     { label: t("ui.cancel"), onpick: () => {} },

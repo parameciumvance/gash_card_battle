@@ -70,7 +70,7 @@ def finish_game(server, code, tokens):
 
 def test_landing_entry_order(page):
     ids = page.locator("#landing-cards .entry").evaluate_all("els => els.map((e) => e.id)")
-    assert ids[:3] == ["entry-npc", "entry-tables", "entry-friend"]
+    assert ids[:4] == ["entry-tutorial", "entry-npc", "entry-tables", "entry-friend"]   # tutorial 排第一
     assert page.locator("#entry-tables .entry-title").text_content() == "牌桌"
 
 
