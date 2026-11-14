@@ -85,7 +85,7 @@
 - **THEN** 該牌桌轉為空
 
 ### Requirement: 牌桌的賽季
-以為是空桌而入座時,請求 SHALL 可附上賽季(規則同 `online-room`「房間的賽季」,缺省 3,其他值回 422 `room.bad_season`);開桌建立的房間使用該賽季。`GET /api/tables` 的等待中、對戰中與結束後選擇中的牌桌 SHALL 含賽季;`table.taken` 回應 SHALL 附上該桌的賽季。入座者的魔書 SHALL 依該桌賽季驗證,違規回 422 `deck.season` 且 MUST NOT 改變牌桌狀態。再戰建立的新房 SHALL 沿用原本的賽季。
+以為是空桌而入座時,請求 SHALL 可附上賽季(規則同 `online-room`「房間的賽季」,缺省 4,其他值回 422 `room.bad_season`);開桌建立的房間使用該賽季。`GET /api/tables` 的等待中、對戰中與結束後選擇中的牌桌 SHALL 含賽季;`table.taken` 回應 SHALL 附上該桌的賽季。入座者的魔書 SHALL 依該桌賽季驗證,違規回 422 `deck.season` 且 MUST NOT 改變牌桌狀態。再戰建立的新房 SHALL 沿用原本的賽季。
 
 #### Scenario: 以賽季開桌
 - **WHEN** 玩家在空的桌 4 以 60 秒、第 1 賽季入座

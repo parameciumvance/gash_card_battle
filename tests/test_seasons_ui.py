@@ -22,7 +22,7 @@ def option(page, select, value):
 
 def test_season_limits_npc_deck_menus(page):
     open_setup(page, "npc")
-    assert page.locator("#season-npc").input_value() == "3"                     # 缺省第 3 賽季
+    assert page.locator("#season-npc").input_value() == "4"                     # 缺省第 4 賽季(season4-open)
     assert not option(page, "#deck-npc", "preset:zeon").is_disabled()
     page.select_option("#season-npc", "1")
     for sel in ("#deck-npc", "#deck-npc-opp"):
@@ -69,7 +69,7 @@ def test_season_is_remembered(page):
     page.wait_for_function("Object.keys(CARDS).length > 0")
     open_setup(page, "local")
     assert page.locator("#season-local").input_value() == "2"
-    assert page.locator("#season-npc").input_value() == "3"                     # 各模式分開記
+    assert page.locator("#season-npc").input_value() == "4"                     # 各模式分開記(NPC 為缺省)
 
 
 def test_create_friend_room_sends_season_and_join_mode_hides_it(page):

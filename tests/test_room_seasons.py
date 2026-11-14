@@ -28,14 +28,19 @@ def test_create_with_season():
     assert r["room"]["season"] == 1
 
 
-def test_default_season_is_3():
+def test_default_season_is_4():
+    # v1.4 開放第 4 賽季(season4-open),未指定時為最新的第 4 賽季
     r = create(mode="online").json()
-    assert r["room"]["season"] == 3
+    assert r["room"]["season"] == 4
+
+
+def test_season_4_selectable():
+    assert create(mode="online", season=4).json()["room"]["season"] == 4
 
 
 def test_unknown_season_rejected():
     before = set(store.rooms)
-    resp = create(mode="online", season=4)
+    resp = create(mode="online", season=5)
     assert resp.status_code == 422
     assert resp.json()["detail"]["code"] == "room.bad_season"
     assert set(store.rooms) == before
