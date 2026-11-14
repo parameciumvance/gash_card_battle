@@ -357,7 +357,7 @@ def test_mamodo_tiles_use_representative_art(builder):
     keys = tile_keys(builder, "mamodo")
     assert keys[0] == "__none__"
     families = builder.evaluate("[...new Set(poolCards(true).map((c) => c.related_mamodo))]"
-                                ".filter((m) => m && m !== 'コマンド' && m !== '金色のガッシュベル')")
+                                ".filter((m) => m && m !== 'コマンド' && m !== '金色のガッシュベル' && m !== 'ロード')")
     assert sorted(keys[1:]) == sorted(families)
     crop = tile(builder, "mamodo", "ブラゴ").locator(".filter-crop")
     crop.wait_for()
@@ -373,6 +373,16 @@ def test_merged_family_and_plain_labels(builder):
     numbers = pool_numbers(builder)
     assert "M-047" in numbers                                                # 金色のガッシュベル併入ガッシュ・ベル
     assert numbers == cards_where(builder, "['ガッシュ・ベル', '金色のガッシュベル'].includes(c.related_mamodo)")
+
+
+def test_lord_merged_into_zofis(builder):
+    # M-081 ロード「場にあるとき『ゾフィス』としてあつかう」:與 M-047 一樣併入,不單獨列出(mamodo-merge-lord)
+    menu(builder, "mamodo").click()
+    assert "ロード" not in tile_keys(builder, "mamodo")
+    tile(builder, "mamodo", "ゾフィス").click()
+    numbers = pool_numbers(builder)
+    assert "M-081" in numbers
+    assert numbers == cards_where(builder, "['ゾフィス', 'ロード'].includes(c.related_mamodo)")
 
 
 def test_mamodo_order_follows_config(browser, server):
