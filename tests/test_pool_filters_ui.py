@@ -489,7 +489,7 @@ def test_phone_filter_bar_is_one_line(browser, server):
 
 def test_season_filter_is_cumulative(builder):
     assert [t.strip() for t in panel(builder, "season").locator(".filter-tile").all_text_contents()] == \
-        ["全部", "第 1 賽季", "第 2 賽季", "第 3 賽季"]
+        ["全部", "第 1 賽季", "第 2 賽季", "第 3 賽季", "第 4 賽季"]
     pick(builder, "season", "2")
     assert not panel(builder, "season").is_visible()
     numbers = pool_numbers(builder)

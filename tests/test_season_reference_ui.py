@@ -24,7 +24,7 @@ def test_rules_page_lists_season_ranges_and_products(page):
     assert section_in_view(page, "seasons")
     head = headers(page)
     rows = season_rows(page)
-    assert set(rows) == {"1", "2", "3"}
+    assert set(rows) == {"1", "2", "3", "4"}
     col = {h: i for i, h in enumerate(head)}
     s1, s3 = rows["1"], rows["3"]
     assert s1[col["M"]] == "001–015" and s1[col["S"]] == "001–028" and s1[col["PR"]] == "001–002"
@@ -35,9 +35,12 @@ def test_rules_page_lists_season_ranges_and_products(page):
     assert page.evaluate("(k) => t(k)", "product.level-3") in s3[-1]
     assert page.evaluate("(k) => t(k)", "product.ex-sheet-2") in s3[-1]
     assert page.evaluate("(k) => t(k)", "product.level-1") not in s3[-1]   # 只列新增的產品
-    # 特別歸屬的卡都註明:可選賽季只寫所屬賽季,不可選賽季另註目前不能選;第 4 賽季還不能選,表格不列
+    # 特別歸屬的卡都註明所屬賽季;第 4 賽季已開放(season4-open),不再註明目前不能選
     assert page.locator("#rules-sec-seasons .rules-season-note").all_text_contents() == [
-        "Ex-100、Ex-101 屬於第 3 賽季。", "Ex-000、Ex-099 屬於第 4 賽季,目前不能選。"]
+        "Ex-100、Ex-101 屬於第 3 賽季。", "Ex-000、Ex-099 屬於第 4 賽季。"]
+    s4 = rows["4"]
+    assert s4[col["M"]] == "001–085" and s4[col["PR"]] == "001–013"
+    assert page.evaluate("(k) => t(k)", "product.level-4") in s4[-1]
 
 
 def test_unselectable_season_hidden_until_opened(page):
