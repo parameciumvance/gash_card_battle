@@ -86,7 +86,7 @@
 - **THEN** 寫成「選擇「索波龍」以外的對手1隻魔物」
 
 ### Requirement: 預組魔書資料
-`data/decks/` 的每個預組 SHALL 以 32 個頁位依序對應卡號,並記錄來源:`level1.json` 由 `ref/raw/deck/level1.txt` 轉換;`level2.json`、`gash-nakama.json`、`zeon.json` 依 atwiki 構築済み魔本頁(「黒き魔界よりの使者」pages/2054、「ガッシュ・ベルと仲間達」pages/2056、「ゼオンと最凶魔物達」pages/2057)的頁序;`ref-zeon-baltro-s2.json`、`ref-brago-s2.json` 為使用者提供的第 2 賽季參考牌組(牌組代碼 gash1,2026-11-01),依提供的頁序。載入時 MUST 驗證構築合法性(32 頁全滿、第 1 頁魔物、最後一頁戰術、中級 12 頁後、上級 22 頁後、同號 ≤4、魔物 ≤8、不含尚未開放的卡)且每個卡號存在於 cards.json。每個預組 SHALL 有 `name_key`,其名稱在四種語言的介面字典中都有翻譯。
+`data/decks/` 的每個預組 SHALL 以 32 個頁位依序對應卡號,並記錄來源:`level1.json` 由 `ref/raw/deck/level1.txt` 轉換;`level2.json`、`gash-nakama.json`、`zeon.json` 依 atwiki 構築済み魔本頁(「黒き魔界よりの使者」pages/2054、「ガッシュ・ベルと仲間達」pages/2056、「ゼオンと最凶魔物達」pages/2057)的頁序;`ref-zeon-baltro-s2.json`、`ref-brago-s2.json` 為使用者提供的第 2 賽季參考牌組(牌組代碼 gash1,2026-11-01),依提供的頁序;`ref-makai-{1,2}-{junior,middle,senior}.json` 為魔界王決定戦第 1、2 回各組(ジュニア、ミドル、シニア)優勝的魔本,依 atwiki 各優勝魔本頁(魔界王決定戦 pages/1878 所列)「魔本リスト」的頁序。載入時 MUST 驗證構築合法性(32 頁全滿、第 1 頁魔物、最後一頁戰術、中級 12 頁後、上級 22 頁後、同號 ≤4、魔物 ≤8、不含尚未開放的卡)且每個卡號存在於 cards.json。每個預組 SHALL 有 `name_key`,其名稱在四種語言的介面字典中都有翻譯。
 
 #### Scenario: 預組魔書通過驗證
 - **WHEN** 引擎載入 level1.json
@@ -103,6 +103,10 @@
 #### Scenario: 參考牌組
 - **WHEN** 載入 ref-zeon-baltro-s2.json 與 ref-brago-s2.json
 - **THEN** 兩者通過驗證,ref-zeon-baltro-s2 的 P01 為 M-029、P32 為 S-049,ref-brago-s2 的 P01 為 M-011、P32 為 S-036,賽季皆為第 2 賽季
+
+#### Scenario: 魔界王決定戦的優勝魔本
+- **WHEN** 載入 ref-makai-1-junior、ref-makai-1-middle、ref-makai-1-senior、ref-makai-2-junior、ref-makai-2-middle、ref-makai-2-senior
+- **THEN** 六副都通過驗證,32 頁與 atwiki 魔本リスト一致(例:ref-makai-1-junior 的 P01 為 M-030、P32 為 S-021;ref-makai-2-junior 的 P01 為 M-053、P32 為 S-036);第 1 回(2003-11)三副為第 2 賽季,第 2 回(2004-03)三副為第 4 賽季
 
 ### Requirement: 卡圖資產與備援
 卡圖檔 SHALL 為 WebP,檔名 `{卡號}.webp`,尺寸與原圖相同並保留透明通道(卡片圓角)。卡圖的來源 SHALL 為使用者維護的公開 Google Drive 資料夾(`https://drive.google.com/drive/folders/1cXx4gpa41HiycU4hIN74xbp1Aj3hiE-k`),其中每張卡的圖檔名為 `{卡號}.webp`。卡圖下載腳本 SHALL 取得該資料夾的檔名清單,依 `cards.json` 的卡號下載對應的 `{卡號}.webp`,存至 `frontend/assets/cards/{卡號}.webp`:下載到的內容已是 WebP 時 SHALL 原樣存檔;不是 WebP 時 SHALL 轉成 WebP 後存檔。已存在 `{卡號}.webp` 的卡 SHALL 跳過(續抓);資料夾中沒有該卡的檔案或下載失敗時 SHALL 寫入失敗清單並繼續。其他格式的卡圖檔(例如舊的 `{卡號}.jpg`)MUST NOT 被當作已安裝的卡圖。卡圖缺失 MUST NOT 影響遊戲功能(前端以文字卡面呈現)。

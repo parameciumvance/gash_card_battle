@@ -56,7 +56,9 @@ def test_random_npc_candidates_follow_season(page):
     mine = page.evaluate("DeckStore.list().find(d => d.name === 'mine').pages")
     assert body["season"] == 2
     assert body["npc_decks"] == [{"preset": "level1"}, {"preset": "level2"}, {"preset": "ref-brago-s2"},
-                                 {"preset": "ref-zeon-baltro-s2"}, {"pages": mine}]
+                                 {"preset": "ref-makai-1-junior"}, {"preset": "ref-makai-1-middle"},
+                                 {"preset": "ref-makai-1-senior"},
+                                 {"preset": "ref-zeon-baltro-s2"}, {"pages": mine}]   # 第 2 回魔界王(第 4 賽季)不在內
     page.wait_for_function("SESSION && SESSION.mode === 'npc' && R && R.season === 2")
 
 
