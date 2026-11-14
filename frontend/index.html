@@ -11,10 +11,6 @@
   <header id="topbar">
     <!-- 標題字(GASH / CARD BATTLE / ONLINE)與網站名稱 app.title 一致;螢幕閱讀器讀 aria-label -->
     <span id="title" role="link" tabindex="0"><span class="wordmark small"><img class="wm-badge" src="/static/favicon.svg" alt=""><span class="wm-text"><span class="wm-gash">GASH</span><span class="wm-sub">CARD BATTLE</span><span class="wm-sub wm-online">ONLINE</span></span></span></span>
-    <span id="identity"></span>
-    <span id="turn-info"></span>
-    <span id="phase-info"></span>
-    <span id="acting-info"></span>
     <span id="countdown"></span>
     <span id="conn-status"></span>
     <button id="rules-toggle"></button>
@@ -37,6 +33,7 @@
       <button class="entry" id="entry-npc"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-tables"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-friend"><span class="entry-title"></span><span class="entry-desc"></span></button>
+      <button class="entry" id="entry-tutorial"><span class="entry-title"></span><span class="entry-badge"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-builder"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-local"><span class="entry-title"></span><span class="entry-desc"></span></button>
       <button class="entry" id="entry-rules"><span class="entry-title"></span><span class="entry-desc"></span></button>
@@ -179,8 +176,9 @@
   <main id="layout" class="hidden">
     <section id="board">
       <div id="zone-top" class="player-zone top"></div>
-      <div id="battle-stage"><div id="timing-track" class="hidden"></div><div id="stage-content"></div></div>
+      <div id="battle-stage"><div id="stage-head"><span class="stage-name bottom"></span><div id="stage-mid"><span id="stage-turn"></span><div id="timing-track" class="hidden"></div><span id="stage-result" class="hidden"></span></div><span class="stage-name top"></span></div><div id="stage-content"></div></div>
       <div id="zone-bottom" class="player-zone bottom"></div>
+      <div id="tutorial-panel" class="hidden" role="region" aria-live="polite"></div>
       <div id="action-bar">
         <div id="turn-cluster" class="hidden" role="status">
           <div id="turn-dial">
@@ -279,7 +277,10 @@
   </div>
 
   <div id="zoom-overlay" class="hidden">
-    <div id="zoom-card"></div>
+    <div id="zoom-frame">
+      <div id="zoom-card"></div>
+      <button id="zoom-close" type="button">×</button>
+    </div>
     <div id="zoom-actions"></div>
   </div>
 
@@ -299,6 +300,7 @@
   <script src="/static/decks.js"></script>
   <script src="/static/sound.js"></script>
   <script src="/static/anim.js"></script>
+  <script src="/static/tutorial.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

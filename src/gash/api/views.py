@@ -9,9 +9,11 @@ viewer 取值:0 / 1 / "spectator" / "all"(本機模式全視角)。
 from __future__ import annotations
 
 from ..engine.engine import (
-    _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses,
+    _spell_any_page_standby, _spell_usable_by, ability_block, attack_undefendable, effect_block_sources, end_flip_loses, start_flip_end_loses,
     event_cost_breakdown,
-    event_limit, exhausted_spell_pages, partner_targets, play_block, power_breakdown, reveals_open_pages,
+    event_limit, exhausted_spell_pages, mamodo_attack_spec, mamodo_defense_spec, partner_targets, play_block,
+    power_breakdown, restriction_live,
+    reveals_open_pages,
     side_breakdown, spell_block, spell_cost, spell_power_preview, spell_cost_breakdown, uses_this_turn,
 )
 from ..engine.state import BOOK_SIZE, Game, slot_columns
@@ -66,20 +68,32 @@ def _slot_view(game: Game, player: int, slot, viewer=None) -> dict:
                             if reg.has_passive(n) and (by := effect_block_sources(game, player, slot, n))],
         "ability": _ability_view(slot.top),
         "partner_ability": _ability_view(slot.partner),
-        "mamodo_attack": reg.MAMODO_ATTACK.get(slot.top),  # 魔物效果攻擊規格(M-027)
-        "mamodo_defense": reg.MAMODO_DEFENSE.get(slot.top),  # 魔物效果防禦規格(M-039)
+        "mamodo_attack": _public_spec(mamodo_attack_spec(game, player, slot)),   # 魔物效果攻擊規格(M-027 / S-113)
+        "mamodo_defense": _public_spec(mamodo_defense_spec(game, player, slot)),  # 魔物效果防禦規格(M-039 / S-113)
         # 「1アクションを使って…捨て札にできる」:疊放的上層(M-046)/ 搭檔(P-020)
         "action_discard": len(slot.stack) > 1 and reg.ACTION_DISCARD.get(slot.top) == "top",
         "partner_action_discard": reg.ACTION_DISCARD.get(slot.partner) == "partner",
         # 效果已使用(每回合 1 次 / 一場限 1 次):前端據此停用按鈕
         "ability_used": _used(ps, "mamodo", slot.top, bool(top_spec and top_spec.per_game)),
         "partner_ability_used": _used(ps, "partner", slot.partner, bool(partner_spec and partner_spec.per_game)),
-        "mamodo_attack_used": _attack_used(ps, slot.top),
+        "mamodo_attack_used": _attack_used(game, player, ps, slot),
         "mamodo_defense_used": _used(ps, "mamodo_defense", slot.top),
     }
     if can_see_player(viewer, player):   # 效果的使用可否(使用條件可能看非公開資訊,只給持有者)
         view["ability_block"] = ability_block(game, player, "mamodo", slot, slot.top)
         view["partner_ability_block"] = ability_block(game, player, "partner", slot, slot.partner)
+    return view
+
+
+def _field_card_view(game: Game, player: int, fc, viewer=None) -> dict:
+    """獨立卡區的卡(MJ12):公開卡號與效果的使用狀態;使用可否只給持有者(battle-api「獨立卡區快照」)。"""
+    from ..engine.effects import registry as reg
+    spec = reg.ACTIVATED.get(fc.card)
+    ps = game.state.players[player]
+    view = {"uid": fc.uid, "card": fc.card, "ability": _ability_view(fc.card),
+            "ability_used": _used(ps, "field", fc.card, bool(spec and spec.per_game))}
+    if can_see_player(viewer, player):
+        view["ability_block"] = ability_block(game, player, "field", None, fc.card)
     return view
 
 
@@ -91,11 +105,20 @@ def _borrowed_block(game: Game, p: int):
     return ability_block(game, p, "borrowed", None, borrow.data["card"]) if borrow else None
 
 
-def _attack_used(ps, number):
+def _attack_used(game, player, ps, slot):
     """魔物效果攻擊本回合已用滿次數(M-068 每回合 2 次)時為 "turn"。"""
-    from ..engine.effects import registry as reg
-    spec = reg.MAMODO_ATTACK.get(number)
-    return "turn" if spec and uses_this_turn(ps, f"mamodo_attack:{number}") >= spec["per_turn"] else False
+    from ..engine.engine import _ability_reuse_standby, mamodo_attack_condition_ok
+    spec = mamodo_attack_spec(game, player, slot)
+    if spec and not mamodo_attack_condition_ok(game, player, slot, spec):
+        return "condition"                                                  # Ex-052 / Ex-055
+    if spec and uses_this_turn(ps, spec["key"]) >= spec["per_turn"] and _ability_reuse_standby(game, player, slot) is None:
+        return "turn"
+    return False
+
+
+def _public_spec(spec):
+    """快照用的魔物效果攻防規格:不送使用次數的內部鍵。"""
+    return None if spec is None else {k: v for k, v in spec.items() if k not in ("key", "condition")}
 
 
 def _in_use_pages(game: Game, p: int) -> set[int]:
@@ -208,10 +231,13 @@ def _player_view(game: Game, p: int, viewer) -> dict:
         "open_pages": open_pages,
         "consumed_pages": sorted(ps.consumed_pages),
         "slots": [_slot_view(game, p, s, viewer) for s in ps.slots],
+        "field_cards": [_field_card_view(game, p, f, viewer) for f in ps.field_cards],
         "discard": list(ps.discard),
         "used_spell_pages": sorted(exhausted_spell_pages(game, p)),   # 本回合不能再用的戰術卡頁
         "events_exhausted": ps.events_used_this_turn >= event_limit(game, p),   # 本回合事件卡已達上限(E-029 可提高)
         "end_flip_loses": end_flip_loses(game, p),   # 本回合結束時強制翻頁會落敗(公開)
+        # 開始階段的回合玩家:依翻頁張數(0…上限)翻了之後本回合結束是否落敗(公開);其他時候 None
+        "flip_end_loses": start_flip_end_loses(game, p),
     }
     # 己方完整魔書只對持有者本人揭露(規則上本就已知);對手與觀戰者不含
     if can_see_player(viewer, p):
@@ -268,7 +294,26 @@ def snapshot(game: Game, viewer) -> dict:
         if can_see_player(viewer, st.pending.player):
             pending["options"] = st.pending.options  # 選項細節只給決策者
         view["pending"] = pending
+    idle = _idle_view(game, viewer)
+    if idle is not None:
+        view["idle"] = idle
     return view
+
+
+def _idle_view(game: Game, viewer) -> dict | None:
+    """等待非回合玩家輸入(戰鬥階段、沒有決策)時,只給該玩家:除了預設回應之外有沒有其他可用行動,
+    沒有時附上預設回應(前端的自動 pass)。翻開的頁對對手隱藏,所以是私有資訊。"""
+    from ..engine.awaiting import awaited_player, default_command
+    from ..engine.state import BATTLE
+    from ..npc.candidates import other_actions_available
+    st = game.state
+    if st.phase != BATTLE or st.pending is not None:
+        return None
+    player = awaited_player(game)
+    if player is None or player == st.turn_player or not can_see_player(viewer, player):
+        return None
+    has = other_actions_available(game, player)
+    return {"has_actions": has, "auto": None if has else default_command(game)}
 
 
 def _effects_view(game: Game) -> list[dict]:
@@ -281,6 +326,8 @@ def _effects_view(game: Game) -> list[dict]:
                     "expires": sb.data.get("expires", "turn"), "created_turn": sb.created_turn,
                     "target_slot": sb.data.get("slot_uid"), **_public_data(sb.data)})
     for m in st.modifiers:
+        if m.kind == "restriction" and not restriction_live(game, m):   # S-117 / S-131:來源戰術被無效後解除
+            continue
         entry = {"type": "modifier", "kind": m.kind, "source": m.source, "owner": m.owner,
                  "duration": m.duration, "created_turn": m.created_turn,
                  "target_player": m.target_player, "target_slot": m.target_slot,
@@ -309,6 +356,7 @@ def _effects_view(game: Game) -> list[dict]:
 # 效果 data 中可公開、供顯示的欄位(白名單;其餘如續體一律不送)
 _PUBLIC_EFFECT_DATA = {"mamodo": str, "card": str, "power_delta": int, "cost_delta": int, "optional": bool,
                        "used": bool,   # used:E-010 借用的效果本回合是否已使用
+                       "side": str,    # side:MJ-002 / MJ-005 加成的是攻擊或防禦
                        "attr": str,    # attr:P-029 可使用的戰術屬性(日文元素名)
                        "amount": int,  # amount:E-038 待命的 MP 增加量(持續效果另有同名欄位)
                        "page": int,    # page:S-098 選定要重用的戰術頁(本回合已使用、已公開)

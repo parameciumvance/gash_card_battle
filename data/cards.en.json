@@ -293,6 +293,42 @@
   "attr": null,
   "effect": "Use 1 of the following effects. • Increase your MP and your opponent's MP by 2 each. • Reduce your MP and your opponent's MP by 2 each."
  },
+ "E-050": {
+  "name": "Wife",
+  "name_ja": "ワイフ",
+  "attr": null,
+  "effect": "Look at your opponent's Spell Book, choose 1 card from any page that has the same card name as a card in your opponent's Discard Pile, and discard it. • Cards whose names include ( ) are treated as cards with the same name even if the text inside the ( ) differs. • For W MAMODO and VS MAMODO, cards are not treated as having the same name unless their card names match exactly."
+ },
+ "E-051": {
+  "name": "Will You Help Me Fight?",
+  "name_ja": "一緒に戦ってくれるかい？",
+  "attr": null,
+  "effect": "Choose any number of Partner cards from any pages of your Spell Book and put them into play."
+ },
+ "E-052": {
+  "name": "Lying",
+  "name_ja": "ウ・ソ",
+  "attr": null,
+  "effect": "Choose 1 effect of your cards that was negated this turn by your opponent's CUT-IN effect, a “negate” effect, or the like. Treat that effect as not having been used (MP paid as a cost and cards discarded as a cost are returned)."
+ },
+ "E-053": {
+  "name": "I Won't Let You Pass!",
+  "name_ja": "ここは通さぬ！",
+  "attr": null,
+  "effect": "Choose 1 MAMODO in your play area and deal damage to it. Whether or not damage was dealt, negate 1 of your opponent's attacks in this BATTLE."
+ },
+ "E-054": {
+  "name": "Mysterious Stone Tablets",
+  "name_ja": "謎の石版",
+  "attr": null,
+  "effect": "Choose 1 of your opponent's MAMODO that has a “Discard this card →” effect and discard it."
+ },
+ "Ex-000": {
+  "name": "A Battle Once Every Thousand Years",
+  "name_ja": "１０００年に１度の戦い",
+  "attr": null,
+  "effect": "Use 1 of the following effects. • When you have no Stone Tablet MAMODO in play, choose 1 of your opponent's Stone Tablet MAMODO and deal damage to it. • When you have no MAMODO other than Stone Tablet MAMODO in play, choose 1 of your opponent's MAMODO other than Stone Tablet MAMODO and deal damage to it."
+ },
  "Ex-001": {
   "name": "Zatch Bell",
   "name_ja": "ガッシュ・ベル",
@@ -580,6 +616,180 @@
   "name_ja": "モチノキ遊園地",
   "attr": null,
   "effect": "Your MP and your opponent's MP become 4. ※ If MP is 5 or more, this effect is treated as an effect that “reduces MP”."
+ },
+ "Ex-049": {
+  "name": "Goren Of The Stone",
+  "name_ja": "ゴーレン",
+  "attr": "Terror of the Past",
+  "effect": "Reduce MP by 1 → [STAY] During this turn, your opponent cannot use the “MAMODO effects” of Stone Tablet MAMODO."
+ },
+ "Ex-050": {
+  "name": "5-Strike Super Attack",
+  "name_ja": "超攻撃５連発",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. Flip a coin 5 times. This SPELL's Power becomes the number of heads × 1000, and its damage becomes the number of heads × 1."
+ },
+ "Ex-051": {
+  "name": "Zatch Bell",
+  "name_ja": "ガッシュ・ベル",
+  "attr": "Unyielding Fighting Spirit",
+  "effect": "While this card is in play → When your Spell Book is at its last page, your opponent cannot use the effects of Event cards or Partner cards."
+ },
+ "Ex-052": {
+  "name": "Wonrei",
+  "name_ja": "ウォンレイ",
+  "attr": "Strength of the Iron Fist",
+  "effect": "Reduce MP by 1 → This effect can be used if “Li-en” is attached to this MAMODO. Attack with total Power 7000 (1 damage to your opponent's Spell Book)."
+ },
+ "Ex-053": {
+  "name": "Penny",
+  "name_ja": "パティ",
+  "attr": "A Maiden's Prayer",
+  "effect": "While this card is in play → Your opponent cannot put into play a card with the same card name as a card discarded during this turn."
+ },
+ "Ex-054": {
+  "name": "Kido",
+  "name_ja": "キッド",
+  "attr": "Onward, Kido!",
+  "effect": "While this card is in play → When this card is put into play, choose all cards in your opponent's play area. [STAY] During this turn's BATTLE PHASE, your opponent cannot use the effects of those cards."
+ },
+ "Ex-055": {
+  "name": "Danny",
+  "name_ja": "ダニー",
+  "attr": "Don't Call Me Danny Boy!",
+  "effect": "Reduce MP by 1 → This effect can be used if “Mr. Goldo” is attached to this MAMODO. Attack with total Power 6500 (2 damage to your opponent's Spell Book)."
+ },
+ "Ex-056": {
+  "name": "Borubora",
+  "name_ja": "ボルボラ",
+  "attr": "Garon",
+  "effect": "While this card is in play → You may use “Maruss” SPELLs with this MAMODO."
+ },
+ "Ex-057": {
+  "name": "Dogmos",
+  "name_ja": "ドグモス",
+  "attr": "Grandsen",
+  "effect": "While this card is in play → You may use “Eshros” SPELLs with this MAMODO."
+ },
+ "Ex-058": {
+  "name": "Erujo",
+  "name_ja": "エルジョ",
+  "attr": "Biraitsu",
+  "effect": "While this card is in play → You may use the SPELL card “Biraitsu” with this MAMODO."
+ },
+ "Ex-059": {
+  "name": "Kiyo Takamine",
+  "name_ja": "高嶺清麿",
+  "attr": "Believe in Me!",
+  "effect": "Discard this card → [STANDBY] In the next BATTLE this turn, when you attack with a “Zatch Bell” SPELL or “MAMODO effect”, your opponent cannot use Partner effects or Event cards during that BATTLE."
+ },
+ "Ex-060": {
+  "name": "Apollo",
+  "name_ja": "アポロ",
+  "attr": "A Free Man",
+  "effect": "While this card is in play → Your opponent cannot use effects that use cards on pages of their own Spell Book other than the current pages, and cannot put into play, discard, or move to another page cards on pages of their own Spell Book other than the current pages."
+ },
+ "Ex-061": {
+  "name": "Mr. Goldo",
+  "name_ja": "ゴルドー",
+  "attr": "Kids These Days...",
+  "effect": "Discard this card → [STANDBY] Once during this turn, you may use 1 “MAMODO effect” of “Danny” that you already used this turn, at cost 0."
+ },
+ "Ex-062": {
+  "name": "Zakeruga",
+  "name_ja": "ザケルガ",
+  "attr": "Thunder",
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "Ex-063": {
+  "name": "Rerudo",
+  "name_ja": "レルド",
+  "attr": null,
+  "effect": "Whether you win or lose the Power showdown, negate your opponent's 1-damage attack. By increasing this SPELL's cost by 2, you may also negate your opponent's 2-damage attack."
+ },
+ "Ex-064": {
+  "name": "Ak Spreid",
+  "name_ja": "アク・スプレイド",
+  "attr": "Water",
+  "effect": "Whether you win or lose the Power showdown, reduce the damage of your opponent's attack by 1."
+ },
+ "Ex-065": {
+  "name": "Zeburuk",
+  "name_ja": "ゼブルク",
+  "attr": null,
+  "effect": "Whether you win or lose the Power showdown, flip a coin twice; if you get heads at least once, negate your opponent's attack."
+ },
+ "Ex-066": {
+  "name": "Garon",
+  "name_ja": "ガロン",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "Ex-067": {
+  "name": "Grandsen",
+  "name_ja": "グランセン",
+  "attr": "Ground",
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "Ex-068": {
+  "name": "Bireiorudo",
+  "name_ja": "ビレオルード",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. When this SPELL is used to defend, it gets +2000 Power."
+ },
+ "Ex-069": {
+  "name": "The Devolo Ruins",
+  "name_ja": "デボロ遺跡",
+  "attr": null,
+  "effect": "[STAY] Choose all of your Stone Tablet MAMODO. Until the END PHASE of your next turn, those MAMODO get +2000 Power."
+ },
+ "Ex-070": {
+  "name": "Volcan's Close Call",
+  "name_ja": "バルカン危機一髪",
+  "attr": null,
+  "effect": "Remove all [STAY] or [STANDBY] effects of “raise a MAMODO's Power”, “raise a SPELL's Power”, and “raise total Power”."
+ },
+ "Ex-071": {
+  "name": "Suzy Mizuno",
+  "name_ja": "水野鈴芽",
+  "attr": null,
+  "effect": "[STAY] Choose 1 of your opponent's MAMODO. During this turn, your opponent cannot use that MAMODO's “MAMODO effects” or the effects of the Partner attached to that MAMODO."
+ },
+ "Ex-072": {
+  "name": "The Fish Professor",
+  "name_ja": "魚の教授",
+  "attr": null,
+  "effect": "Look at your opponent's Spell Book, choose up to 2 “Professor Dartagnan” from any page, and discard them."
+ },
+ "Ex-073": {
+  "name": "Thank You",
+  "name_ja": "ありがとう",
+  "attr": null,
+  "effect": "Increase your MP by 1 × the number of MAMODO cards in your Discard Pile."
+ },
+ "Ex-074": {
+  "name": "Who's The Odd One Out?",
+  "name_ja": "仲間外れは誰？",
+  "attr": null,
+  "effect": "Choose 1 MJ12 card in your opponent's play area and discard it."
+ },
+ "Ex-099": {
+  "name": "Zatch Bell",
+  "name_ja": "ガッシュ・ベル",
+  "attr": "Crybaby Zatch",
+  "effect": "While this card is in play → This effect can be used when you have no MAMODO in play other than this MAMODO. When choosing cards, neither you nor your opponent can choose this MAMODO."
+ },
+ "Ex-100": {
+  "name": "Treasure Map",
+  "name_ja": "宝の地図",
+  "attr": null,
+  "effect": "Flip a coin twice. If you get heads twice, increase your MP by 5."
+ },
+ "Ex-101": {
+  "name": "Mileage Card",
+  "name_ja": "マイレージカード",
+  "attr": null,
+  "effect": "[STANDBY] In the END PHASE of this turn, increase your MP by half (rounded down) of the amount your MP decreased during this turn's BATTLE PHASE."
  },
  "M-001": {
   "name": "Zatch Bell",
@@ -995,6 +1205,138 @@
   "attr": "Kung Fu",
   "effect": "Reduce MP by 2 → Attack with total Power 6000 (2 damage to your opponent's Spell Book)."
  },
+ "M-070": {
+  "name": "Zatch Bell",
+  "name_ja": "ガッシュ・ベル",
+  "attr": "Iron Will",
+  "effect": "Declare use → [STANDBY] In the next BATTLE this turn, when you attack with a “Zatch Bell” “MAMODO effect” or SPELL, your opponent cannot use “MAMODO effects” or Partner effects during that BATTLE."
+ },
+ "M-071": {
+  "name": "Brago",
+  "name_ja": "ブラゴ",
+  "attr": "Lofty Ideal",
+  "effect": "While this card is in play → When you lose the Power showdown in a BATTLE in which you attacked with this MAMODO, increase your MP by 3."
+ },
+ "M-072": {
+  "name": "Kanchome",
+  "name_ja": "キャンチョメ",
+  "attr": "I Love Candy!",
+  "effect": "While this card is in play → Each time you flip 1 coin, increase your MP by 1."
+ },
+ "M-073": {
+  "name": "Tia",
+  "name_ja": "ティオ",
+  "attr": "Gotta Hurry!",
+  "effect": "Declare use → [STANDBY] Once during this turn, you may use 1 “Tia” SPELL on a page of your Spell Book other than the last page to defend. If you do, after that BATTLE, discard the SPELL card you used."
+ },
+ "M-074": {
+  "name": "Ponygon (Go Shudoruk Form)",
+  "name_ja": "ウマゴン（ゴウ・シュドルク形態）",
+  "attr": "Evade",
+  "effect": "Cannot be put into play unless “Go Shudoruk” is used. You may use 1 action to discard this card, leaving the card underneath. Evade: While this card is in play → The Partner attached to this MAMODO cannot be discarded by your opponent's effects."
+ },
+ "M-075": {
+  "name": "Eshros",
+  "name_ja": "エシュロス",
+  "attr": "Hidden True Character",
+  "effect": "While this card is in play → When choosing cards, neither you nor your opponent can choose that MAMODO. When you use this MAMODO's SPELL, this MAMODO's “MAMODO effects” cannot be used during the next turn (this effect is [STANDBY] until the START PHASE of the next turn, and [STAY] during the next turn)."
+ },
+ "M-076": {
+  "name": "Baransha",
+  "name_ja": "バランシャ",
+  "attr": "Hunter",
+  "effect": "While this card is in play → The “amount of MP that can be increased” by your opponent in their START PHASE becomes up to 2."
+ },
+ "M-077": {
+  "name": "Donpoccho",
+  "name_ja": "ドンポッチョ",
+  "attr": "Pleading for Life",
+  "effect": "Declare use → End this BATTLE PHASE (CUT-IN effects can be used against this effect). In the END PHASE of this turn, effects are processed, but the “turn a page and increase MP by 2” step is not performed. Can be used only once per game."
+ },
+ "M-078": {
+  "name": "Kido",
+  "name_ja": "キッド",
+  "attr": "Cool! Doctor!",
+  "effect": "While this card is in play → The Partner attached to this MAMODO cannot be discarded by your opponent's effects."
+ },
+ "M-079": {
+  "name": "Penny",
+  "name_ja": "パティ",
+  "attr": "A Maiden's Love",
+  "effect": "While this card is in play → Your Spell Book cannot be looked at by your opponent. Your opponent cannot use effects that cannot be used without looking at your (this card's owner's) Spell Book (such as looking at the Spell Book and discarding a card)."
+ },
+ "M-080": {
+  "name": "Byonko",
+  "name_ja": "ビョンコ",
+  "attr": "An Intrusion/Battle Intrusion",
+  "effect": "An Intrusion: Discard this card → During your opponent's BATTLE PHASE, negate 1 Event card your opponent just used. Battle Intrusion: Discard this card → Negate 1 of your opponent's attacks in this BATTLE."
+ },
+ "M-081": {
+  "name": "Milordo-Z",
+  "name_ja": "ロード",
+  "attr": "An Evil Power",
+  "effect": "While in play, this card is treated as “Zofis”. Declare use → [STAY] Choose 1 of your opponent's MAMODO. For the rest of this game, your opponent cannot use that MAMODO's “MAMODO effects”. Can be used only once per game."
+ },
+ "M-082": {
+  "name": "Cut N' Paste",
+  "name_ja": "ノリトー・ハッサミー",
+  "attr": "Cutting Off The Space",
+  "effect": "Reduce MP by 2 → [STAY] Choose 1 of your opponent's MAMODO. During this turn, your opponent cannot “protect” with that MAMODO."
+ },
+ "M-083": {
+  "name": "Nya (Transformed)",
+  "name_ja": "ニャルラト（変身後）",
+  "attr": "Ribbon of Bounds",
+  "effect": "Stack on your “Nya”. Reduce MP by 1 → Choose 1 Partner card “Shion” from any page of your Spell Book and put it into play."
+ },
+ "M-084": {
+  "name": "Penny",
+  "name_ja": "パティ",
+  "attr": "You Scumbag!",
+  "effect": "Declare use → This effect can be used if pages of your Spell Book were turned this turn by your opponent's effects other than damage. Turn pages of your opponent's Spell Book equal to the total number of pages turned."
+ },
+ "M-085": {
+  "name": "Goren of the Stone",
+  "name_ja": "ゴーレン",
+  "attr": "Petrify",
+  "effect": "While this card is in play → Your opponent cannot return cards in the Discard Pile to play or to the Spell Book."
+ },
+ "MJ-001": {
+  "name": "Lightning Eye",
+  "name_ja": "ツー・ライティング・アイ",
+  "attr": null,
+  "effect": "Discard this card → 1 damage to your opponent's Spell Book (since this is damage, it can be “protected”). This effect can be used only once per turn."
+ },
+ "MJ-002": {
+  "name": "Rocket Foot",
+  "name_ja": "ロケット・フット",
+  "attr": null,
+  "effect": "Discard this card → [STAY] During this turn, the total Power of all your defenses is increased by 4000."
+ },
+ "MJ-003": {
+  "name": "Flying Beat",
+  "name_ja": "フライング・ビート",
+  "attr": null,
+  "effect": "Discard this card → Choose 1 MAMODO card or Partner card from any page of your Spell Book and put it into play."
+ },
+ "MJ-004": {
+  "name": "Second Sight",
+  "name_ja": "セカンド・サイト",
+  "attr": null,
+  "effect": "Reduce MP by 1 → Look at your opponent's current pages."
+ },
+ "MJ-005": {
+  "name": "Dinosaur Arm",
+  "name_ja": "ダイナソー・アーム",
+  "attr": null,
+  "effect": "Discard this card → [STAY] During this turn, the total Power of all your attacks is increased by 2000."
+ },
+ "MJ-006": {
+  "name": "Future Wonder",
+  "name_ja": "ワンダフル・トゥ・ザ・フューチャー",
+  "attr": null,
+  "effect": "While this card is in play → When your MP is reduced by your opponent's effect, reduce your opponent's MP by the same amount. ※ If your opponent also has “Future Wonder” in play, this effect applies once for each player."
+ },
  "P-001": {
   "name": "Kiyo Takamine",
   "name_ja": "高嶺清麿",
@@ -1253,6 +1595,48 @@
   "attr": null,
   "effect": "Declare use → [STANDBY] Choose 1 of your opponent's MAMODO. In the next BATTLE this turn, when you attack with a “Wonrei” SPELL or “MAMODO effect”, use 1 of the following effects. • Your opponent cannot use the chosen MAMODO's defense SPELLs. • Your opponent cannot “protect” against damage with the chosen MAMODO."
  },
+ "P-044": {
+  "name": "Garza",
+  "name_ja": "ガルザ",
+  "attr": null,
+  "effect": "Discard this card → This effect is [STANDBY] until the START PHASE of the next turn, and [STAY] during the next turn. During the next turn, your opponent cannot increase MP."
+ },
+ "P-045": {
+  "name": "Goman",
+  "name_ja": "ゴーマン",
+  "attr": null,
+  "effect": "Discard this card → Turn 1 coin you flipped by the effect of a SPELL you used with “Donpoccho” to heads."
+ },
+ "P-046": {
+  "name": "Dr. Riddles",
+  "name_ja": "ナゾナゾ博士",
+  "attr": null,
+  "effect": "Discard this card → Negate 1 Event card your opponent just used."
+ },
+ "P-047": {
+  "name": "Uri",
+  "name_ja": "ウルル",
+  "attr": null,
+  "effect": "Discard this card → Choose 1 non-MAMODO card in your or your opponent's play area that has a “While this card is in play →” effect, and discard it."
+ },
+ "P-048": {
+  "name": "Koko",
+  "name_ja": "ココ",
+  "attr": null,
+  "effect": "While this card is in play → Your opponent cannot discard MAMODO in their own play area (MAMODO may still be discarded by taking damage)."
+ },
+ "P-049": {
+  "name": "Shion",
+  "name_ja": "詞音",
+  "attr": null,
+  "effect": "While this card is in play → During the BATTLE PHASE, your opponent cannot turn back their own Spell Book. ※ You may use 1 action to discard this card."
+ },
+ "P-050": {
+  "name": "Kiichiro",
+  "name_ja": "遠藤喜一郎",
+  "attr": null,
+  "effect": "Discard this card → Reduce your opponent's MP by 2. If you do, increase your MP by the same amount you reduced."
+ },
  "PR-001": {
   "name": "Zatch Bell",
   "name_ja": "ガッシュ・ベル",
@@ -1318,6 +1702,18 @@
   "name_ja": "ガッシュ・ベル",
   "attr": "In High Spirits",
   "effect": "While this card is in play → This effect can be used if your MP is 1 or less in your END PHASE. Increase your MP by 2."
+ },
+ "PR-012": {
+  "name": "Black Knight",
+  "name_ja": "黒騎士",
+  "attr": "Guardian of the Book",
+  "effect": "While this card is in play → During the BATTLE PHASE, neither you nor your opponent can turn pages of a Spell Book with effects other than damage."
+ },
+ "PR-013": {
+  "name": "The White 101st Spell Book",
+  "name_ja": "１０１冊目の白い魔本",
+  "attr": null,
+  "effect": "Your opponent looks at your (this card's owner's) Spell Book, chooses 1 Event card after the current pages, and discards it. If they do, look at your opponent's Spell Book, choose 1 Event card after the current pages, and discard it."
  },
  "S-001": {
   "name": "Zaker",
@@ -1990,5 +2386,209 @@
   "name_ja": "ザケルガ",
   "attr": "Thunder",
   "effect": "Damage to your opponent's Spell Book. When this SPELL's damage is “protected” against, turn 1 page of your opponent's Spell Book."
+ },
+ "S-113": {
+  "name": "Rauzaruk",
+  "name_ja": "ラウザルク",
+  "attr": "Thunder",
+  "effect": "[STAY] Until the END PHASE of your next turn, your “Zatch Bell” has the following “MAMODO effect”. • Combat: Declare use → Attack with total Power 10000 (1 damage to your opponent's Spell Book), or defend ([BATTLE ATTACK] [BATTLE DEFENSE])."
+ },
+ "S-114": {
+  "name": "Clayshield",
+  "name_ja": "クレイシル",
+  "attr": "Ground",
+  "effect": "When you win the Power showdown, your opponent's attack is negated."
+ },
+ "S-115": {
+  "name": "Groundgarudo",
+  "name_ja": "グランガルゴ",
+  "attr": "Ground",
+  "effect": "Use both of the following effects, in this order. • Damage to your opponent's Spell Book. • Flip a coin; if heads, choose 1 of your opponent's MAMODO and deal damage to it."
+ },
+ "S-116": {
+  "name": "Claydo",
+  "name_ja": "クレイド",
+  "attr": "Ground",
+  "effect": "[STAY] Until the END PHASE of the next turn, your opponent cannot use “MAMODO effects” or SPELLs."
+ },
+ "S-117": {
+  "name": "Groundbai",
+  "name_ja": "グランバイソン",
+  "attr": "Ground",
+  "effect": "During this BATTLE, your opponent cannot use Event cards. Damage to your opponent's Spell Book."
+ },
+ "S-118": {
+  "name": "Okeru",
+  "name_ja": "ウォケル",
+  "attr": null,
+  "effect": "Use 1 of the following effects. • Damage to your opponent's Spell Book. • Choose 1 of your opponent's Partners and discard it."
+ },
+ "S-119": {
+  "name": "Doruk",
+  "name_ja": "ドルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-120": {
+  "name": "Boruk",
+  "name_ja": "ボルク",
+  "attr": null,
+  "effect": "Whether you win or lose the Power showdown, flip a coin twice; if you get heads at least once, your opponent's attack is negated."
+ },
+ "S-121": {
+  "name": "Gu Riaruk",
+  "name_ja": "グ・リアルク",
+  "attr": null,
+  "effect": "[STAY] Until the END PHASE of the next turn, your “Baransha” takes no damage, and when your opponent “chooses a card”, they cannot choose your “Baransha”."
+ },
+ "S-122": {
+  "name": "Gigano Gadoruk",
+  "name_ja": "ギガノ・ガドルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-123": {
+  "name": "Zegar",
+  "name_ja": "ゼガル",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-124": {
+  "name": "Zegaruga",
+  "name_ja": "ゼガルガ",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-125": {
+  "name": "Koburuk",
+  "name_ja": "コブルク",
+  "attr": null,
+  "effect": "Choose 1 of your opponent's Partners. Flip a coin; if heads, discard that Partner. Do this for each of your opponent's Partners."
+ },
+ "S-126": {
+  "name": "Raja Zerusen",
+  "name_ja": "ラージア・ゼルセン",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-127": {
+  "name": "Akur",
+  "name_ja": "アクル",
+  "attr": "Water",
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-128": {
+  "name": "Ashield",
+  "name_ja": "アシルド",
+  "attr": "Water",
+  "effect": "When you win the Power showdown, your opponent's attack is negated. Whether you win or lose the Power showdown, your opponent's “Thunder” attribute attack is negated."
+ },
+ "S-129": {
+  "name": "Ak Spreid",
+  "name_ja": "アク・スプレイド",
+  "attr": "Water",
+  "effect": "Damage to your opponent's Spell Book. If you used the SPELL card “Ashield” in the previous turn, this SPELL gets +4000 Power and +2 damage."
+ },
+ "S-130": {
+  "name": "So Giaku",
+  "name_ja": "スオウ・ギアクル",
+  "attr": "Water",
+  "effect": "Damage to your opponent's Spell Book. When used to defend, whether you win or lose the Power showdown, reduce the damage of your opponent's attack by 2."
+ },
+ "S-131": {
+  "name": "Go Redoruk",
+  "name_ja": "ゴウ・レドルク",
+  "attr": null,
+  "effect": "During this BATTLE, neither you nor your opponent can use Partner effects or Event effects. Damage to your opponent's Spell Book."
+ },
+ "S-132": {
+  "name": "Gar Redoruk",
+  "name_ja": "ガル・レドルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. If your opponent has not defended during this BATTLE, this SPELL's damage is increased by 1."
+ },
+ "S-133": {
+  "name": "Rao Diboren",
+  "name_ja": "ラオウ・ディバウレン",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. When this deals damage to your opponent's Spell Book or MAMODO, reduce your opponent's MP by 3, and increase your MP by the amount reduced."
+ },
+ "S-134": {
+  "name": "Shudoruk",
+  "name_ja": "シュドルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. This SPELL's total Power becomes 7000. Flip a coin; if heads, this SPELL's damage is increased by 1."
+ },
+ "S-135": {
+  "name": "Go Shudoruk",
+  "name_ja": "ゴウ・シュドルク",
+  "attr": null,
+  "effect": "Choose 1 “Ponygon (Go Shudoruk Form)” from any page of your Spell Book and stack it on the “Ponygon” in your play area."
+ },
+ "S-136": {
+  "name": "Paperuto",
+  "name_ja": "パペルト",
+  "attr": null,
+  "effect": "Use both of the following effects. • [STAY] Choose 1 of your opponent's MAMODO. Until the END PHASE of your next turn, your opponent cannot use that MAMODO's “MAMODO effects” or SPELL cards. • [STAY] Until the END PHASE of your next turn, you cannot use the “MAMODO effects” or SPELL cards of the “Nya” that was used to use this SPELL."
+ },
+ "S-137": {
+  "name": "Peruk",
+  "name_ja": "ペルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. Flip a coin twice; this SPELL's damage is the number of heads × 1."
+ },
+ "S-138": {
+  "name": "Kyadopan",
+  "name_ja": "キャドパン",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book."
+ },
+ "S-139": {
+  "name": "Baikal",
+  "name_ja": "バイカル",
+  "attr": null,
+  "effect": "Whether you win or lose the Power showdown, reduce the damage of your opponent's attack by 2."
+ },
+ "S-140": {
+  "name": "Baris",
+  "name_ja": "ヴォルク",
+  "attr": null,
+  "effect": "This SPELL can be used even if you do not have “Cut N' Paste” in your play area. Choose 1 “Cut N' Paste” from any page of your Spell Book and put it into play."
+ },
+ "S-141": {
+  "name": "Poreidoruk",
+  "name_ja": "ポレイドルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. When this deals damage to your opponent's Spell Book or MAMODO, your opponent cannot use SPELLs until the END PHASE of the next turn ([STAY])."
+ },
+ "S-142": {
+  "name": "Shizaruk",
+  "name_ja": "シザルク",
+  "attr": null,
+  "effect": "Flip a coin; if heads, this SPELL's damage is increased by 1. Damage to your opponent's Spell Book."
+ },
+ "S-143": {
+  "name": "Paperuk",
+  "name_ja": "パペルク",
+  "attr": null,
+  "effect": "Damage to your opponent's Spell Book. This SPELL's Power is the number of MAMODO cards in your Discard Pile × 2000."
+ },
+ "S-144": {
+  "name": "Ganzu Poreido",
+  "name_ja": "ガンズ・ポレイド",
+  "attr": null,
+  "effect": "[STAY] Until the END PHASE of the next turn, your opponent cannot use the effects of cards with a “Discard this card →” effect."
+ },
+ "S-145": {
+  "name": "Come Out!",
+  "name_ja": "出やがれ！",
+  "attr": null,
+  "effect": "Flip a coin; if heads, you may use the following effect. [STANDBY] In the next BATTLE this turn, you may use a SPELL on any page up to 4 pages after the current page of your Spell Book."
+ },
+ "S-146": {
+  "name": "Throw It Far Away!",
+  "name_ja": "ブン投げろー！",
+  "attr": null,
+  "effect": "This SPELL can be used when the Power of the MAMODO using this SPELL exceeds the Power of every one of your opponent's MAMODO by 5000 or more. This SPELL can be used only once per turn. Your opponent chooses 1 of their MAMODO and returns it to an empty page of their Spell Book."
  }
 }

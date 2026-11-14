@@ -788,9 +788,77 @@ def test_known_misplaced_flavor_source_changed_raises():
 
 def test_product_names_match_converter():
     from tools.build_cards_json import PRODUCTS
-    assert scraper.PRODUCT_NAMES == (set(PRODUCTS) - {"別売魔本(第2弾)"}) | {"TBB"}
+    # 依卡號轉換的產品(別売魔本第2弾、限定拡張的兩個產品)不會出現在卡頁上;卡頁寫的是共用的產品名
+    synthetic = {"別売魔本(第2弾)", "DX赤い魔本", "電撃フェスタ2004春の陣"}
+    assert scraper.PRODUCT_NAMES == (set(PRODUCTS) - synthetic) | {"TBB", "限定拡張"}
+
+
+@pytest.mark.parametrize("products", [["LEVEL:4", "TBB1", "RE"], ["拡張3　R", "TBB1　N"], ["限定拡張　N", "TBB2　R"]])
+def test_season4_product_lines(products):
+    # 第 4 賽季的新產品名:辨認為收錄產品,不被當成風味文
+    html = _ex_html("Ex-049", ["魔物　6000", "効果。", "パートナー＝モーリス"], ["風味。"] + products)
+    r = parse_card_page(html, "魔物", "Ex-049")
+    assert r["flavor_ja"] == "風味。" and r["sets_ja"] == "|".join(products)
+
+
+def test_known_no_partner_mamodo():
+    # PR-012 黒騎士:卡片本身沒有搭檔,卡頁沒有「パートナー＝」行
+    html = _ex_html("PR-012", ["魔物　7000", "《本の番人》効果。"], ["風味。", "プロモ"])
+    r = parse_card_page(html, "魔物", "PR-012")
+    assert r["related_partner_ja"] == "" and r["effect_ja"] == "《本の番人》効果。"
+    assert r["flavor_ja"] == "風味。" and r["sets_ja"] == "プロモ"
+    with pytest.raises(ValueError, match="related_partner_ja"):           # 未登記的魔物照舊報錯
+        parse_card_page(html.replace("PR-012", "PR-099"), "魔物", "PR-099")
 
 
 def test_ex002_stray_comma_removed():
     html = _ex_html("Ex-002", ["魔物　2000", "効果(0より小さくはならない)。,", "パートナー＝テスト"], ["風味。", "拡張1"])
     assert parse_card_page(html, "魔物", "Ex-002")["effect_ja"] == "効果(0より小さくはならない)。"
+
+
+def test_stone_tablet_mamodo_header():
+    # 石版魔物(Ex-056 等):資料頭「石版魔物　4500」;類型仍是魔物,另記石版標記
+    html = _ex_html("Ex-056", ["石版魔物　4500", "《ガロン》効果。", "パートナー＝ヘンリカ・アボット"], ["拡張3"])
+    r = parse_card_page(html, "魔物", "Ex-056")
+    assert r["stone_tablet"] == "1" and r["power"] == "4500" and r["related_partner_ja"] == "ヘンリカ・アボット"
+    assert r["effect_ja"] == "《ガロン》効果。" and r["sets_ja"] == "拡張3"
+    assert parse_card_page(_ex_html("Ex-051", ["魔物　4000", "パートナー＝高嶺清麿"], ["拡張3"]),
+                           "魔物", "Ex-051")["stone_tablet"] == ""
+    assert "stone_tablet" in scraper.FIELDNAMES
+
+
+def test_stone_tablet_category_from_header():
+    assert scraper.card_page_category(_ex_html("Ex-056", ["石版魔物　4500"], ["拡張3"]), "Ex-056") == "魔物"
+
+
+MJ12_PRODUCT_PAGE_HTML = """
+<h3 id="id_1">収録カード</h3>
+<h4 id="id_2">パートナー</h4>
+<ul><li>P-050 <a href="//w.example.test/pages/1464.html"  >\n遠藤喜一郎\n</a></li></ul>
+<br />
+<h4 id="id_3">MJ12</h4>
+<ul><li>MJ-001 <a href="//w.example.test/pages/1454.html"  >\nツー・ライティング・アイ\n</a> R</li></ul>
+"""
+
+
+def test_mj12_category_on_product_page():
+    # LEVEL:4 產品頁的「MJ12」分類(MJ-001~006)要被收錄,類型為 mj12
+    entries = parse_product_page(MJ12_PRODUCT_PAGE_HTML, "https://example.test/p.html")
+    assert [(n, c) for n, _, _, c in entries] == [("P-050", "パートナー"), ("MJ-001", "MJ12")]
+    assert scraper.CATEGORY_TO_TYPE["MJ12"] == "mj12"
+
+
+def test_mj12_card_page():
+    # MJ12 卡頁的資料頭是全形「ＭＪ１２」,沒有魔力、費用等欄位
+    html = _ex_html("MJ-004", ["ＭＪ１２", "MPを1へらす→相手の魔本の今のページを見る。"],
+                    ["マジョスティック12の一員。透視能力で全てを見通す。", "LEVEL:4　R"])
+    assert scraper.card_page_category(html, "MJ-004") == "MJ12"
+    r = parse_card_page(html, "MJ12", "MJ-004")
+    assert r["effect_ja"] == "MPを1へらす→相手の魔本の今のページを見る。"
+    assert r["power"] is None and r["cost"] is None and r["related_mamodo_ja"] == ""
+    assert r["flavor_ja"] == "マジョスティック12の一員。透視能力で全てを見通す。" and r["sets_ja"] == "LEVEL:4　R"
+
+
+def test_mj_range():
+    ranges = [scraper.parse_range("MJ-001:MJ-006")]
+    assert scraper.in_ranges("MJ-006", ranges) and not scraper.in_ranges("M-006", ranges)

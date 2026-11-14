@@ -56,7 +56,8 @@ def test_waiting_player_sees_current_results(page):
     page.evaluate("SESSION = {...SESSION, viewer: 0}")                    # 以玩家 1 的視角等待
     page.evaluate(COIN_PENDING, 1)
     assert page.locator("#action-bar .choice-prompt").count() == 0
-    assert "第 2 枚:反面" in page.locator("#acting-info").text_content()
+    note = page.locator("#action-bar .waiting-note").text_content()          # 等待提示在行動欄
+    assert "對手決策中" in note and "第 2 枚:反面" in note
 
 
 OPP_REDO_PENDING = """(player) => {

@@ -2,7 +2,7 @@
 
 停點:對局結束、回合交替、又輪到 NPC 做非戰鬥的決定,或達到步數上限。
 `turn_end_value` 在停於「又輪到 NPC」時再延伸一層(pass / 攻擊)到回合結束,讓所有候選以同一基準評分。
-對手的回應規則刻意簡單(迎戰、擋得下就以最低費用防禦、魔書受傷時保護、戰鬥中 pass、
+對手的回應規則刻意簡單(同意進入戰鬥、擋得下就以最低費用防禦、魔書受傷時保護、戰鬥中 pass、
 攻擊宣告被插入行動打斷時重新宣告、其他走安全預設);
 NPC 在模擬中遇到的中途決策,以各選項立即的評估挑選(不再往下模擬)。
 """
@@ -28,7 +28,7 @@ def clone(game: Game) -> Game:
     rng = random.Random()
     rng.setstate(game.rng.getstate())
     return Game(state=copy.deepcopy(game.state), rng=rng, db=game.db,
-                jammer=copy.deepcopy(game.jammer))
+                jammer=copy.deepcopy(game.jammer), previewing=True)   # 模擬用:不算保護的後果預告
 
 
 def try_submit(game: Game, player: int, command: dict) -> bool:

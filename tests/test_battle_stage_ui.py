@@ -12,7 +12,7 @@ def side_cards(page, which):
 
 
 def declare_attack(page):
-    """回合玩家以賈修(P1)與 P3 的 S-001 宣告攻擊,停在戰鬥開始確認。"""
+    """回合玩家以賈修(P1)與 P3 的 S-001 宣告攻擊,停在進入戰鬥確認。"""
     start_local(page)
     cmd(page, {"type": "flip_pages", "count": 0, "player": "tp"})
     cmd(page, {"type": "declare_attack", "page": 3, "player": "tp"})

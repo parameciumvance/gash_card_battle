@@ -76,12 +76,12 @@ def test_your_turn_when_action_passes_to_me(quiet):
     opp = start_as(quiet, "turn")                                          # 對手是非回合玩家
     me = 1 - opp
     send(quiet, me, {"type": "flip_pages", "count": 0})
-    send(quiet, me, {"type": "declare_attack", "page": 3})                 # 輪到對手回應迎戰
+    send(quiet, me, {"type": "declare_attack", "page": 3})                 # 輪到對手回應同意進入戰鬥
     quiet.wait_for_function(f"awaitedPlayer() === {opp}")
     quiet.evaluate("Anim.idle()")
     assert "your_turn" not in played(quiet)
     reset(quiet)
-    send(quiet, opp, {"type": "battle_in_response", "allow": True})        # 對手迎戰 → 輪到對手宣告防禦
+    send(quiet, opp, {"type": "battle_in_response", "allow": True})        # 對手同意進入戰鬥 → 輪到對手宣告防禦
     send(quiet, opp, {"type": "no_defense"})                               # → 輪到自己(效果)
     quiet.wait_for_function(f"awaitedPlayer() === {me}")
     quiet.evaluate("Anim.idle()")

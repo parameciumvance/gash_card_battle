@@ -22,7 +22,7 @@ def option(page, select, value):
 
 def test_season_limits_npc_deck_menus(page):
     open_setup(page, "npc")
-    assert page.locator("#season-npc").input_value() == "3"                     # 缺省第 3 賽季
+    assert page.locator("#season-npc").input_value() == "4"                     # 缺省第 4 賽季(season4-open)
     assert not option(page, "#deck-npc", "preset:zeon").is_disabled()
     page.select_option("#season-npc", "1")
     for sel in ("#deck-npc", "#deck-npc-opp"):
@@ -56,7 +56,9 @@ def test_random_npc_candidates_follow_season(page):
     mine = page.evaluate("DeckStore.list().find(d => d.name === 'mine').pages")
     assert body["season"] == 2
     assert body["npc_decks"] == [{"preset": "level1"}, {"preset": "level2"}, {"preset": "ref-brago-s2"},
-                                 {"preset": "ref-zeon-baltro-s2"}, {"pages": mine}]
+                                 {"preset": "ref-makai-1-junior"}, {"preset": "ref-makai-1-middle"},
+                                 {"preset": "ref-makai-1-senior"},
+                                 {"preset": "ref-zeon-baltro-s2"}, {"pages": mine}]   # 第 2 回魔界王(第 4 賽季)不在內
     page.wait_for_function("SESSION && SESSION.mode === 'npc' && R && R.season === 2")
 
 
@@ -67,7 +69,7 @@ def test_season_is_remembered(page):
     page.wait_for_function("Object.keys(CARDS).length > 0")
     open_setup(page, "local")
     assert page.locator("#season-local").input_value() == "2"
-    assert page.locator("#season-npc").input_value() == "3"                     # 各模式分開記
+    assert page.locator("#season-npc").input_value() == "4"                     # 各模式分開記(NPC 為缺省)
 
 
 def test_create_friend_room_sends_season_and_join_mode_hides_it(page):
@@ -95,3 +97,13 @@ def test_join_mode_has_no_season_and_shows_room_season_on_reject(page, server):
     assert "此房間為第 1 賽季" in page.locator("#toast").inner_text()
     assert page.locator("#setup-friend").is_visible()
     assert page.locator("#join-code").input_value() == room["code"]
+
+
+def test_front_card_season_matches_engine(page):
+    """前端 cardSeason 與引擎 card_season 對每個卡號(含未收錄卡號、特別歸屬)結果相同。"""
+    from gash.engine.seasons import card_season
+    numbers = ["M-015", "M-016", "M-085", "M-086", "PR-004", "PR-005", "PR-010", "PR-011", "PR-013",
+               "Ex-000", "Ex-048", "Ex-049", "Ex-074", "Ex-075", "Ex-099", "Ex-100", "Ex-101",
+               "MJ-006", "MJ-007"]
+    front = page.evaluate("(ns) => ns.map((n) => cardSeason(n))", numbers)
+    assert front == [card_season(n) for n in numbers]

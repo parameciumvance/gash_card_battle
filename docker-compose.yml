@@ -44,7 +44,9 @@ services:
     # 舊版綁的 Docker API client 太舊,連不上新版 Docker Engine(`client version
     # 1.25 is too old` 這類錯誤,導致不斷重啟崩潰)。改用社群接手維護的分支,
     # 環境變數/label 完全相容,純換 image 名稱。
-    image: ghcr.io/nicholas-fedor/watchtower
+    # 它掛載 Docker socket(等於 VPS 的 root 權限),所以釘版本與 digest,不自動換新;
+    # 升級由 Dependabot 開 PR,看過 release notes 再合併,之後在 VPS 上 `docker compose up -d`
+    image: ghcr.io/nicholas-fedor/watchtower:1.24.0@sha256:e96976bcbeaf0a9adeddc9016a539c27a2245ef6bb7d3ca97ed106783350d387
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

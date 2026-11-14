@@ -37,6 +37,12 @@ NO_DEFENSE = "no_defense"                  # 不能防禦(戰鬥時效)
 NO_ATTACK_SPELL = "no_attack_spell"        # 不能使用戰術卡攻擊(P-014)
 NO_MAMODO_EFFECTS = "no_mamodo_effects"    # 魔物卡效果失效(E-025)
 MAMODO_LOCKED = "mamodo_locked"            # 指定魔物:禁其效果(target_slot)與其名稱的戰術(data["mamodo"])(E-024)
+EFFECTS_LOCKED = "effects_locked"          # 指定魔物:禁其魔物效果與它身上搭檔的效果,不禁戰術(target_slot)(Ex-071)
+NO_MP_GAIN = "no_mp_gain"                  # MP 不能增加(翻頁、效果都算)(P-044)
+MAMODO_EFFECTS_LOCKED = "mamodo_effects_locked"   # 指定魔物:只禁其「魔物の効果」(target_slot)(M-081)
+PARTNER_LOCKED = "partner_locked"          # 指定魔物身上「那一張」搭檔(data["card"])的效果(Ex-054)
+FIELD_LOCKED = "field_locked"              # 獨立卡區的那一張卡(data["field_uid"])的效果(Ex-054)
+NO_STONE_TABLET_EFFECTS = "no_stone_tablet_effects"   # 禁石版魔物的「魔物の効果」(依當下的最上層判斷)(Ex-049)
 NO_EFFECTS_AND_SPELLS = "no_effects_and_spells"  # 不能使用魔物效果與戰術(S-075,整個玩家)
 NO_ATTACK = "no_attack"                    # 不能攻擊(戰術與魔物效果攻擊,E-039;不屬於可移除的分類)
 ONLY_MAMODO = "only_mamodo"                # 選定魔物(target_slot)以外:禁效果與保護,禁其名稱的戰術(E-043)
@@ -45,6 +51,7 @@ NO_EVENTS = "no_events"                    # 不能使用事件卡(P-042;不屬�
 NO_DEFENSE_SPELL_SLOT = "no_defense_spell_slot"  # 不能使用選定魔物名稱(data["mamodo"])的防禦戰術(P-043)
 NO_PROTECT_SLOT = "no_protect_slot"        # 選定魔物(target_slot)不能保護(P-043)
 NO_NAMED_SPELLS = "no_named_spells"        # 不能使用「data["mamodo"]」の術(PR-009)
+NO_DISCARD_COST_EFFECTS = "no_discard_cost_effects"  # 不能使用「このカードを捨て札にする→」的效果(S-144)
 
 # --- modifier 時效 ---
 DUR_BATTLE = "battle"                    # 本場戰鬥中
@@ -68,6 +75,7 @@ class Modifier:
     amount: int = 0
     flag: str | None = None            # restriction 旗標名
     data: dict[str, Any] = field(default_factory=dict)
+    use_id: int | None = None          # 效果編號(game-engine「效果編號」):同一次使用產生的紀錄相同
 
     def active(self, turn_no: int) -> bool:
         if self.duration == DUR_NEXT_TURN:
@@ -83,6 +91,7 @@ class Standby:
     owner: int
     created_turn: int
     data: dict[str, Any] = field(default_factory=dict)
+    use_id: int | None = None   # 效果編號(game-engine「效果編號」)
 
 
 @dataclass
@@ -97,6 +106,13 @@ class MamodoSlot:
     @property
     def top(self) -> str:
         return self.stack[-1]
+
+
+@dataclass
+class FieldCard:
+    """獨立卡區的卡:不裝在魔物上的場上卡片(MJ12;之後的獨立バルカン)。uid 與魔物槽共用序號。"""
+    uid: int
+    card: str
 
 
 def slot_columns(slots: list["MamodoSlot"]) -> dict[int, int]:
@@ -127,6 +143,7 @@ class PlayerState:
     pos: int = 1                               # 目前對頁的第一頁
     mp: int = 0
     slots: list[MamodoSlot] = field(default_factory=list)
+    field_cards: list[FieldCard] = field(default_factory=list)   # 獨立卡區,依出場順序(game-engine「獨立卡區與 MJ12」)
     discard: list[str] = field(default_factory=list)
     consumed_pages: set[int] = field(default_factory=set)   # 已離開魔書的頁(1-based)
     spell_page_uses: dict[int, int] = field(default_factory=dict)  # 本回合各戰術卡頁已使用次數
@@ -143,11 +160,17 @@ class PlayerState:
     opp_mp_reduced_turns: set[int] = field(default_factory=set)
     # 本回合被對手的效果實際減少的 MP 總量(E-028 / E-035)、本回合開始階段增加的 MP(P-035);回合結束歸零
     mp_reduced_by_opponent: int = 0
-    start_phase_mp_gain: int = 0
+    pages_turned_by_opponent: int = 0   # 本回合被對手傷害以外的效果實際翻過的張數(M-084)
+    start_phase_mp_total: int = 0   # 本回合開始階段增加的 MP 合計(翻頁與效果;M-076、P-035)
     # 本回合自己對對手魔書或對手魔物實際造成過傷害(E-041);回合結束歸零
     dealt_damage_this_turn: bool = False
     # 各回合宣告過的戰術屬性(Ex-043「直前のターンに…『雷』属性の術を使っていれば」);只保留本回合與前一回合
-    spell_attrs_by_turn: dict[int, set[str]] = field(default_factory=dict)
+    # 清單(可重複):E-052 把被無效的使用當作沒用過時只移除一筆
+    spell_attrs_by_turn: dict[int, list[str]] = field(default_factory=dict)
+    spell_names_by_turn: dict[int, list[str]] = field(default_factory=dict)  # 宣告過的戰術卡名(S-129 / S-146)
+    battle_phase_mp_lost: dict[int, int] = field(default_factory=dict)      # 各回合戰鬥階段中減少的 MP(Ex-101)
+    # 這回合被對手無效的自己的效果的使用紀錄(game-engine「被無效的效果」;E-052);回合結束清空
+    negated_this_turn: list[dict] = field(default_factory=list)
     # 最近一次自己的行動以效果使自己增加的 MP 與當時的 action_seq(Ex-025「直後」);ジャマー還原時一併還原
     last_effect_mp_gain: dict | None = None
 
@@ -216,6 +239,9 @@ class GameState:
     standby: list[Standby] = field(default_factory=list)
     battle_phase_acted: bool = False      # 本回合戰鬥階段中已有行動(PR-005「バトルフェイズの一番最初」)
     action_seq: int = 0                   # 已處理的行動(非 choose 的指令)數;「直後」的判斷用(Ex-025)
+    # 效果編號(game-engine「效果編號」):每次從頭解決效果配發一個;解決期間產生的持續效果與待命記在 use_id
+    use_seq: int = 0
+    current_use: int | None = None
     winner: int | None = None
     end_reason: str | None = None
     _uid_seq: int = 0
@@ -229,6 +255,9 @@ class GameState:
             if s.uid == uid:
                 return s
         return None
+
+    def field_card_by_uid(self, player: int, uid) -> FieldCard | None:
+        return next((f for f in self.players[player].field_cards if f.uid == uid), None)
 
     def find_mamodo(self, player: int, name: str) -> MamodoSlot | None:
         """以魔物名(英文 related_mamodo 名)找自己場上的魔物槽。"""
@@ -255,9 +284,15 @@ class Game:
     jammer: dict | None = None
     # 擲硬幣的ジャマー(M-065)擲幣中:待無效的行動(含快照);擲硬幣子階段結束後的 callback 取用
     jammer_coin: dict | None = None
+    # 後果預告用的副本(保護的後果預告):副本裡不再計算預告,避免連鎖傷害時層層複製
+    previewing: bool = False
 
     def emit(self, batch: list[dict], type_: str, **payload) -> dict:
         ev = {"seq": len(self.events), "type": type_, **payload}
+        if type_ == "mp_changed" and payload.get("delta", 0) < 0 and self.state.phase == BATTLE:
+            ps = self.state.players[payload["player"]]   # Ex-101:費用與效果的減少都算,只保留本回合
+            turn = self.state.turn_no
+            ps.battle_phase_mp_lost = {turn: ps.battle_phase_mp_lost.get(turn, 0) - payload["delta"]}
         self.events.append(ev)
         batch.append(ev)
         self._dispatch_triggers(batch, ev)

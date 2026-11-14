@@ -46,7 +46,7 @@ def ability(player, slot, zone="mamodo"):
 
 
 def attack(g, page, slot=None, defend_page=None):
-    """玩家 0 宣告攻擊、玩家 1 迎戰;defend_page 為 None 時不防禦。停在戰鬥中效果的時機(攻方先)。"""
+    """玩家 0 宣告攻擊、玩家 1 同意進入戰鬥;defend_page 為 None 時不防禦。停在戰鬥中效果的時機(攻方先)。"""
     cmd = {"type": "declare_attack", "player": 0, "page": page}
     if slot is not None:
         cmd["slot_uid"] = slot.uid
@@ -1002,7 +1002,9 @@ def test_s069_defense_coin_negates(heads, negated):
     st.players[0].mp, st.players[1].mp = 10, 10
     to_battle(g, 0)
     attack(g, 2, defend_page=2)
-    assert st.battle.attack_negated == negated
+    assert not st.battle.attack_negated                  # 於「効果の使用」的最後才無效
+    pass_effects(g)
+    assert bool([e for e in g.events if e["type"] == "attack_negated" and e.get("source") == "S-069"]) == negated
 
 
 @pytest.mark.parametrize("pick_book", [True, False])
@@ -1468,6 +1470,24 @@ def test_p035_reduces_twice_start_phase_gain():
     assert st.players[1].mp == max(0, before - 8)
 
 
+def test_p035_counts_start_phase_effect_gain():
+    # 「スタートフェイズにふやしたＭＰ」は翻頁以外の開始階段效果也算(與 M-076 一致,使用者 2026-11-10)
+    g, _ = mk(book("M-052"), book("M-002"))
+    st = g.state
+    barry = st.players[0].slots[0]
+    barry.partner = "P-035"
+    to_battle(g, 0)
+    submit(g, {"type": "pass", "player": 0})
+    submit(g, {"type": "pass", "player": 1})
+    st.players[1].mp = 0
+    submit(g, {"type": "flip_pages", "player": 1, "count": 0})               # M-002:MP 2 以下時 +1
+    assert st.players[1].mp == 1
+    submit(g, {"type": "pass", "player": 1})
+    submit(g, ability(0, barry, zone="partner"))
+    assert st.players[1].mp == 0                                            # 1 × 2 減少(不低於 0)
+    assert any(e["type"] == "mp_changed" and e["player"] == 1 and e["delta"] == -1 for e in g.events)
+
+
 def test_s104_damage_plus_two_without_spells_on_open_pages():
     # 相手の魔本を見て、今のページに術カードがないとき、この術のダメージを+2(攻擊成功時才檢視判斷,使用者確認)
     g, _ = mk(book("M-052", "S-104"), book("M-001", "E-024", "E-024"))
@@ -1528,7 +1548,7 @@ def test_s106_negates_and_turns_own_page():
     to_battle(g, 0)
     pos1 = st.players[1].pos
     attack(g, 2, defend_page=2)
-    assert st.battle.attack_negated and st.players[1].pos == pos1 + 2
+    assert not st.battle.attack_negated and st.players[1].pos == pos1   # 於「効果の使用」的最後才解決
     pass_effects(g)
     assert st.battle is None and st.players[1].pos == pos1 + 2
 
@@ -2372,6 +2392,28 @@ def test_s094_damage_bonus_and_protect():
     gash = st.players[1].slots[0]
     choose(g, gash.uid)                                                        # 以魔物保護
     assert gash.injured and st.players[1].pos == pos1
+
+
+@pytest.mark.parametrize("heads", [True, False])
+def test_s095_kanchome_deployed_later_also_protected(heads):
+    # 「このターン中、自分の『キャンチョメ』はダメージを受けない」:這回合之後才上場的キャンチョメ也不受傷害
+    from tests.test_season3_effects_2 import damage_slot
+    g, _ = mk(book("M-051", "S-058"), book("M-034", "S-095"))
+    st = g.state
+    g.rng = Rng(HEADS if heads else TAILS)
+    st.players[0].mp = st.players[1].mp = 10
+    to_battle(g, 0)
+    battle_in(g, 2)
+    submit(g, {"type": "declare_defense", "player": 1, "page": 2})
+    if st.pending is not None and st.pending.kind == "coin_confirm":
+        choose(g, None)
+    pass_effects(g)
+    finish_damage(g)
+    assert st.battle is None
+    later = add_slot(g, 1, "M-013")                                          # 之後上場的キャンチョメ
+    damage_slot(g, 1, later, source_player=0)
+    finish_damage(g)
+    assert later.injured is (not heads)
 
 
 @pytest.mark.parametrize("heads", [True, False])

@@ -20,7 +20,7 @@
       "blocks": [
         {"p": "Some cards are put into play and some are used from inside the Spell Book. You can only use cards on the pair of pages currently open in your own Spell Book."},
         {"list": [
-          "MAMODO: put into play. You can have up to 3 in play, and only 1 MAMODO with the same name (unless a card says otherwise). Some MAMODO can be stacked on their pre-transformation MAMODO (transformation).",
+          "MAMODO: put into play. You can have up to 3 in play, and only 1 MAMODO with the same name (unless a card says otherwise). Some MAMODO can be stacked on their pre-transformation MAMODO (transformation). MAMODO with a stone tablet icon are Stone Tablet MAMODO: they follow the same rules as other MAMODO, and only effects that name Stone Tablet MAMODO treat them differently.",
           "Partner: equipped to the matching MAMODO in your play area, 1 per MAMODO, and only 1 Partner with the same name. When a MAMODO is discarded, its Partner is discarded with it.",
           "SPELL: used from the Spell Book by paying its cost. The matching MAMODO must be in your play area; command SPELLs (orders to a MAMODO) can be used by any MAMODO. A SPELL that has been used cannot be used again until the next turn.",
           "Event: used from the Spell Book by paying its cost. Each player can use only 1 Event per turn."
@@ -41,7 +41,7 @@
         {"list": [
           "NO BATTLE: this SPELL is used when not in BATTLE, and using it does not start a BATTLE.",
           "BATTLE: this effect of a card in play can only be used in BATTLE; effects without this mark are normally used when not in BATTLE.",
-          "CUT-IN (jammer): right after your opponent uses certain effects, you may pay the cost to negate that effect (the card says which effects)."
+          "CUT-IN: right after your opponent uses certain effects, you may pay the cost to negate that effect (the card says which effects)."
         ]},
         {"icons": true}
       ]
@@ -105,7 +105,7 @@
           "Use an effect of a card in play: either player (see “Effects of cards in play”).",
           "Use an Event or NO BATTLE SPELL with A (Attack): only the turn player.",
           "Use an Event or NO BATTLE SPELL with D (Defense): only the non-turn player.",
-          "Declare an attack with a SPELL that has A (Attack): only the turn player; this goes to the BATTLE start check (see “BATTLE sequence”). Some MAMODO can make a MAMODO-effect attack (without a SPELL); their total Power and damage are fixed values given on the card."
+          "Declare an attack with a SPELL that has A (Attack): only the turn player; this starts the battle-in check (see “BATTLE sequence”). Some MAMODO can make a MAMODO-effect attack (without a SPELL); their total Power and damage are fixed values given on the card."
         ]},
         {"p": "You cannot freely turn your Spell Book in the BATTLE PHASE, but when damage or an effect turns you to a new pair of pages, you can use the cards on those pages."}
       ]
@@ -115,7 +115,7 @@
       "title": "BATTLE sequence",
       "blocks": [
         {"list": [
-          "Start check: the turn player declares an attack with a SPELL (shows the SPELL and pays its cost). The non-turn player may accept, or insert 1 action (play a card, an in-play effect, or an Event or NO BATTLE SPELL with D (Defense)); inserting an action voids this check, and the turn player may declare again or do something else.",
+          "Battle-in check: the turn player declares an attack with a SPELL (shows the SPELL and pays its cost) and asks whether they may battle in. The non-turn player may allow the battle-in, or insert 1 action (play a card, an in-play effect, or an Event or NO BATTLE SPELL with D (Defense)); inserting an action voids this check, and the turn player may declare again or do something else.",
           "Defense: the non-turn player (the defender) may defend with a SPELL that has D (Defense), paying its cost, or not defend. Some effects make an attack impossible to defend.",
           "Effects: starting with the attacker, players alternate using effects with BATTLE or passing; when both pass in a row, Power is compared.",
           "Power showdown: total Power = Power of the MAMODO using the SPELL + Power of the SPELL (including all modifiers). If the attacker's total is greater than the defender's, the attack succeeds; if they are equal or the defender's is greater, it fails. Without a defense the defender's total is 0; a negated attack counts as a failure.",
@@ -156,7 +156,7 @@
       "blocks": [
         {"list": [
           "Some effects flip coins, and the result depends on heads or tails. Both players can see the results.",
-          "After all coins are flipped, both players may use effects that change the result (re-flip, turn to heads). The player who flipped decides first, then players alternate; after one player uses an effect it is the other player's turn, and when neither uses any more the current result is resolved. These effects are not actions and cannot be negated by Jammer effects.",
+          "After all coins are flipped, both players may use effects that change the result (re-flip, turn to heads). The player who flipped decides first, then players alternate; after one player uses an effect it is the other player's turn, and when neither uses any more the current result is resolved. These effects are not actions and cannot be negated by CUT-IN effects.",
           "Some cards let you re-flip, such as Kanchome's effect or an Event that re-flips for MP. When deciding whether to re-flip, the screen lists the current result of each coin."
         ]}
       ]
@@ -175,7 +175,8 @@
   "seasons": {
     "season": "Season",
     "products": "New products",
-    "note": "{card} belongs to Season {n} and cannot be selected yet."
+    "note": "Season {n} cards (not selectable yet): {card}.",
+    "note_selectable": "Season {n} cards: {card}."
   },
   "figure": {
     "title": "Example card",
@@ -189,7 +190,7 @@
       "damage": "Damage",
       "battle": "BATTLE",
       "nobattle": "NO BATTLE",
-      "cutin": "CUT-IN (jammer)"
+      "cutin": "CUT-IN"
     },
     "icons_title": "Icon list"
   }

@@ -20,7 +20,7 @@ BATCH = ("E-047", "Ex-015", "Ex-021", "Ex-024", "Ex-031", "Ex-043", "Ex-044", "E
 
 
 def opp_attacks(g, page, defend_page=None):
-    """玩家 1 宣告攻擊、玩家 0 迎戰並(不)防禦,停在戰鬥中效果的時機(攻方先)。"""
+    """玩家 1 宣告攻擊、玩家 0 同意進入戰鬥並(不)防禦,停在戰鬥中效果的時機(攻方先)。"""
     battle_in(g, page, player=1)
     if defend_page is None:
         submit(g, {"type": "no_defense", "player": 0})

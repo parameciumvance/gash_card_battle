@@ -240,9 +240,9 @@ def test_open_table_with_season():
     assert table(3)["season"] is None
 
 
-def test_default_table_season_is_3():
+def test_default_table_season_is_4():
     sit(4, "小明")
-    assert table(4)["season"] == 3
+    assert table(4)["season"] == 4
 
 
 def test_bad_table_season_rejected():

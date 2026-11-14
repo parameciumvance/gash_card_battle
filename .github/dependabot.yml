@@ -1,0 +1,38 @@
+# 相依版本都已釘死(action 的 commit SHA、lock 檔的版本與 hash、映像檔的 digest),由 Dependabot 每週檢查新版、
+# 開 PR 到 dev;CI 照常跑全套測試,看過再合併(docker-deployment「CI 的權限與相依鎖定」)。
+# 每個生態系分組成一個 PR,避免一次開十幾個。
+version: 2
+updates:
+  # .github/workflows/ 的 action(SHA 後面的註解是版本號,Dependabot 會一併更新)
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # requirements.lock / requirements-dev.lock(pip-compile 產生,Dependabot 會重跑 pip-compile 更新版本與 hash)
+  - package-ecosystem: pip
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+
+  # Dockerfile 的基底映像檔 digest
+  - package-ecosystem: docker
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+
+  # docker-compose.yml 的 watchtower(cloudflared 維持 :latest 由 watchtower 自動更新,不在此列)
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly

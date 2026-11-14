@@ -9,7 +9,7 @@ Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的�
 ## Requirements
 
 ### Requirement: Production 容器映像檔
-專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。映像檔 SHALL 以 build arg `GASH_VERSION` 帶入版本號並設為同名環境變數;CI 建置時 SHALL 傳入觸發部署的 tag 名稱。
+專案 SHALL 提供獨立於開發容器(`.devcontainer/Dockerfile`)的 production `Dockerfile`,只安裝 `pyproject.toml` 核心依賴(不含 `dev` extras),且 MUST 依帶 hash 的 lock 檔安裝(版本與 hash 固定,建置用的工具也在 lock 內,不另外下載未驗證的套件);基底映像檔 MUST 以 digest 指定,進入點為單一 uvicorn 行程(不帶 `--reload`,不使用多 worker)。房間狀態存於行程記憶體,服務 MUST NOT 以多 replica/多 worker 方式水平擴展。映像檔 SHALL 以 build arg `GASH_VERSION` 帶入版本號並設為同名環境變數;CI 建置時 SHALL 傳入觸發部署的 tag 名稱。
 
 #### Scenario: 映像檔不含開發工具與測試檔案
 - **WHEN** 建置 production 映像檔
@@ -23,12 +23,20 @@ Scope:production 容器映像檔、經 Cloudflare Tunnel 對外服務、CI 的�
 - **WHEN** 推送 tag `v0.9.1` 觸發建置,並以產出的映像檔啟動容器
 - **THEN** `GET /api/meta` 的 `version` 為 `v0.9.1`
 
+#### Scenario: 相依依 hash 安裝
+- **WHEN** lock 檔中某個套件的 hash 與下載到的檔案不符
+- **THEN** 映像檔建置失敗,不推送
+
 ### Requirement: CI 測試與建置分流
-CI SHALL 區分「一般提交」與「正式發布」兩種流程:push 或 pull request 到主分支時只執行測試套件,不得觸碰部署環境;僅當推送符合版本號格式(`v*`)的 tag 時,才建置映像檔並推送至容器登錄庫。正式發布時,更新內容(見 `battle-ui`「更新內容」)MUST 已有與該 tag 相同版本號的條目,否則 CI MUST NOT 建置映像檔;建置推送後 SHALL 以該版的繁體中文更新內容建立 GitHub Release。CI MUST NOT 持有任何能連進 VPS 的常駐憑證(SSH 金鑰、VPN 授權等)——容器更新由 VPS 端自行輪詢容器登錄庫觸發,不是 CI 主動推送。
+CI SHALL 區分「一般提交」與「正式發布」兩種流程:push 或 pull request 到主分支或開發分支(`dev`)時只執行測試套件,不得觸碰部署環境;僅當推送符合版本號格式(`v*`)的 tag 時,才建置映像檔並推送至容器登錄庫。正式發布時,更新內容(見 `battle-ui`「更新內容」)MUST 已有與該 tag 相同版本號的條目,否則 CI MUST NOT 建置映像檔;建置推送後 SHALL 以該版的繁體中文更新內容建立 GitHub Release。CI MUST NOT 持有任何能連進 VPS 的常駐憑證(SSH 金鑰、VPN 授權等)——容器更新由 VPS 端自行輪詢容器登錄庫觸發,不是 CI 主動推送。
 
 #### Scenario: 一般 push 不影響線上服務
 - **WHEN** 開發者 push 一般commit 到主分支
 - **THEN** CI 執行測試套件,不建置映像檔、不連線 VPS、線上服務不受影響
+
+#### Scenario: 開發分支的 push 執行測試
+- **WHEN** 開發者 push commit 到 `dev`
+- **THEN** CI 執行測試套件,不建置映像檔、不連線 VPS
 
 #### Scenario: 打版號 tag 觸發建置
 - **WHEN** 開發者推送符合 `v*` 格式的 tag(如 `v0.2.0`),更新內容已有 `v0.2.0` 的條目
@@ -136,3 +144,43 @@ VPS 端 SHALL 執行一個定期輪詢容器登錄庫的更新代理,偵測到�
 #### Scenario: 查詢狀態
 - **WHEN** 執行狀態查詢
 - **THEN** 顯示線上版本(例如 `v1.3.3`)、`app` / `cloudflared` / `watchtower` 的狀態、VPS 與本機的卡圖張數、目前公告
+
+### Requirement: CI 執行全套測試
+CI 的測試套件 SHALL 是全套,包含瀏覽器測試:CI 環境 SHALL 安裝瀏覽器測試所需的 Chromium,瀏覽器測試 MUST NOT 因 CI 缺少瀏覽器而被略過。CI 的 Python 版本 SHALL 與 production 映像檔相同。同一分支有新的推送時,SHALL 取消該分支還在執行的舊測試;測試工作 SHALL 有逾時上限,卡住時以失敗結束。
+
+#### Scenario: 瀏覽器測試在 CI 執行
+- **WHEN** CI 對一般 commit 執行測試套件
+- **THEN** 瀏覽器測試實際執行;略過的只有測試本身設計為略過的項目(例如被動搭檔不能借用),沒有因缺少 Chromium 而略過的項目
+
+#### Scenario: 連續推送
+- **WHEN** 開發者連續推送兩次到 `dev`,第一次的測試還在執行
+- **THEN** 第一次的測試被取消,只有第二次的測試跑完
+
+### Requirement: 發布前的測試關卡
+推送版本號 tag 時,CI SHALL 先對該 tag 指向的 commit 執行全套測試,通過後才建置映像檔;測試失敗時 MUST NOT 建置映像檔、MUST NOT 建立 GitHub Release,線上服務維持原版本。
+
+#### Scenario: 測試失敗時不發布
+- **WHEN** 開發者推送 tag `v0.2.2`,更新內容已有 `v0.2.2`,但該 commit 有測試失敗
+- **THEN** CI 在測試階段失敗,不建置映像檔、不建立 Release,watchtower 不會拉到新版
+
+### Requirement: CI 失敗的診斷資料
+瀏覽器測試失敗時,SHALL 保存失敗當下各頁面的截圖,CI SHALL 將截圖上傳為該次執行的 artifact,讓開發者不必重現就能看到失敗時的畫面。測試全部通過時 MUST NOT 上傳。
+
+#### Scenario: 瀏覽器測試失敗
+- **WHEN** CI 中某個瀏覽器測試失敗
+- **THEN** 該次執行的 artifact 有那個測試失敗當下的頁面截圖,檔名可對應到測試名稱
+
+### Requirement: CI 的權限與相依鎖定
+CI 的 workflow SHALL 在頂層宣告最小權限:執行測試的 job 只有讀取權限(包括被發布流程呼叫時),只有建置並推送映像檔、建立 Release 的 job 可以寫入。repo 的預設 workflow 權限 SHALL 為唯讀。第三方 action MUST 以 commit SHA 引用並註明版本號;CI 安裝 Python 相依 MUST 依帶 hash 的 lock 檔。VPS 上掛載 Docker socket 的更新代理 MUST 以版本與 digest 指定映像檔,不自動更新;通道連接器維持自動更新。這些固定的版本 SHALL 由自動化工具(Dependabot)定期開 PR 到開發分支提醒升級,經測試與檢視後合併。
+
+#### Scenario: 測試 job 拿不到寫入權限
+- **WHEN** 開發者 push commit 到 `dev`,測試 job 執行
+- **THEN** 該 job 的 token 只有讀取 repo 內容的權限,不能推映像檔、commit 或 tag
+
+#### Scenario: action 不隨標籤移動
+- **WHEN** 某個第三方 action 的版本標籤被改指到其他 commit
+- **THEN** CI 仍執行原本釘住的 commit,直到合併升級的 PR
+
+#### Scenario: 升級經由 PR
+- **WHEN** 相依套件、action 或映像檔有新版
+- **THEN** 每週一次開 PR 到 `dev`,CI 跑全套測試,合併前不會進入正式環境

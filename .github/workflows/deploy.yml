@@ -1,6 +1,7 @@
 name: Deploy
 
 # 只有打版號 tag 才建置映像檔並推上 GHCR,一般 push 不會觸碰生產環境(見 test.yml)。
+# 建置前先跑全套測試(test job),通過才建置。
 # 這個 workflow 只到「把新 image 推上 registry」為止——VPS 上的 watchtower 會自己
 # 定期偵測新版並拉取重啟,CI 完全不需要連進 VPS、不需要 SSH 金鑰或加入任何 VPN。
 # VPS 上須先完成一次性設置,見 README「VPS 部署」章節。
@@ -9,28 +10,37 @@ on:
     tags:
       - "v*"
 
+# 預設不給任何權限,只在需要的 job 打開(docker-deployment「CI 的權限與相依鎖定」)
+permissions: {}
+
 jobs:
+  # 先對這個 tag 的 commit 跑全套測試(與 push 時相同的 test.yml),失敗就不建置、不建立 Release
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write   # 建立 GitHub Release
       packages: write   # 推送映像檔到 GHCR
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # 更新內容(frontend/i18n/releases.*.json)的最新一版必須等於這個 tag,否則不建置,線上維持原版本
       - name: Check release notes
         run: python3 tools/release_notes.py check "${{ github.ref_name }}"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           push: true

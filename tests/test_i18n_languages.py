@@ -19,10 +19,10 @@ KANA_RE = re.compile(r"[぀-ヿ]")
 
 # 規則書中有、但本遊戲(第一、二彈卡池)不存在的機制,依語言的稱呼
 ABSENT = {
-    "zh-TW": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴爾肯", "飛行"),
-    "zh-CN": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴尔肯", "飞行"),
-    "ja": ("石版", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "バルカン", "飛行"),
-    "en": ("stone tablet", "w mamodo", "vs mamodo", "s mamodo", "h mamodo", "mj12", "vulcan", "flying"),
+    "zh-TW": ("石版狀態", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴爾肯", "飛行"),
+    "zh-CN": ("石版状态", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "巴尔肯", "飞行"),
+    "ja": ("石版状態", "W魔物", "VS魔物", "S魔物", "H魔物", "MJ12", "バルカン", "飛行"),
+    "en": ("stone tablet state", "petrified", "w mamodo", "vs mamodo", "s mamodo", "h mamodo", "mj12", "vulcan", "flying"),
 }
 # 「攻(A)」「防(D)」的兩種意思:攻防用的戰術(攻擊 / 防禦時)與事件卡、非戰鬥戰術(回合玩家)
 ICON_TERMS = {
@@ -109,6 +109,16 @@ def test_rules_no_absent_mechanics(lang):
         assert [w for w in ABSENT[lang] if re.search(rf"\b{w}\b", text, re.I)] == []
     else:
         assert [w for w in ABSENT[lang] if w in text] == []
+
+
+# 石版魔物(battle-ui「規則頁的內容範圍」;season4-stone-tablets):卡片種類段落說明,石版狀態仍不寫
+STONE_TABLET = {"zh-TW": "石版魔物", "zh-CN": "石版魔物", "ja": "石版魔物", "en": "Stone Tablet MAMODO"}
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_rules_cards_section_explains_stone_tablet(lang):
+    cards = next(s for s in load(f"rules.{lang}.json")["sections"] if s["id"] == "cards")
+    assert STONE_TABLET[lang] in json.dumps(cards, ensure_ascii=False)
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -343,3 +353,26 @@ def test_feedback_button_matches_dialog_title(lang):
     d = load(f"{lang}.json")
     assert d["ui.feedback.toggle"] in d["ui.feedback.title"]
     assert d["ui.landing.feedback"] == d["ui.feedback.title"]
+
+
+# ---------------------------------------------------------------- 卡名的括號(battle-ui「卡名的括號」,card-name-quotes)
+
+CARD_PARAMS = ("card", "spell", "source")
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_card_names_not_in_double_angle_brackets(lang):
+    # 魔物卡名帶效果名(「{name}《{attr}》」),再以《》括住會變成《…《…》》:卡名一律用「」(en 用 “ ”)
+    bad = {k: v for k, v in load(f"{lang}.json").items()
+           if isinstance(v, str) and any(f"《{{{p}}}》" in v for p in CARD_PARAMS)}
+    assert bad == {}
+
+
+def test_app_js_does_not_wrap_card_names():
+    app = (ROOT / "frontend/app.js").read_text(encoding="utf-8")
+    assert "《${" not in app
+
+
+@pytest.mark.parametrize("lang, quoted", [("zh-TW", "「X」"), ("zh-CN", "「X」"), ("ja", "「X」"), ("en", "“X”")])
+def test_quoted_card_template(lang, quoted):
+    assert load(f"{lang}.json")["ui.quoted_card"].replace("{card}", "X") == quoted

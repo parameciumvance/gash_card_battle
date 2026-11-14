@@ -30,13 +30,13 @@ def result_text(page):
 
 # ---------------------------------------------------------------- 魔書耗盡、原因文字
 
-def test_book_progress_shows_exhausted(page):
+def test_book_shows_exhausted(page):
     tp, me = start_as(page, "turn")
     end_game(page, 1 - tp, players={tp: {"pos": 34}})
-    head = page.locator(f"{zone_of(page, tp)} .book-progress").text_content()
-    assert "魔書耗盡" in head and "34" not in head
-    other = page.locator(f"{zone_of(page, 1 - tp)} .book-progress").text_content()
-    assert "魔書耗盡" not in other
+    book = page.locator(f"{zone_of(page, tp)} .book-cover")                    # 顯示在魔書書皮上
+    assert book.locator(".book-exhausted").text_content() == "魔書耗盡" and "34" not in book.text_content()
+    assert page.locator(f"{zone_of(page, 1 - tp)} .book-exhausted").count() == 0
+
 
 
 def test_reason_names_the_loser(page):
@@ -44,8 +44,8 @@ def test_reason_names_the_loser(page):
     end_game(page, 1 - tp, players={tp: {"pos": 34}})
     loser = page.evaluate(f"pname({tp})")
     reason = f"{loser}的魔書無法再翻頁"
-    assert reason in page.locator("#acting-info").text_content()
-    assert "對手魔書" not in page.locator("#acting-info").text_content()
+    assert reason in page.locator("#stage-result").text_content()
+    assert "對手魔書" not in page.locator("#stage-result").text_content()
     assert reason in result_text(page)
 
 
@@ -138,7 +138,7 @@ def test_close_and_reopen_panel(page):
     page.wait_for_selector(RESULT)
     page.locator("#info-close").click()
     assert not page.locator(RESULT).count()
-    reopen = page.locator("#acting-info .result-reopen")
+    reopen = page.locator("#stage-result .result-reopen")
     assert reopen.is_visible()
     reopen.click()
     page.wait_for_selector(RESULT)

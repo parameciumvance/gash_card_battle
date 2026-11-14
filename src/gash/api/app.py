@@ -22,13 +22,14 @@ from pydantic import BaseModel
 from ..announcement import AnnouncementError, parse_announcement
 from ..engine.awaiting import awaited_player, default_command
 from ..engine.cards import DATA_DIR, card_db
-from ..engine.deck import DeckError, load_deck, validate_deck
+from ..engine.deck import DeckError, deck_warnings, load_deck, validate_deck
 from ..engine.seasons import deck_season, default_season, selectable_seasons
 from ..engine.engine import IllegalCommand, end_game, new_game, submit
 from ..engine.state import BOOK_SIZE, GAME_OVER
 from ..npc import LEVELS as NPC_LEVELS
 from ..npc import decide, submit_ranked
 from ..paths import frontend_dir, resolve_assets
+from ..tutorial import TailsRng, opponent_commands, tutorial_decks
 from ..version import app_version
 from .rooms import NpcSeat, Room, RoomError, RoomStore
 from . import tables as tables_mod
@@ -36,7 +37,7 @@ from .tables import (ENDED, EMPTY, LEAVE, PLAYING, REMATCH, TABLE_TIMERS, TABLES
                      connected_seats)
 from .views import filter_events, snapshot
 
-# Python 3.12 的 .webp 只在非嚴格對照表,python:3.12-slim 又沒有 /etc/mime.types,
+# 部分 Python 版本(如 3.12)的 .webp 只在非嚴格對照表,slim 映像檔又沒有 /etc/mime.types,
 # StaticFiles 會回 application/octet-stream;先登記,卡圖一律 image/webp
 mimetypes.add_type("image/webp", ".webp")
 
@@ -335,9 +336,12 @@ def _start_game(room: Room) -> None:
     default = _default_deck()
     deck0 = room.decks[0] or default
     deck1 = room.decks[1] or default
-    # 自由調查時間(本機模式)固定玩家 1 先攻;其他模式擲硬幣
+    # 自由調查時間(本機模式)與教學固定玩家 1 先攻;其他模式擲硬幣
     room.game = new_game(deck0, seed=room.seed, decks=(list(deck0), list(deck1)),
-                         first_player=0 if room.mode == "local" else None)
+                         first_player=0 if room.mode in ("local", "tutorial") else None,
+                         first_player_reason=room.mode if room.mode == "tutorial" else "local")
+    if room.mode == "tutorial":
+        room.game.rng = TailsRng()                     # tutorial「教學局面」:擲硬幣一律反面
     room.reset_deadline()
 
 
@@ -374,6 +378,19 @@ def _resolve(code: str, token: str | None) -> tuple[Room, int | str]:
 async def list_decks():
     """列出伺服器 data/decks/ 下所有預組魔書(丟檔即現)。"""
     return {"decks": preset_list()}
+
+
+class DeckWarningsRequest(BaseModel):
+    pages: list[str | None]
+
+
+@app.post("/api/decks/warnings")
+async def get_deck_warnings(req: DeckWarningsRequest):
+    """構築中魔書的組合提醒(deck-builder「魔書組合的提醒」):可含空頁;不是構築規則。"""
+    db = card_db()
+    if len(req.pages) != BOOK_SIZE or any(n is not None and n not in db for n in req.pages):
+        raise HTTPException(400, {"code": "deck.invalid", "message": "魔書須為 32 頁,卡號須存在"})
+    return {"warnings": deck_warnings(req.pages, db)}
 
 
 # ---------------------------------------------------------------- 執行環境
@@ -440,6 +457,9 @@ async def create_room(body: CreateRoom):
     npc_seat = None
     if body.mode == "npc":
         npc_seat, resolved[1] = _npc_seat(body, season)
+    elif body.mode == "tutorial":                      # 固定局面,不受賽季與合法性限制(tutorial「教學對局的開始」)
+        resolved = [tuple(p) for p in tutorial_decks()]
+        npc_seat = NpcSeat(level="tutorial", rng=random.Random(0))
     if body.mode == "local" and body.names is not None:
         names = [_clean_name(body.names[0] if len(body.names) > 0 else None),
                  _clean_name(body.names[1] if len(body.names) > 1 else None)]
@@ -464,7 +484,7 @@ async def create_room(body: CreateRoom):
         resp["player_tokens"] = [token0, token1]
         resp["events"] = filter_events(room.game.events, "all")
         resp.update(_state_payload(room, 0))
-    elif room.mode == "npc":
+    elif room.mode in ("npc", "tutorial"):
         room.npc = npc_seat
         _start_game(room)
         resp["player_token"] = token0
@@ -519,10 +539,23 @@ async def post_command(code: str, body: CommandBody,
         room.touch()
         room.reset_deadline()
         _note_action(room, viewer)
+        if room.mode == "tutorial":
+            room.tutorial_hold = True                  # 等教學面板的「下一步」再讓對手出手
     await _broadcast(room, events, actor=viewer)
     _kick_npc(room)
     ev = _effective_viewer(room, viewer)
     return {"actor": viewer, "events": filter_events(events, ev), **_state_payload(room, viewer)}
+
+
+@app.post("/api/rooms/{code}/tutorial/continue")
+async def tutorial_continue(code: str, x_player_token: str | None = Header(default=None)):
+    """教學房的「下一步」:放行腳本對手(tutorial「對手腳本的節奏」)。"""
+    room, viewer = _player_room(code, x_player_token)
+    if room.mode != "tutorial":
+        raise HTTPException(409, detail={"code": "room.not_tutorial", "message": "不是教學房"})
+    room.tutorial_hold = False
+    _kick_npc(room)
+    return {"ok": True}
 
 
 def _debug_state_payload(room: Room) -> dict:
@@ -868,6 +901,28 @@ async def forfeit(code: str, x_player_token: str | None = Header(default=None)):
     return {"actor": viewer, "events": filter_events(events, viewer), **_state_payload(room, viewer)}
 
 
+@app.post("/api/rooms/{code}/close")
+async def close_room(code: str, x_player_token: str | None = Header(default=None)):
+    """關閉房間(online-room「關閉房間」):自由調查時間、NPC 房的真人、對手尚未加入的朋友房建房者可關閉;
+    已開局的朋友房請棄權,牌桌的房間依牌桌的離開規則。"""
+    try:
+        room = store.get(code)
+        viewer = room.viewer_of(x_player_token or "")
+    except RoomError as exc:
+        raise _http_error(exc)
+    if viewer == "spectator":
+        raise HTTPException(403, detail={"code": "room.close_spectator", "message": "觀戰者不能關閉房間"})
+    if room.table is not None:
+        raise HTTPException(409, detail={"code": "room.close_table", "message": "牌桌的房間請離開牌桌"})
+    if room.mode == "online" and room.game is not None:
+        raise HTTPException(409, detail={"code": "room.close_started", "message": "對局已開始,請棄權"})
+    async with _lock(room.code):
+        if room.npc is not None and room.npc.task is not None and not room.npc.task.done():
+            room.npc.task.cancel()                                  # NPC 驅動不再對已刪除的房間出手
+        await _close_room(room)
+    return {"ok": True}
+
+
 @app.post("/api/rooms/{code}/absence")
 async def absence(code: str, body: AbsenceBody, x_player_token: str | None = Header(default=None)):
     """對手沒有回應時:end = 結束對局(對手判負,原因 absent);wait = 繼續等(之後再次符合條件才再問)。"""
@@ -991,7 +1046,7 @@ async def _timeout_loop() -> None:
 # ---------------------------------------------------------------- NPC 驅動
 
 # NPC 送出前的等待秒數:略長於標準速度的聚焦展示(pass 1 秒、其他 2 秒),畫面才跟得上
-NPC_QUIET_DELAY = 1.2     # 不改變盤面的指令(pass、迎戰、不防禦、不翻頁)
+NPC_QUIET_DELAY = 1.2     # 不改變盤面的指令(pass、同意進入戰鬥、不防禦、不翻頁)
 NPC_ACTION_DELAY = 2.3    # 其他指令
 _QUIET_COMMANDS = {"pass", "battle_in_response", "no_defense"}
 _log = logging.getLogger(__name__)
@@ -1010,7 +1065,7 @@ async def _npc_pause(seconds: float) -> None:
 def _npc_turn(room: Room) -> bool:
     game = room.game
     return (room.npc is not None and game is not None and game.state.phase != GAME_OVER
-            and awaited_player(game) == room.npc.seat)
+            and awaited_player(game) == room.npc.seat and not room.tutorial_hold)
 
 
 def _kick_npc(room: Room) -> None:
@@ -1026,6 +1081,8 @@ def _kick_npc(room: Room) -> None:
 def _npc_decide(room: Room) -> list[dict]:
     seat = room.npc
     try:
+        if seat.level == "tutorial":                   # 教學的腳本對手(tutorial「自由步驟的偏離」)
+            return opponent_commands(room.game, seat.seat)
         return decide(room.game, seat.seat, seat.level, seat.rng)
     except Exception:       # 模擬中的引擎錯誤不可拖垮房間:退回安全預設
         _log.exception("NPC 決策失敗(房間 %s)", room.code)

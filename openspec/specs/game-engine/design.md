@@ -25,7 +25,7 @@
 
 ## 戰鬥開始與待命表
 
-- `_start_battle` 在戰鬥開始確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、攻擊戰術的名稱集合 `spell_names`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
+- `_start_battle` 在進入戰鬥確認通過時呼叫:先依攻擊來源準備(`_prepare_spell_attack` / `_prepare_mamodo_attack`:再驗證、付費、記錄頁與 P-015 任意頁待命),得到 `AttackStart`(BattleState 初始參數、`battle.data`、`battle_started` 欄位、`is_spell`、攻擊戰術的名稱集合 `spell_names`、是否選擇 M-008 減費);之後共用建立戰鬥、啟用「下一場戰鬥」待命、發出 `battle_started`、消耗待命、戰術的宣告時效果。
 - 戰鬥開始時消耗的待命由 `BATTLE_START_STANDBYS` 表驅動,依表的順序消耗,每個發 `standby_resolved`:
 
 | 待命 | 適用條件 | 套用 |
@@ -45,10 +45,20 @@
 ## 攻防效果的宣告時確定
 
 - 規則出處:atwiki 規則頁(https://w.atwiki.jp/zatchbell/pages/94.html)「バトル ②防御 ※重要」:攻撃や防御の効果で対象を選ぶとき・コインを投げるときは宣言時、効果は宣言時に確定。效果文明寫其他時機時依效果文(S-004 / S-014 / S-037「ダメージをあたえたとき、コインを投げて」、S-039、S-078 在造成傷害時;S-021「効果の使用の最後に」)。
-- 攻擊的宣告時點是 `_start_battle`(迎戰確認之後、防禦宣告之前)。改為傷害對手魔物的攻擊(S-058、S-057 待命)先由 `_ask_injure_target` 選對象,選完才執行 `on_declare`(擲幣等),避免兩個決策同時出現。
+- 攻擊的宣告時點是 `_start_battle`(同意進入戰鬥確認之後、防禦宣告之前)。改為傷害對手魔物的攻擊(S-058、S-057 待命)先由 `_ask_injure_target` 選對象,選完才執行 `on_declare`(擲幣等),避免兩個決策同時出現。
 - 宣告時的結果存在 `battle.data`(`injure_target`、`declared_targets`、`RememberInBattle` 的鍵),結算時讀取;`on_declare` 與 `on_win` 是兩次獨立的效果樹執行,不共用 ctx。戰鬥結束時 `battle` 清空,結果一起消失。
 - 宣告時選定的對象在結算前不在時,那份效果沒有作用;攻擊被無效時,`on_win` 不執行,宣告時確定的效果一起失效。
-- S-021:`battle.data["negate_at_effects_end"]` 由 `_resolve_showdown` 開頭(雙方 pass 之後)處理,防禦已被無效時不生效。
+- **防禦戰術的效果於「効果の使用」的最後解決**(規則頁「バトル」②防御「防御の効果はここではまだ解決しません」、「攻撃や防御の無効化」「攻撃や防御のタイミングで使われた効果は無効になります」):戰術掛鉤 `on_effects_end`(與 `on_win`、`on_counter` 同類)。防禦的 `on_declare` 在宣告時擲幣 / 選對象,結果以 `RememberInBattle` 記在 `battle.data`(擲幣正面用 `defense_coin_heads`,與攻擊方的 `coin_heads` 分開,S-069 可能雙方同時使用);`_resolve_showdown` 開頭(雙方 pass 之後、魔力勝負計算前)在防禦戰術沒被無效時執行它的 `on_effects_end`。這些效果不是【スタンバイ】:不放進 `state.standby`,所以不會成為「待命中的效果」(P-034 / E-036 等)的對象,也不出現在作用中效果列表。S-021、S-025、S-027、S-069(防禦)、S-079、S-095、S-106 都用這個寫法;新的防禦戰術比照。
+- **「このバトル中…使えない」從宣告時生效**(S-117 / S-131):`RestrictInBattle` 加上 `DUR_BATTLE` 的限制,`data["lift_side"]` 記下來源戰術是攻擊或防禦。`engine.restriction_live` 在那一方已被無效時視為不生效,`restricted`、`slot_restricted`、`_restrictions` 與快照的作用中效果列表都經過它;不在各個「使無效」的地方移除,避免遺漏。
+- **戰鬥戰術的使用條件**(S-146):`SpellRider.declare_condition`(條件規格,ctx 含 `slot`、`side`)與 `once_per_turn`(依 `PlayerState.spell_names_by_turn` 的同名戰術)在 `_validate_spell_declaration` 檢查,宣告與進入戰鬥確認時都會走到;錯誤碼 `spell.condition` / `spell.used`。`spell_names_by_turn` 與 Ex-043 的屬性記錄同時寫入,只保留本回合與前一回合。
+- **魔物效果攻防規格的查詢**:一律經 `engine.mamodo_attack_spec` / `mamodo_defense_spec`(引擎、快照、NPC 都用),回傳的規格含使用次數的鍵 `key`。卡號登記的(M-027 等)優先;沒有時看效果賦予的(S-113 的 `granted_fighting` modifier,依當下的家族,`key` 為 `fighting:<來源>:<slot>`,攻防共用)。
+- **不能被對手選擇**(S-121):`primitives.selectable_opponent_slots(game, chooser)` 排除受 `unselectable` modifier(`data["mamodo"]` 為家族)保護的魔物。新的「由效果選對手魔物」的規格或節點都要用它,不要直接讀對手的 `slots`。依家族的不受傷害是 `no_damage` modifier 的 `target_slot` 為 None、`data["mamodo"]` 為家族。
+- **非戰鬥戰術的使用魔物**:handler 收 `user_slot`(效果 ctx 的 `user_slot`,S-136);`reg.spell_no_user` 的戰術在沒有可用的對應魔物時 `user` 為 None(S-140),仍檢查整個玩家的「術を使えない」。
+- **搭檔效果的「使えない」**:一律經 `engine.partner_effect_block_sources(game, player, slot)` / `partner_effects_blocked`:整個玩家的 `NO_PARTNER_EFFECTS`,加上綁在魔物上的 `EFFECTS_LOCKED`(Ex-071,同時擋這隻魔物的魔物效果、不擋戰術)。常駐效果、啟動效果、干擾、擲幣改正面、P-020 的 MP 鎖、P-031 的家族禁止都經過它;新的搭檔效果判斷不要直接讀 `NO_PARTNER_EFFECTS`。
+- **戰鬥階段減少的 MP**(Ex-101):`Game.emit` 在戰鬥階段的 `mp_changed`(delta 為負)時累加到 `PlayerState.battle_phase_mp_lost[turn_no]`(只保留本回合);干擾還原快照時一起還原。
+- **「このカードを捨て札にする→」的限制**(S-144,`NO_DISCARD_COST_EFFECTS`):`ability_block` 擋 `mode="discard"`、`_jammer_holders` 擋 `discard_self`、`primitives._set_heads_sources` 擋全部(登記的都是棄掉自己)。
+- 防禦的追加費用記在 `battle.data["defense_extra_cost"]`,供改變效果的追加(Ex-063,`SpellRider.extra_cost_effect` 決定選項文字)讀取。
+- 攻擊方的宣告時效果不延後:「この攻撃を防御できない」本來要在防禦宣告前作用;其餘(傷害 +N、不能保護、記下對象)要到攻擊成功才用到,攻擊被無效即不發生。魔力加成在魔力勝負時計算,被無效時 `_negate` 使合計魔力歸零。
 
 ## 擲硬幣子階段
 
@@ -81,7 +91,7 @@ negated                                                                ← 無�
 ## 1 個行動、ジャマー與「使えない」
 
 - 規則出處:官方規則書(https://ul.h3z.jp/7UgUhNx9.pdf,印刷頁碼)第 42 頁「『無効にする』と『使えない』」;atwiki 規則頁「1アクションを使って」與「ジャマー効果は相手が直前でおこなったアクションを取り消し、無効にする」。
-- `use_action_effect`:非戰鬥中的一般行動(戰鬥開始確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
+- `use_action_effect`:非戰鬥中的一般行動(進入戰鬥確認中也可插入),依 `reg.ACTION_DISCARD` 棄掉疊放上層或搭檔,之後照常交出行動權;不是效果,不檢查效果限制。
 - 魔物效果防禦:`declare_defense` 帶 `mode: "mamodo"`,依 `reg.MAMODO_DEFENSE` 付費,`battle.data["defense_fixed_power"]`;`_defended` 統一判斷防方有沒有防禦。不是戰術,所以「術による防御を無効」(P-017)無效不了。
 - 「無効にする」只對已使用的效果;ジャマー只在動作之後詢問,常駐效果不觸發。
 - ジャマー的種類(`reg.jammer(..., on=)`):`mamodo_effect`(M-026)、`event`(M-032 / Ex-034)、`mp_reduced`(M-065,對手的行動使持有者的 MP 實際減少)。持有者可以是魔物或搭檔(`_jammer_holder` 看 `slot.top` 與 `slot.partner`,搭檔受 `NO_PARTNER_EFFECTS`);`per_turn` 為 None 時不限次數。對手的每個行動(事件卡、魔物 / 搭檔的啟動效果、借用的搭檔效果、非戰鬥戰術)開始前,對手有任何可能回應的ジャマー時存快照(`_jammer_snapshot`),解決後 `_queue_action_jammer` 排定:該行動對應的種類,加上 `mp_reduced`(只在 batch 中有對手的 `mp_changed` 負值時);所有可用的持有者在同一個決策中同時列出(`_offered_jammers`,選項值為ジャマー卡號)。戰術獲勝時的效果不是行動,不詢問。
@@ -109,7 +119,8 @@ negated                                                                ← 無�
 - 規則出處:規則頁「１つの効果は、１ターンに１回だけ使うことができます」;官方規則書第 42 頁「無効にする」包括「バトル中に使われた攻撃や防御や術を取り消す」。
 - 「1 つの效果」以卡號計(`used_abilities` 的鍵是 `zone:卡號`):官方規則書第 20 頁在「このカードを捨て札にする→」明寫「捨て札にしたあとに、新たに同じカードナンバーのカードを場に出したとしても、そのカードの効果を使うことはできません」;「使用を宣言する→」「MPを○へらす→」只寫「1つの効果は、1ターンに1回」,同樣以卡號計是推論,使用者 2026-10-31 確認三種一致。規則頁「效果」一節也寫明相同編號的卡算同一個效果。
 - 使用紀錄沿用 `used_abilities`,鍵 `"mamodo_attack:{卡號}"` / `"mamodo_defense:{卡號}"`(與啟動效果 `"mamodo:{卡號}"` 分開;M-039 的兩個效果各自計算),付費時記錄。效果文明示次數時以 `reg.mamodo_attack(per_turn=)` 登記(M-068 為 2);第 2 次以後記為 `"…#2"`,`uses_this_turn` 計數,快照在用滿時才標示 `"turn"`。快照的魔物槽附 `ability_used` / `partner_ability_used` / `mamodo_attack_used` / `mamodo_defense_used`(`"turn"` / `"game"` / false),前端據此停用按鈕。
-- M-026 對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
+- 戰鬥中不能使用干擾(season4-events-b,規則頁「バトル中には…アイコンが付いた効果しか使えません」):`_jammer_holders` 在戰鬥中略過 `in_battle` 不為 True 的干擾,目前所有干擾都是 False,所以下面的魔物效果攻防無效化流程只保留給效果文明寫戰鬥中可用的干擾。
+- 戰鬥中可用的干擾對魔物效果攻擊 / 防禦:`_offer_battle_jammer` 以 `game.jammer = {"battle_side", "negate", ...}` 詢問(不存快照),使用時設定 `attack_negated` / `defense_negated` 與 `<side>_negated_by`;連鎖時另一方可再詢問並反轉。詢問結束後 `_battle_jammer_done` 續行(魔物效果攻擊:`_attack_declare_continue`;魔物效果防禦:`_enter_effects_step`)。不採快照還原,因為魔物效果攻擊本身就是開始戰鬥。
 
 ## 保護者
 
@@ -118,6 +129,7 @@ negated                                                                ← 無�
 - 不採用「把對手的魔物暫時視為自己的魔物」:會牽動場面計數與其他效果。
 - 可保護者的檢查順序:先排除不能保護的魔物(`reg.CANNOT_PROTECT`,M-051,任何效果都不能讓它保護);有 `protect_anyway`(M-042 指定這隻、E-031 指定整個玩家)的魔物一律可保護;其餘受「かばうことができない」限制——戰鬥資料的 `no_protect`(被限制的玩家清單;E-013 的待命、S-035 類)使魔書與魔物的傷害都不能保護,`protect_only`(P-026)/ `only_mamodo`(E-043)只留選定的魔物。P-027 指定的對手魔物也是「かばう」,套用受方的同一套檢查(受方的 `protect_anyway` 對它有效;M-042 指定的是持有者自己的魔物,它被對手指定時不適用)。`no_protect_slot`(P-043)排除選定的魔物(`protect_anyway` 優先)。
 - 強制保護(Ex-047):`_protect_choice` 先找受方生效中的 `forced_protector`,指定的魔物在候選內時建立只有它的保護決策並立即以 `_handle_choose` 解決(發 `protect_forced`),不等受方回應;不在候選內(傷害對象就是它、已離場、受限制)時照一般流程詢問。
+- 保護的後果預告(consequence-preview):`_protect_choice` 建立決策後,`_mark_protect_outcomes` 在副本上以 `_handle_choose` 實際結算各保護選項,確定離場的選項標 `leaves` / `leave_reason`(見 battle-api design「後果預告」)。副本以 `Game.previewing` 標記,副本裡不再計算;強制保護不詢問,不計算。`_discard_slot` 可帶 `source`,`mamodo_discarded` 事件因此帶上造成離場的效果卡(P-012 的 `_maybe_discard_protector` 傳入)。
 
 ## 場上魔物的欄位
 
@@ -138,3 +150,82 @@ negated                                                                ← 無�
 - 出處:atwiki「ルール」pages/87「大会ルール」記載公式大會與公認大會在 ADV ルール之外再加兩條,其中與對局有關的是「先攻の1ターン目はスタートフェイズにページをめくってもMPを増やせない」(pages/94 的開始階段說明也提到);另一條 PR 卡限 1 張見 `card-data` design「大會規則的 PR 卡限制」。
 - 不設開關,所有模式一律適用,當作基本規則(使用者決定,2026-11-01):不提供房間選項,也不另開 capability。
 - 「先攻の1ターン目」以 `turn_no == 1` 判定:第 1 回合的回合玩家就是先攻玩家(自由調查時間固定玩家 1 先攻也一樣)。只影響開始階段的主動翻頁:頁照翻,`pages_flipped.mp_gained` 為 0,`start_phase_mp_gain`(P-035)也記 0。開局準備的 +2、第 1 回合結束階段的強制翻頁 +2(規則只寫スタートフェイズ)不受影響。
+
+## 獨立卡區與 MJ12(mj12-cards)
+
+- `PlayerState.field_cards: list[FieldCard(uid, card)]`:不裝在魔物上的場上卡片,依出場順序;uid 與魔物槽共用 `next_uid`。之後的獨立バルカン(第 12 賽季)也放這裡,所以名稱不叫 MJ。
+- 放出走 `play_card`(今のページ、1 個行動):`play_block` 對 MJ12 只檢查同名(依 `name_ja`);事件 `card_played` 帶 `zone: "field"`、`field_uid`。戰鬥中只接受帶戰鬥圖示的效果,所以 MJ12 不能在戰鬥中放出(與魔物、搭檔相同)。
+- 效果走 `use_field_ability`(`zone: "field"`、`field_uid`):`ability_block(zone="field")` 不檢查魔物 / 搭檔的「使えない」;已使用記為 `field:<卡號>`。「このカードを捨て札にする」先 `discard_field_card`(事件 `card_discarded`,`zone: "field"`)再解決;效果樹的 `self_slot` 為 None。
+- 不經ジャマー快照:目前沒有ジャマー回應 MJ12 的效果(M-026 只回應魔物效果;MJ-006 是場にある效果,不能被無效)。
+- MJ-002 / MJ-005 的 modifier `side_power`(`data.side`):`side_breakdown` 的三條路徑(戰術、魔物效果攻擊、魔物效果防禦)都加,明細項 `side_power`。
+- MJ-006(`reg.mp_counter`):掛在 `reduce_opponent_mp` 實際減少之後,以及 E-004 的歸零;以層級參數實作「たがいに1回ずつ」(level 0 → 1 → 2 停)。事件 `field_card_effect`(行動記錄)。
+
+## 戰鬥中使用魔書的事件卡與效果編號(season4-events-b)
+
+- 有戰鬥圖示的事件卡(E-053):`STEP_EFFECTS` 輪到的玩家送 `use_book_card` 時,`_battle_icon_event` 確認那頁是有戰鬥圖示的事件卡,再交給 `_use_book_card`;之後的輪替比照 `use_field_ability`(pass 計數歸零,有 pending 時以 `pending_flip` 等決策解決後再換)。`_use_book_card` 對這類卡在 `STEP_EFFECTS` 以外一律 `event.timing`;`_battle_in_response` 在作廢進入戰鬥確認之前先拒絕,因為 `submit` 不會還原失敗指令已改的狀態。沒有圖示的事件卡在戰鬥中照舊 `battle.invalid`。
+- 效果中途造成傷害再續行(`DamageOwnMamodoThen`):傷害 ctx 帶 `after: "effect_tree_resume"` 與續體,`_finish_damage` 在傷害流程(含保護選擇)結束時續行效果樹;同步結束時在 `run` 之中就已續行,所以 `run` 一律回傳 False。
+- 效果編號:`GameState.use_seq` 配發、`current_use` 是解決中的編號(`tree._in_use` 設定並還原外層);`run_effect` 與 `resume` 都經過它,ctx 的 `use_id` 隨續體保存。`add_modifier` / `schedule_standby` 記在 `Modifier.use_id` / `Standby.use_id`,不放進 `data`。效果樹以外(引擎直接建立)的紀錄沒有編號。`SeparateEffects` 讓「●」列出的獨立效果各自配發編號,各步只能同步完成。
+- 提升魔力的判斷(Ex-070):`engine.POWER_UP_MODIFIERS` / `POWER_UP_STANDBYS` 依種類判斷;效果樹的 `Standby` 看觸發時要解決的子樹有沒有標 `raises_power` 且 amount > 0 的節點(`tree.standby_raises_power`)。新增加魔力的持續效果 / 待命種類或節點時要一併登記,否則 Ex-070 取除不了。
+
+## 被無效的效果與 E-052(season4-e052)
+
+- 使用紀錄(`engine.usage_record`):`{card, kind, mp, returns, undo}`。
+  - 事件卡、啟動效果、借用的搭檔效果、非戰鬥戰術:交給 `_queue_action_jammer(..., usage=)`,存在 `game.jammer["usage"]`。
+  - 攻擊與防禦:存在 `battle.data["attack_usage"]` / `["defense_usage"]`。
+  - 自己的干擾:連鎖時的詢問資料帶 `usage`。
+  - `returns` 以 `_discard_return` 在棄掉之前記下原位。
+- 記錄時機:
+  - 干擾無效化成立後(還原快照之後)`record_negated`。快照還原會換掉 `players`,所以一定要在還原之後記。
+  - 連鎖用的快照是在記錄之前取的,所以連鎖成功時,原先被無效的那筆自然消失。
+  - 戰鬥:`_end_battle` 依 `battle.data["<side>_negated_owner"]` 只記對手造成的無效。`NegateAttack`、`NegateOpponentSpell` 與戰鬥中的干擾都會設定這個值。
+- `PlayerState.negated_this_turn` 在回合結束清空。紀錄的 `id` 用 `next_uid` 配發,當作 E-052 的選項值。
+- 還原(`undo_negated_effect`):
+  - 退回 MP 的事件 `mp_changed` 帶 `reason: "refund"`,`_record_action` 不把它算成效果使 MP 增加(Ex-025)。
+  - 回場的魔物用原 uid;原欄位空著時放回原欄。
+  - 不發 `card_played`,所以「場に出たとき」不觸發。
+- 戰術名稱 / 屬性紀錄改為清單(可重複),還原時只移除一筆。`_mark_used` 回傳實際記入的 key(第 2 次以後是 `key#n`)。
+
+## 石版魔物與不能放回棄牌區的卡(season4-stone-tablets)
+
+- `CardDef.stone_tablet`;`engine.is_stone_tablet(game, slot)` 看最上層的卡。
+- Ex-049 的旗標 `NO_STONE_TABLET_EFFECTS` 在 `_mamodo_effect_blocks` 依當下判斷(`mamodo_restricted`),所以啟動效果、魔物效果攻防與 `card_effect_blocked` 都經過它。分類為 `mamodo_effects`。
+- Ex-069 是玩家層級 modifier `power_stone_tablet`,`power_breakdown` 的明細項為 `stone_tablet`;列在 `POWER_UP_MODIFIERS`。
+- M-085:`reg.BLOCK_DISCARD_RETURN` 與 `engine.discard_return_blocked(game, player)`(看對手場上未被「使えない」擋下的卡)。目前在 `PlayablePartnerInDiscard`、`PartnerDiscardedThisTurn`、`DiscardedCardsToReturn`、`DiscardedMamodoToReturn`、`OpponentDiscardedPartner` 與 E-052 的 `_return_cost_card` 檢查。新增「從棄牌區放回場上或魔書」的效果時要一併檢查。
+
+## MP 增加的限制、干擾的費用與效果再用(season4-mamodo-a)
+
+- MP 增加集中在 `_allowed_mp_gain`:`gain_mp`、開始階段翻頁、結束階段強制翻頁都經過它。P-044 的旗標 `NO_MP_GAIN` 擋下全部;M-076(`reg.START_PHASE_MP_CAP`)依 `PlayerState.start_phase_mp_total`(本回合開始階段已增加的合計,翻頁與效果)限制。被擋下時發 `mp_gain_prevented`。E-052 的退回直接加 MP,不經過它。
+- P-035 原本用只記翻頁的 `start_phase_mp_gain`,專案負責人決定依字面改為與 M-076 一致,共用 `start_phase_mp_total`(舊欄位移除)。
+- 干擾的使用 key 由 `jammer_key(number, zone)` 產生:同一張卡也有啟動效果時加 `:jammer`(M-080 兩個效果分開計次)。一般干擾依 `spec["zone"]` 棄掉魔物或搭檔;只有魔物的干擾提供 M-026 的連鎖。`reg.jammer(opponent_turn=True)` 只在持有者的對手是回合玩家時提供。
+- 魔物效果攻擊的條件 `reg.mamodo_attack(condition=)`(`attack.condition`);快照的 `mamodo_attack` 不送 `condition`。
+- Ex-061 的待命 `reuse_ability`(`data["mamodo"]` 為家族):魔物效果攻擊 / 防禦已用滿次數時才消耗,費用 0。
+- M-071 在魔力勝負判定後(`showdown` 事件之後、傷害之前)依 `reg.ATTACK_LOST_MP` 增加 MP。M-072 在 `flip_coins` 與 `_reflip_one` 擲出時依 `reg.COIN_THROWN_MP` 增加 MP。
+- P-045(`reg.coin_set_heads(spell_user=)`):擲硬幣子階段由 `_coin_spell_user_family` 從效果的續體 ctx(非戰鬥戰術的 `user_slot`;攻防戰術依 `side` 取戰鬥的使用魔物)判斷使用戰術的家族。
+
+## 雙方都不能選擇、不能棄掉自己的魔物、翻頁與魔書的限制(season4-mamodo-b)
+
+- 不能被選擇集中在 `primitives.unselectable_by(game, chooser, owner, slot)`:S-121 的 `unselectable` modifier(只對對手)與 `reg.UNSELECTABLE`(雙方)。`selectable_opponent_slots` 與新的 `selectable_own_slots` 都經過它;自己選魔物的選項規格(`OwnMamodo`、`OwnOtherMamodo`、`OwnPartneredMamodo`、`OwnInjuredMamodo`、`ReturnableOwnMamodo`)與 `has_own_mamodo` / `has_own_injured_mamodo` 改用 `selectable_own_slots`。
+- 常駐效果的表(`reg.LAST_PAGE_LOCK`、`BLOCK_DISCARDED_NAMES`、`BOOK_HIDDEN`、`BLOCK_OWN_MAMODO_DISCARD`、`BLOCK_TURN_BACK`、`BLOCK_EFFECT_PAGE_TURN`)以 `_field_cards` 查(被「使えない」擋下的不算)。
+- Ex-051:`last_page_lock_sources` 併入 `partner_effect_block_sources` 與事件卡的 `event.restricted`。
+- Ex-053:`name_deploy_blocked` 在 `play_block`(`discarded_name`)與效果放出的選項規格(`AttachablePartnerPagesInOwnBook`、`DeployableMamodoInOwnBook`、`PlayablePartnerInDiscard`、`PartnerDiscardedThisTurn`、`OpponentDiscardedPartner`、`OwnBookPartnerNamed`、`OwnBookCopiesOf`、`CanStackFromBook`)與結束階段強制放出的候選(`_mamodo_gone_processing`)檢查。新增放出路徑時要一併檢查。
+- Ex-054:`PARTNER_LOCKED`(`data["card"]`)與 `FIELD_LOCKED`(`data["field_uid"]`);`restriction_live` 依 `data["phase"] == "battle"` 只在戰鬥階段作用。
+- M-079:`book_hidden(game, owner)`、`views_opponent_book(card)`(效果文 regex);事件卡、戰術宣告、非戰鬥戰術、啟動效果(`book_hidden`)、`reveals_open_pages`、`RevealOpponentBook`、`OpponentBookCards` 都檢查。
+- P-048:`own_mamodo_discard_blocked`;檢查點為啟動效果(`own_discard_blocked`)、干擾 `discard_self`、擲幣改正面(魔物)、1 個行動棄掉疊放上層、`DiscardChosenMamodo`、`DiscardOwnMamodoByNumber`、`end_phase_discard` 中自己的魔物。
+- PR-012 / P-049:`primitives._page_lock`,在 `turn_pages` / `turn_back_pages` 擋下並發 `page_turn_restricted`。
+- M-075:`_lock_after_own_spell` 在攻擊、防禦、非戰鬥戰術使用時建立 `MAMODO_EFFECTS_LOCKED`(`DUR_NEXT_TURN`,對象是自己這隻魔物)。
+
+## 今のページ以外的卡的限制(season4-ex060)
+
+- `outside_page_locked(game, player)`:對手場上有未被擋下的 `reg.OUTSIDE_PAGE_LOCK`(Ex-060)。
+- 選自己魔書頁的選項規格一律經 `own_book_pages(game, player)`(受限時只回傳翻開的兩頁):`OwnEarlierPages`、`OwnBookPartnerNamed`、`OwnBookEvents`、`AttachablePartnerPagesInOwnBook`、`DeployableMamodoInOwnBook`、`OwnBookCopiesOf`、`CanStackFromBook`。新增選自己魔書頁的規格時要一併使用;棄掉自己魔書其他頁的卡的效果(之後的 M-073)也要檢查 `outside_page_locked`。
+- 使用其他頁卡片的效果:`uses_other_pages(number)` 走卡片效果樹,找允許從其他頁使用的待命節點;`other_pages_blocked` 在啟動效果(`ability_block` 的 `other_pages`)、事件卡、非戰鬥戰術與戰術宣告檢查(`*.other_pages`)。`_spell_any_page_standby` 在受限時不回傳待命。
+
+## 以效果結束戰鬥階段與被翻頁的紀錄(season4-mamodo-c)
+
+- M-077:`EndThisBattlePhase` 排 `end_battle_phase` 與 `skip_end_flip`(`data["this_turn"]`)待命;`_run_deferred_effects` 在沒有待決事項、待詢問的干擾與 deferred 待命時呼叫 `_end_battle_phase_by_effect` 進入結束階段。干擾無效時快照還原,待命消失。`_skips_end_flip`:擁有者是回合玩家(M-030)或 `this_turn`(M-077)。
+- M-084:`turn_pages(..., by=)` 記錄效果的使用者;`by` 是對手時累加 `PlayerState.pages_turned_by_opponent`(結束時歸零)。新增翻對手魔書的效果時要傳 `by`。
+- M-073:`ScheduleAnyPageUse` 的 `defense_only`、`discard_after_battle`;`_consume_any_page` 記在 `battle.data["discard_after_battle"]`,`_end_battle` 棄掉仍在魔書的那張卡(`book_page_reachable` 檢查 Ex-060)。
+
+## 進入戰鬥確認時插入的行動(nonbattle-spell-insert)
+
+- `_battle_in_response` 接受的插入行動原本是 `play_card` / `use_field_ability` / `use_book_card` / `use_action_effect`,漏了 `use_borrowed_effect`;E-010 借用的搭檔效果同樣是使用效果的 1 個行動,改為一併放行(使用者 2026-11-13 決定)。非戰鬥戰術經 `use_book_card` 原本就可插入,補測試記錄。

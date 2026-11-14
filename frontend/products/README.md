@@ -15,10 +15,16 @@
 | `mahon-file-2` | 魔本ファイル第2弾 |
 | `ex-sheet-1` | 魔本拡張シート LEVEL:1 |
 | `ex-sheet-2` | 魔本拡張シート LEVEL:2 |
+| `dx-red-book` | DX赤い魔本 スペシャルカードエディション(附錄卡 Ex-100、Ex-101) |
+| `level-4` | LEVEL:4 |
+| `ex-sheet-3` | 魔本拡張シート LEVEL:3 |
+| `festa-2004-spring` | 電撃フェスタ2004 春の陣 プロモーションシート |
 | `ex` | Ex カード(卡號 `Ex-` 開頭的所有卡,依卡號判定的虛擬產品) |
 | `promo` | 特典カード(PR) |
 
-目前的圖取自維護者的產品照片(補充包 / 卡組盒、魔本ファイル第1、2弾、LIMITED EDITION Ⅰ、スペシャルボックス、魔本拡張シート),長邊縮到 400px 轉 WebP。
+目前的圖取自維護者的產品照片資料夾(Google Drive `1PGDVBjJcnA0dlLH3d8uynhs4rwzgCXUl`:補充包 / 卡組盒、魔本ファイル第1、2弾、LIMITED EDITION Ⅰ、スペシャルボックス、魔本拡張シート),長邊縮到 400px 轉 WebP。
+`festa-2004-spring` 用「魔本拡張シート 電撃フェスタ2004.jpg」;同資料夾檔名帶「+」的那張是 JR西日本 スタンプラリー 的宣傳卡片紙,不是同一個產品。
+`dx-red-book.webp` 照片資料夾沒有,取自使用者提供的網路圖片(2026-11-07),同樣轉成長邊 400px 的 WebP。
 特典卡不是單一商品,`promo.webp` 是以介面配色(深藍底、金框、金色「PR」字)產生的圖示;`ex.webp` 同樣配色,字樣為「Ex」。
 網格中每格約 96×96 CSS px 顯示(圖片以 `object-fit: contain` 縮放,不裁切),換圖時建議長邊 192px 以上。
 要顯示哪些產品、如何分排,見 `frontend/pool-filters.json`。

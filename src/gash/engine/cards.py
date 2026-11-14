@@ -16,6 +16,7 @@ MAMODO = "mamodo"
 PARTNER = "partner"
 SPELL = "spell"
 EVENT = "event"
+MJ12 = "mj12"
 
 # 指示卡(對所有魔物的命令)的 related_mamodo 標記(日文權威來源用語)
 COMMAND_ALL = "コマンド"
@@ -38,6 +39,7 @@ class CardDef:
     power_special: bool         # 戰術魔力為 Special(不參與合計)
     damage: int | None
     damage_variable: bool = False   # 卡面「ダメージ?」:傷害依效果決定
+    stone_tablet: bool = False      # 石版魔物(game-engine「石版魔物」)
 
     @property
     def is_command_spell(self) -> bool:
@@ -70,6 +72,7 @@ def _to_def(raw: dict) -> CardDef:
         power_special=bool(power.get("special")),
         damage=raw.get("damage"),
         damage_variable=bool(raw.get("damage_variable")),
+        stone_tablet=bool(raw.get("stone_tablet")),
     )
 
 

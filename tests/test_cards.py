@@ -260,8 +260,12 @@ def test_m012_reflip_coin():
                "slot_uid": slot0(g, dp).uid})
     assert g.state.pending.kind == "coin_confirm"
     submit(g, {"type": "choose", "player": dp, "value": 0})  # 用 M-012 重擲
-    assert g.state.battle.attack_negated is True  # 重擲為正面 → 攻擊無效
     assert "mamodo:M-012" in g.state.players[dp].used_abilities
+    # 重擲為正面 → 於「効果の使用」的最後使攻擊無效(defense-effects-timing)
+    assert not g.state.battle.attack_negated
+    submit(g, {"type": "pass", "player": tp})
+    events = submit(g, {"type": "pass", "player": dp})
+    assert showdown_of(events)["attack_negated"]
 
 
 def test_s025_j_version_single_coin():
@@ -271,7 +275,10 @@ def test_s025_j_version_single_coin():
     events = submit(g, {"type": "declare_defense", "player": dp, "page": 2})
     coin_events = [e for e in events if e["type"] == "coin_flipped"]
     assert len(coin_events) == 1  # 日版:只擲 1 次
-    assert g.state.battle.attack_negated is True
+    assert not g.state.battle.attack_negated            # 於「効果の使用」的最後才無效
+    submit(g, {"type": "pass", "player": tp})
+    events = submit(g, {"type": "pass", "player": dp})
+    assert showdown_of(events)["attack_negated"]
 
 
 def test_m013_no_damage_when_injured():
@@ -588,7 +595,7 @@ def test_e005_two_heads_turn_back():
     # pos 10 → 開 10,11 頁;E-005 不在該頁 → 改放頁面
     g.state.players[0].pos = 2
     submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert g.state.players[0].pos == 2  # 已在最前,回翻不低於 2
+    assert g.state.players[0].pos == 0  # 正正回翻 2 張,但第 2、3 頁只能再回翻 1 張到第 1 頁(turn-back-to-page-one)
 
 
 def test_e006_heads_heals():
@@ -1189,7 +1196,7 @@ def test_s021_coin_negate_two_flips():
     assert g.state.pending.kind == "coin_confirm"
     submit(g, {"type": "choose", "player": dp, "value": None})
     # 至少一次正面:於「効果の使用」的最後才無效(declare-time-resolution)
-    assert "negate_at_effects_end" in g.state.battle.data and not g.state.battle.attack_negated
+    assert not g.state.battle.attack_negated
     submit(g, {"type": "pass", "player": tp})
     events = submit(g, {"type": "pass", "player": dp})
     assert showdown_of(events)["winner"] == "defender"
@@ -1267,7 +1274,10 @@ def test_e021_timeout_defaults_complete():
     assert g.state.pending is None
 
 
-BORROWABLE = [n for n in sorted(card_db()) if n.startswith("P-")]
+from gash.engine.cards import pending_cards  # noqa: E402
+
+# 尚未開放(效果未實作)的搭檔不列入,否則會被當成被動搭檔略過
+BORROWABLE = [n for n in sorted(card_db()) if n.startswith("P-") and n not in pending_cards()]
 
 
 @pytest.mark.parametrize("number", BORROWABLE)
@@ -1291,8 +1301,8 @@ def test_e010_each_partner_borrowed_acts_for_borrower(number):
         events = submit(g, {"type": "use_borrowed_effect", "player": 0})
     except IllegalCommand as e:
         # 只有對象不存在的使用條件可以拒絕:沒有可無效的對手術(防方未用戰術、自己是攻方)、
-        # 自己魔書中沒有可放出的搭檔(P-036)、魔書不在最後一頁(P-037)
-        assert number in ("P-009", "P-016", "P-017", "P-036", "P-037", "P-040") and e.code == "ability.condition"
+        # 自己魔書中沒有可放出的搭檔(P-036)、魔書不在最後一頁(P-037)、場上沒有可棄的常駐效果卡(P-047)
+        assert number in ("P-009", "P-016", "P-017", "P-036", "P-037", "P-040", "P-047") and e.code == "ability.condition"
         return
     assert any(ev["type"] == "ability_used" and ev["player"] == 0 for ev in events)
     assert holder.partner in (number, None)                  # 借用不棄卡(P-008 會棄掉對手的搭檔)

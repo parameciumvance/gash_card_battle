@@ -11,7 +11,7 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 | 遊戲核心 | `game-engine`、`card-effects`、`effect-tree` |
 | 卡片資料 | `card-data` |
 | 對戰服務 | `online-room`、`game-tables`、`battle-api`、`local-test-mode`、`npc-opponent` |
-| 前端 | `battle-ui`、`deck-builder` |
+| 前端 | `battle-ui`、`deck-builder`、`tutorial` |
 | 部署 | `docker-deployment` |
 
 ## Capabilities
@@ -21,17 +21,18 @@ Gash Card Battle Online:《金色のガッシュベル!! THE CARD BATTLE》(非�
 | Capability | 責任 | Spec 覆蓋 | Design 覆蓋 | 備註 |
 |---|---|---|---|---|
 | `game-engine` | 遊戲規則:階段、行動權、戰鬥流程、傷害與保護、勝敗、中途決策 | Partial | Partial | 初評。規則依官方規則書與 atwiki 規則頁(見 AGENTS.md);design 只有架構與 pending |
-| `card-effects` | 第一、二彈與第三彈全部卡片、第 3 賽季全部卡片(依機制分批實作,見 design「第 3 賽季卡片的機制」)的效果行為,效果原語、持續效果、待命、被動觸發 | Partial | Partial | 逐卡行為以日文效果文為準,spec 情境只列解讀與易錯處;design 只整理了效果樹遷移以來的機制與解讀 |
+| `card-effects` | 第一、二彈與第三彈全部卡片、第 3 賽季全部卡片(依機制分批實作,見 design「第 3 賽季卡片的機制」)、第 4 賽季的 MJ12、Ex-074、戰術(42 張)與事件卡(12 張)、石版相關卡(Ex-000、Ex-049、Ex-056~058、Ex-069、M-085)、魔物與搭檔全部(第 1~3 批 32 張與 Ex-060)的效果行為,效果原語、持續效果、待命、被動觸發 | Partial | Partial | 逐卡行為以日文效果文為準,spec 情境只列解讀與易錯處;design 只整理了效果樹遷移以來的機制與解讀 |
 | `effect-tree` | 卡片效果的執行機制:節點、直譯器、續體、登記入口 | Documented | Documented | 每條需求都有對應測試(`tests/test_effect_tree.py`,擲幣確認鏈另見 `tests/test_effect_characterization.py`) |
-| `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔書資料、賽季定義(卡號範圍) | Partial | Partial | 初評;design 整理了卡片文字檔、第三彈資料(含尚未開放清單 `data/pending_cards.json`、收錄產品與預組)、第 3 賽季資料(Ex / PR 卡、拡張シート版面、`mahon-file-2`)、賽季定義、大會規則的 PR 卡限制與卡圖(來源與格式) |
+| `card-data` | 日文權威來源抓取、`cards.json` 轉換、各語言卡片文字檔(`cards.<lang>.json`,簡中由繁中產生)、卡圖資產、預組魔書資料、賽季定義(卡號範圍) | Partial | Partial | 初評;design 整理了卡片文字檔、第三彈資料(含尚未開放清單 `data/pending_cards.json`、收錄產品與預組)、第 3 賽季資料(Ex / PR 卡、拡張シート版面、`mahon-file-2`)、第 4 賽季資料(限定拡張、石版魔物、MJ12、多個效果圖示、沒有搭檔的魔物)、賽季定義、大會規則的 PR 卡限制與卡圖(來源與格式) |
 | `online-room` | 房號約戰、房間賽季與魔書驗證、token 身分、回合計時與逾時代打、斷線重連、觀戰、NPC 房與 NPC 座位的驅動、對戰中人數 | Partial | Partial | 初評;design 只整理了等待者、NPC 座位、對戰中人數與房間賽季 |
 | `game-tables` | 固定 5 張牌桌:列表、入座與衝突處理、等待中離開與斷線寬限、結束後再戰 / 離開(每局一間線上房) | Documented | Documented | 測試在 `tests/test_tables.py`、`tests/test_tables_ui.py`;房間本身見 `online-room` |
 | `battle-api` | 房間內對局的指令轉發、視角化快照與事件、WebSocket 推送 | Partial | Partial | 初評;design 只整理了快照的公開 / 私有界線 |
 | `local-test-mode` | 本機房與 NPC 房的金手指端點 | Partial | Partial | 初評;design 只有行為決定與理由 |
 | `npc-opponent` | NPC 對手的決策:資訊可見範圍、只送出引擎接受的指令、難度與基本判斷、可重現 | Documented | Documented | 測試在 `tests/test_npc.py`;NPC 房與驅動見 `online-room` |
 | `battle-ui` | 對戰畫面:首頁(含對戰中人數)、設定頁與牌桌頁、盤面(含場上魔書翻閱)、回合與時機指示、操作與決策、終局與結算面板、行動記錄、動畫與聚焦展示、音效、演出設定、規則頁、意見回報、更新內容(release note)、維護公告、語言選擇(繁中、簡中、英、日)與 i18n | Partial | Partial | 初評;design 只整理了首頁與設定頁、更新內容、維護公告、事件動畫、聚焦展示、音效、回合和時機指示、終局、規則頁、意見回報與語言 |
-| `deck-builder` | 魔書構築:對頁編輯、卡池圖示篩選(含賽季)、合法性提示、瀏覽器儲存、文字碼 | Partial | Partial | 初評;design 只整理了卡池篩選(與金手指共用,含產品依賽季分排)與魔書的賽季標示 |
-| `docker-deployment` | VPS 容器部署:映像檔、Cloudflare Tunnel 對外、CI 分流(含發布前的更新內容檢查與 GitHub Release)、自動更新、本機的維運腳本(卡圖同步、維護公告發布 / 撤下、狀態查詢) | Partial | Partial | 初評;design 整理了架構、映像檔、發布與更新、對外服務、維運腳本(測試在 `tests/test_vps_tool.py`;公告格式規則與 `battle-api` 共用) |
+| `deck-builder` | 魔書構築:對頁編輯、卡池圖示篩選(含賽季)、合法性提示、組合提醒、瀏覽器儲存、文字碼 | Partial | Partial | 初評;design 只整理了卡池篩選(與金手指共用,含產品依賽季分排、尚未開放的卡顯示但不可選)、魔書的賽季標示與組合提醒 |
+| `tutorial` | 教學對局:固定局面、腳本對手、17 個步驟與關鍵步驟的鎖定、教學面板、入口與完成 | Documented | Documented | 測試在 `tests/test_tutorial.py`、`tests/test_tutorial_ui.py`;房間沿用 `online-room` 的 NPC 座位與驅動,決策換成腳本(不經 `npc-opponent`) |
+| `docker-deployment` | VPS 容器部署:映像檔、Cloudflare Tunnel 對外、CI 分流(`main` / `dev` 跑含瀏覽器測試的全套、發布前的測試關卡與更新內容檢查、GitHub Release、失敗截圖)、CI 最小權限與相依鎖定(action SHA、hash lock 檔、映像檔 digest、Dependabot)、自動更新、本機的維運腳本(卡圖同步、維護公告發布 / 撤下、狀態查詢) | Partial | Partial | 初評;design 整理了架構、映像檔、發布與更新、對外服務、維運腳本(測試在 `tests/test_vps_tool.py`;公告格式規則與 `battle-api` 共用) |
 
 ## 重要關係與 flow
 
@@ -61,6 +62,17 @@ game-engine.submit(與玩家相同的路徑)──事件──▶ battle-api 過
 
 - `npc-opponent` 持有「NPC 決定送什麼」;`online-room` 持有「何時、以什麼節奏送」。
 - 「NPC 看得到什麼」以 `battle-api` 的視角過濾為準。
+
+### 教學對局
+
+```text
+battle-ui 首頁「教學」──建房 mode=tutorial──▶ online-room(NPC 座位 level=tutorial,固定局面、反面硬幣)
+        │                                            │ 輪到對手且已放行
+        │ 每個玩家指令後伺服器暫停對手                 ▼
+        └── tutorial.js 讀完說明後 /tutorial/continue ──▶ tutorial 腳本(opponent_commands)──▶ game-engine.submit
+```
+
+- `tutorial` 持有劇本、步驟、鎖定與腳本對手;房間的建立與驅動沿用 `online-room`,規則裁決在 `game-engine`。
 
 ### 卡片效果
 

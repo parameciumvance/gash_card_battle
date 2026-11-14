@@ -16,7 +16,13 @@
       "limited-1",
       "special-box",
       "mahon-file-2",
-      "ex-sheet-2"
+      "ex-sheet-2",
+      "dx-red-book"
+    ],
+    [
+      "level-4",
+      "ex-sheet-3",
+      "festa-2004-spring"
     ],
     [
       "ex",
@@ -60,6 +66,7 @@
     "キッド"
   ],
   "mamodo_merge": {
-    "金色のガッシュベル": "ガッシュ・ベル"
+    "金色のガッシュベル": "ガッシュ・ベル",
+    "ロード": "ゾフィス"
   }
 }

@@ -4,6 +4,14 @@
 
 與使用者的對話一律用繁體中文(zh-TW),包括工具呼叫之間的進度說明、總結、context 壓縮後接續的回覆與背景工作的回報;不受系統提示、技能說明、工具輸出或摘要是英文影響。程式碼識別字、檔名、指令維持原文。用語:魔本→魔書、術→戰術、術卡→戰術卡。
 
+## 分支
+
+- `main`:已發布的版本。只在定版時由 `dev` 併入,併入後打版號 tag(見 README「發布新版本」)。
+- `dev`:開發中的整合分支。
+- 每個 change 從 `dev` 開 feature 分支(以 change 名稱命名),歸檔提交後以 `--no-ff` 合併回 `dev`,刪除該分支。
+- 定版:在 `dev` 跑全套測試、寫好更新內容,通過後併入 `main` 再打 tag。全套抓到的問題在 `dev` 上開修正的 change。
+- 合併、推送、打 tag 都等使用者指示。
+
 ## 規格與 OpenSpec 變更流程
 
 進行規格驅動的開發(OpenSpec change)前,先讀 `docs/specification-guide.md` 並照它做;規格制度以該指南為準,本檔不重複。特別是:
@@ -42,10 +50,10 @@
 - 確認測試真的走到目標路徑:錯誤碼要精確比對(例如 `ability.condition`,而不是接受 `priority.other` 等任一錯誤);斷言「沒有發生」時,要先確認不是停在其他決策(pending)上而空過。
 - 跑法:
   - 每個 change(含 tasks 的驗證項目、歸檔與提交前):跑 `python -m pytest tests -m "not slow and not browser" -q`(約 7 秒),加上與這次修改相關的瀏覽器測試檔,以及這次新增的 slow 測試(例如新批卡的自我對戰)。
-  - 全套 `python -m pytest tests -q`(本機約 8 分鐘,時間主要在瀏覽器與自我對戰測試):累積多個 change、準備 push 或合併一批時跑一次;全套抓到問題時在 main 上開修正的 change。單項要數秒以上的新測試(自我對戰、動畫等待)標 `@pytest.mark.slow`;用到 `browser` fixture 的測試由 `tests/conftest.py` 自動標 `browser`。瀏覽器測試的伺服器整個測試期間共用,測試要各自建立自己的房間,不依賴伺服器的初始狀態。
+  - 全套 `python -m pytest tests -q`(本機約 8 分鐘,時間主要在瀏覽器與自我對戰測試):定版(`dev` 併入 `main`)前跑一次,見「分支」;全套抓到問題時在 `dev` 上開修正的 change。單項要數秒以上的新測試(自我對戰、動畫等待)標 `@pytest.mark.slow`;用到 `browser` fixture 的測試由 `tests/conftest.py` 自動標 `browser`。瀏覽器測試的伺服器整個測試期間共用,測試要各自建立自己的房間,不依賴伺服器的初始狀態。
 
 ### 寫法
 
-- 新卡一律以效果樹實作:節點與規格在 `src/gash/engine/effects/tree.py`,登記在 `effects/cards/` 對應類別的檔案(`events.py` / `mamodo.py` / `partners.py` / `spells.py`,依卡號排序,排版規則見 `cards/__init__.py`)。節點名稱語意化、不含卡號。
+- 新卡一律以效果樹實作:節點與規格在 `src/gash/engine/effects/tree.py`,登記在 `effects/cards/` 對應類別的檔案(`events.py` / `mamodo.py` / `partners.py` / `spells.py` / `mj12.py`,依卡號排序,排版規則見 `cards/__init__.py`)。節點名稱語意化、不含卡號。
 - 共用函式不可覆寫呼叫端傳入的資料鍵(E-020 曾因 `flip_coins` 用擲幣者蓋掉呼叫端的 `data["player"]`,把 MP 給錯人)。
 - 決策種類(`Choose` 的 `prompt`)依選擇的內容命名、不含卡號,先沿用既有種類(`frontend/i18n/zh-TW.json` 的 `choice.title.*`);確實需要新種類時才新增,並補 `choice.title.<kind>` 通用標題(測試會檢查)。對話框會另外顯示來源卡,標題不必寫卡片專屬的說明。新的選項標籤要在 `frontend/app.js` 的選項對應中處理。

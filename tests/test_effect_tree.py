@@ -1347,7 +1347,8 @@ def test_data_registrations_reject_duplicates(monkeypatch):
     assert reg.MAMODO_ATTACK["T-960"] == {"mp_cost": 1, "power": 5000, "damage": 2, "per_turn": 1}
     reg.jammer("T-960", mp_cost=2)
     assert reg.JAMMER["T-960"] == {"mp_cost": 2, "discard_self": False, "on": "mamodo_effect", "per_turn": 1,
-                                   "coin": False, "redo_cost": None}
+                                   "coin": False, "redo_cost": None, "in_battle": False,
+                                   "opponent_turn": False}
     for call in (lambda: reg.jammer("T-960", mp_cost=1),
                  lambda: reg.stack_on("T-960", base=()), lambda: reg.max_copies("T-960", 3),
                  lambda: reg.mamodo_attack("T-960", mp_cost=0, power=0, damage=0)):
@@ -1549,7 +1550,7 @@ def test_node_and_function_names_have_no_card_numbers():
     assert names and not [n for n in names if re.search(r"[empsEMPS]_?\d{3}", n)]
 
 
-CARD_FILES = {"events.py": "E", "mamodo.py": "M", "partners.py": "P", "spells.py": "S"}
+CARD_FILES = {"events.py": "E", "mamodo.py": "M", "partners.py": "P", "spells.py": "S", "mj12.py": "MJ"}
 
 
 def _card_sources():
@@ -1560,8 +1561,8 @@ def _card_sources():
 def test_registration_files_split_by_card_type_sorted_and_without_logic(name):
     import re
     source = _card_sources()[name]
-    numbers = re.findall(r'^reg\.\w+\("([EMPS]-\d{3})"', source, re.M)
-    assert numbers and {n[0] for n in numbers} == {CARD_FILES[name]}   # 只含該類別的卡
+    numbers = re.findall(r'^reg\.\w+\("((?:MJ|[EMPS])-\d{3})"', source, re.M)
+    assert numbers and {n.split("-")[0] for n in numbers} == {CARD_FILES[name]}   # 只含該類別的卡
     assert numbers == sorted(numbers)                      # 依卡號排序,同一張卡的登記因此相鄰
     assert "lambda" not in source and not re.search(r"^\s*def ", source, re.M)
 

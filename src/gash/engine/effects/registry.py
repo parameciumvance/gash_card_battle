@@ -72,6 +72,13 @@ class SpellRider:
     fixed_total: dict | None = None       # 合計魔力固定值 {"attack": n, "defense": n},不加其他加成(S-087)
     on_counter: Callable | None = None    # 【反擊】防方獲勝時取代預設的反擊傷害,自行處理到戰鬥結束 fn(game, batch, defender)(S-109)
     on_protected: Callable | None = None  # 此戰術攻擊的傷害被保護後 fn(game, batch, attacker)(S-112)
+    # 以此戰術防禦時,於「効果の使用」的最後(雙方都 pass、魔力勝負前)解決的防禦效果;防禦已被無效時
+    # 不執行。宣告時的擲幣結果由 on_declare 以 RememberInBattle 記下 fn(game, batch, defender)(S-025 等)
+    on_effects_end: Callable | None = None
+    power_per_count: tuple | None = None
+    declare_condition: Any = None         # 宣告時的使用條件(條件規格,ctx 含 slot / side);不成立 spell.condition(S-146)
+    once_per_turn: bool = False           # 「この術は1ターンに1回だけ使える」:同名戰術每回合 1 次(S-146)
+    extra_cost_effect: str | None = None  # 追加費用改變效果時的選項文字種類(Ex-063)  # 戰術的魔力 = (計數規格, 每單位魔力):魔力勝負時依當下計數計算(S-143)
 
 
 SPELL_RIDERS: dict[str, SpellRider] = {}
@@ -81,6 +88,13 @@ SPELL_NONBATTLE: dict[str, Callable] = {}
 
 # 非戰鬥戰術使用前置條件: fn(game, player) -> bool(於支付費用前檢查;不成立拒絕 spell.condition)
 SPELL_NONBATTLE_CONDITION: dict[str, Callable] = {}
+
+# 「この術は、自分の場に『X』がいなくても使える」的非戰鬥戰術:場上沒有對應魔物時不需要使用魔物(S-140)
+SPELL_NO_USER: set[str] = set()
+
+
+def spell_no_user(number: str) -> None:
+    SPELL_NO_USER.add(number)
 
 # 疊放魔物(變身後): 卡號 -> 變身前魔物卡號集合
 STACK_ON: dict[str, set[str]] = {}
@@ -93,6 +107,9 @@ TREATED_AS: dict[str, str] = {}
 
 # 「1アクションを使って…捨て札にできる」(M-046 / P-020): 卡號 -> "top"(棄掉疊放的上層)/ "partner"(棄掉搭檔)
 ACTION_DISCARD: dict[str, str] = {}
+
+# 獨立卡區的「自分のMPが相手の効果でへらされたとき、相手のMPを同じだけへらす」(MJ-006)
+MP_COUNTER: set[str] = set()
 
 # 只能經卡片效果疊放、不可自對頁直接放出(M-027 需經傑貝爾戰術)
 SPELL_ONLY_STACK: set[str] = set()
@@ -170,6 +187,20 @@ OPPONENT_EVENT_COST: dict[str, int] = {}
 
 # 此卡在場上時,持有者看得到對手翻開的頁(P-024)
 REVEAL_OPPONENT_PAGES: set[str] = set()
+BLOCK_DISCARD_RETURN: set[str] = set()      # 對手不能把棄牌區的卡放回場上或魔書(M-085)
+START_PHASE_MP_CAP: dict[str, int] = {}     # 對手在對手的開始階段增加的 MP 合計上限(M-076)
+UNSELECTABLE: dict[str, dict] = {}          # 雙方都不能選這隻魔物(M-075;Ex-099 alone)
+LOCK_AFTER_OWN_SPELL: set[str] = set()      # 使用這隻魔物的戰術後,下一回合它的魔物效果不能用(M-075)
+LAST_PAGE_LOCK: set[str] = set()            # 持有者魔書在最後一頁時,對手不能用事件卡與搭檔效果(Ex-051)
+BLOCK_DISCARDED_NAMES: set[str] = set()     # 對手不能放出與本回合進棄牌區的卡同名的卡(Ex-053)
+BOOK_HIDDEN: set[str] = set()               # 持有者的魔書不能被對手看(M-079)
+BLOCK_OWN_MAMODO_DISCARD: set[str] = set()  # 對手不能棄掉自己場上的魔物(P-048)
+BLOCK_TURN_BACK: set[str] = set()           # 對手在戰鬥階段不能回翻自己的魔書(P-049)
+BLOCK_EFFECT_PAGE_TURN: set[str] = set()    # 戰鬥階段中雙方不能因傷害以外的效果翻魔書(PR-012)
+OUTSIDE_PAGE_LOCK: set[str] = set()         # 對手不能使用 / 放出 / 棄掉 / 移動自己魔書今のページ以外的卡(Ex-060)
+ATTACK_LOST_MP: dict[str, int] = {}         # 這隻魔物攻擊、魔力勝負攻擊失敗時自己 MP 增加(M-071)
+COIN_THROWN_MP: dict[str, int] = {}         # 自己每擲 1 枚硬幣 MP 增加(M-072)
+COIN_SET_HEADS_USER: dict[str, str] = {}    # 改成正面只適用於這個家族使用的戰術擲的硬幣(P-045)
 
 # pending choice 的解決器: key -> fn(game, batch, choice_value, data)
 CHOICE_RESOLVERS: dict[str, Callable] = {}
@@ -374,7 +405,8 @@ def spell_compat(number: str, *, check=None):
 # 常駐效果(「このカードが場にある→」,持續中或之後仍可能發動)所在的登記表;快照據此列出失效中的效果。
 # ON_PLAY(出場時已解決)與 IGNORE_SPELL_BLOCK(M-038「使えないときにも使える」)不在內。
 PASSIVE_TABLES = ("START_PHASE", "END_PHASE", "STATIC_POWER", "STATIC_SPELL_POWER", "STATIC_TOTAL_POWER", "ON_DISCARD", "SPELL_COMPAT", "SPELL_USE_LIMIT", "DAMAGE_IMMUNITY",
-                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
+                  "OPPONENT_EVENT_COST", "REVEAL_OPPONENT_PAGES", "BLOCK_DISCARD_RETURN", "START_PHASE_MP_CAP", "UNSELECTABLE", "LOCK_AFTER_OWN_SPELL", "LAST_PAGE_LOCK",
+                  "BLOCK_DISCARDED_NAMES", "BOOK_HIDDEN", "BLOCK_OWN_MAMODO_DISCARD", "BLOCK_TURN_BACK", "BLOCK_EFFECT_PAGE_TURN", "OUTSIDE_PAGE_LOCK", "ATTACK_LOST_MP", "COIN_THROWN_MP", "PARTNER_DISCARD_GUARD", "BATTLE_PHASE_MP_LOCK",
                   "BLOCK_OPPONENT_FAMILY", "OPPONENT_EVENT_LOCK")
 
 
@@ -424,17 +456,21 @@ def max_copies(number: str, n: int):
 
 
 def jammer(number: str, *, mp_cost: int = 0, discard_self: bool = False, on: str = "mamodo_effect",
-           per_turn: int | None = 1, coin: bool = False, redo_cost: int | None = None):
+           per_turn: int | None = 1, coin: bool = False, redo_cost: int | None = None, in_battle: bool = False,
+           opponent_turn: bool = False):
     """ジャマー效果:對手完成 on 的動作後立即詢問是否使用(支付 mp_cost;discard_self 時把這張卡棄掉)使其無效。
     on:mamodo_effect 使用「魔物的效果」(啟動型)/ event 使用事件卡 / mp_reduced 對手的行動使自己的 MP 實際減少(M-065)。
     per_turn 為每回合次數(None 不限,M-065);coin 為擲硬幣正面才無效(M-065);redo_cost 為不無效、改為還原後
-    對手追加支付再重新解決(Ex-034)。魔物卡與搭檔卡都可以;不能主動宣告(不登記為 activated)。"""
+    對手追加支付再重新解決(Ex-034)。魔物卡與搭檔卡都可以;不能主動宣告(不登記為 activated)。
+    in_battle:效果文明寫戰鬥中可用時才為 True;否則依規則頁「バトル中には…アイコンが付いた効果しか使えません」,
+    戰鬥中不能使用(game-engine「ジャマー效果」;目前的ジャマー都是 False)。
+    opponent_turn:只在對手是回合玩家時(M-080《乱入》「相手のバトルフェイズに」)。"""
     if on not in ("mamodo_effect", "event", "mp_reduced"):
         raise ValueError(f"{number} 的 jammer on 須為 mamodo_effect / event / mp_reduced")
     if number in JAMMER:
         raise ValueError(f"{number} 的 jammer 已登記")
     JAMMER[number] = {"mp_cost": mp_cost, "discard_self": discard_self, "on": on, "per_turn": per_turn,
-                      "coin": coin, "redo_cost": redo_cost}
+                      "coin": coin, "redo_cost": redo_cost, "in_battle": in_battle, "opponent_turn": opponent_turn}
 
 
 def coin_reflip(number: str, *, coins: str, mp_cost: int = 0, per_turn: int = 1):
@@ -449,10 +485,13 @@ def coin_reflip(number: str, *, coins: str, mp_cost: int = 0, per_turn: int = 1)
     COIN_REFLIP_COST[number] = (mp_cost, per_turn)
 
 
-def coin_set_heads(number: str):
+def coin_set_heads(number: str, *, spell_user: str | None = None):
     """把自己擲的 1 枚硬幣改成正面(棄掉這張卡);擲幣後由引擎在擲硬幣子階段中詢問。魔物卡(M-034)為
-    「魔物の効果」,搭檔卡(P-039)為「パートナーの効果」。"""
+    「魔物の効果」,搭檔卡(P-039)為「パートナーの効果」。spell_user 指定時只適用於自己的該家族魔物使用的
+    戰術擲的硬幣(P-045「ドンポッチョ」)。"""
     COIN_SET_HEADS.add(number)
+    if spell_user:
+        COIN_SET_HEADS_USER[number] = spell_user
 
 
 def deferred(number: str, *, effect):
@@ -464,6 +503,11 @@ def deferred(number: str, *, effect):
 def treated_as(number: str, name: str):
     """此卡在場上時視為名為 name 的魔物(名稱、家族判定)(M-047)。"""
     TREATED_AS[number] = name
+
+
+def mp_counter(number: str):
+    """獨立卡區的卡:持有者的 MP 因對手的效果實際減少時,對手減少同樣數量(MJ-006)。"""
+    MP_COUNTER.add(number)
 
 
 def action_discard(number: str, what: str):
@@ -508,12 +552,15 @@ def on_attack(number: str, *, effect, when: Callable):
     ON_ATTACK[number] = (effect_id, when)
 
 
-def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_turn: int = 1):
+def mamodo_attack(number: str, *, mp_cost: int, power: int, damage: int, per_turn: int = 1, condition=None):
     """魔物效果攻擊規格:支付 mp_cost,以合計魔力 power 攻擊,造成 damage 點傷害;
-    每回合可用 per_turn 次(效果文明示次數時,如 M-068「1ターンに2回まで」)。"""
+    每回合可用 per_turn 次(效果文明示次數時,如 M-068「1ターンに2回まで」)。
+    condition(game, player, slot) 為使用條件(Ex-052「この魔物に『リィエン』がついていれば」)。"""
     if number in MAMODO_ATTACK:
         raise ValueError(f"{number} 的 mamodo_attack 已登記")
     MAMODO_ATTACK[number] = {"mp_cost": mp_cost, "power": power, "damage": damage, "per_turn": per_turn}
+    if condition is not None:
+        MAMODO_ATTACK[number]["condition"] = condition
 
 
 def ignore_spell_block(number: str):
@@ -541,3 +588,79 @@ def opponent_event_cost(number: str, amount: int):
 def reveal_opponent_pages(number: str):
     """此卡在場上時,持有者看得到對手翻開的頁(P-024)。"""
     REVEAL_OPPONENT_PAGES.add(number)
+
+
+def block_discard_return(number: str):
+    """「このカードが場にある→」此卡在場上時,持有者的對手不能把棄牌區的卡放回場上或魔書(M-085)。"""
+    BLOCK_DISCARD_RETURN.add(number)
+
+
+def attack_lost_mp(number: str, amount: int):
+    """「このカードが場にある→」自分がこの魔物で攻撃したバトルの魔力勝負で負けたとき、MP を amount 増加(M-071)。"""
+    ATTACK_LOST_MP[number] = amount
+
+
+def coin_thrown_mp(number: str, amount: int):
+    """「このカードが場にある→」自分がコイン1個を投げるごとに MP を amount 増加(M-072)。"""
+    COIN_THROWN_MP[number] = amount
+
+
+def unselectable(number: str, *, alone: bool = False):
+    """「このカードが場にある→」自分も相手も、カードを選ぶとき、この魔物を選ぶことができない(M-075);
+    alone=自分の場にこの魔物以外の魔物がいないとき(Ex-099)。"""
+    UNSELECTABLE[number] = {"alone": alone}
+
+
+def lock_after_own_spell(number: str):
+    """「このカードが場にある→」自分がこの魔物の術を使ったとき、次のターン中、この魔物の「魔物の効果」を使えない(M-075)。"""
+    LOCK_AFTER_OWN_SPELL.add(number)
+
+
+def last_page_lock(number: str):
+    """「このカードが場にある→」自分の魔本が最後のページのとき、相手はイベントカードやパートナーカードの効果を使えない(Ex-051)。"""
+    LAST_PAGE_LOCK.add(number)
+
+
+def block_discarded_names(number: str):
+    """「このカードが場にある→」相手は、このターン中に捨て札にしたカードと同名のカードを場に出せない(Ex-053)。"""
+    BLOCK_DISCARDED_NAMES.add(number)
+
+
+def book_hidden(number: str):
+    """「このカードが場にある→」自分の魔本は相手に見られない;相手は魔本を見なければ使えない効果を使えない(M-079)。"""
+    BOOK_HIDDEN.add(number)
+
+
+def block_own_mamodo_discard(number: str):
+    """「このカードが場にある→」相手は、相手自身の場の魔物を捨て札にできない(P-048)。"""
+    BLOCK_OWN_MAMODO_DISCARD.add(number)
+
+
+def block_turn_back(number: str):
+    """「このカードが場にある→」相手は、バトルフェイズ中、相手自身の魔本をもどすことができない(P-049)。"""
+    BLOCK_TURN_BACK.add(number)
+
+
+def block_effect_page_turn(number: str):
+    """「このカードが場にある→」自分も相手も、バトルフェイズに、ダメージ以外の効果で、魔本をめくることはできない(PR-012)。"""
+    BLOCK_EFFECT_PAGE_TURN.add(number)
+
+
+def outside_page_lock(number: str):
+    """「このカードが場にある→」相手は、相手自身の魔本の今のページ以外のページのカードを使う効果を使えず、
+    相手自身の魔本の今のページ以外のページのカードを場に出したり、捨て札にしたり、ページを移動させることができない(Ex-060)。"""
+    OUTSIDE_PAGE_LOCK.add(number)
+
+
+def start_phase_mp_cap(number: str, cap: int):
+    """「このカードが場にある→」對手在對手的開始階段「ふやせるMPの数」為 cap 以下(M-076)。"""
+    START_PHASE_MP_CAP[number] = cap
+
+
+def has_discard_cost_effect(number: str | None) -> bool:
+    """卡片有「このカードを捨て札にする→」的效果:啟動效果 mode="discard"、干擾 discard_self、擲幣改正面(E-054)。"""
+    if not number:
+        return False
+    spec = ACTIVATED.get(number)
+    jam = JAMMER.get(number)
+    return bool((spec and spec.mode == "discard") or (jam and jam["discard_self"]) or number in COIN_SET_HEADS)

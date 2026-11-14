@@ -13,7 +13,8 @@
 
 - `consecutive_passes`:非戰鬥中雙方連續 pass 的次數(引擎判斷結束戰鬥階段用的同一個值),供回合轉盤顯示「再 pass 就換人」;pass 是公開的行動結果。戰鬥效果步驟的 `effect_passes` 不送。
 - 持有者私有的 `ability_block` / `partner_ability_block` / `borrowed_block`(disabled-reasons):引擎 `ability_block` 的原因代碼,與 `use_field_ability` / `use_borrowed_effect` 共用同一個函式(指令把代碼對回原本的錯誤碼,三種時機都是 `ability.timing`)。使用條件可能看非公開資訊(例如自己的魔書),所以只給持有者,比照 `play_block`。不含行動權:前端另外依時機說明。
-- 持有者私有的戰術 `users[].power` / `power_breakdown`(spell-power-preview):引擎 `spell_power_preview` 以不掛到狀態上的假設 `BattleState` 呼叫 `side_breakdown`,與魔力勝負同一個計算;因為不改 `state.battle`,宣告時與戰鬥中的效果(戰鬥開始時才掛上的待命加成、追加費用、擲硬幣、對手的效果)自然不計,畫面上註明。不在複製的遊戲上模擬宣告:宣告可能要選擇與擲硬幣(使用者同意以註明處理)。一方依圖示,攻防兩用依是否回合玩家(`_preview_side`)。
+- 持有者私有的戰術 `users[].power` / `power_breakdown`(spell-power-preview):引擎 `spell_power_preview` 以不掛到狀態上的假設 `BattleState` 呼叫 `side_breakdown`,與魔力勝負同一個計算;因為不改 `state.battle`,戰鬥中的效果(戰鬥開始時才掛上的待命加成、追加費用、對手的效果)自然不計,畫面上註明。不在複製的遊戲上模擬宣告:宣告可能要選擇與擲硬幣(使用者同意以註明處理)。
+  - 戰術自身確定的宣告時加成(consequence-preview):`_declare_bonus_preview` 在該戰術的 `on_declare` 效果樹上做唯讀預覽,只求值依公開狀態的條件(`SideIs`、`OpponentUsedAttrLastTurn`),自身魔力加成節點照實戰寫進假設戰鬥的 `<side>_spell_power`;`Coin`、`Choose` 等與其下的效果、不認得的節點都略過——最多少算,不會多算。新手回饋:S-092 預估 8000、攻擊時實際 10000,正好影響賈修的不可防禦門檻。目前涵蓋 S-016、S-017、S-092、Ex-043;S-040、S-108 在擲硬幣下。一方依圖示,攻防兩用依是否回合玩家(`_preview_side`)。
 - 玩家的 `end_flip_loses`:本回合結束時強制翻頁會落敗(引擎 `end_flip_loses`),由翻開的頁與作用中的待命算出,都是公開資訊。放在伺服器而不讓前端從 `pos` 與 `effects` 推算,是為了規則只有一處,之後有新的跳過翻頁效果時不會漏改前端。
 - 玩家的 `pos`:夾在 `BOOK_SIZE + 2`;超過 `BOOK_SIZE` 表示魔書耗盡,前端顯示「魔書耗盡」而不是頁碼。
 - `pending.info`:決策的公開脈絡(擲幣結果、保護決策的目前這份傷害,見 `game-engine/design.md`「中途決策」)。傷害本來就是公開的(攻擊、戰術、傷害值都已公開),所以保護決策的內容對所有視角相同。`pending.data` 永遠不送。
@@ -83,3 +84,20 @@
 - `gash.version.app_version()` 依序取:環境變數 `GASH_VERSION`(Docker,CI 以 tag 名稱傳入)→ `git describe --tags --always --dirty`(開發環境)→ `dev`。行程內快取。
 - 以 tag 為版本號是因為部署只由推送 `v*` tag 觸發,tag 就是「線上是哪一版」;`pyproject.toml` 的 `version` 沒有在更新,不採用。
 - `/api/meta` 回傳 `version`;首頁免責聲明下方顯示,意見回報的環境資訊帶 `ver=`。
+
+## 後果預告(consequence-preview)
+
+- **保護選項的 `leaves` / `leave_reason`**:建立保護決策時(`_protect_choice`),`_mark_protect_outcomes` 對每個保護選項在副本上以 `_handle_choose` 實際結算,看保護的魔物是否在 `mamodo_discarded` 事件中離場;原因為事件的 `source`(效果造成,如 P-012)或 `"injured"`(`reason="damage"`,已負傷再受傷)。
+  - 寫在選項上,不寫在 `pending.info`:快照的 `info` 對所有視角公開,`options` 只給決策者。
+  - 以實際結算判定而不是依負傷推算:新手回饋重現雪莉情境時只看得到「選擇」;卡片效果造成的離場只有實際結算才不會漏。
+  - 副本用固定的兩個種子(`PREVIEW_SEEDS`)各跑一次,結果不同就不標示;不用實際 RNG 的狀態,否則等於偷看接下來擲硬幣的結果。副本 `Game.previewing = True`,裡面再遇到保護決策不再計算(連鎖傷害時不層層複製);NPC 的模擬副本(`settle.clone`、`determinize`)同樣設為 `True`,不做用不到的預告。
+  - 只回報保護的魔物是否離場與原因,這是保護後就會公開的結果;副本中的其他資訊(對手的隱藏資訊)不外流。
+- **`flip_end_loses`**:開始階段的回合玩家,依翻頁張數(0 至 `min(3, (32 - pos) // 2)`)翻了之後本回合結束是否落敗;`end_flip_loses_after` 與 `end_flip_loses` 同一個判定(後者為翻 0 張)。只依公開資訊,所有視角相同;其他時候為 `None`。
+- 使用者決定只做會離場或可能敗北的情況,不列「之後將無法使用的戰術」、不提示只會負傷。
+
+## 非回合玩家的可用行動(auto-pass)
+
+- 快照的 `idle`(`_idle_view`):戰鬥階段、沒有 pending、等待的是非回合玩家、觀看者看得到該玩家時,`{"has_actions": bool, "auto": 指令或 null}`。`auto` 是 `default_command`(逾時代打的同一個:進入戰鬥確認為進入戰鬥、防禦步驟為不防禦、其他為 pass)。
+- 判斷在 `npc/candidates.py` 的 `other_actions_available`:`candidates()` 中排除等於預設回應的那一個,其餘在副本上以 `try_submit` 試送,任一合法即有。候選列舉本來就在 NPC 模組,引擎不反向依賴 NPC;副本(`settle.clone`)已設 `previewing`,不做保護的後果預告。防禦包含魔物效果防禦(`_mamodo_defenses`)。
+- 只給該玩家:對手翻開的頁是隱藏的,「有沒有可用行動」是私有資訊。開始階段(回合玩家)與決策不計算。
+- 資訊外洩:前端的自動 pass 會讓對手從回應速度推測有沒有可用行動;使用者知悉後決定所有模式預設開啟、3 秒延遲(見 battle-ui design「自動 pass」)。

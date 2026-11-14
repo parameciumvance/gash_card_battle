@@ -38,6 +38,11 @@
 第 3 賽季的其餘卡:pages/59(LIMITED EDITION Ⅰ)、58(魔本ファイル第2弾,限 M-059:M-061)、
 56(スペシャルボックス)、52、53(魔本拡張シート LEVEL:1 / 2,Ex-001~048)、
 61(特典カード,沒有分類:--untyped --range PR-001:PR-011,類型取自卡頁)。
+
+第 4 賽季:pages/36(LEVEL:4)、54(魔本拡張シート LEVEL:3,Ex-051~074),以及 61 的
+電撃フェスタ2004春の陣(Ex-000、049、050、099)、PR-012~013;第 3 賽季補收的 DX赤い魔本附錄
+Ex-100~101 也在 61(--untyped --range Ex-000:Ex-000 --range Ex-049:Ex-050 --range Ex-099:Ex-101
+--range PR-012:PR-013)。
 """
 
 from __future__ import annotations
@@ -59,19 +64,31 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 FIELDNAMES = [
     "number", "type", "name_ja", "related_mamodo_ja", "related_partner_ja", "cost", "ad",
     "class", "attr_ja", "effect_icon_ja", "effect_ja", "power", "damage", "flavor_ja",
-    "sets_ja", "url", "raw_header_lines",
+    "sets_ja", "url", "raw_header_lines", "stone_tablet",
 ]
 
-CATEGORY_TO_TYPE = {"魔物": "mamodo", "術": "spell", "パートナー": "partner", "イベント": "event"}
+CATEGORY_TO_TYPE = {
+    "魔物": "mamodo", "術": "spell", "パートナー": "partner", "イベント": "event", "MJ12": "mj12",
+}
+# MJ12(マジョスティック12,LEVEL:4 起):產品頁分類寫作「MJ12」,卡頁資料頭寫作全形「ＭＪ１２」
+MJ12_HEADER_TOKEN = "ＭＪ１２"
+# 石版魔物(魔物圖示為石版樣式):規則上就是魔物,只有指定石版魔物的效果會區分。資料頭以「石版魔物」取代「魔物」,
+# 類型照舊是魔物,另記 stone_tablet = "1"
+STONE_TABLET_TOKEN = "石版魔物"
 CLASS_MAP = {"中級": "intermediate", "上級": "superior"}
 ELEMENT_TOKENS = {"水", "火", "雷", "氷", "木", "風", "重力", "土"}
 EFFECT_ICON_TOKENS = {"バトル", "非バトル", "ジャマー"}
 AD_TOKENS = {"バトル攻撃": "A", "バトル防御": "D", "自分のターン": "A", "相手のターン": "D"}
-REQUIRED_FIELDS = {"event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set()}
+REQUIRED_FIELDS = {
+    "event": {"ad"}, "spell": {"ad", "power"}, "mamodo": {"power"}, "partner": set(), "mj12": set(),
+}
 # related_mamodo_ja/related_partner_ja 由效果文尾行(而非資料頭 token)解析而來,檢查時機與
 # REQUIRED_FIELDS 不同,故另外獨立成集合,由 parse_card_page 在尾行解析後檢查。
 REQUIRE_RELATED_MAMODO = {"spell", "partner"}
 REQUIRE_RELATED_PARTNER = {"mamodo"}
+# 卡片本身沒有搭檔的魔物(卡頁沒有「パートナー＝」行,不是漏刊):related_partner_ja 留空,不報錯。
+# PR-012 黒騎士
+KNOWN_NO_PARTNER = {"PR-012"}
 
 # 已知官方頁面本身漏刊必填欄位的卡:{卡號: {欄位: 值}}。人工核對過缺漏(對照英文資料確認)
 # 才登記於此,不是用來繞過解析錯誤,而是記錄「這張卡的 wiki 頁面漏刊」這個事實。
@@ -110,7 +127,8 @@ KNOWN_MISPLACED_FLAVOR: dict[str, str] = {
 # 修正前的「TBB」。最後一段中,第一個產品行之前的行是風味文,之後都是收錄產品
 PRODUCT_NAMES = {
     "LEVEL:1", "LEVEL:2", "別売魔本", "LEVEL:3", "ガッシュ・ベルと仲間たち", "ゼオンと最凶魔物達",
-    "LTD1", "SPBOX", "拡張1", "拡張2", "プロモ", "LEVEL:S", "TBB1", "TBB2", "RE", "FILE:1", "TBB",
+    "LTD1", "SPBOX", "拡張1", "拡張2", "LEVEL:4", "拡張3", "限定拡張", "プロモ", "LEVEL:S", "TBB1", "TBB2", "RE",
+    "FILE:1", "TBB",
 }
 
 # 已確認的收錄產品錯誤:卡號 → (頁面上的錯誤原文, 修正後的文字),找不到原文時報錯。
@@ -143,7 +161,7 @@ def strip_tags(html: str) -> str:
 
 SECTION_RE = re.compile(r">収録カード</h3>(.*?)(?:<div id=\"atwiki-page-tags\"|$)", re.S)
 CATEGORY_RE = re.compile(r'<h4[^>]*>([^<]+)</h4>(.*?)(?=<h4|\Z)', re.S)
-# 卡號前綴:M / S / P / E / PR,以及擴張卡的「Ex」(atwiki 的寫法)
+# 卡號前綴:M / S / P / E / PR / MJ,以及擴張卡的「Ex」(atwiki 的寫法)
 CARD_NO = r"[A-Z][A-Za-z]*-\d+"
 CARD_LI_RE = re.compile(rf'<li>\s*({CARD_NO})\s*<a href="([^"]+)"[^>]*>\s*([^<]*?)\s*</a>', re.S)
 
@@ -151,7 +169,7 @@ CARD_LI_RE = re.compile(rf'<li>\s*({CARD_NO})\s*<a href="([^"]+)"[^>]*>\s*([^<]*
 def parse_product_page(html: str, base_url: str) -> list[tuple[str, str, str, str]]:
     """回傳 [(卡號, 個別卡頁絕對網址, 名稱, 分類原文), ...]。
 
-    只取 魔物/術/パートナー/イベント 四個分類;拡張シート頁另有「シート1~12」分組重複列出同一批卡,略過。"""
+    只取 魔物/術/パートナー/イベント/MJ12 五個分類;拡張シート頁另有「シート1~12」分組重複列出同一批卡,略過。"""
     m = SECTION_RE.search(html)
     if not m:
         raise ValueError("找不到「収録カード」區塊,頁面格式可能不同")
@@ -198,7 +216,10 @@ PARTNER_NAME_TAIL_RE = re.compile(r'^パートナー＝(.+)$')  # 魔物卡宣�
 
 def classify_token(tok: str, header: dict, number: str) -> None:
     """就地更新 header dict。無法歸類的 token 直接 raise,不默默略過或誤歸類為屬性。"""
-    if tok in CATEGORY_TO_TYPE:
+    if tok in CATEGORY_TO_TYPE or tok == MJ12_HEADER_TOKEN:
+        return
+    if tok == STONE_TABLET_TOKEN:
+        header["stone_tablet"] = "1"
         return
     if tok in CLASS_MAP:
         header["class"] = CLASS_MAP[tok]
@@ -244,7 +265,7 @@ def parse_header(main_lines: list[str], type_: str, number: str) -> tuple[dict, 
         raise ValueError(f"{number}: 沒有資料列")
     required = REQUIRED_FIELDS.get(type_, set())
     header = {"class": "none", "cost": None, "power": None, "damage": None,
-              "attr_ja": None, "ad_hits": set(), "effect_icons": []}
+              "attr_ja": None, "ad_hits": set(), "effect_icons": [], "stone_tablet": ""}
 
     def missing_fields() -> set[str]:
         m = set()
@@ -316,12 +337,16 @@ def _is_tail_line(line: str, type_: str) -> bool:
 
 
 def card_page_category(html: str, number: str) -> str:
-    """卡頁資料頭第一個 token 的類型(魔物/術/パートナー/イベント);不是這四者時報錯。"""
+    """卡頁資料頭第一個 token 的類型(魔物/術/パートナー/イベント/MJ12);都不是時報錯。"""
     bq = BLOCKQUOTE_RE.search(html)
     divs = DIV_RE.findall(bq.group(1)) if bq else []
     lines = [strip_tags(x) for x in BR_RE.split(divs[0])] if divs else []
     lines = [x for x in lines if x]
     token = lines[1].split("\u3000")[0] if len(lines) > 1 else ""
+    if token == STONE_TABLET_TOKEN:
+        return "魔物"
+    if token == MJ12_HEADER_TOKEN:
+        return "MJ12"
     if token not in CATEGORY_TO_TYPE:
         raise ValueError(f"{number}: 卡頁資料頭的類型無法判定({token!r})")
     return token
@@ -397,7 +422,7 @@ def parse_card_page(html: str, category_ja: str, number: str) -> dict:
 
     if type_ in REQUIRE_RELATED_MAMODO:
         require_tail_field("related_mamodo_ja")
-    if type_ in REQUIRE_RELATED_PARTNER:
+    if type_ in REQUIRE_RELATED_PARTNER and number not in KNOWN_NO_PARTNER:
         require_tail_field("related_partner_ja")
 
     result["effect_ja"] = "".join(strip_tags(x) for x in body_lines)

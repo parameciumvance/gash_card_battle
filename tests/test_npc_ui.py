@@ -61,7 +61,8 @@ def test_random_npc_deck_sends_presets_and_valid_saved_decks(page):
     assert page.locator("#deck-npc-opp").input_value() == "npc:random"
     start_npc(page)
     candidates = posts[-1]["npc_decks"]
-    presets = page.evaluate("PRESETS.map(p => ({preset: p.id}))")
+    season = int(page.locator("#season-npc").input_value())
+    presets = page.evaluate(f"PRESETS.filter(p => !(p.season > {season})).map(p => ({{preset: p.id}}))")   # 只含所選賽季可用的
     mine = page.evaluate("DeckStore.list().find(d => d.name === 'mine').pages")
     assert candidates == presets + [{"pages": mine}]                          # 不合法牌組不列入
     assert "npc_deck" not in posts[-1]
@@ -100,6 +101,7 @@ def test_game_end_names_the_npc_deck(page):
             R = {{...R, npc: {{...R.npc, deck: {deck}}}}};
             S = {{...S, phase: 'game_over', winner: 0, end_reason: 'book_out'}};
             renderTopbar();
-            return document.getElementById('acting-info').textContent;
+            render();
+            return document.getElementById('stage-result').textContent;
         }}""")
         assert page.evaluate(f"t('ui.npc.deck_reveal', {{deck: {expected}}})") in text

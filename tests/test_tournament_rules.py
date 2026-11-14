@@ -80,7 +80,7 @@ def test_p035_counts_zero_on_first_turn():
     opp = 1 - tp
     st.players[opp].slots[0].partner = "P-035"
     flip(g, tp, 3)
-    assert st.players[tp].start_phase_mp_gain == 0
+    assert st.players[tp].start_phase_mp_total == 0
     submit(g, {"type": "pass", "player": tp})
     submit(g, ability(opp, st.players[opp].slots[0], zone="partner"))
     assert st.players[tp].mp == 2

@@ -15,6 +15,17 @@
       "source": "TEST"
      }
     ],
+    "attack_usage": {
+     "card": "S-042",
+     "kind": "attack",
+     "mp": 2,
+     "returns": [],
+     "undo": {
+      "spell_attr": null,
+      "spell_name": "ビライツ",
+      "spell_page": 20
+     }
+    },
     "injure_instead": true,
     "injure_target": 2,
     "no_protect": [
@@ -103,6 +114,15 @@
     "attack_fixed_damage": 2,
     "attack_fixed_power": 5000,
     "attack_fixed_source": "M-027",
+    "attack_usage": {
+     "card": "M-027",
+     "kind": "attack",
+     "mp": 1,
+     "returns": [],
+     "undo": {
+      "ability": "mamodo_attack:M-027"
+     }
+    },
     "no_protect": [
      1
     ]
@@ -188,6 +208,17 @@
       "source": "TEST"
      }
     ],
+    "attack_usage": {
+     "card": "S-001",
+     "kind": "attack",
+     "mp": 1,
+     "returns": [],
+     "undo": {
+      "spell_attr": "雷",
+      "spell_name": "ザケル",
+      "spell_page": 3
+     }
+    },
     "injure_instead": true,
     "injure_target": 2,
     "no_protect": [
@@ -268,7 +299,19 @@
    "attack_spell": "S-001",
    "attack_undefendable": false,
    "attacker": 0,
-   "data": {},
+   "data": {
+    "attack_usage": {
+     "card": "S-001",
+     "kind": "attack",
+     "mp": 1,
+     "returns": [],
+     "undo": {
+      "spell_attr": "雷",
+      "spell_name": "ザケル",
+      "spell_page": 3
+     }
+    }
+   },
    "defense_declared": false,
    "defense_negated": false,
    "defense_page": null,
@@ -322,6 +365,17 @@
       "source": "M-008"
      }
     ],
+    "attack_usage": {
+     "card": "S-014",
+     "kind": "attack",
+     "mp": 1,
+     "returns": [],
+     "undo": {
+      "spell_attr": "木",
+      "spell_name": "ジュロン",
+      "spell_page": 3
+     }
+    },
     "injure_instead": true,
     "injure_target": 2,
     "no_protect": [
@@ -427,6 +481,17 @@
       "source": "TEST"
      }
     ],
+    "attack_usage": {
+     "card": "S-014",
+     "kind": "attack",
+     "mp": 2,
+     "returns": [],
+     "undo": {
+      "spell_attr": "木",
+      "spell_name": "ジュロン",
+      "spell_page": 3
+     }
+    },
     "injure_instead": true,
     "injure_target": 2,
     "no_protect": [
@@ -531,6 +596,17 @@
       "source": "TEST"
      }
     ],
+    "attack_usage": {
+     "card": "S-058",
+     "kind": "attack",
+     "mp": 3,
+     "returns": [],
+     "undo": {
+      "spell_attr": null,
+      "spell_name": "ザケル",
+      "spell_page": 3
+     }
+    },
     "injure_target": 2,
     "no_protect": [
      1

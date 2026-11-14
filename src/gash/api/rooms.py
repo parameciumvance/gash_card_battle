@@ -20,7 +20,7 @@ ROOM_CODE_ALPHABET = string.ascii_uppercase + string.digits
 ROOM_CODE_LEN = 6
 IDLE_SECONDS = 2 * 60 * 60          # 閒置回收:2 小時無活動
 TIMER_CHOICES = (None, 30, 60, 120)
-MODES = ("online", "local", "npc")
+MODES = ("online", "local", "npc", "tutorial")
 NPC_SEAT = 1                        # NPC 房:建房者為玩家 0,NPC 為玩家 1
 
 
@@ -44,7 +44,7 @@ class NpcSeat:
 @dataclass
 class Room:
     code: str
-    mode: str                                   # "online" | "local" | "npc"
+    mode: str                                   # "online" | "local" | "npc" | "tutorial"
     timer_seconds: int | None
     seed: int | None
     spectator_token: str
@@ -65,6 +65,8 @@ class Room:
     absent_since: dict = field(default_factory=dict)
     wait_from: dict = field(default_factory=dict)
     unresponsive: list = field(default_factory=lambda: [False, False])
+    # 教學房(tutorial「對手腳本的節奏」):玩家每送出一個指令就暫停對手,等教學面板的「下一步」放行
+    tutorial_hold: bool = False
 
     def viewer_of(self, token: str):
         """token → viewer(0/1/"spectator");本機模式玩家 token 仍對映到各自 index。"""
@@ -102,9 +104,9 @@ class RoomStore:
     def create(self, mode: str, timer_seconds: int | None, seed: int | None,
                names: list | None = None) -> tuple[Room, str]:
         if mode not in MODES:
-            raise RoomError(422, "room.bad_mode", "mode 須為 online、local 或 npc")
-        if mode == "npc":
-            timer_seconds = None            # NPC 房不計時
+            raise RoomError(422, "room.bad_mode", "mode 須為 online、local、npc 或 tutorial")
+        if mode in ("npc", "tutorial"):
+            timer_seconds = None            # NPC 房與教學房不計時
         if timer_seconds not in TIMER_CHOICES:
             raise RoomError(422, "room.bad_timer", f"timer 須為 {TIMER_CHOICES}")
         self.cleanup_idle()

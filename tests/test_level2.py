@@ -975,75 +975,83 @@ def test_m024_second_use_needs_two_doubles_at_that_time():
 
 # ---------------------------------------------------------------- M-026《裏切り者》(ジャマー)
 
-def _jammer_battle(p1_mp=5, p0_has_jammer=False):
-    """玩家 0 以 M-017 攻擊並使用其效果(攻擊時 +2000);玩家 1 場上有 M-026。"""
+def _jammer_setup(p1_mp=5, p0_has_jammer=False, use=True):
+    """非戰鬥中:玩家 0 使用 PR-002 的效果(MP 3,本回合 +2000);玩家 1 場上有 M-026。"""
     from gash.engine.state import MamodoSlot
-    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    g, _ = mk(book("PR-002", "S-009"), book("M-001"))
     st = g.state
     st.players[0].mp, st.players[1].mp = 10, p1_mp
     st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     if p0_has_jammer:
         st.players[0].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     to_battle(g, 0)
-    submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": st.players[0].slots[0].uid})
-    submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
-    submit(g, {"type": "no_defense", "player": 1})
     mp_before_ability = st.players[0].mp
-    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
-               "slot_uid": st.players[0].slots[0].uid})
+    if use:
+        submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+                   "slot_uid": st.players[0].slots[0].uid})
     return g, mp_before_ability
 
 
-def _m017_boost_active(g):
-    return any(m.source == "M-017" and m.kind == "power" for m in g.state.modifiers)
+def _boost_active(g):
+    return any(m.source == "PR-002" and m.kind == "power" for m in g.state.modifiers)
 
 
 def test_m026_offered_right_after_opponent_mamodo_effect_and_negates_it():
-    g, mp0 = _jammer_battle()
+    g, mp0 = _jammer_setup()
     st = g.state
     assert st.pending.kind == "jammer_negate" and st.pending.player == 1
     assert [o["value"] for o in st.pending.options] == [None, "M-026"]   # 第一個是「不使用」,其餘的值為ジャマー卡號
-    assert _m017_boost_active(g)
+    assert _boost_active(g)
     events = submit(g, {"type": "choose", "player": 1, "value": True})
-    assert not _m017_boost_active(g)                                     # 效果被還原
-    assert st.players[0].mp == mp0 - 2 and "mamodo:M-017" in st.players[0].used_abilities   # 費用照付
+    assert not _boost_active(g)                                          # 效果被還原
+    assert st.players[0].mp == mp0 - 3 and "mamodo:PR-002" in st.players[0].used_abilities   # 費用照付
     assert st.players[1].mp == 5 - 2 and "mamodo:M-026" in st.players[1].used_abilities
-    assert [e for e in events if e["type"] == "effect_negated"][0]["negated"] == "M-017"
-    assert st.pending is None and st.battle.data["effect_turn"] == 1       # 輪到防方
+    assert [e for e in events if e["type"] == "effect_negated"][0]["negated"] == "PR-002"
+    assert st.pending is None and st.action_player == 0                 # ジャマー是玩家 1 的行動
 
 
 def test_m026_skip_keeps_effect():
-    g, mp0 = _jammer_battle()
+    g, mp0 = _jammer_setup()
     submit(g, {"type": "choose", "player": 1, "value": None})
-    assert _m017_boost_active(g) and g.state.players[1].mp == 5
-    assert g.state.battle.data["effect_turn"] == 1
+    assert _boost_active(g) and g.state.players[1].mp == 5
+    assert g.state.action_player == 1
 
 
 @pytest.mark.parametrize("setup", ["low_mp", "used", "restricted"])
 def test_m026_not_offered_when_unusable(setup):
     from gash.engine.effects.primitives import add_restriction
     from gash.engine.state import DUR_TURN, NO_MAMODO_EFFECTS
-    from gash.engine.state import MamodoSlot
-    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    g, _ = _jammer_setup(p1_mp=1 if setup == "low_mp" else 5, use=False)
     st = g.state
-    st.players[0].mp, st.players[1].mp = 10, (1 if setup == "low_mp" else 5)
-    st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     if setup == "used":
         st.players[1].used_abilities.add("mamodo:M-026")
     if setup == "restricted":
         add_restriction(g, [], source="E-025", owner=0, target_player=1, flag=NO_MAMODO_EFFECTS,
                         duration=DUR_TURN)
+    submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
+               "slot_uid": st.players[0].slots[0].uid})
+    assert st.pending is None and _boost_active(g)
+
+
+def test_m026_not_offered_in_battle():
+    # バトル中には「バトル効果」「バトル防御」「バトル」アイコンが付いた効果しか使えません:干擾不能在戰鬥中用
+    from gash.engine.state import MamodoSlot
+    g, _ = mk(book("M-017", "S-009"), book("M-001"))
+    st = g.state
+    st.players[0].mp, st.players[1].mp = 10, 5
+    st.players[1].slots.append(MamodoSlot(uid=st.next_uid(), stack=["M-026"]))
     to_battle(g, 0)
     submit(g, {"type": "declare_attack", "player": 0, "page": 2, "slot_uid": st.players[0].slots[0].uid})
     submit(g, {"type": "battle_in_response", "player": 1, "allow": True})
     submit(g, {"type": "no_defense", "player": 1})
     submit(g, {"type": "use_field_ability", "player": 0, "zone": "mamodo",
                "slot_uid": st.players[0].slots[0].uid})
-    assert st.pending is None and _m017_boost_active(g)
+    assert st.pending is None and st.players[1].mp == 5
+    assert any(m.source == "M-017" and m.kind == "power" for m in st.modifiers)
 
 
 def test_m026_cannot_be_declared_manually():
-    g, _ = _jammer_battle()
+    g, _ = _jammer_setup()
     submit(g, {"type": "choose", "player": 1, "value": None})
     m026 = g.state.players[1].slots[-1]
     with pytest.raises(IllegalCommand) as e:
@@ -1052,13 +1060,13 @@ def test_m026_cannot_be_declared_manually():
 
 
 def test_m026_chain_original_player_negates_the_negation():
-    g, mp0 = _jammer_battle(p0_has_jammer=True)
+    g, mp0 = _jammer_setup(p0_has_jammer=True)
     st = g.state
-    submit(g, {"type": "choose", "player": 1, "value": True})           # 玩家 1 無效 M-017
+    submit(g, {"type": "choose", "player": 1, "value": True})           # 玩家 1 無效 PR-002
     assert st.pending.kind == "jammer_negate" and st.pending.player == 0
     submit(g, {"type": "choose", "player": 0, "value": True})           # 玩家 0 無效玩家 1 的 M-026
-    assert _m017_boost_active(g)                                         # M-017 的效果回來
-    assert st.players[0].mp == mp0 - 2 - 2 and st.players[1].mp == 5 - 2
+    assert _boost_active(g)                                              # PR-002 的效果回來
+    assert st.players[0].mp == mp0 - 3 - 2 and st.players[1].mp == 5 - 2
     assert st.pending is None                                            # 雙方都用過,不再連鎖
 
 
@@ -1098,7 +1106,7 @@ def test_m026_not_offered_for_partner_effects():
 
 def test_timeout_default_prefers_skip_option():
     from gash.engine.awaiting import default_command
-    g, _ = _jammer_battle()
+    g, _ = _jammer_setup()
     assert default_command(g) == {"type": "choose", "value": None}
 
 
@@ -1297,9 +1305,10 @@ def test_p019_two_mp_per_page_turned_back():
     assert st.players[1].mp == 10 - g.db["E-005"].cost - 2 * 2
 
 
-@pytest.mark.parametrize("pos,after,mp_lost", [(4, 2, 2), (2, 2, 0)])
+@pytest.mark.parametrize("pos,after,mp_lost", [(4, 0, 4), (2, 0, 2), (0, 0, 0)])
 def test_p019_counts_pages_actually_turned_back(pos, after, mp_lost):
-    # 回翻到第一頁為止:E-005 正正在 pos 4 只回翻 1 張、在 pos 2 沒有回翻
+    # 回翻到第 1 頁為止(pos 0:左邊是封面內側,只有第 1 頁;turn-back-to-page-one):
+    # E-005 正正在第 2、3 頁也回翻 1 張到第 1 頁,在第 1 頁沒有回翻
     g, _ = mk(book("M-001"), book("M-001"))
     st = g.state
     st.players[0].slots[0].partner = "P-019"
@@ -1309,11 +1318,39 @@ def test_p019_counts_pages_actually_turned_back(pos, after, mp_lost):
         submit(g, {"type": "flip_pages", "player": 1, "count": 0})
     g.rng = Rng(HEADS, HEADS)
     st.players[1].mp, st.players[1].pos = 10, pos
-    st.players[1].book[pos - 1] = "E-005"
-    events = submit(g, {"type": "use_book_card", "player": 1, "page": pos})
+    page = max(pos, 1)
+    st.players[1].book[page - 1] = "E-005"
+    st.players[1].consumed_pages.discard(page)
+    events = submit(g, {"type": "use_book_card", "player": 1, "page": page})
     assert st.players[1].pos == after
     assert [e["count"] for e in events if e["type"] == "pages_turned"] == ([-(pos - after) // 2] if mp_lost else [])
     assert st.players[1].mp == 10 - g.db["E-005"].cost - mp_lost
+
+
+def test_p018_turns_back_from_pages_2_3_to_page_1():
+    # 使用者回報:在第 2 頁回翻不會回到第 1 頁。1 張 = 2 頁,第 2、3 頁回翻 1 張就是只有第 1 頁的對頁
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    st.players[0].slots[0].partner = "P-018"
+    to_battle(g, 0)
+    assert st.players[0].pos == 2
+    events = _use_partner(g, 0, st.players[0].slots[0])
+    assert [(e["count"], e["pos"]) for e in events if e["type"] == "pages_turned"] == [(-1, 0)]
+    assert st.players[0].pos == 0 and st.players[0].open_pages() == []   # 第 1 頁的起始魔物已上場
+
+
+def test_start_flip_from_page_1():
+    # 回翻到第 1 頁後,開始階段翻 1 張回到第 2、3 頁,MP 照常 +2
+    g, _ = mk(book("M-001"), book("M-001"))
+    st = g.state
+    for tp in (0, 1):                                                     # 雙方各過一回合,回到玩家 0 的開始階段
+        to_battle(g, tp)
+        submit(g, {"type": "pass", "player": st.action_player})
+        submit(g, {"type": "pass", "player": st.action_player})
+    assert st.phase == "start" and st.turn_player == 0
+    st.players[0].pos, mp = 0, st.players[0].mp
+    submit(g, {"type": "flip_pages", "player": 0, "count": 1})
+    assert st.players[0].pos == 2 and st.players[0].mp == mp + 2
 
 
 def test_p010_usable_on_last_page_and_turning_past_end_loses():
@@ -1487,15 +1524,17 @@ def test_p018_turn_back_one_leaf():
 
 
 def _p018_first_page_game(coins=()):
-    """玩家 0:M-001 裝 P-018,第 3 頁為 E-005;對手 M-001 裝 P-019。魔書在第一頁。"""
-    g, _ = mk(book("M-001", "S-029", "E-005"), book("M-001"))
+    """玩家 0:M-001 裝 P-018,第 1 頁換成 E-005;對手 M-001 裝 P-019。魔書在第 1 頁(pos 0)。"""
+    g, _ = mk(book("M-001"), book("M-001"))
     st = g.state
     st.players[0].mp = st.players[1].mp = 10
     st.players[0].slots[0].partner = "P-018"
     st.players[1].slots[0].partner = "P-019"
     g.rng = Rng(*coins)
     to_battle(g, 0)
-    assert st.players[0].pos == 2
+    st.players[0].pos = 0
+    st.players[0].book[0] = "E-005"
+    st.players[0].consumed_pages.discard(1)
     return g
 
 
@@ -1506,10 +1545,10 @@ def test_p018_usable_on_first_page_turns_nothing_but_counts_as_the_one_use():
     first = st.players[0].slots[0]
     events = _use_partner(g, 0, first)
     assert first.partner is None and "P-018" in st.players[0].discarded_this_turn
-    assert st.players[0].pos == 2 and st.players[1].mp == 10          # 沒回翻,對手 P-019 不觸發
+    assert st.players[0].pos == 0 and st.players[1].mp == 10          # 沒回翻,對手 P-019 不觸發
     assert not [e for e in events if e["type"] == "pages_turned"]
     submit(g, {"type": "pass", "player": 1})
-    events = submit(g, {"type": "use_book_card", "player": 0, "page": 3})   # E-005 正正:合計1回已用掉
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 1})   # E-005 正正:合計1回已用掉
     assert [e["source"] for e in events if e["type"] == "page_turn_restricted"] == ["E-005"]
 
 
@@ -1517,7 +1556,7 @@ def test_p018_usable_after_e005_turned_back_nothing_on_first_page():
     # 回翻 0 張不算用過回翻效果(Inferred)→ 之後仍可使用 P-018
     g = _p018_first_page_game(coins=(HEADS, HEADS))
     st = g.state
-    events = submit(g, {"type": "use_book_card", "player": 0, "page": 3})   # E-005 正正,在第一頁
+    events = submit(g, {"type": "use_book_card", "player": 0, "page": 1})   # E-005 正正,在第 1 頁
     assert not [e for e in events if e["type"] in ("pages_turned", "page_turn_restricted")]
     submit(g, {"type": "pass", "player": 1})
     _use_partner(g, 0, st.players[0].slots[0])

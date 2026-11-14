@@ -66,11 +66,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   border: none; background: transparent; color: #5a3d00; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;
 }
 #topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap;   /* 一行放不下時整個項目換到下一行 */
   padding: 8px 16px; background: var(--page-deep); border-bottom: 1px solid var(--page-line);
   font-size: 14px; color: var(--on-page);
 }
-#title { display: flex; }
+#title { display: flex; flex-shrink: 0; }
+/* 寬螢幕(手機版另有規則):文字欄位與標題不縮小、不在欄位中間斷開——原本按鈕不讓寬度時,
+   回合、階段、等待狀態被壓成一字一行的直排,按鈕也被推出畫面(topbar-wrap) */
+@media (min-width: 701px) {
+  #topbar > span { white-space: nowrap; flex-shrink: 0; }
+}
 /* 標題字:五圓紋徽章(同網頁圖示)+ GASH / CARD BATTLE / ONLINE(ONLINE 置中)。Oswald 子集自架於 /static/fonts(OFL) */
 @font-face {
   font-family: "Oswald Title"; font-weight: 200 700; font-display: swap;
@@ -90,7 +95,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .wordmark.small .wm-sub { letter-spacing: .12em; padding-left: 0; }
 #topbar > span:empty { display: none; }   /* 首頁、構築器等沒有對局資訊時,空欄位不佔 gap(手機上會把按鈕擠到右側並換行) */
 #topbar button { white-space: nowrap; flex-shrink: 0; }   /* 較長的語言(英、日)不把按鈕擠成直排;擠不下時由文字欄位換行 */
-#acting-info { color: var(--on-page-green); font-weight: bold; }
 
 #layout { display: flex; flex: 1; min-height: 0; }
 #board {
@@ -105,16 +109,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* ---------------- 玩家區(鏡像牌桌) ---------------- */
 .player-zone { padding: 6px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .player-zone.active { box-shadow: inset 0 0 0 2px var(--on-page-green); border-radius: 4px; }
-.pz-head { display: flex; gap: 14px; align-items: center; font-size: 13px; }
-.pz-head .pname { font-weight: bold; font-size: 15px; }
-.pz-head .mp { color: var(--on-page-blue); font-weight: bold; }
-.pz-head .book-progress { color: var(--on-page-amber); }
-.pz-head .discard-btn { cursor: pointer; color: var(--on-page-dim); text-decoration: underline; }
-.pz-head-rest { display: inline-flex; gap: 14px; align-items: center; }
-.pz-head .review-btn { cursor: pointer; color: var(--on-page-amber); text-decoration: underline; }
-/* 行動權標籤(等待輸入的一方);回合玩家由中線的回合轉盤表示 */
-.pz-head .acting-label { color: var(--on-page-green); font-size: 12px; font-weight: bold; }
-.pz-head .review-btn:hover { color: var(--on-page); }
+/* 玩家區沒有標題列(header-cleanup):名稱在中線,行動方以外框標示,MP、頁碼、查閱魔書、棄牌區都在盤面上 */
 .name-input { text-transform: none !important; }
 
 /* 查閱魔書 overlay */
@@ -146,27 +141,32 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .review-spread.single { background: rgba(60,40,70,.35); }
 .review-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; width: var(--review-card-w); }
 .review-cell .card { flex: 1; width: var(--review-card-w); }   /* 隨列高拉伸:同一列的卡片等高;卡背同寬 */
-.review-cell.open { outline: 2px solid var(--glow); outline-offset: 1px; border-radius: 8px; }
+/* 目前翻開的頁用藍色:與可選目標的金色光暈區分 */
+.review-cell.open { outline: 2px solid var(--accent-blue); outline-offset: 1px; border-radius: 8px; }
 .review-cell .card { cursor: default; }
 .review-cell .card:hover { transform: none; box-shadow: none; }
 .review-foot { display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
   justify-content: center; font-size: 9px; }
 .review-pno { color: var(--gold-soft); }
 .review-tag { padding: 0 5px; border-radius: 6px; font-size: 9px; }
-.review-tag.cur { background: var(--glow); color: #3a2a08; }
+.review-tag.cur { background: var(--accent-blue); color: #0b2a40; }
 .review-tag.left { background: #5b6270; color: #d9dde5; }
 .review-tag.used { background: #8a2f2f; color: #ffd9d9; }
 
-/* 場區置中貼中線對峙、魔書區靠外角(對手右上、我方左下對角相對) */
-.zone-body { display: flex; gap: 12px; flex: 1; }
-.player-zone.top .zone-body { align-items: flex-end; }      /* 場區貼中線 */
-.player-zone.bottom .zone-body { align-items: flex-start; }
-.zone-side { flex: 1 1 0; min-width: 0; display: flex; }
-/* 魔書側不可被壓縮到與場區重疊 */
-.zone-side.book-side { align-self: stretch; min-width: max-content; }
-.player-zone.top .zone-side.book-side { justify-content: flex-end; align-items: flex-start; }
-.player-zone.bottom .zone-side.book-side { justify-content: flex-start; align-items: flex-end; }
-.field-block { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+/* 盤面(寬螢幕 ≥1200px):場區置中貼中線對峙,兩側等寬(1fr 取兩側內容的較大者,雙方魔物 3 欄因此上下對齊);
+   魔書區靠外角、第 4 欄貼場區:對手「第 4 欄|場區|魔書」、我方「魔書|場區|第 4 欄」(對角相對) */
+.zone-body { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 12px; row-gap: 6px; flex: 1; }
+/* 場區貼中線:列不撐高(align-content),多出的高度留在外側 */
+.player-zone.bottom .zone-body { grid-template-areas: "book field side"; align-items: start; align-content: start; }
+.player-zone.top .zone-body { grid-template-areas: "side field book"; align-items: end; align-content: end; }
+.zone-body > .book-block { grid-area: book; }
+.zone-body > .field-block { grid-area: field; }
+.zone-body > .side-block { grid-area: side; }
+.player-zone.bottom .zone-body > .book-block { align-self: end; justify-self: start; }
+.player-zone.top .zone-body > .book-block { align-self: start; justify-self: end; }
+.player-zone.bottom .zone-body > .side-block { justify-self: start; }
+.player-zone.top .zone-body > .side-block { justify-self: end; }
+.field-block, .side-block { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
 .field-row { display: flex; gap: 10px; justify-content: center; }
 /* 框格固定尺寸:有無卡片、有無按鈕都不伸縮 */
 .mcell { display: flex; align-items: center; justify-content: center; width: var(--cell-w); }
@@ -203,6 +203,75 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   width: var(--card-w); height: 100%;
 }
 .empty-frame.small { font-size: 10px; }
+
+/* 場區第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區;寬兩張卡,高與魔物格相同 */
+:root { --side-w: calc(var(--card-w) * 2 + 10px); }
+.mcell.side-cell { width: var(--side-w); height: var(--card-h); }
+.mp-cell .mp-tray { width: 100%; height: 100%; box-sizing: border-box; }
+.mp-cell .mp-tokens { width: 100%; height: auto; flex: 1; }
+/* 寬螢幕但盤面放不下兩張卡寬的第 4 欄時(盤面 = 畫面 − 行動記錄 300):場區格寬依畫面寬度縮小(上限 120、下限 84),
+   第 4 欄縮成一格寬;只作用於場區,魔書維持原尺寸 */
+@media (min-width: 701px) and (max-width: 1199px) {
+  /* 魔書列移到外側(對手最上、我方最下),場區與第 4 欄一列;第 4 欄對面留同寬空欄,魔物 3 欄置中對齊 */
+  .player-zone.bottom .zone-body { grid-template-areas: ". field side" "book book book"; }
+  .player-zone.top .zone-body { grid-template-areas: "book book book" "side field ."; }
+  .player-zone.bottom .zone-body > .book-block, .player-zone.top .zone-body > .book-block {
+    justify-self: center; flex-direction: row; align-items: flex-end; }
+  .field-block, .side-block {
+    --cell-w: clamp(64px, calc((100vw - 380px) / 5), 120px); --side-w: var(--cell-w);
+    --card-w: calc(var(--cell-w) - 16px); --card-h: calc(var(--card-w) * 124 / 104);
+    --art-h: calc((var(--card-w) - 16px) * 75 / 88);   /* 卡圖框比例維持 --art-ratio */
+    --injured-h: var(--cell-w); --injured-w: calc(var(--cell-w) * .716);
+  }
+}
+.field-cards { position: relative; width: 100%; height: 100%; isolation: isolate; }
+.field-cards.empty {
+  border: 2px dashed var(--page-frame); border-radius: 8px; box-sizing: border-box;
+  color: rgba(30, 60, 110, .5); font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 由左往右排開;放不下時等距壓疊,最新一張在最右邊、最上層 */
+#board .field-cards > .card {
+  position: absolute; top: 0;
+  left: calc(var(--field-i) * min(var(--card-w) + 10px,
+    (100% - var(--card-w)) / max(var(--field-n) - 1, 1)));
+  box-shadow: -3px 0 6px rgba(0,0,0,.35);
+}
+/* 窄螢幕 2 張以上:方形小圖示(只裁卡圖),2×2 / 2×3 */
+.field-icons { display: grid; gap: 4px; width: 100%; height: 100%;
+  grid-template-columns: repeat(2, var(--field-icon)); align-content: center; justify-content: center; }
+.field-cards[data-grid="2x3"] { --field-icon: min(calc((var(--cell-w) - 4px) / 2), calc((var(--card-h) - 8px) / 3)); }
+.field-cards[data-grid="2x2"] { --field-icon: min(calc((var(--cell-w) - 4px) / 2), calc((var(--card-h) - 4px) / 2)); }
+.field-icon { position: relative; width: var(--field-icon); height: var(--field-icon); box-sizing: border-box;
+  border-radius: 6px; overflow: hidden; cursor: pointer; padding: 0;
+  border: 2px solid #6a3fa0; background: #f5efdc; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.field-icon img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block;
+  transform: scale(1.45); transform-origin: 50% 12%; pointer-events: none; }
+.field-icon.pickable, .field-icon.usable { box-shadow: 0 0 0 2px var(--glow); }
+.field-more { display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+  color: #f3e9ff; background: #3b2f5c; }
+
+/* 棄牌區格:魔書朝中線側,縮小的最後一張卡(調暗)+ 張數 */
+.discard-pile {
+  --card-w: 62px; --card-h: 74px; --art-h: 38px;
+  display: flex; align-items: center; gap: 8px; box-sizing: border-box;
+  width: 130px; height: 80px; padding: 3px; border-radius: 10px; cursor: pointer;
+  background: rgba(18,24,42,.55); border: 1px solid rgba(217,164,65,.45);
+}
+.discard-pile.empty { justify-content: center; background: none;
+  border: 2px dashed var(--page-frame); color: rgba(30, 60, 110, .5); font-size: 11px; }
+#board .discard-pile .card { filter: brightness(.6) saturate(.7); pointer-events: none; }
+#board .discard-pile .card .cname { font-size: 9px; -webkit-line-clamp: 1; line-clamp: 1; }
+#board .discard-pile .card .val-badge, #board .discard-pile .card .badge { display: none; }
+/* 場區卡片縮小時(手機、較窄的寬螢幕)卡名與魔力徽章的字級等比例縮小(以手機原尺寸 88px 的字級為基準) */
+#board .field-block .card .cname { font-size: min(12px, calc(var(--card-w) * 12 / 88)); }
+#board .field-block .card .val-badge.val-power { font-size: min(10px, calc(var(--card-w) * 10 / 88)); }
+.discard-pile .discard-info { display: flex; flex-direction: column; gap: 2px; }
+.discard-pile .discard-label { font-size: 11px; color: var(--gold-soft); white-space: nowrap; }
+.discard-pile.empty .discard-label { color: rgba(30, 60, 110, .5); }
+.discard-pile .discard-count { font-size: 16px; font-weight: bold; color: var(--gold-soft); }
+.discard-pile.pickable { box-shadow: 0 0 0 3px var(--glow), 0 0 12px var(--glow); }
+.discard-pile:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
 .borrowed-badge {
   position: absolute; top: 2px; left: 2px; z-index: 2; pointer-events: none;
   background: #3a1d4a; color: #f0d8ff; border: 1px solid #b07ad0; border-radius: 6px;
@@ -215,7 +284,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 
 /* 魔書區:紅金書皮 + 書脊中縫,MP 托盤疊於魔書前方(朝中線側),尺寸全固定 */
-.book-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+.book-block { display: flex; flex-direction: column; gap: 14px; flex-shrink: 0;
   align-items: flex-end; }                                     /* 對手:書上、托盤下(前方) */
 .player-zone.bottom .book-block { flex-direction: column-reverse; align-items: flex-start; }
 .book-cover {
@@ -245,6 +314,17 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .book-next { right: -12px; }
 .book-current {
   top: -11px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 2px 8px; white-space: nowrap;
+}
+/* 查閱魔書:書皮下緣,與上緣的「回到目前頁」相對 */
+.book-review {
+  bottom: -11px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 2px 8px; white-space: nowrap;
+}
+.book-review:hover { background: var(--gold); color: #2a1b06; }
+/* 魔書耗盡:疊在書皮中央 */
+.book-exhausted {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+  padding: 4px 12px; border-radius: 8px; background: rgba(18,24,42,.88); border: 1px solid var(--gold);
+  color: var(--glow); font-weight: bold; font-size: 14px; white-space: nowrap;
 }
 .book-current:not(:disabled) { background: var(--gold); color: #2a1b06; font-weight: bold;
   box-shadow: 0 0 8px rgba(255,209,102,.6); }
@@ -303,6 +383,8 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 .card .cclass-intermediate { background: #2f7d55; }
 .card .cclass-superior { background: #a33a2a; }
+.card .ctag-jammer { background: #6a3fa0; }   /* 干擾:與中級(綠)、上級(紅)區分 */
+.card .ctag-stone { background: #6b6358; }    /* 石版魔物:灰褐 */
 /* 牌組編輯器的詳情按鈕:卡圖右側、卡號下方(不壓到卡名與資訊列),點擊範圍以偽元素擴大 */
 .card .card-detail {
   position: absolute; right: 4px; top: 24px; z-index: 2; width: 20px; height: 20px; padding: 0;
@@ -311,6 +393,14 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 .card .card-detail::before { content: ""; position: absolute; inset: -5px; }
 .card .card-detail:hover, .card .card-detail:focus-visible { background: #2c3a5e; outline: 2px solid var(--glow); }
+/* 構築器卡池的尚未開放卡片:調暗(詳情按鈕除外)、標示「尚未開放」,不可加入魔書 */
+.card.pending { cursor: not-allowed; }
+.card.pending > :not(.card-detail):not(.pending-badge) { opacity: .45; filter: grayscale(.6); }
+.card .pending-badge {
+  position: absolute; left: 50%; top: 34px; z-index: 2; transform: translateX(-50%); white-space: nowrap;
+  padding: 1px 6px; border-radius: 4px; background: rgba(18,24,42,.9); border: 1px solid #c9d3ee;
+  color: #e6ecff; font-size: 11px; font-weight: bold; pointer-events: none;
+}
 .card img.art {
   width: 100%; height: 80px; object-fit: cover; object-position: top; border-radius: 4px;
 }
@@ -511,6 +601,20 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 #action-bar .choice-cards { display: flex; gap: 8px; flex-wrap: wrap; }
 #action-bar .choice-cards .card { cursor: pointer; }
 /* 時機指示(中線) */
+/* 中線第一列:我方名稱|時機指示|對手名稱(玩家區沒有標題列);窄螢幕名稱在上、時機指示換到下一行 */
+#stage-head { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+#stage-head .stage-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: bold; font-size: 14px; color: var(--on-page); }
+#stage-head .stage-name.top { text-align: right; }
+#stage-head .stage-name.active { color: var(--on-page-green); }
+#battle-stage.open #stage-head .stage-name { color: var(--ink); }
+#battle-stage.open #stage-head .stage-name.active { color: #8fe0a0; }
+#stage-mid { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+#stage-turn { font-size: 12px; font-weight: bold; color: var(--on-page); white-space: nowrap; }
+#battle-stage.open #stage-turn { color: var(--ink); }
+#stage-result { font-weight: bold; color: var(--on-page-green); padding: 3px 0; display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; justify-content: center; }
+#stage-result.hidden { display: none; }
 #timing-track { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px;
   padding: 3px 8px; font-size: 12px; color: var(--on-page-dim); }
 #battle-stage.open #timing-track { color: var(--ink-dim); }
@@ -606,6 +710,16 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 #zoom-overlay { flex-direction: column; gap: 12px; z-index: 56; }   /* 在魔書網格之上:網格中的卡可放大選擇 */
+/* 關閉鈕:貼著卡面右上角的外側,不蓋到卡圖右上角的費用;窄螢幕右側放不下時改在卡面右上角的正上方。
+   定位在不捲動的 #zoom-frame:#zoom-card 會捲動(overflow),放在裡面會被裁掉 */
+#zoom-frame { position: relative; }
+#zoom-close { position: absolute; top: 0; left: calc(100% + 8px); width: 44px; height: 44px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--panel-line); background: #1c2438; color: var(--ink);
+  font-size: 26px; line-height: 1; cursor: pointer; }
+@media (max-width: 420px) {
+  #zoom-close { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; }
+}
+#zoom-close:hover { background: #2a3550; }
 /* 檢視內行動區:卡片實例的統一操作入口 */
 #zoom-actions { display: flex; flex-direction: column; gap: 8px; max-width: 300px; width: 300px; }
 .zoom-action { display: flex; align-items: center; gap: 8px; }
@@ -623,6 +737,22 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .zoom-stack-cards .card .cmeta, .zoom-stack-cards .card .ceffect, .zoom-stack-cards .card .cname-ja { display: none; }
 #zoom-actions button { flex: 1; font-size: 14px; padding: 9px 14px; min-height: 38px; }
 .zoom-reason { font-size: 12px; color: var(--danger); flex-shrink: 0; max-width: 45%; }
+/* 會離場的選擇對象(保護的後果預告):「選擇」上方的警告;卡片行動選單、放大檢視、詳情面板共用 */
+.pick-warning { font-size: 13px; font-weight: 600; color: #fff; background: var(--danger);
+  border-radius: 6px; padding: 5px 8px; line-height: 1.35; }
+.card-menu-warning { max-width: 240px; margin-bottom: 4px; }
+.detail-warning { margin: 6px 0; }
+/* 翻了之後本回合結束會落敗的翻頁按鈕 */
+#action-bar button.flip-loses .btn-note { color: var(--danger); font-weight: 700; }
+/* 自動 pass 開關(行動欄的回應按鈕旁)與「有可用行動」提示 */
+.auto-pass-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; }
+.auto-pass-count { color: var(--on-page-green); font-weight: 600; }
+.idle-hint { font-size: 13px; color: var(--on-page-green); font-weight: 600; }
+@media (max-width: 700px) {
+  /* 窄螢幕:完整的句子縮小、可換行(只寫「自動」看不出意思,13px 又會超出畫面) */
+  .auto-pass-toggle { white-space: normal; max-width: 120px; font-size: 11px; line-height: 1.3; }
+}
 .hidden { display: none !important; }
 #dialog {
   background: #202a42; border: 1px solid #4a5a80; border-radius: 10px;
@@ -741,6 +871,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* 檢視對手翻開的頁(E-014 / M-018):頁碼在上、卡片在下,依頁碼並排 */
 .info-section.peek { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .peek-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.peek-item .card { flex: 1; }   /* 同一列的卡等高(效果文長短不同時,魔力徽章與卡號對齊在底部) */
 .peek-page-no { font-size: 13px; color: var(--ink-dim); }
 .info-result { font-size: 13px; color: var(--glow); font-weight: bold; }
 /* 意見回報 */
@@ -986,6 +1117,12 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .fx-guard.guarding { box-shadow: 0 0 0 3px var(--accent-blue), 0 0 22px rgba(108,196,255,.85); }
 .fx-guard.guard-gone { opacity: 0; filter: grayscale(1); }
 
+/* 開始階段的翻頁提醒:魔書的 › 發光(動畫關閉時為靜態外框,見下方 html.motion-off) */
+.book-nav.flip-glow { color: #ffd257; box-shadow: 0 0 0 2px #ffc83c, 0 0 12px 4px rgba(255, 200, 60, .85);
+  animation: flip-glow 1.4s ease-in-out infinite; }
+@keyframes flip-glow { 50% { box-shadow: 0 0 0 2px #ffc83c, 0 0 20px 8px rgba(255, 200, 60, .5); } }
+html.motion-off .book-nav.flip-glow { animation: none; }
+
 /* 動畫關閉(演出設定;未設定時依 prefers-reduced-motion,由 app.js 切換 html.motion-off) */
 .motion-off *, .motion-off *::before, .motion-off *::after {
   animation: none !important; transition: none !important;
@@ -1022,6 +1159,19 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   background: #fff3c4; color: #5a3d00; border: 1px solid #e0b84a;
 }
 #landing-resume .resume-item:hover { background: #ffe9a0; }
+/* 每一項:左側返回(撐滿),右側關閉;對局中按關閉時換成棄權確認 */
+#landing-resume .resume-row { display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap; }
+#landing-resume .resume-row .resume-item { flex: 1 1 260px; min-width: 0; }
+#landing-resume .resume-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#landing-resume .resume-actions button {
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: transparent; color: var(--on-page); border: 1px solid var(--page-line);
+}
+#landing-resume .resume-actions button:hover, #landing-resume .resume-actions button:focus-visible { border-color: var(--on-page); }
+#landing-resume .resume-actions .resume-confirm { background: #8a2f2f; border-color: #8a2f2f; color: #fff; font-weight: bold; }
+#landing-resume .resume-confirm-note { font-size: 12px; color: var(--on-page); }
+/* 確認中:確認區一律獨佔一行(否則依文字長短可能擠進同一行,把返回按鈕壓窄、文字斷行) */
+#landing-resume .resume-actions.confirming { flex-basis: 100%; }
 #title { cursor: pointer; }
 #landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
   max-width: 820px; }
@@ -1130,7 +1280,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 .share-row button { padding: 5px 12px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--btn-line); background: var(--btn-bg); color: #dfe6ff; }
 
-#identity { color: var(--on-page-blue); font-weight: bold; }
 #countdown { color: var(--on-page-orange); font-weight: bold; min-width: 84px; }
 #conn-status { font-size: 12px; }
 #conn-status.ok { color: var(--on-page-green); }
@@ -1173,7 +1322,10 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 /* 卡池圖示篩選(構築器與金手指共用):一行篩選列 + 展開的圖示網格 */
 #pool-filters { position: relative; padding: 8px; }
 :is(#pool-filters, #cheat-filters) { display: block; }
-.pool-filters .filter-bar { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+.pool-filters /* 卡池文字搜尋:篩選列上方獨立一行 */
+.pool-search { width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 6px 10px; font-size: 14px;
+  border: 1px solid var(--panel-line); border-radius: 6px; background: #fff; color: #1a1d2b; }
+.filter-bar { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
 :is(#pool-filters, #cheat-filters) button {
   font: inherit; font-size: 12px; color: var(--ink); background: #1c2333; cursor: pointer;
   border: 1px solid var(--btn-line); border-radius: 6px; padding: 2px; min-height: 0;
@@ -1183,22 +1335,56 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
 }
 :is(#pool-filters, #cheat-filters) button:disabled { opacity: .4; cursor: not-allowed; }
 :is(#pool-filters, #cheat-filters) button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+/* 篩選列是 container:放不下完整版(約 680px)時改緊湊版(圖示在上、文字在下),手機與較窄的桌面相同 */
+.pool-filters .filter-bar { container-type: inline-size; }
 .pool-filters .filter-type { flex: none; display: flex; align-items: center; gap: 3px; height: 38px;
   padding: 2px 8px 2px 2px; border-radius: 19px; }
 .pool-filters .filter-type:not([aria-pressed="true"]) { opacity: .6; }
+/* 多選(類型徽章、標籤)的打勾:勾選時才顯示;徽章在右上角,標籤在前面的方框內 */
+.pool-filters .filter-type { position: relative; }
+.pool-filters .filter-check { display: none; }
+.pool-filters [aria-pressed="true"] .filter-check { display: inline-flex; }
+.pool-filters .filter-type .filter-check { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--glow); color: #2a1b06; font-size: 10px; font-weight: bold;
+  align-items: center; justify-content: center; }
+/* 標籤網格每組一列 */
+.pool-filters .filter-tag-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px;
+  margin-bottom: 6px; }
+.pool-filters .filter-panel[data-group=tag] .filter-tile { display: flex; flex-direction: row; align-items: center;
+  justify-content: flex-start; gap: 6px; padding: 6px 8px; }
+.pool-filters .filter-box { flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: 2px solid var(--ink-dim); border-radius: 4px; }
+.pool-filters [aria-pressed="true"] .filter-box { border-color: var(--glow); background: var(--glow); }
+.pool-filters .filter-box .filter-check { color: #2a1b06; font-size: 13px; font-weight: bold; line-height: 1; }
 .pool-filters .filter-icon { display: flex; align-items: center; justify-content: center; overflow: hidden;
   font-size: 11px; line-height: 1.1; text-align: center; }
 .pool-filters .filter-crop { display: block; width: 100%; background-repeat: no-repeat; }
 .pool-filters .type-icon { flex: none; width: 32px; height: 32px; border-radius: 50%;
   font-size: 16px; font-weight: bold; }
-.pool-filters .filter-menu { flex: none; display: flex; align-items: center; gap: 4px; height: 38px;
-  padding: 2px 8px; white-space: nowrap; }
+/* 選單按鈕撐滿篩選列剩下的寬度(使用者:空間盡量利用);重置按鈕在最後 */
+.pool-filters .filter-menu { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center;
+  gap: 4px; height: 38px; padding: 2px 8px; white-space: nowrap; }
+.pool-filters .filter-reset { flex: none; height: 38px; padding: 2px 10px; white-space: nowrap; }
 .pool-filters .filter-menu::after { content: "\25BE"; color: var(--ink-dim); }
 .pool-filters .filter-menu-label { color: var(--ink-dim); }
 .pool-filters .filter-summary { display: flex; align-items: center; gap: 3px; }
 .pool-filters .filter-summary .mamodo-icon { width: 28px; border-radius: 4px; }
 .pool-filters .filter-summary .product-icon { width: 20px; height: 30px; }
-.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+.pool-filters .filter-summary { min-width: 0; }
+.pool-filters .filter-summary .filter-caption { font-size: 12px; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 700px) {
+  .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
+    padding: 1px; border-radius: 8px; }
+  .pool-filters .type-icon { width: 26px; height: 26px; }
+  .pool-filters .filter-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-menu { flex-direction: column; justify-content: center; height: 44px; padding: 1px 4px; gap: 0; }
+  .pool-filters .filter-menu::after { display: none; }
+  .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
+  .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
+  .pool-filters .filter-summary .mamodo-icon { width: 22px; }
+  .pool-filters .filter-summary .filter-caption { max-width: 6em; font-size: 11px; }
+  .pool-filters .filter-reset { height: 44px; padding: 1px 6px; font-size: 11px; }
+}
 .pool-filters .filter-panel {
   position: absolute; left: 8px; right: 8px; top: calc(100% - 2px); z-index: 20;
   max-height: min(60vh, 420px); overflow-y: auto; padding: 8px;
@@ -1264,6 +1450,7 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   font-size: 12.5px; min-height: 38px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
 }
 #builder-validation .err { color: #ff8f8f; }
+#builder-validation .warn { color: #ffc964; }   /* 組合的提醒(deck-builder「魔書組合的提醒」):不是違規,與 .err 區分 */
 #builder-validation .ok { color: var(--accent-green); font-weight: bold; }
 #builder-validation .stat { color: var(--ink-dim); }
 
@@ -1297,22 +1484,30 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #layout { flex-direction: column; }
   #board { overflow-y: auto; }
   .player-zone { padding: 4px 8px; }
-  .pz-head { font-size: 12px; gap: 8px; flex-wrap: wrap; }
-  .pz-head .pname { font-size: 13px; }
-  .pz-head-rest { gap: 8px; flex-wrap: wrap; }
+  #stage-head { flex-wrap: wrap; row-gap: 0; }
+  #stage-head .stage-name { font-size: 13px; }
+  /* 第一行:我方名稱|第 N 回合|對手名稱;第二行:時機指示(或終局資訊)佔滿 */
+  #stage-mid { display: contents; }
+  #stage-head #timing-track, #stage-head #stage-result { order: 1; flex: 1 1 100%; }
 
-  /* 縱向堆疊:zone-body 轉直欄,魔書列以 order 移到外端(對手最上/我方最下) */
-  .zone-body { flex-direction: column; align-items: center; gap: 6px; }
-  .zone-side { flex: 0 0 auto; min-width: 0; }
-  .zone-side.book-side { min-width: 0; align-self: center; }
-  .player-zone.top .zone-side.book-side { order: -1; justify-content: center; }
-  .player-zone.bottom .field-block { order: -1; }
-  .player-zone.bottom .zone-side.book-side { justify-content: center; }
+  /* 縱向堆疊:魔書列在外端(對手最上/我方最下);場區 3 欄 + 第 4 欄,雙方第 4 欄都在右側,魔物欄上下對齊 */
+  .zone-body { grid-template-columns: auto auto; justify-content: center; column-gap: 10px; }
+  .player-zone.bottom .zone-body { grid-template-areas: "field side" "book book"; }
+  .player-zone.top .zone-body { grid-template-areas: "book book" "field side"; }
+  .player-zone.bottom .zone-body > .book-block, .player-zone.top .zone-body > .book-block { justify-self: center; }
 
-  /* 魔書與 MP 托盤同列,壓低整列高度 */
+  /* 魔書與棄牌區格同列,壓低整列高度 */
   .book-block, .player-zone.bottom .book-block { flex-direction: row; align-items: flex-end; gap: 6px; }
-  .mp-tray { width: 130px; height: 70px; padding: 6px; }
-  .mp-tokens { width: 116px; height: 30px; }
+  .discard-pile { --card-w: 54px; --card-h: 64px; --art-h: 32px; width: 110px; height: 70px; }
+
+  /* 場區 4 欄等寬:格寬依畫面寬度均分(上限 92px),卡片等比例;只作用於場區,魔書維持原尺寸 */
+  .field-block, .side-block {
+    --cell-w: min(92px, calc((100vw - 56px) / 4)); --side-w: var(--cell-w);
+    --card-w: calc(var(--cell-w) - 4px); --card-h: calc(var(--card-w) * 112 / 88);
+    --art-h: calc((var(--card-w) - 16px) * 64 / 72);   /* 卡圖框比例維持 --art-ratio */
+    --injured-h: var(--cell-w); --injured-w: calc(var(--cell-w) * .716);
+  }
+  .mp-cell .mp-tray { padding: 5px; }
   .mp-token { width: 12px; height: 12px; }
   .mp-token.big { width: 18px; height: 18px; }
 
@@ -1342,6 +1537,9 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #turn-cluster { --dial-w: 88px; --dial-h: 48px; gap: 4px; }
   #turn-dial { --pad-x: 24px; --pad-y: 19px; }
   #action-bar { gap: 6px; padding: 8px 10px; }
+  /* 提示開關排在提示清單正上方,不被行動按鈕隔開(桌機排版不變) */
+  #action-bar .hint-toggle { order: 98; }
+  #action-bar .hint-details { order: 99; }
   #turn-dial .dial-tab-text { font-size: 10px; padding: 1px 5px; }
   #turn-dial .dial-center { font-size: 11px; }
   #turn-cluster .turn-side { width: 84px; }
@@ -1369,16 +1567,6 @@ body:lang(ja), [lang="ja"] { font-family: "Noto Sans JP", "Hiragino Sans", "Yu G
   #pool-grid { justify-content: center; }
   #pool-grid .card { width: 106px; }
   .pool-filters .filter-bar { gap: 4px; }
-  .pool-filters .filter-type { flex-direction: column; justify-content: center; gap: 0; width: 38px; height: 44px;
-    padding: 1px; border-radius: 8px; }
-  .pool-filters .type-icon { width: 26px; height: 26px; }
-  .pool-filters .filter-label { font-size: 10px; line-height: 1.1; }
-  .pool-filters .filter-menu { flex-direction: column; justify-content: center; height: 44px; padding: 1px 4px; gap: 0; }
-  .pool-filters .filter-menu::after { display: none; }
-  .pool-filters .filter-menu-label { font-size: 10px; line-height: 1.1; }
-  .pool-filters .filter-summary .product-icon { width: 14px; height: 22px; }
-  .pool-filters .filter-summary .mamodo-icon { width: 22px; }
-  .pool-filters .filter-summary .filter-caption { max-width: 3.5em; font-size: 11px; }
   #builder-validation { font-size: 11px; min-height: 30px; padding: 6px 8px; gap: 8px; }
 }
 
@@ -1454,3 +1642,46 @@ body.sending #card-menu button { pointer-events: none; opacity: .6; }
   font-weight: bold; color: #fff; background: rgba(176, 120, 40, .85); border: 1px solid var(--gold-soft);
   border-radius: 6px; padding: 5px 10px; }
 #forfeit { padding: 4px 12px; border: 1px solid #7a3a3a; background: #3a1f24; color: var(--ink); border-radius: 6px; cursor: pointer; }
+
+/* ---------------- 教學(tutorial) ---------------- */
+.entry-badge { display: none; align-self: flex-start; font-size: 11px; font-weight: bold; padding: 1px 8px;
+  border-radius: 999px; background: #1f7a46; color: #fff; }
+.entry.done .entry-badge, .entry.todo .entry-badge { display: inline-block; }
+/* 教學未完成:醒目提示 */
+.entry.todo { border: 2px solid var(--glow); box-shadow: 0 0 0 3px rgba(255, 209, 102, .35), 0 0 18px rgba(255, 209, 102, .55);
+  animation: entry-todo-pulse 2.4s ease-in-out infinite; }
+.entry.todo .entry-badge { background: var(--glow); color: #1c2d4a; }
+@keyframes entry-todo-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(255, 209, 102, .35), 0 0 18px rgba(255, 209, 102, .55); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 209, 102, .15), 0 0 26px rgba(255, 209, 102, .8); } }
+@media (prefers-reduced-motion: reduce) { .entry.todo { animation: none; } }
+/* 教學面板:貼在行動欄上方(bottom 由 renderTutorial 依行動欄高度設定) */
+#tutorial-panel {
+  position: sticky; z-index: 5; margin: 0 10px 6px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(18, 24, 42, .96); color: var(--ink); border: 2px solid var(--glow);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .35); display: flex; flex-direction: column; gap: 6px;
+}
+#tutorial-panel.hidden { display: none; }
+#tutorial-panel .tutorial-head { display: flex; align-items: center; gap: 10px; }
+#tutorial-panel .tutorial-progress { font-size: 12px; font-weight: bold; color: var(--glow); flex: 1; }
+#tutorial-panel .tutorial-leave { font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid var(--panel-line); background: transparent; color: var(--ink-dim); cursor: pointer; }
+#tutorial-panel .tutorial-text { font-size: 14px; line-height: 1.6; white-space: pre-line; }
+#tutorial-panel .tutorial-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#tutorial-panel .tutorial-actions button { padding: 6px 14px; border-radius: 6px; cursor: pointer; font: inherit;
+  border: 1px solid var(--panel-line); background: #2a3556; color: var(--ink); }
+#tutorial-panel .tutorial-actions button.primary { background: var(--glow); color: #1c2d4a; font-weight: bold; border-color: var(--glow); }
+#tutorial-panel.nudge { animation: tutorial-nudge .45s; }
+@keyframes tutorial-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+/* 這一步要操作的目標 */
+.tutorial-target { outline: 3px solid var(--glow); outline-offset: 2px; animation: tutorial-pulse 1.2s ease-in-out infinite; }
+@keyframes tutorial-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, .9); } 50% { box-shadow: 0 0 0 8px rgba(255, 209, 102, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-target, #tutorial-panel.nudge { animation: none; }
+}
+@media (max-width: 700px) {
+  #tutorial-panel { margin: 0 4px 4px; padding: 8px 10px; }
+  #tutorial-panel .tutorial-text { font-size: 13px; }
+}
+#tutorial-panel .tutorial-fold { font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid var(--panel-line); background: transparent; color: var(--ink-dim); cursor: pointer; }
+#tutorial-panel.collapsed { gap: 4px; padding-top: 6px; padding-bottom: 6px; }

@@ -18,14 +18,12 @@ def family(game, slot) -> str:
 
 
 def spell_names(game, card, slot) -> frozenset:
-    """這個戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」):戰術卡的對應魔物,與使用它的魔物
-    (slot,未定時為 None)的名稱。指令戰術沒有對應魔物,只看使用者。"""
-    names = set()
+    """這個戰術算是哪些魔物的戰術(card-effects「『〇〇の術』的判定」):只看戰術卡的對應魔物。
+    「X の術」是所屬,不看使用者:效果文另有「『X』で使った術」(P-045)的寫法指由 X 使用的戰術
+    (spell-ownership-literal)。指令戰術沒有對應魔物,不是任何魔物的戰術。slot 保留給呼叫端的介面一致。"""
     if card is not None and not card.is_command_spell and card.related_mamodo:
-        names.add(card.related_mamodo)
-    if slot is not None:
-        names.add(family(game, slot))
-    return frozenset(names)
+        return frozenset((card.related_mamodo,))
+    return frozenset()
 
 
 def mamodo_name(game, slot) -> str:
@@ -50,7 +48,8 @@ def add_modifier(game, batch, *, kind, source, owner, duration,
                  target_player=None, target_slot=None, amount=0, flag=None, data=None):
     m = Modifier(kind=kind, source=source, owner=owner, duration=duration,
                  created_turn=game.state.turn_no, target_player=target_player,
-                 target_slot=target_slot, amount=amount, flag=flag, data=data or {})
+                 target_slot=target_slot, amount=amount, flag=flag, data=data or {},
+                 use_id=game.state.current_use)
     game.state.modifiers.append(m)
     game.emit(batch, "modifier_added", kind=kind, source=source,
               target_player=target_player, target_slot=target_slot,
@@ -83,7 +82,7 @@ def coin_info(results) -> dict:
 
 def schedule_standby(game, batch, *, kind, source, owner, data=None):
     sb = Standby(kind=kind, source=source, owner=owner,
-                 created_turn=game.state.turn_no, data=data or {})
+                 created_turn=game.state.turn_no, data=data or {}, use_id=game.state.current_use)
     game.state.standby.append(sb)
     # 待命指定的對象(S-098 選定的戰術)一併公開,供記錄顯示
     target = {k: sb.data[k] for k in ("card", "page") if k in sb.data}
@@ -93,20 +92,42 @@ def schedule_standby(game, batch, *, kind, source, owner, data=None):
 
 # ---------------------------------------------------------------- 翻頁 / MP / 回復
 
-def turn_pages(game, batch, player, leaves, source):
-    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。"""
+def _page_lock(game, table, holders) -> str | None:
+    """戰鬥階段中,holders 場上未被擋下的 table 登記卡(PR-012 / P-049);沒有時 None。"""
+    from ..engine import _field_cards
+    from ..state import BATTLE
+    if game.state.phase != BATTLE:
+        return None
+    return next((number for p in holders for number, _s in _field_cards(game, p, table)), None)
+
+
+def turn_pages(game, batch, player, leaves, source, by=None):
+    """效果造成的翻頁(1 張 = 1 對頁),不獲得 MP。翻完即敗。PR-012 在場時,戰鬥階段中不翻(傷害的翻頁不經過這裡)。
+    by 為效果的使用者;是對手時記入 pages_turned_by_opponent(M-084)。"""
     from ..engine import _game_over
+    lock = _page_lock(game, reg.BLOCK_EFFECT_PAGE_TURN, (0, 1))
+    if lock:
+        game.emit(batch, "page_turn_restricted", player=player, count=leaves, source=lock)
+        return
     ps = game.state.players[player]
     ps.pos += 2 * leaves
+    if by is not None and by != player and leaves > 0:
+        ps.pages_turned_by_opponent += leaves
     game.emit(batch, "pages_turned", player=player, count=leaves, pos=min(ps.pos, BOOK_SIZE + 2), source=source)
     if ps.book_exhausted():
         _game_over(game, batch, winner=1 - player, reason="book_out")
 
 
 def turn_back_pages(game, batch, player, leaves, source) -> int:
-    """效果造成的回翻,最多回到第一頁;回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。"""
+    """效果造成的回翻,最多回到第 1 頁(pos 0:左邊是封面內側、右邊第 1 頁;1 張 = 2 頁,第 2、3 頁回翻 1 張即到
+    第 1 頁);回傳實際回翻的張數,沒有回翻時不發事件(P-019 依實際張數計)。
+    P-049 在對手場上時,戰鬥階段中不回翻(回翻自己魔書的效果)。"""
+    lock = _page_lock(game, reg.BLOCK_TURN_BACK, (1 - player,))
+    if lock:
+        game.emit(batch, "page_turn_restricted", player=player, count=-leaves, source=lock)
+        return 0
     ps = game.state.players[player]
-    actual = min(leaves, max(0, (ps.pos - 2) // 2))
+    actual = min(leaves, max(0, ps.pos // 2))
     if actual == 0:
         return 0
     ps.pos -= 2 * actual
@@ -143,15 +164,16 @@ def mp_guarded(game, player) -> bool:
 def battle_phase_mp_lock(game, player) -> bool:
     """戰鬥階段中,player 場上有 P-020(搭檔效果未被禁止)。「このカードが場にある→」也算使用效果,
     所以「パートナーの効果を使えない」時不生效。"""
-    from ..engine import restricted
-    from ..state import BATTLE, NO_PARTNER_EFFECTS
+    from ..engine import partner_effects_blocked
+    from ..state import BATTLE
     st = game.state
-    if st.phase != BATTLE or restricted(game, player, NO_PARTNER_EFFECTS):
+    if st.phase != BATTLE:
         return False
-    return any(s.partner in reg.BATTLE_PHASE_MP_LOCK for s in st.players[player].slots)
+    return any(s.partner in reg.BATTLE_PHASE_MP_LOCK and not partner_effects_blocked(game, player, s)
+               for s in st.players[player].slots)
 
 
-def reduce_opponent_mp(game, batch, player, amount, source) -> int:
+def reduce_opponent_mp(game, batch, player, amount, source, _counter_level=0) -> int:
     """player 的效果使對手 MP 減少(不低於 0),並記錄為「減少對手 MP」的效果。回傳實際減少量。
     對手受 P-021 保護時不減少(發出 mp_reduction_prevented),仍算使用了減少對手 MP 的效果。"""
     mark_opp_mp_reduced(game, player)
@@ -160,7 +182,21 @@ def reduce_opponent_mp(game, batch, player, amount, source) -> int:
         return 0
     actual = reduce_mp(game, batch, 1 - player, amount, source)
     game.state.players[1 - player].mp_reduced_by_opponent += actual   # E-028 / E-035
+    mp_counter_after_reduction(game, batch, 1 - player, actual, _counter_level)
     return actual
+
+
+def mp_counter_after_reduction(game, batch, victim, amount, level=0) -> None:
+    """victim 的 MP 被對手的效果實際減少 amount 後:victim 場上有 MJ-006 時,對手減少同樣數量(強制)。
+    「相手の場にも…あるとき、この効果はたがいに1回ずつ適用される」:由 MJ-006 造成的減少(level 1)
+    再觸發對方的 MJ-006 一次,那次(level 2)不再觸發。"""
+    if amount <= 0 or level >= 2 or game.state.phase == GAME_OVER:
+        return
+    card = next((f.card for f in game.state.players[victim].field_cards if f.card in reg.MP_COUNTER), None)
+    if card is None:
+        return
+    game.emit(batch, "field_card_effect", player=victim, card=card, amount=amount)
+    reduce_opponent_mp(game, batch, victim, amount, card, _counter_level=level + 1)
 
 
 def heal_slot(game, batch, player, slot, source):
@@ -286,7 +322,7 @@ def own_book_turn_effect(game, batch, player, leaves, source) -> bool:
         ps.page_back_effect_used = True
     else:
         ps.page_effect_used = True
-        turn_pages(game, batch, player, leaves, source)
+        turn_pages(game, batch, player, leaves, source, by=player)
     return True
 
 
@@ -306,6 +342,43 @@ def own_page_turnback_effect(game, batch, player, leaves, source):
 
 # 目標為卡片的選項標示卡片所在位置(zone / player / 定位欄位),前端據此在畫面上的位置選擇;
 # value 是決策指令的值,不受位置欄位影響。extra 為呼叫端的附加欄位(例如 slot_uid),不可覆寫位置欄位。
+
+def card_name_key(name: str) -> str:
+    """E-050 的同名判斷:「( )つきのカード名のカードは、( )内が異なっていても同名」——去掉全形 / 半形括號內的文字;
+    W 魔物 / VS 魔物(名稱含「＆」「&」或「VS」)須完全相符。"""
+    import re
+    if any(mark in name for mark in ("＆", "&", "VS", "ＶＳ")):
+        return name
+    return re.sub(r"[（(][^）)]*[）)]", "", name).strip()
+
+
+def unselectable_by(game, chooser, owner, slot) -> bool:
+    """chooser 的效果「選ぶ」時不能選 owner 的這隻魔物:S-121(「相手は…選ぶことができない」,只對對手,依家族)、
+    M-075 / Ex-099(「自分も相手も…選ぶことができない」,雙方;Ex-099 只在持有者場上只有它時;被「使えない」擋下時不作用)。"""
+    from ..engine import card_effect_blocked
+    st = game.state
+    if chooser != owner and any(m.kind == "unselectable" and m.target_player == owner and m.active(st.turn_no)
+                                and m.data.get("mamodo") == family(game, slot) for m in st.modifiers):
+        return True
+    spec = reg.UNSELECTABLE.get(slot.top)
+    if spec is None:
+        return False
+    if spec.get("alone") and len(st.players[owner].slots) != 1:
+        return False
+    return not card_effect_blocked(game, owner, slot, slot.top)
+
+
+def selectable_opponent_slots(game, chooser) -> list:
+    """chooser 的效果「選ぶ」時可選的對手魔物(game-engine「不能被對手選擇的魔物」「雙方都不能選擇的魔物」)。
+    所有「由效果選對手魔物」的地方都用它。"""
+    owner = 1 - chooser
+    return [s for s in game.state.players[owner].slots if not unselectable_by(game, chooser, owner, s)]
+
+
+def selectable_own_slots(game, player) -> list:
+    """player 的效果「選ぶ」時可選的自己魔物(M-075 / Ex-099 雙方都不能選)。"""
+    return [s for s in game.state.players[player].slots if not unselectable_by(game, player, player, s)]
+
 
 def slot_option(player, slot, card=None, **extra):
     """場上魔物槽;card 預設為魔物本身,目標是搭檔時傳 slot.partner。"""
@@ -390,6 +463,7 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
         results.append(heads)
         game.emit(batch, "coin_flipped", player=player,
                   result="heads" if heads else "tails", source=source)
+    _coin_thrown(game, batch, player, count)   # M-072
     data = dict(data or {})
     data.setdefault("player", player)
     data.update({"results": results, "callback": callback, "flipper": player, "source": source,
@@ -397,24 +471,61 @@ def flip_coins(game, batch, player, count, source, callback, data=None):
     _coin_subphase(game, batch, data)
 
 
-def _set_heads_sources(game, player):
+def _coin_spell_user_family(game, data) -> str | None:
+    """擲幣來源是戰術時,使用那張戰術的魔物的家族(P-045):非戰鬥戰術看效果 ctx 的 user_slot,
+    攻防戰術依 ctx 的 side 取戰鬥的使用魔物。不是戰術或找不到時 None。"""
+    from ..cards import SPELL
+    card = game.db.get(data.get("source")) if data else None
+    if card is None or card.type != SPELL:
+        return None
+    ctx = (data.get("tree_cont") or {}).get("ctx", {})
+    uid = ctx.get("user_slot")
+    battle = game.state.battle
+    if uid is None and ctx.get("side") and battle is not None:
+        uid = battle.attack_slot if ctx["side"] == "attack" else battle.defense_slot
+    slot = game.state.slot_by_uid(data.get("player"), uid) if uid is not None else None
+    return family(game, slot) if slot is not None else None
+
+
+def _coin_thrown(game, batch, player, count):
+    """M-072:自己每擲 1 枚硬幣(含重擲),場上未被「使えない」擋下的該效果使自己 MP 增加。"""
+    from ..engine import card_effect_blocked, gain_mp
+    for s in list(game.state.players[player].slots):
+        amount = reg.COIN_THROWN_MP.get(s.top)
+        if amount and not card_effect_blocked(game, player, s, s.top):
+            gain_mp(game, batch, player, amount * count, s.top, by=player)
+
+
+def _set_heads_sources(game, player, data=None):
     """player 場上可用的「把自己擲的硬幣改成正面」來源 (卡號, 魔物槽, zone):魔物卡(M-034,「魔物の効果」)
-    與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。"""
-    from ..engine import mamodo_effect_block, restricted
-    from ..state import NO_PARTNER_EFFECTS
+    與搭檔卡(P-039,「パートナーの効果」),各自受對應的「使えない」限制。同一張卡只列一次。
+    限定戰術使用者的來源(P-045)只在這次擲幣是該家族使用的戰術時列出。"""
+    from ..engine import mamodo_effect_block, partner_effects_blocked, restricted
+    from ..state import NO_DISCARD_COST_EFFECTS
     out, seen = [], set()
+    if restricted(game, player, NO_DISCARD_COST_EFFECTS):   # S-144:登記的都是「このカードを捨て札にする→」
+        return out
+    user = _coin_spell_user_family(game, data)
+
+    def applies(number):
+        need = reg.COIN_SET_HEADS_USER.get(number)
+        return need is None or need == user
+
+    from ..engine import own_mamodo_discard_blocked
+    own_block = own_mamodo_discard_blocked(game, player)   # P-048:魔物卡改正面要棄掉自己
     for s in game.state.players[player].slots:
-        if s.top in reg.COIN_SET_HEADS and s.top not in seen and not mamodo_effect_block(game, player, s):
+        if (s.top in reg.COIN_SET_HEADS and s.top not in seen and applies(s.top) and not own_block
+                and not mamodo_effect_block(game, player, s)):
             out.append((s.top, s, "mamodo"))
             seen.add(s.top)
-        if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen
-                and not restricted(game, player, NO_PARTNER_EFFECTS)):
+        if (s.partner in reg.COIN_SET_HEADS and s.partner not in seen and applies(s.partner)
+                and not partner_effects_blocked(game, player, s)):
             out.append((s.partner, s, "partner"))
             seen.add(s.partner)
     return out
 
 
-def _flipper_options(game, player, results):
+def _flipper_options(game, player, results, data=None):
     """擲幣者的機會:不使用;可用的重擲(M-012 / Ex-026)每枚可重擲;改成正面(M-034 / P-039)每枚反面可改。
     選項都附來源卡號 card;值是 _coin_value(第一個免費的重擲與魔物的改成正面維持舊格式)。沒有可用效果時 None。"""
     options = [{"value": None, "label": "keep"}]
@@ -426,7 +537,7 @@ def _flipper_options(game, player, results):
         mp_cost, _ = reg.COIN_REFLIP_COST.get(s.top, (0, 1))
         options += [{"value": _coin_value("reflip", s.top, i), "label": "reflip", "coin": i, "card": s.top,
                      "mp": mp_cost} for i in range(len(results))]
-    for card, _s, zone in _set_heads_sources(game, player):
+    for card, _s, zone in _set_heads_sources(game, player, data):
         options += [{"value": _coin_value("heads", card, i, zone), "label": "set_heads", "coin": i, "card": card}
                     for i, r in enumerate(results) if not r]
     return options if len(options) > 1 else None
@@ -440,14 +551,14 @@ def _coin_value(what, card, index, zone="mamodo"):
     return f"heads:{index}" if zone == "mamodo" else f"heads:{card}:{index}"
 
 
-def _parse_coin_value(game, player, value):
+def _parse_coin_value(game, player, value, data=None):
     """擲幣選項的值 → (種類, 來源卡號, 第幾枚)。"""
     if isinstance(value, int):
         return "reflip", next(s.top for s in _reflip_slots(game, player, "self")
                               if reg.COIN_REFLIP_COST.get(s.top, (0, 1)) == (0, 1)), value
     parts = value.split(":")
     if len(parts) == 2:
-        return "heads", next(c for c, _s, z in _set_heads_sources(game, player) if z == "mamodo"), int(parts[1])
+        return "heads", next(c for c, _s, z in _set_heads_sources(game, player, data) if z == "mamodo"), int(parts[1])
     return parts[0], parts[1], int(parts[2])
 
 
@@ -462,7 +573,7 @@ def _opponent_options(game, player, results):
 def _subphase_options(game, data):
     who = data["coin_turn"]
     if who == data["flipper"]:
-        return "coin_confirm", _flipper_options(game, who, data["results"])
+        return "coin_confirm", _flipper_options(game, who, data["results"], data)
     return "opp_coin_redo", _opponent_options(game, who, data["results"])
 
 
@@ -492,6 +603,7 @@ def _reflip_one(game, batch, data, index):
     data["results"][index] = heads
     game.emit(batch, "coin_flipped", player=data["flipper"],
               result="heads" if heads else "tails", source=data["source"], reflip=True)
+    _coin_thrown(game, batch, data["flipper"], 1)   # M-072:重擲也是「投げる」
 
 
 def _check_subphase_choice(game, value, data):
@@ -522,9 +634,9 @@ def _coin_confirm(game, batch, value, data):
     player = data["flipper"]
     if value is not None:
         _check_subphase_choice(game, value, data)
-        what, card, index = _parse_coin_value(game, player, value)
+        what, card, index = _parse_coin_value(game, player, value, data)
         if what == "heads":
-            _card, slot, zone = next(x for x in _set_heads_sources(game, player) if x[0] == card)
+            _card, slot, zone = next(x for x in _set_heads_sources(game, player, data) if x[0] == card)
             game.emit(batch, "ability_used", player=player, card=card, slot=slot.uid, zone=zone)
             if data.get("journal") is not None:
                 data["journal"].append(["discard_partner" if zone == "partner" else "discard_slot", player, slot.uid])

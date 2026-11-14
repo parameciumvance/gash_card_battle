@@ -20,9 +20,10 @@ uvicorn gash.api.app:app --reload
 
 首頁的入口如下。NPC 對戰、與朋友對戰、自由調查時間點進去後先到各自的設定頁選暱稱、牌組等,再開始;設定頁會記住上次選的牌組、難度與計時。
 
-**賽季**:建房(NPC 對戰、與朋友對戰的建立房間、自由調查時間)與開桌時可選第 1~3 賽季(缺省第 3 賽季),限制雙方魔書可用的卡:
+**賽季**:建房(NPC 對戰、與朋友對戰的建立房間、自由調查時間)與開桌時可選第 1~4 賽季(缺省第 4 賽季),限制雙方魔書可用的卡:
 第 1 賽季為 LEVEL:1(M-015、S-028、P-009、E-015、PR-002 以前),第 2 賽季到 LEVEL:2 與魔本拡張シート LEVEL:1,
-第 3 賽季到 LEVEL:3、カードセット與スペシャルボックス(範圍定義在 `data/seasons.json`)。超出賽季的魔書在選單中禁用,
+第 3 賽季到 LEVEL:3、カードセット與スペシャルボックス,第 4 賽季到 LEVEL:4、魔本拡張シート LEVEL:3 與
+電撃フェスタ2004春の陣 プロモーションシート(範圍定義在 `data/seasons.json`)。超出賽季的魔書在選單中禁用,
 NPC「隨機」也只從符合賽季的魔書抽;加入別人的房間或牌桌時依該房間的賽季檢查。
 
 - **NPC 對戰**:和伺服器上的電腦對手對戰,即開即玩、不計時,也附金手指面板。
@@ -188,21 +189,27 @@ watchtower 下一次輪詢(預設 5 分鐘)。
 
 ### 發布新版本
 
-**(本機)** 先寫這一版的更新內容(給玩家看的 release note),再打 tag:
+開發在 `dev` 分支進行(每個 change 從 `dev` 開 feature 分支,做完合併回 `dev`);`main` 只放已發布的版本。
+**(本機)** 定版時在 `dev` 跑全套測試、寫這一版的更新內容(給玩家看的 release note),併入 `main` 再打 tag:
 
 1. 在 `frontend/i18n/releases.zh-TW.json`、`releases.en.json`、`releases.ja.json` 的
    `releases` **最前面**加入新版本(版本號、日期、可選的 `title`、條目;條目分類為
    `new` / `fix` / `change`)。三個檔案的版本與條目要一致,測試會檢查。
-2. `python tools/build_zh_cn.py` 產生簡中,commit 並 push。
-3. 打 tag 並推上 GitHub:
+2. `python tools/build_zh_cn.py` 產生簡中,在 `dev` commit。
+3. 在 `dev` 跑全套測試 `python -m pytest tests -q`,通過後併入 `main`、打 tag 並推上 GitHub:
    ```bash
+   git switch main && git merge --no-ff dev
+   git push origin main
    git tag v0.1.0
    git push origin v0.1.0
+   git switch dev && git merge main      # 讓 dev 跟上 main 的合併提交
    ```
 
-推 tag 後 GitHub Actions 先以 `tools/release_notes.py check` 確認更新內容的最新一版就是
-這個 tag,再建置映像檔並推上 GHCR,最後以繁中更新內容建立 GitHub Release。可以到 repo 的
-Actions 頁面看執行進度。上線後玩家進入首頁會看到這一版的介紹(按「確認」後不再跳出)。
+推 tag 後 GitHub Actions 先對這個 commit 跑全套測試(含瀏覽器測試,約 10 分鐘),通過後以
+`tools/release_notes.py check` 確認更新內容的最新一版就是這個 tag,再建置映像檔並推上 GHCR,
+最後以繁中更新內容建立 GitHub Release;測試失敗時不建置,線上維持原版本。可以到 repo 的
+Actions 頁面看執行進度。push / PR 到 `main`、`dev` 時也會跑同一套全套測試;瀏覽器測試失敗時,
+該次執行的 artifact(`test-results`)有失敗當下的頁面截圖。上線後玩家進入首頁會看到這一版的介紹(按「確認」後不再跳出)。
 
 **忘了寫更新內容**時 CI 會在建置前失敗,線上維持原版本。補上更新內容並 push 後,刪掉
 tag 重推:
@@ -224,6 +231,32 @@ tag 名稱就是版本號:CI 以 build arg `GASH_VERSION` 帶進映像檔,首頁
 前端檔案帶 `Cache-Control: no-cache`,但 Cloudflare 的 **Browser Cache TTL** 預設會把
 JS / CSS 改寫成快取 4 小時。請在 Cloudflare 後台 Caching → Configuration →
 Browser Cache TTL 設為 **Respect Existing Headers**,部署後玩家才會立刻拿到新版。
+
+### 相依套件與 CI 的安全設定
+
+CI 能推映像檔,watchtower 又會自動上線,所以鏈上會自動取用新版的地方都釘死了,升級一律經過 PR:
+
+- **token 權限**:repo 的 Actions 預設權限是唯讀(Settings → Actions → General → Workflow permissions);
+  `test.yml` 宣告 `contents: read`,`deploy.yml` 預設 `permissions: {}`,只有建置 job 有
+  `contents: write`、`packages: write`。新增 workflow 時也要寫明最小權限。
+- **action**:一律以 commit SHA 引用,後面註解版本號(`actions/checkout@<sha> # v4.4.0`),
+  測試會檢查。
+- **Python 相依**:`requirements.lock`(正式映像檔)與 `requirements-dev.lock`(CI)由
+  `pyproject.toml` 產生,帶每個套件的 hash,安裝時 `--require-hashes`。改了 `pyproject.toml`
+  的相依後要重新產生(需要 `pip install pip-tools`):
+  ```bash
+  pip-compile --generate-hashes --strip-extras --allow-unsafe --all-build-deps -o requirements.lock pyproject.toml
+  pip-compile --generate-hashes --strip-extras --allow-unsafe --all-build-deps --extra dev -o requirements-dev.lock pyproject.toml
+  ```
+  開發容器照舊 `pip install -e ".[dev]"`,不受影響。
+- **映像檔**:`Dockerfile` 的基底映像檔、`docker-compose.yml` 的 watchtower 都釘 digest。
+  watchtower 掛載 Docker socket(等於 VPS 的 root 權限),不自動換新;`cloudflared` 維持
+  `:latest` 由 watchtower 自動更新,讓 Cloudflare 的修正自動套用。
+- **Dependabot**(`.github/dependabot.yml`):每週檢查 action、Python 相依、基底映像檔與
+  watchtower 的新版,分組開 PR 到 `dev`。CI 跑完全套測試、看過變更(主版本升級先看 release notes)
+  再合併。VPS 上的 `docker-compose.yml` 是手動複製的快照:watchtower 的 PR 合併後,
+  **(本機)** 重新 `scp docker-compose.yml` 到 VPS 部署目錄,**(VPS)** 再
+  `docker compose up -d watchtower` 才會換上新版。
 
 ### 網域與 Cloudflare Tunnel
 

@@ -52,5 +52,5 @@ def default_command(game: Game) -> dict | None:
             return {"type": "no_defense"}
         return {"type": "pass"}
     if st.battle_in is not None:
-        return {"type": "battle_in_response", "allow": True}  # 迎戰=依規則強制攻擊
+        return {"type": "battle_in_response", "allow": True}  # 同意進入戰鬥=依規則強制攻擊
     return {"type": "pass"}

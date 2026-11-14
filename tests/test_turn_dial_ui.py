@@ -1,4 +1,4 @@
-"""行動欄附註與回合轉盤的瀏覽器測試(battle-ui「行動選項附註」「回合轉盤」「回合轉盤的 pass 傾斜」)。
+"""行動欄附註與回合轉盤的瀏覽器測試(battle-ui「行動選項的附註」「回合轉盤」「回合轉盤的 pass 傾斜」)。
 需要 playwright 與 Chromium。
 
 Run: python -m pytest tests/test_turn_dial_ui.py -q
@@ -53,8 +53,8 @@ def test_allow_battle_note_and_no_defense_plain(page):
     send(page, tp, {"type": "flip_pages", "count": 0})
     send(page, tp, {"type": "declare_attack", "page": 3})
     page.wait_for_function("S.battle_in")
-    assert note_of(page, "迎戰") == "或選擇非戰鬥行動而不迎戰"
-    assert button(page, "迎戰").locator(".btn-label").text_content() == "迎戰"
+    assert note_of(page, "同意進入戰鬥") == "接著宣告防禦;或插入行動使確認無效"
+    assert button(page, "同意進入戰鬥").locator(".btn-label").first.text_content() == "同意進入戰鬥"
     send(page, me, {"type": "battle_in_response", "allow": True})
     page.wait_for_function("S.battle && S.battle.step === 'defense'")
     no_def = page.locator("#action-bar button", has_text="不防禦")
@@ -107,7 +107,8 @@ def test_dial_points_to_turn_player_and_no_badge(page):
     assert page.evaluate("document.getElementById('turn-cluster').getAttribute('aria-label')") == \
         page.evaluate(f"`等待 ${{pname({tp})}} 行動(對手的回合・非戰鬥中)`")
     assert page.locator(".pz-head .turn-marker").count() == 0
-    assert page.locator(f"{zone_of(page, tp)} .pz-head").text_content().find("回合玩家") == -1
+    assert page.locator(".stage-name").all_text_contents() and \
+        all("回合玩家" not in t for t in page.locator(".stage-name").all_text_contents())
     assert_in_action_bar(page)
 
 

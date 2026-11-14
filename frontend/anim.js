@@ -31,7 +31,7 @@ const Anim = (() => {
     "attack_negated", "defense_negated", "game_ended",
     "damage_prevented", "damage_negated", "mp_reduction_prevented", "mp_gain_prevented", "effect_blocked",
   ]);
-  const CARD_NO = /^(?:[EMPS]|PR|Ex)-\d{3}$/;   // 卡號:M / S / P / E,特典卡 PR,擴張卡 Ex
+  const CARD_NO = /^(?:[EMPS]|PR|Ex|MJ)-\d{3}$/;   // 卡號:M / S / P / E,特典卡 PR,擴張卡 Ex,MJ12
   // 效果來源卡所在的欄位(常駐效果、待命 / ステイ、戰鬥後的附加效果等);reason 只在是卡號時算(支付費用為 spell:… 等)
   const SOURCE_FIELD = {
     pages_turned: "source", mamodo_healed: "source", damage_prevented: "source", mp_reduction_prevented: "source",
@@ -281,7 +281,7 @@ const Anim = (() => {
     for (const ev of events) {
       if (ev.type === "card_played") {           // 起點:魔書頁;自棄牌區上場時是那一方(借來的搭檔為持有者)的棄牌區
         const zone = zoneOf(ev.from_discard ? ev.owner ?? ev.player : ev.player);
-        const el = zone && zone.querySelector(ev.from_discard ? ".discard-btn" : `.book-pages [data-card="${ev.card}"]`);
+        const el = zone && zone.querySelector(ev.from_discard ? ".discard-pile" : `.book-pages [data-card="${ev.card}"]`);
         marks.cardSrc[ev.seq] = (el || null) && el.getBoundingClientRect();
       }
       if (ev.type === "mamodo_discarded" || ev.type === "mamodo_injured") {
@@ -293,7 +293,8 @@ const Anim = (() => {
         const zone = zoneOf(ev.player);
         const el = !zone ? null
           : ev.zone === "book" ? zone.querySelector(`.book-pages [data-card="${ev.card}"]`)
-            : zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="${ev.zone}"]`);
+            : ev.zone === "field" ? zone.querySelector(`.field-cards [data-field-uid="${ev.field_uid}"]`)
+              : zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="${ev.zone}"]`);
         const rect = el ? el.getBoundingClientRect() : ev.zone === "book" ? marks.bookRect[ev.player] : null;
         if (rect) marks.discardSrc[ev.seq] = rect;
       }
@@ -361,8 +362,9 @@ const Anim = (() => {
   // 出卡:FLIP — 來源=魔書頁位(重繪前量測),目標=場上欄位(重繪後)
   function flyCard(ev, marks) {
     const zone = zoneOf(ev.player);
-    const target = zone && zone.querySelector(
-      `[data-slot-uid="${ev.slot}"][data-zone-kind="${ev.zone}"]`);
+    const target = zone && (ev.zone === "field"   // MJ12:飛入獨立卡區的那張卡(手機為小圖示)
+      ? zone.querySelector(`.field-cards [data-field-uid="${ev.field_uid}"]`) || zone.querySelector(".field-cards")
+      : zone.querySelector(`[data-slot-uid="${ev.slot}"][data-zone-kind="${ev.zone}"]`));
     if (!target) return;
     const from = marks.cardSrc[ev.seq] || marks.bookRect[ev.player];
     if (!from) return;
@@ -432,7 +434,7 @@ const Anim = (() => {
   const DISCARD_FLY_MS = 600;
   function flyToDiscard(player, card, from) {
     const zone = zoneOf(player);
-    const pile = zone && zone.querySelector(".discard-btn");
+    const pile = zone && zone.querySelector(".discard-pile");
     if (!from || !pile || !card) return;
     const to = pile.getBoundingClientRect();
     const ghost = cardEl(card, { small: true });

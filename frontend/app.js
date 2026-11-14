@@ -12,6 +12,8 @@ let PENDING = new Set();   // 資料已收錄、效果尚未實作的卡號(data
 
 // 已開放的卡(卡池、篩選選項用)
 function openCards() { return Object.values(CARDS).filter((c) => !PENDING.has(c.number)); }
+// 卡池可列出的卡(deck-builder「卡池的尚未開放卡片」):構築器含尚未開放的卡(顯示但不可選),金手指只有開放的卡
+function poolCards(withPending) { return withPending ? Object.values(CARDS) : openCards(); }
 let TEXT = {};        // 卡片文字(目前語言的 data/cards.<lang>.json)
 let PRESETS = [];     // 探索得到的預組清單 [{id, name}]
 let META = { assets: null, version: null };  // /api/meta:卡圖安裝狀態、版本號
@@ -208,7 +210,55 @@ const TAB_SESSION_KEY = "gash-session";
 function saveSession() {
   const raw = JSON.stringify(SESSION);
   try { sessionStorage.setItem(TAB_SESSION_KEY, raw); } catch (_) { /* 無法儲存:退回瀏覽器記得的身分 */ }
-  localStorage.setItem(`gash-room-${SESSION.code}`, raw);
+  if (SESSION.mode === "tutorial") return;   // 教學不列在「返回進行中的對局」(tutorial「教學的離開與完成」)
+  // 朋友房另外記下這個瀏覽器拿過的每個座位(seats:座位 → token),同一個瀏覽器的兩個分頁對打時不互相覆蓋;
+  // 首頁「返回進行中的對局」依此分座位列出(close-rooms)
+  const key = `gash-room-${SESSION.code}`;
+  let seats;
+  if (SESSION.mode === "online" && (SESSION.viewer === 0 || SESSION.viewer === 1)) {
+    seats = {};
+    try {
+      const prev = JSON.parse(localStorage.getItem(key) || "null");
+      if (prev && prev.code === SESSION.code) Object.assign(seats, rememberedSeatTokens(prev));
+    } catch (_) { /* 舊記錄讀不到:只記這一個 */ }
+    seats[SESSION.viewer] = SESSION.tokens.me;
+  }
+  localStorage.setItem(key, seats ? JSON.stringify({ ...SESSION, seats }) : raw);
+}
+
+// 記錄中的座位 → token(舊格式沒有 seats 時,以記錄本身的座位)
+function rememberedSeatTokens(record) {
+  if (record.seats) return { ...record.seats };
+  if ((record.viewer === 0 || record.viewer === 1) && record.tokens && record.tokens.me) return { [record.viewer]: record.tokens.me };
+  return {};
+}
+
+// 瀏覽器記得的這一房的身分:朋友房拿過兩個座位時各一份(依座位排序),其他情況就是記錄本身
+function rememberedSessions(code) {
+  const record = JSON.parse(localStorage.getItem(`gash-room-${code}`) || "null");
+  if (!record) return [];
+  const seats = record.mode === "online" ? rememberedSeatTokens(record) : {};
+  if (Object.keys(seats).length < 2) return [record];
+  return Object.keys(seats).sort().map((v) => {
+    const { seats: _all, ...base } = record;
+    return { ...base, viewer: Number(v), tokens: { me: seats[v] } };
+  });
+}
+
+// 從瀏覽器記錄移除一個座位(其他座位保留;沒有剩下的座位時整筆移除)
+function forgetRememberedSeat(code, viewer) {
+  const key = `gash-room-${code}`;
+  try {
+    const record = JSON.parse(localStorage.getItem(key) || "null");
+    const seats = record && record.mode === "online" ? rememberedSeatTokens(record) : {};
+    delete seats[viewer];
+    const left = Object.keys(seats);
+    if (!record || viewer === null || viewer === undefined || !left.length) { localStorage.removeItem(key); return; }
+    const v = Number(left[0]);
+    const { seats: _all, ...base } = record;
+    localStorage.setItem(key, JSON.stringify(left.length > 1 ? { ...base, seats }
+      : { ...base, viewer: v, tokens: { me: seats[v] }, seats }));
+  } catch (_) { /* 忽略 */ }
 }
 
 function loadSession(code) {
@@ -286,6 +336,7 @@ async function roomAction(path, body = {}) {
 
 async function send(command) {
   if (SENDING) return;   // 送出中不再送(鍵盤等 CSS 擋不到的途徑)
+  if (!tutorialAllows(command)) return;   // 教學的鎖定步驟:不是要求的操作就不送出
   setSending(true);
   try {
     const body = await api(`/api/rooms/${SESSION.code}/commands`, {
@@ -321,6 +372,7 @@ function applyPayload(body) {
     render();
     S = next;
   }
+  tutorialUpdate(fresh);
   const played = Anim.apply(fresh, prevS, render, body.actor);
   // 檢視對手頁面(E-014 / M-018):只對即時批次(有行動者)在演出結束後跳出;
   // 伺服器已依視角過濾,帶 cards 的就是自己檢視的
@@ -766,19 +818,21 @@ async function refreshResumeRooms() {
       if (key && key.startsWith("gash-room-")) codes.push(key.slice("gash-room-".length));
     }
   } catch (_) { /* 無法讀取:不顯示 */ }
-  const found = await Promise.all(codes.map(async (code) => {
-    let saved;
-    try { saved = loadSession(code); } catch (_) { return null; }
+  // 每個記得的身分一項:同一個瀏覽器拿過朋友房的雙方座位時分座位列出,返回與關閉都以該座位進行
+  const entries = [];
+  for (const code of codes) {
+    try { for (const saved of rememberedSessions(code)) entries.push({ code, saved }); } catch (_) { /* 記錄損壞:略過 */ }
+  }
+  const multi = new Set(entries.map((e) => e.code).filter((c, i, all) => all.indexOf(c) !== i));
+  const found = await Promise.all(entries.map(async ({ code, saved }) => {
     if (!saved || !saved.tokens) return null;
     const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
     try {
       const body = await api(`/api/rooms/${code}/state`, { headers: { "X-Player-Token": token } });
       if (body.state && body.state.phase === "game_over") return null;
-      return { code, saved, body };
+      return { code, saved, body, seated: multi.has(code) };
     } catch (err) {
-      if (roomGone(err)) {   // 網路或代理錯誤時保留記錄,這次不列出
-        try { localStorage.removeItem(`gash-room-${code}`); } catch (__) { /* 忽略 */ }
-      }
+      if (roomGone(err)) forgetRememberedSeat(code, multi.has(code) ? saved.viewer : null);   // 網路或代理錯誤時保留記錄,這次不列出
       return null;
     }
   }));
@@ -786,10 +840,13 @@ async function refreshResumeRooms() {
   const items = found.filter(Boolean);
   box.classList.toggle("hidden", !items.length);
   box.querySelector(".resume-title").textContent = t("ui.resume.title");
-  box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body }) => {
+  box.querySelector(".resume-list").replaceChildren(...items.map(({ code, saved, body, seated }) => {
+    const row = document.createElement("div");
+    row.className = "resume-row";
     const btn = document.createElement("button");
     btn.className = "resume-item";
     btn.dataset.code = code;
+    if (seated) btn.dataset.viewer = saved.viewer;
     const room = body.room || {};
     const names = room.names || [];
     const me = saved.viewer === 0 || saved.viewer === 1 ? saved.viewer : null;
@@ -797,18 +854,75 @@ async function refreshResumeRooms() {
     const status = room.started && body.state ? t("ui.turn", { n: body.state.turn_no }) : t("ui.resume.waiting");
     const parts = [t(`ui.landing.${saved.mode === "online" ? "friend" : saved.mode}`)];
     if (opp && saved.mode !== "local") parts.push(t("ui.resume.vs", { name: opp }));
+    if (seated) parts.push(t("ui.resume.seat", { player: names[me] || t("ui.player", { n: me + 1 }) }));
     parts.push(t("ui.resume.code", { code }), status);
     btn.textContent = parts.join(t("ui.sep.bar"));
     btn.onclick = () => {
+      // 以這一項的座位接回:先設成這個分頁的身分(loadSession 優先使用)
+      if (seated) { try { sessionStorage.setItem(TAB_SESSION_KEY, JSON.stringify(saved)); } catch (_) { /* 退回瀏覽器記得的 */ } }
       history.replaceState(null, "", `/?room=${code}`);
       resumeRoom(code);
     };
-    return btn;
+    row.append(btn, resumeCloseControls(code, saved, room, seated));
+    return row;
   }));
+}
+
+// 「返回進行中的對局」的關閉(battle-ui「返回進行中的對局」;online-room「關閉房間」):
+// 自由調查、NPC、等待對手的朋友房直接關閉房間;等待中的牌桌離開牌桌;對局中的朋友房與牌桌先確認,確定後棄權
+function resumeCloseAction(saved, room) {
+  const table = room.table;
+  if (table) return table.state === "waiting" ? "leave_table" : "forfeit";
+  if (room.mode === "online" && room.started) return "forfeit";
+  return "close";
+}
+
+function resumeCloseControls(code, saved, room, seated = false) {
+  const box = document.createElement("div");
+  box.className = "resume-actions";
+  const token = saved.mode === "local" ? Object.values(saved.tokens)[0] : saved.tokens.me;
+  const action = resumeCloseAction(saved, room);
+  const run = async () => {
+    try {
+      const headers = { "X-Player-Token": token };
+      if (action === "close") await api(`/api/rooms/${code}/close`, { method: "POST", headers });
+      else if (action === "leave_table") await api(`/api/tables/${room.table.number}/leave`, { method: "POST", headers });
+      else await api(`/api/rooms/${code}/forfeit`, { method: "POST", headers });
+    } catch (err) {
+      if (!roomGone(err)) { toast(err.message); return; }   // 房間已不存在:照樣移除記錄
+    }
+    forgetRememberedSeat(code, seated ? saved.viewer : null);   // 分座位列出時只移除這個座位
+    refreshResumeRooms();
+  };
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "resume-close";
+  closeBtn.textContent = t("ui.resume.close");
+  closeBtn.title = closeBtn.ariaLabel = t("ui.resume.close_label", { code });
+  closeBtn.onclick = () => {
+    if (action !== "forfeit") { run(); return; }
+    // 對局中:頁面內確認(棄權後對手獲勝)
+    const note = document.createElement("span");
+    note.className = "resume-confirm-note";
+    note.textContent = t("ui.resume.forfeit_note");
+    const yes = document.createElement("button");
+    yes.className = "resume-confirm";
+    yes.textContent = t("ui.resume.forfeit_confirm");
+    yes.onclick = run;
+    const no = document.createElement("button");
+    no.className = "resume-cancel";
+    no.textContent = t("ui.resume.cancel");
+    no.onclick = () => { box.classList.remove("confirming"); box.replaceChildren(closeBtn); };
+    box.classList.add("confirming");
+    box.replaceChildren(note, yes, no);
+    yes.focus();
+  };
+  box.appendChild(closeBtn);
+  return box;
 }
 
 // 頂欄標題字:回到首頁(在房間中等同離開房間,對局仍可從首頁返回)
 function goHome() {
+  if (isTutorial()) { leaveTutorial(); return; }
   if (SESSION) { leaveRoom(); return; }
   history.replaceState(null, "", "/");
   renderLanding();
@@ -888,6 +1002,20 @@ function cardEl(num, opts = {}) {
     cls.className = `cclass cclass-${def.class}`;
     cls.textContent = t(`card.class.${def.class}`);
     meta.appendChild(cls);
+  }
+  // 干擾(ジャマー)效果圖示:依卡片資料,多個效果圖示的卡(M-080)也只標一次(battle-ui「資訊列的干擾標籤」)
+  if ((def.effect_icons || [def.effect_icon]).includes("jammer")) {
+    const tag = document.createElement("span");
+    tag.className = "cclass ctag-jammer";
+    tag.textContent = t("card.icon.jammer");
+    meta.appendChild(tag);
+  }
+  // 石版魔物(battle-ui「資訊列的石版標籤」)
+  if (def.stone_tablet) {
+    const tag = document.createElement("span");
+    tag.className = "cclass ctag-stone";
+    tag.textContent = t("card.tag.stone_tablet");
+    meta.appendChild(tag);
   }
   el.appendChild(meta);
 
@@ -1029,6 +1157,7 @@ function renderCardMenu(anchor, buttons) {
       btn.onclick = () => { closeCardMenu(); if (b.details) zoom(num, ctx); else b.onclick(); };
     }
     if (!row.contains(btn)) row.prepend(btn);
+    if (b.warning) menu.appendChild(warningEl(b.warning, "card-menu-warning"));
     menu.appendChild(row);
   }
   menu.classList.remove("hidden");
@@ -1099,6 +1228,8 @@ function renderDetailPanel() {
   if (entry) opts.cost = entry.cost;
   const card = cardEl(num, opts);   // 不帶 ctx:點了開放大檢視
   const parts = [card];
+  const warning = ctx ? pickWarning(ctx) : null;
+  if (warning) parts.push(warningEl(warning, "detail-warning"));
   const details = ctx ? zoomDetails(num, ctx) : null;
   if (details) parts.push(details);
   if (ctx && ctx.kind === "slot" && slot && slot.stack && slot.stack.length > 1) parts.push(stackListEl(slot, (n) => zoom(n)));
@@ -1182,7 +1313,7 @@ function linkCardNames(root, nums) {
 function cardRefs(ev) {
   const out = new Set();
   for (const v of Object.values(ev)) {
-    if (typeof v === "string" && /^(?:[EMPS]|PR|Ex)-\d{3}$/.test(v) && CARDS[v]) out.add(v);
+    if (typeof v === "string" && /^(?:[EMPS]|PR|Ex|MJ)-\d{3}$/.test(v) && CARDS[v]) out.add(v);
   }
   return [...out];
 }
@@ -1227,6 +1358,10 @@ function zoomActions(ctx) {
   if (ctx.kind === "partner") {
     const slot = ps.slots.find((s) => s.uid === ctx.uid);
     return slot && slot.partner ? { buttons: partnerButtons(ctx.p, slot) } : { gone: true };
+  }
+  if (ctx.kind === "field") {   // 獨立卡區(MJ12)
+    const fc = (ps.field_cards || []).find((f) => f.uid === ctx.uid);
+    return fc ? { buttons: fieldCardButtons(ctx.p, fc) } : { gone: true };
   }
   if (ctx.kind === "any_page") {
     const entry = (ps.any_page_spells || []).find((e) => e.page === ctx.page);
@@ -1279,7 +1414,7 @@ function zoomDetails(num, ctx) {
   const blocked = slot ? (slot.blocked_effects || []).filter((b) => b.card === num) : [];
   if (blocked.length) {
     sections.push(infoSection(t("ui.effect_blocked.title"), blocked.map((b) => infoRow(
-      t("ui.effect_blocked.item", { card: cname(b.card), by: b.by.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) }),
+      t("ui.effect_blocked.item", { card: cname(b.card), by: b.by.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) }),
       [b.card, ...b.by], "", "")), ""));
   }
   if (!sections.length) return null;
@@ -1295,6 +1430,9 @@ function renderZoom() {
   const overlay = document.getElementById("zoom-overlay");
   const holder = document.getElementById("zoom-card");
   const actions = document.getElementById("zoom-actions");
+  const close = document.getElementById("zoom-close");
+  close.setAttribute("aria-label", t("ui.close"));
+  close.title = t("ui.close");
   holder.innerHTML = "";
   actions.innerHTML = "";
 
@@ -1356,12 +1494,20 @@ function renderZoom() {
       btn.onclick = (ev) => { ev.stopPropagation(); if (!b.keepOpen) closeZoom(); b.onclick(); };
     }
     row.prepend(btn);
+    if (b.warning) actions.appendChild(warningEl(b.warning, "zoom-warning"));
     actions.appendChild(row);
   }
   overlay.classList.remove("hidden");
 }
 
-document.getElementById("zoom-overlay").onclick = closeZoom;
+document.getElementById("zoom-overlay").onclick = closeZoom;   // 點背景關閉;「×」的點擊冒泡到這裡
+// Esc 只關最上層的放大檢視:capture 階段攔下,底下的棄牌區視窗、魔書翻閱都收不到這次按鍵
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape" || document.getElementById("zoom-overlay").classList.contains("hidden")) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  closeZoom();
+}, true);
 
 // ---------------------------------------------------------------- 合法操作判斷
 
@@ -1488,6 +1634,7 @@ function render() {
   if (ZOOM) renderZoom();  // 開啟中的檢視隨狀態刷新(實例消失則自動關閉)
   refreshCardMenu();
   renderDetailPanel();
+  renderTutorial();
 }
 
 // log 抽屜頁籤(窄螢幕):點擊展開/收合;收合時由 CSS 只顯示最新 4 條
@@ -1553,8 +1700,13 @@ function renderCheatFields() {
     holder.appendChild(button);
   }
   // 雙方目前翻開的頁(依對局狀態,不受草稿修改影響)
-  document.getElementById("cheat-current").textContent = [0, 1].map((p) => t("ui.cheat.current_pages",
-    { player: pname(p), a: S.players[p].pos, b: S.players[p].pos + 1 })).join(t("ui.sep.bar"));
+  // 第 1 頁(回翻到 pos 0)與第 32 頁的對頁只有一頁,不寫出不存在的頁碼
+  document.getElementById("cheat-current").textContent = [0, 1].map((p) => {
+    const ps = S.players[p];
+    const open = [ps.pos, ps.pos + 1].filter((pg) => pg >= 1 && pg <= ps.book_size);
+    return open.length === 1 ? t("ui.cheat.current_page", { player: pname(p), n: open[0] })
+      : t("ui.cheat.current_pages", { player: pname(p), a: ps.pos, b: ps.pos + 1 });
+  }).join(t("ui.sep.bar"));
   const mp = document.getElementById("cheat-mp");
   document.getElementById("cheat-mp-label").textContent = t("ui.cheat.mp_label", { player: pname(editor.active) });
   mp.value = editor.players ? editor.players[editor.active].mp : "";
@@ -1723,7 +1875,7 @@ function renderTopbar() {
   leave.classList.toggle("hidden", !SESSION);
   const forfeitBtn = document.getElementById("forfeit");   // 棄權:對局中的玩家(自由調查時間除外)
   forfeitBtn.textContent = t("ui.forfeit");
-  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && SESSION.mode !== "local"
+  forfeitBtn.classList.toggle("hidden", !(SESSION && S && S.phase !== "game_over" && !["local", "tutorial"].includes(SESSION.mode)
     && (myViewer() === 0 || myViewer() === 1)));
   document.getElementById("rules-toggle").textContent = t("ui.rules.toggle");
   document.getElementById("feedback-toggle").textContent = t("ui.feedback.toggle");
@@ -1747,49 +1899,27 @@ function renderTopbar() {
   document.getElementById("cheat-title").textContent = t("ui.cheat.title");
   document.getElementById("cheat-refresh").textContent = t("ui.cheat.refresh");
   document.getElementById("cheat-apply").textContent = t("ui.cheat.apply");
-  const idEl = document.getElementById("identity");
-  const v = myViewer();
-  idEl.textContent = !SESSION ? "" :
-    v === "spectator" ? t("ui.spectating") :
-    v === "all" ? "" : t("ui.you_are", { player: pname(v) });
-  if (!S) {
-    document.getElementById("turn-info").textContent = "";
-    document.getElementById("phase-info").textContent = "";
-    document.getElementById("acting-info").textContent = "";
-    return;
-  }
-  document.getElementById("turn-info").textContent =
-    t("ui.turn", { n: S.turn_no }) + t("ui.sep.bar") + pname(S.turn_player);
-  document.getElementById("phase-info").textContent =
-    t(`ui.phase.${S.phase === "game_over" ? "game_over" : S.phase}`);
+  if (S) renderStageStatus();   // 回合數、觀戰中、終局資訊在中線(header-cleanup);頂欄只剩標題與按鈕
+}
 
-  const acting = document.getElementById("acting-info");
-  if (S.phase === "game_over") {
-    acting.textContent = t("ui.winner", { player: pname(S.winner) }) +
-      t("ui.paren", { text: endReasonText(S.winner, S.end_reason) }) +
-      (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
-    if (SESSION && RESULT_SEEN === SESSION.code && !(INFO && INFO.kind === "result")) {   // 關閉結算面板後可重新開啟
-      const reopen = document.createElement("button");
-      reopen.className = "result-reopen";
-      reopen.textContent = t("ui.result.reopen");
-      reopen.onclick = showResult;
-      acting.appendChild(reopen);
-    }
-  } else if (S.pending) {
-    const results = (S.pending.info && S.pending.info.results) || [];
-    acting.textContent = (iControl(S.pending.player)
-      ? t("ui.waiting_choice", { player: pname(S.pending.player) })
-      : t("ui.opponent_choosing")) + (results.length ? t("ui.sep.bar") + coinResultsText(results) : "");
-  } else if (S.battle) {
-    acting.textContent = S.battle.step === "defense"
-      ? t("ui.battle_no_defense_yet")
-      : t("ui.acting", { player: pname(S.battle.effect_turn) });
-  } else if (S.battle_in) {
-    acting.textContent = t("ui.acting", { player: pname(1 - S.battle_in.attacker) });
-  } else if (S.phase === "start") {
-    acting.textContent = t("ui.acting", { player: pname(S.turn_player) });
-  } else {
-    acting.textContent = S.action_player !== null ? t("ui.acting", { player: pname(S.action_player) }) : "";
+// 中線的狀態:「(觀戰中・)第 N 回合」接在時機指示前;終局時時機指示換成勝負、原因、NPC 牌組與重新開啟結算
+function renderStageStatus() {
+  const turn = document.getElementById("stage-turn");
+  const result = document.getElementById("stage-result");
+  const over = S.phase === "game_over";
+  turn.textContent = (myViewer() === "spectator" ? t("ui.spectating") + t("ui.sep.meta") : "")
+    + t("ui.turn", { n: S.turn_no });
+  result.classList.toggle("hidden", !over);
+  if (!over) { result.replaceChildren(); return; }
+  result.textContent = t("ui.winner", { player: pname(S.winner) }) +
+    t("ui.paren", { text: endReasonText(S.winner, S.end_reason) }) +
+    (R && R.npc && R.npc.deck ? t("ui.sep.bar") + t("ui.npc.deck_reveal", { deck: npcDeckName(R.npc.deck) }) : "");
+  if (SESSION && RESULT_SEEN === SESSION.code && !(INFO && INFO.kind === "result")) {   // 關閉結算面板後可重新開啟
+    const reopen = document.createElement("button");
+    reopen.className = "result-reopen";
+    reopen.textContent = t("ui.result.reopen");
+    reopen.onclick = showResult;
+    result.appendChild(reopen);
   }
 }
 
@@ -1802,46 +1932,27 @@ function renderPlayerZone(zone, p, isTop) {
   const active = awaitedPlayer() === p;               // 行動權:等待輸入的一方
   zone.classList.toggle("active", active);
 
-  const head = document.createElement("div");
-  head.className = "pz-head";
-  const nameSpan = document.createElement("span");   // 暱稱以 textContent 呈現(防注入)
-  nameSpan.className = "pname";
-  nameSpan.textContent = pname(p) + (iControl(p) && myViewer() !== "all" ? t("ui.you_suffix") : "");
-  head.appendChild(nameSpan);
-  const badge = (cls, key) => {
-    const el = document.createElement("span");
-    el.className = cls;
-    el.textContent = t(key);
-    head.appendChild(el);
-  };
-  if (active) badge("acting-label", "ui.acting_label");
-  const rest = document.createElement("span");
-  rest.className = "pz-head-rest";
-  rest.innerHTML =
-    `<span class="mp">${t("ui.mp")} ${ps.mp}</span>` +
-    `<span class="book-progress">${ps.pos > ps.book_size ? t("ui.book_exhausted")
-      : `${t("ui.book")} ${t("ui.book_progress", { pos: ps.pos, size: ps.book_size })}`}</span>` +
-    (ps.book ? `<span class="review-btn">${t("ui.review_book")}</span>` : "") +
-    `<span class="discard-btn">${t("ui.discard", { n: ps.discard.length })}</span>`;
-  rest.querySelector(".discard-btn").onclick = () => showDiscard(p);
-  if (ps.book) rest.querySelector(".review-btn").onclick = () => showBookReview(p);
-  head.appendChild(rest);
-  zone.appendChild(head);
+  // 玩家區沒有標題列:名稱在中線(renderStageNames),行動方看外框,MP、頁碼、查閱魔書、棄牌區都在盤面上(header-cleanup)
+  renderStageName(p, isTop, active);
 
-  // 場區(魔物列+搭檔列)置中;魔書區靠外角:對手右上、我方左下(對角相對)
+  // 魔書區、場區(魔物列+搭檔列)、第 4 欄(MP 托盤+獨立卡區)以 CSS grid 依螢幕寬度排列:
+  // 雙方的魔物 3 欄恆置中對齊;魔書區與第 4 欄的位置見 style.css 的 .zone-body
   const body = document.createElement("div");
   body.className = "zone-body";
-  const sideL = document.createElement("div");
-  sideL.className = "zone-side";
-  const sideR = document.createElement("div");
-  sideR.className = "zone-side";
-  const book = renderBookBlock(p, ps);
-  (isTop ? sideR : sideL).classList.add("book-side");
-  (isTop ? sideR : sideL).appendChild(book);
-  body.appendChild(sideL);
+  body.appendChild(renderBookBlock(p, ps));
   body.appendChild(renderFieldBlock(p, ps, isTop));
-  body.appendChild(sideR);
+  body.appendChild(renderSideBlock(p, ps, isTop));
   zone.appendChild(body);
+}
+
+// 中線的玩家名稱:我方(下方區)在左、對手(上方區)在右,與雙方魔書所在的角落一致;▼ / ▲ 指向所屬的區
+function renderStageName(p, isTop, active) {
+  const el = document.querySelector(`#stage-head .stage-name.${isTop ? "top" : "bottom"}`);
+  if (!el) return;
+  el.dataset.player = p;
+  el.classList.toggle("active", active);
+  el.textContent = (isTop ? "▲ " : "▼ ") + pname(p)        // 暱稱以 textContent 呈現(防注入)
+    + (iControl(p) && myViewer() !== "all" ? t("ui.you_suffix") : "");
 }
 
 const FIELD_COLUMNS = 3;
@@ -1904,6 +2015,125 @@ function renderFieldBlock(p, ps, isTop) {
   if (isTop) { block.appendChild(partnerRow); block.appendChild(mamodoRow); }
   else { block.appendChild(mamodoRow); block.appendChild(partnerRow); }
   return block;
+}
+
+// 第 4 欄:魔物列旁 MP 托盤、搭檔列旁獨立卡區(與場區同樣的列高與列距,上下對齊)
+function renderSideBlock(p, ps, isTop) {
+  const block = document.createElement("div");
+  block.className = "side-block";
+  const mpCell = document.createElement("div");
+  mpCell.className = "mcell side-cell mp-cell";
+  mpCell.appendChild(mpTrayEl(p, ps.mp));
+  const fieldCell = document.createElement("div");
+  fieldCell.className = "mcell side-cell field-cell";
+  fieldCell.appendChild(fieldCardsEl(p, ps));
+  if (isTop) block.append(fieldCell, mpCell);
+  else block.append(mpCell, fieldCell);
+  return block;
+}
+
+// 獨立卡區:不裝在魔物上的場上卡片(MJ12 等,快照 field_cards 依出場順序)
+// 寬螢幕由左往右排開,放不下時等距壓疊(最新在右、最上層);窄螢幕 2 張以上改方形小圖示(2×2 / 2×3,超過 6 張「+N」)
+const FIELD_ICON_MAX = 6;
+function fieldCardsEl(p, ps) {
+  const zone = document.createElement("div");
+  zone.className = "field-cards";
+  zone.dataset.fieldCards = p;
+  const cards = ps.field_cards || [];
+  if (!cards.length) {
+    zone.classList.add("empty");
+    zone.textContent = t("ui.slot.empty_field");
+    return zone;
+  }
+  const fieldCard = (entry) => {
+    const ctx = { kind: "field", p, uid: entry.uid };
+    const el = markPickable(markUsable(cardEl(entry.card, { zoomCtx: ctx }), ctx), ctx);
+    el.dataset.fieldUid = entry.uid;
+    el.dataset.card = entry.card;
+    return el;
+  };
+  if (cards.length > 1 && isNarrow()) {
+    const grid = document.createElement("div");
+    grid.className = "field-icons";
+    zone.dataset.grid = cards.length <= 4 ? "2x2" : "2x3";
+    const shown = cards.length > FIELD_ICON_MAX ? cards.slice(0, FIELD_ICON_MAX - 1) : cards;
+    for (const entry of shown) {
+      const ctx = { kind: "field", p, uid: entry.uid };
+      const icon = document.createElement("div");
+      icon.className = "field-icon";
+      icon.dataset.fieldUid = entry.uid;
+      icon.dataset.card = entry.card;
+      icon.title = cname(entry.card);
+      const img = document.createElement("img");
+      img.src = artUrl(entry.card);
+      img.alt = cname(entry.card);
+      img.onerror = () => { img.onerror = null; img.src = "/static/back.jpg"; };
+      icon.appendChild(img);
+      icon.onclick = () => { setDetail(entry.card, ctx); openCardMenu(icon, entry.card, ctx); };
+      bindLongPress(icon, entry.card, ctx);
+      grid.appendChild(markPickable(markUsable(icon, ctx), ctx));
+    }
+    if (shown.length < cards.length) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "field-icon field-more";
+      more.textContent = `+${cards.length - shown.length}`;
+      more.onclick = () => showFieldCards(p);
+      grid.appendChild(more);
+    }
+    zone.appendChild(grid);
+    return zone;
+  }
+  cards.forEach((entry, i) => {
+    const el = fieldCard(entry);
+    el.style.zIndex = String(i + 1);
+    el.style.setProperty("--field-i", i);
+    zone.appendChild(el);
+  });
+  zone.style.setProperty("--field-n", cards.length);
+  return zone;
+}
+
+function showFieldCards(p) {
+  const cards = S.players[p].field_cards || [];
+  showDialog(pname(p) + t("ui.sep.meta") + t("ui.field_cards", { n: cards.length }),
+    cards.map((entry) => ({ cardNum: entry.card, ctx: { kind: "field", p, uid: entry.uid }, keepOpen: true })),
+    null, [], { dismissable: true });
+}
+
+// 棄牌區格:最後進入棄牌區的卡(調暗)與張數;點擊開棄牌區視窗;決策目標在棄牌區時發光
+function discardPileEl(p, ps) {
+  const pile = document.createElement("div");
+  pile.className = "discard-pile";
+  pile.dataset.discardPile = p;
+  pile.setAttribute("role", "button");
+  pile.tabIndex = 0;
+  pile.setAttribute("aria-label", t("ui.discard", { n: ps.discard.length }));
+  pile.title = t("ui.discard", { n: ps.discard.length });
+  const label = document.createElement("span");   // 「棄牌區」標籤常駐(有卡時在張數上方)
+  label.className = "discard-label";
+  label.textContent = t("ui.slot.empty_discard");
+  if (!ps.discard.length) {
+    pile.classList.add("empty");
+    pile.appendChild(label);
+  } else {
+    const last = ps.discard[ps.discard.length - 1];
+    const card = cardEl(last);
+    card.onclick = null;                        // 整格同一個入口:開棄牌區視窗
+    card.dataset.card = last;
+    pile.appendChild(card);
+    const info = document.createElement("div");
+    info.className = "discard-info";
+    const count = document.createElement("span");
+    count.className = "discard-count";
+    count.textContent = `×${ps.discard.length}`;
+    info.append(label, count);
+    pile.appendChild(info);
+  }
+  if (PICK && PICK.discards.has(p)) pile.classList.add("pickable");
+  pile.onclick = () => showDiscard(p);
+  pile.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); showDiscard(p); } };
+  return pile;
 }
 
 function emptyFrame(label, small) {
@@ -1983,6 +2213,11 @@ function browsedPageEl(p, ps, pg) {
   return el;
 }
 
+// 開始階段最多能翻的張數(大會規則上限 3 張,不超過魔書最後一頁)
+function maxFlips(pos) {
+  return Math.min(3, Math.floor((32 - pos) / 2));
+}
+
 function bookNavButton(cls, label, text, disabled, onclick) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -2043,13 +2278,30 @@ function renderBookBlock(p, ps) {
   if (bookBrowsable(p)) {   // 左右鍵在書皮兩緣;「回到目前頁」在上緣,不在目前頁時變亮
     const at = browse ?? Math.min(ps.pos, 32);
     cover.classList.toggle("browsing", browse !== null);
-    cover.appendChild(bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1)));
-    cover.appendChild(bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1)));
+    const prev = bookNavButton("book-prev", t("ui.book.prev"), "‹", at <= 0, () => browseBook(p, -1));
+    const next = bookNavButton("book-next", t("ui.book.next"), "›", at >= 32, () => browseBook(p, 1));
+    // 開始階段的翻頁提醒:往該方向還有合法的翻閱位置(翻 0 到最多能翻的張數)時發光
+    const maxFlip = maxFlips(ps.pos);
+    if (S.phase === "start" && p === S.turn_player && iControl(p) && !S.pending && maxFlip > 0) {
+      if (at > ps.pos) prev.classList.add("flip-glow");
+      if (at < ps.pos + 2 * maxFlip) next.classList.add("flip-glow");
+    }
+    cover.appendChild(prev);
+    cover.appendChild(next);
     cover.appendChild(bookNavButton("book-current", t("ui.book.current"), t("ui.book.current"),
       browse === null, () => browseBook(p, 0)));
+    // 查閱魔書:書皮下緣,與上緣的「回到目前頁」相對
+    cover.appendChild(bookNavButton("book-review", t("ui.review_book"), t("ui.review_book"), false,
+      () => showBookReview(p)));
+  }
+  if (ps.pos > ps.book_size) {   // 魔書耗盡:兩個頁位都是書末之後的空位,標籤疊在書皮中央
+    const out = document.createElement("span");
+    out.className = "book-exhausted";
+    out.textContent = t("ui.book_exhausted");
+    cover.appendChild(out);
   }
   block.appendChild(cover);
-  block.appendChild(mpTrayEl(p, ps.mp));
+  block.appendChild(discardPileEl(p, ps));
   return block;
 }
 
@@ -2170,6 +2422,19 @@ function partnerButtons(p, slot) {
   return buttons;
 }
 
+// 獨立卡區的卡(MJ12)的效果按鈕:與搭檔效果相同的標籤與停用原因(battle-ui「MJ12 的放出與效果操作」)
+function fieldCardButtons(p, fc) {
+  const ab = fc.ability;
+  if (!ab || !iControl(p)) return [];
+  const label = ab.mode === "discard" ? t("ui.ability_discard")
+    : ab.mode === "mp" ? t("ui.ability_mp", { n: ab.mp_cost }) : t("ui.ability");
+  const usable = abilityUsableNow(p, ab, fc.ability_used, fc.ability_block);
+  return [{
+    label, disabled: !usable.ok, reason: usable.reason,
+    onclick: () => send({ type: "use_field_ability", player: p, zone: "field", field_uid: fc.uid }),
+  }];
+}
+
 function partnerEl(p, slot) {
   const ctx = { kind: "partner", p, uid: slot.uid };
   return markPickable(markUsable(cardEl(slot.partner, { small: true, zoomCtx: ctx,
@@ -2184,6 +2449,7 @@ function blockedBadges(slot, num) {
 
 // 效果已使用(快照的 *_used:"turn" 本回合已用、"game" 一場限 1 次已用)時的停用原因;未使用回傳 null
 function usedReason(used) {
+  if (used === "condition") return t("ui.condition");   // 魔物效果攻擊的使用條件(Ex-052 / Ex-055)
   return used === "game" ? t("ui.ability.used_game") : used ? t("ui.ability.used_turn") : null;
 }
 
@@ -2193,6 +2459,7 @@ const ABILITY_BLOCK_KEYS = {
   mamodo_restricted: "error.ability.mamodo_restricted", timing_battle: "ui.why.battle_only",
   timing_nonbattle: "ui.why.nonbattle_only", own_turn: "ui.ability.own_turn_only", used: "ui.ability.used_turn",
   per_game: "ui.ability.used_game", condition: "error.ability.condition",
+  discard_cost_restricted: "error.ability.discard_cost_restricted",
 };
 
 function mpReason(p, cost) { return t("ui.spell.mp", { mp: S.players[p].mp, cost }); }
@@ -2255,13 +2522,33 @@ function borrowedButtons(p, borrow) {
   }];
 }
 
+// 事件卡的「使用」按鈕;timingBlock:時機不符時的理由(優先顯示)
+function eventButton(p, entry, def, timingBlock) {
+  const ps = S.players[p];
+  const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
+  const blocked = timingBlock ? timingBlock
+    : ps.events_exhausted ? t("ui.used")
+    : entry.condition_ok === false ? t("ui.condition")
+    : cost > ps.mp ? mpReason(p, cost)
+    : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
+    : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
+  return {
+    label: t("ui.use_event"), primary: true, disabled: !!blocked, reason: blocked,
+    onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
+  };
+}
+
 function pageButtons(p, entry) {
   const def = CARDS[entry.card];
   const buttons = [];
 
+  if (def.type === "event" && def.effect_icon === "battle" && iControl(p) && !S.pending
+      && S.battle && S.battle.step === "effects" && S.battle.effect_turn === p) {
+    buttons.push(eventButton(p, entry, def, null));   // 戰鬥中輪到自己使用效果
+  }
   if (canActNow(p)) {
-    if (def.type === "mamodo" || def.type === "partner") {
-      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選
+    if (def.type === "mamodo" || def.type === "partner" || def.type === "mj12") {
+      // 能不能放出依快照的 play_block(與指令同一判斷);搭檔的裝備對象兩隻以上時由玩家選;MJ12 進獨立卡區
       const blocked = entry.play_block ? t(`error.play.${entry.play_block}`) : null;
       buttons.push({
         label: t("ui.play"), primary: true, disabled: !!blocked, reason: blocked,
@@ -2270,19 +2557,11 @@ function pageButtons(p, entry) {
           : send({ type: "play_card", player: p, page: entry.page })),
       });
     } else if (def.type === "event") {
-      const ps = S.players[p];
-      const cost = entry.cost !== undefined ? entry.cost : (def.cost || 0);   // 快照的費用含 M-040 的加成
-      const blocked = ps.events_exhausted ? t("ui.used")
-        : entry.condition_ok === false ? t("ui.condition")
-        : cost > ps.mp ? mpReason(p, cost)
-        : (def.ad === "A" && p !== S.turn_player) ? t("ui.spell.own_turn")
-        : (def.ad === "D" && p === S.turn_player) ? t("ui.spell.other_turn") : null;
-      buttons.push({
-        label: t("ui.use_event"), primary: true, disabled: !!blocked, reason: blocked,
-        onclick: () => send({ type: "use_book_card", player: p, page: entry.page }),
-      });
+      // 有戰鬥圖示的事件卡(E-053)只能在戰鬥中的「効果の使用」使用
+      buttons.push(eventButton(p, entry, def, def.effect_icon === "battle" ? t("ui.why.battle_only") : null));
     }
-    if (def.type === "spell" && def.effect_icon === "nonbattle" && inNonBattle()) {
+    // 非戰鬥戰術:非戰鬥中輪到自己,或確認進入戰鬥時非回合玩家插入的 1 個行動(由 canActNow 判斷)
+    if (def.type === "spell" && def.effect_icon === "nonbattle") {
       const u = nonbattleSpellUsable(p, entry);
       buttons.push({
         label: t("ui.use_event"), primary: true, disabled: !u.ok, reason: u.reason,
@@ -2585,13 +2864,85 @@ function hintsShown() {
   try { return localStorage.getItem("gash-action-hints") === "shown"; } catch (_) { return false; }
 }
 
+// ---------------------------------------------------------------- 自動 pass(battle-ui「自動 pass」)
+
+// 快照的 idle.auto:等待中的非回合玩家沒有其他可用行動時的預設回應(pass / 進入戰鬥 / 不防禦)。
+// 開關記在瀏覽器,預設開;演出播完後倒數,放大檢視或卡片行動選單開著時暫停(關閉後重新倒數)
+const AUTO_PASS_KEY = "gash-auto-pass";
+const AUTO_PASS_MS = 3000;
+let AUTO_PASS = null;   // { key, cmd, player, elapsed, running, timer }
+
+function autoPassOn() {
+  if (isTutorial()) return false;   // 教學中由玩家自己回應(自動回應會繞過鎖定步驟)
+  try { return localStorage.getItem(AUTO_PASS_KEY) !== "off"; } catch (_) { return true; }
+}
+
+function cancelAutoPass() {
+  if (AUTO_PASS && AUTO_PASS.timer) clearInterval(AUTO_PASS.timer);
+  AUTO_PASS = null;
+}
+
+function autoPassKey() {
+  return S && S.idle && S.idle.auto ? `${S.event_count}:${JSON.stringify(S.idle.auto)}` : null;
+}
+
+function scheduleAutoPass() {
+  const key = autoPassKey();
+  const awaited = key ? awaitedPlayer() : null;
+  if (!key || !autoPassOn() || PICK || awaited === null || !iControl(awaited)) { cancelAutoPass(); return; }
+  if (AUTO_PASS && AUTO_PASS.key === key) return;            // 同一個決策點:倒數照舊
+  cancelAutoPass();
+  const state = { key, cmd: S.idle.auto, player: awaited, elapsed: 0, running: false, timer: null };
+  AUTO_PASS = state;
+  Anim.idle().then(() => {
+    if (AUTO_PASS !== state) return;
+    state.running = true;
+    renderActionBar();                                       // 顯示倒數中
+    state.timer = setInterval(() => {
+      if (AUTO_PASS !== state) { clearInterval(state.timer); return; }
+      if (ZOOM || CARD_MENU) { state.elapsed = 0; return; }  // 查看卡片時暫停,關閉後重新倒數
+      state.elapsed += 100;
+      if (state.elapsed < AUTO_PASS_MS) return;
+      cancelAutoPass();
+      // 送出前再確認:同一個決策點、沒有送出中的指令、開關仍開(玩家自己回應後狀態前進,鍵就不同)
+      if (autoPassKey() !== state.key || SENDING > 0 || !autoPassOn()) return;
+      send({ ...state.cmd, player: state.player });
+    }, 100);
+  });
+}
+
+function autoPassToggleEl() {
+  const label = document.createElement("label");
+  label.className = "auto-pass-toggle";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = autoPassOn();
+  box.onchange = () => {
+    try { localStorage.setItem(AUTO_PASS_KEY, box.checked ? "on" : "off"); } catch (_) { /* 本次不記 */ }
+    if (!box.checked) cancelAutoPass();
+    renderActionBar();
+  };
+  const full = document.createElement("span");
+  full.className = "auto-pass-label";
+  full.textContent = t("ui.auto_pass");
+  label.append(box, full);
+  if (AUTO_PASS && AUTO_PASS.running) {
+    const count = document.createElement("span");
+    count.className = "auto-pass-count";
+    count.textContent = t("ui.auto_pass_counting");
+    label.appendChild(count);
+  }
+  return label;
+}
+
 function renderActionBar() {
   const outer = document.getElementById("action-bar");
   const bar = document.getElementById("action-main");   // 左端的回合轉盤常駐,只重建右側內容
   bar.innerHTML = "";
   outer.classList.remove("mine");
   if (SENDING > 0 && !sendingNoteTimer) renderSendingNote();   // 已過延遲:重建後保留「處理中…」
-  if (!S || S.phase === "game_over") return;
+  if (!S || S.phase === "game_over") { cancelAutoPass(); return; }
+  scheduleAutoPass();
   const me = myViewer();
   if ((me === 0 || me === 1) && R && R.unresponsive && R.unresponsive[1 - me]) {   // 對手沒有回應:結束或繼續等
     const box = document.createElement("div");
@@ -2622,6 +2973,14 @@ function renderActionBar() {
   if (mine && PICK) {                                  // 決策:行動欄顯示決策區塊,目標在原位置選
     bar.appendChild(PICK.local ? localPromptEl() : choicePromptEl());
     return;
+  }
+  if (!mine && S.pending) {                            // 等待別人決策:等待提示與目前的擲幣結果(原在頂欄)
+    const results = (S.pending.info && S.pending.info.results) || [];
+    const note = document.createElement("span");
+    note.className = "waiting-note";
+    note.textContent = (myViewer() === "spectator" ? t("ui.waiting_choice", { player: pname(S.pending.player) })
+      : t("ui.opponent_choosing")) + (results.length ? t("ui.sep.bar") + coinResultsText(results) : "");
+    bar.appendChild(note);
   }
   if (mine) {                                          // 詳細提示只對可操作的一方
     const toggle = document.createElement("button");
@@ -2669,18 +3028,31 @@ function renderActionBar() {
     bar.appendChild(btn);
   };
 
+  const addBorrowBtn = () => {
+    const borrow = borrowedEffect(awaited);          // E-010:借來的搭檔效果(該搭檔離場也在)
+    if (borrow) {
+      addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
+        () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
+    }
+  };
+
   if (mine && !S.pending) {
     if (timing === "start") {
       // 依魔書翻閱到的對頁決定翻幾張:目前頁 = 不翻頁,往後第 n 個對頁 = 翻 n 張;不對應時只給提示
       const tp = S.turn_player;
       const pos = S.players[tp].pos;
-      const maxFlip = Math.min(3, Math.floor((32 - pos) / 2));
+      const maxFlip = maxFlips(pos);
       const n = ((bookBrowsable(tp) ? browseStart(tp) : null) ?? pos) - pos;
       const count = n / 2;
       if (count >= 0 && count <= maxFlip) {
         const mp = S.turn_no === 1 ? 0 : 2 * count;   // 大會規則:先攻第 1 回合翻頁不得 MP(game-engine「開始階段翻頁」)
+        const loses = (S.players[tp].flip_end_loses || [])[count];   // 翻了之後本回合結束會落敗
+        // 停在目前頁且能翻頁:提醒用魔書的 › 選擇張數(翻了會落敗的加註優先)
+        const note = loses ? t("ui.flip_end_loses")
+          : count === 0 && maxFlip > 0 ? t("ui.flip_0_note", { max: maxFlip }) : undefined;
         addBtn(count === 0 ? t("ui.flip_0") : t("ui.flip_n", { n: count, mp }),
-          () => send({ type: "flip_pages", player: tp, count }), true);
+          () => send({ type: "flip_pages", player: tp, count }), true, note);
+        if (loses) bar.lastElementChild.classList.add("flip-loses");
       } else {
         const hint = document.createElement("span");
         hint.className = "flip-hint";
@@ -2690,6 +3062,7 @@ function renderActionBar() {
     } else if (timing === "battle_in") {
       addBtn(t("ui.allow_battle"),
         () => send({ type: "battle_in_response", player: awaited, allow: true }), true, t("ui.allow_battle_note"));
+      addBorrowBtn();                                 // E-010:借來的搭檔效果也能當插入的 1 個行動
     } else if (timing === "defense") {
       addBtn(t("ui.no_defense"), () => send({ type: "no_defense", player: awaited }));
     } else {
@@ -2700,20 +3073,27 @@ function renderActionBar() {
         : endsTurnAndLoses ? "ui.pass_note.end_flip_loses"
         : awaited === S.turn_player ? "ui.pass_note.own_turn" : "ui.pass_note.opp_turn";
       addBtn(t("ui.pass"), () => send({ type: "pass", player: awaited }), false, t(passNote));
-      const borrow = borrowedEffect(awaited);        // E-010:借來的搭檔效果(該搭檔離場也在)
-      if (borrow) {
-        addBtn(t("ui.borrowed_effect", { card: cname(borrow.card) }),
-          () => zoom(borrow.card, { kind: "borrowed", p: awaited }));
-      }
-      // P-015:待命允許從魔書任意頁使用的戰術,在可宣告攻擊時從魔書網格使用
-      const anyPage = S.players[awaited].any_page_spells || [];
-      if (anyPage.length && awaited === S.turn_player && !S.battle && !S.battle_in) {
-        // 只放一個按鈕開魔書網格,可用的頁在網格上標示(P-037 可用的卡很多,每頁一個按鈕會塞滿行動列)
+      addBorrowBtn();
+    }
+    if (timing !== "start") {
+      // P-015 等:待命允許從魔書任意頁使用的卡,只要現在有一張按得下去(網格卡片選單有未停用的按鈕,
+      // 與翻開的頁同一判斷)就放入口:攻擊、防禦、對手回合的非戰鬥中、插入行動、戰鬥中的效果使用都一致。
+      // 只放一個按鈕開魔書網格,可用的頁在網格上標示(P-037 可用的卡很多,每頁一個按鈕會塞滿行動列)
+      const anyPage = (S.players[awaited].any_page_spells || [])
+        .filter((e) => CARDS[e.card] && anyPageButtons(awaited, e).some((b) => !b.disabled));
+      if (anyPage.length) {
         addBtn(anyPage.length === 1 ? t("ui.any_page_spell", { card: cname(anyPage[0].card) })
           : t("ui.any_page_cards", { n: anyPage.length }), () => showBookReview(awaited));
       }
     }
+    if (S.idle && S.idle.has_actions) {               // 非回合玩家:除了預設回應還有可用的效果或行動(不列出)
+      const hint = document.createElement("span");
+      hint.className = "idle-hint";
+      hint.textContent = t("ui.idle_has_actions");
+      bar.appendChild(hint);
+    }
   }
+  if ((me === 0 || me === 1 || me === "all") && !isTutorial()) bar.appendChild(autoPassToggleEl());   // 觀戰者、教學不顯示
   if (details) bar.appendChild(details);
 }
 
@@ -2821,7 +3201,7 @@ function pickState() {
   if (!S || !S.pending || !S.pending.options || !iControl(S.pending.player)) return null;
   const pd = S.pending;
   const results = (pd.info && pd.info.results) || [];
-  const pick = { player: pd.player, slot: new Map(), book: new Map(), discard: new Map(),
+  const pick = { player: pd.player, slot: new Map(), book: new Map(), discard: new Map(), field: new Map(),
                  buttons: [], cards: [], books: new Set(), discards: new Set() };
   for (const opt of pd.options) {
     const value = opt.index !== undefined ? opt.index : opt.value !== undefined ? opt.value : opt.page;
@@ -2840,6 +3220,9 @@ function pickState() {
       pick.discard.set(`${opt.player}:${opt.index}`, value);
       pick.discards.add(opt.player);
       continue;
+    } else if (opt.zone === "field") {                                  // 獨立卡區(Ex-074)
+      const fc = (S.players[opt.player]?.field_cards || []).find((f) => f.uid === opt.uid);
+      if (fc) { pick.field.set(`${opt.player}:${opt.uid}`, value); continue; }
     }
     if (opt.card) pick.cards.push({ card: opt.card, value });            // 對應不到位置:直接列出
     else if (opt.page !== undefined) pick.buttons.push({ label: t("ui.page_n", { n: opt.page }), value });
@@ -2890,10 +3273,17 @@ function choiceLabel(opt, results) {
     case "reduce_opponent_mp_3": return t("choice.reduce_opponent_mp_3");
     case "both_mp_plus_2": return t("choice.both_mp_plus_2");
     case "both_mp_minus_2": return t("choice.both_mp_minus_2");
-    case "extra_cost": return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
+    case "extra_cost":
+      if (opt.amount && opt.effect) return t(`choice.extra_cost.${opt.effect}`, { amount: opt.amount });   // Ex-063
+      return opt.amount ? t("choice.extra_cost", { amount: opt.amount, power: opt.power, damage: opt.damage })
       : t("choice.extra_cost_none");
     case "damage_book": return t("choice.damage_book");
     case "damage_mamodo": return t("choice.damage_mamodo");
+    case "damage_opponent_stone_tablet": return t("choice.damage_opponent_stone_tablet");          // Ex-000
+    case "damage_opponent_non_stone_tablet": return t("choice.damage_opponent_non_stone_tablet");
+    case "discard_opponent_partner": return t("choice.discard_opponent_partner");
+    case "negated_effect":   // E-052:這回合被無效的自己的效果
+      return t("choice.negated_effect", { card: cname(opt.card), kind: t(`choice.negated_effect.kind.${opt.kind}`) });
     case "end_review": return t("choice.end_review");
   }
   if (opt.item && opt.item.kind === "book") return pname(opt.item.player) + t("ui.book");   // 受傷順序的魔書項
@@ -2920,6 +3310,7 @@ function pickValue(ctx) {
   if (ctx.kind === "partner") return PICK.slot.get(`${ctx.p}:${ctx.uid}:partner`);
   if (ctx.kind === "page" || (ctx.kind === "pick" && ctx.zone === "book")) return PICK.book.get(`${ctx.p}:${ctx.page}`)?.value;
   if (ctx.kind === "pick" && ctx.zone === "discard") return PICK.discard.get(`${ctx.p}:${ctx.index}`);
+  if (ctx.kind === "field") return PICK.field && PICK.field.get(`${ctx.p}:${ctx.uid}`);
   return undefined;
 }
 
@@ -2938,7 +3329,25 @@ function pickButtons(ctx) {
   }
   const value = pickValue(ctx);
   if (value === undefined) return [];
-  return [{ label: t("ui.pick"), primary: true, onclick: () => choosePick(value) }];
+  return [{ label: t("ui.pick"), primary: true, warning: pickWarning(ctx), onclick: () => choosePick(value) }];
+}
+
+// 選了會離場的目標(引擎在保護選項標 leaves,見 battle-api「保護的後果預告快照」):「選擇」上方的警告
+function pickWarning(ctx) {
+  const value = pickValue(ctx);
+  if (value === undefined || !S.pending) return null;
+  const opt = (S.pending.options || []).find((o) => o.value === value);
+  if (!opt || !opt.leaves) return null;
+  const reason = opt.leave_reason === "injured" ? t("ui.leave_reason.injured")
+    : `${cname(opt.leave_reason)} ${opt.leave_reason}`;
+  return t("ui.protect_leaves", { reason });
+}
+
+function warningEl(text, cls) {
+  const el = document.createElement("div");
+  el.className = `pick-warning ${cls}`;
+  el.textContent = text;
+  return el;
 }
 
 function protectDamageText(d) {
@@ -3306,6 +3715,7 @@ function effectText(e) {
   if (e.mamodo && DICT[`${key}.mamodo`] !== undefined) key += ".mamodo";   // 限定魔物的版本
   if (e.used && DICT[`${key}.used`] !== undefined) key += ".used";          // E-010 借用的效果已使用
   if (e.copy_card && DICT[`${key}.copy`] !== undefined) key += ".copy";    // M-035 魔力等於選定的魔物
+  if (e.side && DICT[`${key}.${e.side}`] !== undefined) key += `.${e.side}`;   // MJ-002 / MJ-005 攻擊 / 防禦
   if (DICT[key] === undefined) return (TEXT[e.source] && TEXT[e.source].effect) || e.source;
   const changes = [];
   if (e.base_zero) changes.push(t("effect.piece.base_zero"));
@@ -3569,7 +3979,9 @@ function productSeasons() {
 
 function renderRuleSeasons() {
   const labels = RULES.seasons;
-  const ids = Object.keys(SEASONS.seasons).map(Number).sort((a, b) => a - b);
+  // 只列可選的賽季;已定義但還不能選的賽季,開放時(加入 selectable)才出現
+  const ids = Object.keys(SEASONS.seasons).map(Number).filter((n) => SEASONS.selectable.includes(n))
+    .sort((a, b) => a - b);
   const prefixes = [...SEASON_PREFIXES];
   for (const id of ids) for (const k of Object.keys(SEASONS.seasons[id])) if (!prefixes.includes(k)) prefixes.push(k);
   const products = productSeasons();
@@ -3591,9 +4003,13 @@ function renderRuleSeasons() {
     tbody.appendChild(tr);
   }
   wrap.appendChild(table);
-  const later = Object.entries(SEASONS.special || {}).filter(([, n]) => !SEASONS.selectable.includes(n));
-  for (const [card, n] of later) {
-    wrap.appendChild(el("p", "rules-season-note", labels.note.replace("{card}", card).replace("{n}", n)));
+  // 特別歸屬的卡依賽季併成一句:可選賽季只寫所屬賽季(卡號不在範圍內,表格看不出來),不可選賽季另註目前不能選
+  const special = {};
+  for (const [card, n] of Object.entries(SEASONS.special || {})) (special[n] = special[n] || []).push(card);
+  for (const n of Object.keys(special).map(Number).sort((a, b) => a - b)) {
+    const label = SEASONS.selectable.includes(n) ? labels.note_selectable : labels.note;
+    const cards = special[n].sort().join(t("ui.sep.list"));
+    wrap.appendChild(el("p", "rules-season-note", label.replace("{card}", cards).replace("{n}", n)));
   }
   return wrap;
 }
@@ -3792,8 +4208,9 @@ function logLine(ev) {
     case "pages_turned": return t("log.pages_turned", { ...P, count: Math.abs(ev.count), source: cname(ev.source) || ev.source });
     case "page_turn_restricted": return t("log.page_turn_restricted", { ...P, source: cname(ev.source) || ev.source });
     case "restrictions_removed":
+    case "power_ups_removed":   // Ex-070
       return ev.sources && ev.sources.length
-        ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) })
+        ? t("log.restrictions_removed", { ...P, cards: ev.sources.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) })
         : t("log.restrictions_removed_none", P);
     case "mp_reduction_prevented": return t("log.mp_reduction_prevented", { ...P, source: cname(ev.source) || ev.source });
     case "mp_gain_prevented": return t("log.mp_gain_prevented", { ...P, source: cname(ev.source) || ev.source });
@@ -3851,7 +4268,7 @@ function logLine(ev) {
         : ev.source ? t("log.damage_prevented_by", { ...P, card: cname(ev.source) }) : t("log.damage_prevented", P);
     case "effect_blocked":   // 一次性時點的常駐效果被「使えない」擋下
       return t("log.effect_blocked", { ...P, card: cname(ev.card),
-        by: (ev.by || []).map((n) => `《${cname(n)}》`).join(t("ui.sep.list")) });
+        by: (ev.by || []).map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) });
     case "damage_negated": return t("log.damage_negated", { card: cname(ev.card) });
     case "protected":   // P-027:保護者是對手的魔物時,寫出持有者與被保護的一方
       return ev.target_player !== undefined && ev.target_player !== ev.player
@@ -3865,7 +4282,9 @@ function logLine(ev) {
     case "mamodo_discarded": return t("log.mamodo_discarded", { ...P, card: cname(ev.cards[ev.cards.length - 1]) });
     case "mamodo_healed": return t("log.mamodo_healed", { ...P, card: cname(ev.card) });
     case "card_discarded": return t("log.card_discarded", { ...P, card: cname(ev.card) });
-    case "first_player_set": return t("log.first_player_set", { player: pname(ev.player) });
+    case "field_card_effect": return t("log.field_card_effect", { ...P, card: cname(ev.card), n: ev.amount });
+    case "first_player_set":
+      return t(ev.reason === "tutorial" ? "log.first_player_set_tutorial" : "log.first_player_set", { player: pname(ev.player) });
     case "standby_set":
       return ev.kind === "spell_reuse" && ev.card   // S-098:寫出選定的戰術
         ? t("log.spell_reuse_set", { player: pname(ev.owner), source: cname(ev.source), card: cname(ev.card), page: ev.page })
@@ -3874,6 +4293,16 @@ function logLine(ev) {
     case "modifier_added": return t("log.modifier_added", { card: cname(ev.source) || ev.source });
     case "effect_applied": return t("log.effect_applied", { source: cname(ev.source) || ev.source });
     case "effect_negated": return t("log.effect_negated", { ...P, source: cname(ev.source), card: cname(ev.negated) });
+    case "effect_undone": {   // E-052:有退回 MP 才寫 MP;費用棄掉的卡列出回到原位的
+      const parts = [];
+      if (ev.mp) parts.push(t("log.effect_undone.mp", { mp: ev.mp }));
+      if (ev.returned && ev.returned.length) {
+        parts.push(t("log.effect_undone.returned",
+          { cards: ev.returned.map((n) => t("ui.quoted_card", { card: cname(n) })).join(t("ui.sep.list")) }));
+      }
+      return t("log.effect_undone", { ...P, card: cname(ev.card) })
+        + (parts.length ? t("log.effect_undone.detail", { detail: parts.join(t("ui.sep.list")) }) : "");
+    }
     case "effect_redone": return t("log.effect_redone", { ...P, source: cname(ev.source), card: cname(ev.card) });
     case "battle_ended": return t("log.battle_ended");
     case "choice_required": return t("log.choice_required", P);
@@ -4103,13 +4532,28 @@ function renderNewSelect() {
 }
 
 function renderPoolFilters() {
-  renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool);
+  renderCardPoolFilters(document.getElementById("pool-filters"), B, renderPool, { pending: true });
 }
 
 // 卡池圖示篩選(deck-builder「卡池圖示篩選列」「卡池篩選的選取方式」):類型徽章平鋪(多選),魔物、產品各一顆按鈕展開圖示網格(單選)。
 // ftypes 為集合,空集合不篩選;fmamodo / fproduct / fseason 為選取的項目,null 不篩選;跨組全部符合。filters.fopen 記目前展開的網格
 // 賽季篩選為累計:選第 N 賽季顯示卡片賽季 ≤ N 的卡(deck-builder「卡池賽季篩選」)
-const POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+// 「其他」:主要 4 種以外的類型(MJ12,之後的バルカン),不必每多一種類型就加一顆徽章
+const MAIN_POOL_TYPES = ["mamodo", "partner", "spell", "event"];
+const POOL_TYPES = [...MAIN_POOL_TYPES, "other"];
+function poolType(def) { return MAIN_POOL_TYPES.includes(def.type) ? def.type : "other"; }
+
+// 標籤篩選(deck-builder「卡池標籤篩選」):干擾、石版、中級 / 上級、戰術屬性(依卡數多寡)。
+// 同一組(group)互斥:中級與上級、各屬性之間只能選一個;不同組要同時符合
+const TAG_ATTRS = ["雷", "重力", "土", "風", "水", "氷", "木", "火"];
+const POOL_TAGS = [
+  { key: "jammer", group: "jammer", label: () => t("card.icon.jammer"),
+    has: (def) => (def.effect_icons || [def.effect_icon]).includes("jammer") },
+  { key: "stone_tablet", group: "stone", label: () => t("card.tag.stone_tablet"), has: (def) => !!def.stone_tablet },
+  { key: "intermediate", group: "class", label: () => t("card.class.intermediate"), has: (def) => def.class === "intermediate" },
+  { key: "superior", group: "class", label: () => t("card.class.superior"), has: (def) => def.class === "superior" },
+  ...TAG_ATTRS.map((a) => ({ key: `attr:${a}`, group: "attr", label: () => t(`attr.${a}`), has: (def) => def.attr_name === a })),
+];
 
 // 卡號順序(deck-builder「卡池排序」):原有的前綴(M / P / S / E)優先,接著 Ex-,最後 PR-;同前綴依編號
 const NUMBER_PREFIX_RANK = { Ex: 1, PR: 2 };
@@ -4117,14 +4561,15 @@ function compareCardNumbers(a, b) {
   const [pa, na] = a.split("-"), [pb, nb] = b.split("-");
   return (NUMBER_PREFIX_RANK[pa] || 0) - (NUMBER_PREFIX_RANK[pb] || 0) || pa.localeCompare(pb) || Number(na) - Number(nb);
 }
-const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"] };
+const TYPE_BADGES = { mamodo: ["M-001", "魔"], partner: ["P-001", "使"], spell: ["S-001", "術"], event: ["E-001", "鍵"],
+  other: ["MJ-001", "他"] };   // 「其他」的圖示先用 MJ12 的符號
 const MAMODO_ART = [26, 24, 412, 388];   // 魔物卡的插圖區(卡名列以上),所有魔物卡共用
 let FILTER_CFG = { products: [], mamodo: [], mamodo_merge: {} };   // frontend/pool-filters.json:產品分排、魔物順序與合併
 
-const FILTER_MENUS = ["mamodo", "product", "season"];
+const FILTER_MENUS = ["mamodo", "product", "season", "tag"];
 
 function newPoolFilters() {
-  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, fopen: null };
+  return { ftypes: new Set(), fmamodo: null, fproduct: null, fseason: null, ftags: new Set(), fopen: null, fquery: "" };
 }
 
 // 卡圖裁切的圖示(探測結果有快取,重繪不閃爍)。fallback 為文字時先放文字,卡圖可載入才換成裁切;
@@ -4159,10 +4604,10 @@ function familyLabel(name) {
   return name.replace(/\s*[（(][^（()）]*[）)]\s*$/, "");
 }
 
-// 魔物網格的項目:有開放卡片的家族,依設定檔順序,沒列出的依代表卡卡號接在最後;另加「無」(指令戰術)
-function mamodoFilterItems() {
-  const reps = {};   // 家族 → 代表卡(卡號最小的魔物卡;沒有開放的魔物卡時為 null,只顯示名稱)
-  for (const c of openCards()) {
+// 魔物網格的項目:卡池列得出卡片的家族,依設定檔順序,沒列出的依代表卡卡號接在最後;另加「無」(指令戰術)
+function mamodoFilterItems(withPending) {
+  const reps = {};   // 家族 → 代表卡(卡號最小的魔物卡;卡池沒有該家族的魔物卡時為 null,只顯示名稱)
+  for (const c of poolCards(withPending)) {
     const fam = filterFamily(c.related_mamodo);
     if (!fam || fam === COMMAND_MAMODO) continue;
     if (!(fam in reps)) reps[fam] = null;
@@ -4181,9 +4626,9 @@ function productHas(def, code) {
   return code === "ex" ? def.number.startsWith("Ex-") : (def.sets || []).includes(code);
 }
 
-// 產品網格的各排:依設定檔,只列有開放卡片的產品(再收錄產品不在設定檔中,不列出)
-function productFilterRows() {
-  const cards = openCards();
+// 產品網格的各排:依設定檔,只列卡池列得出卡片的產品(再收錄產品不在設定檔中,不列出)
+function productFilterRows(withPending) {
+  const cards = poolCards(withPending);
   return (FILTER_CFG.products || []).map((row) => row.filter((code) => cards.some((c) => productHas(c, code))))
     .filter((row) => row.length);
 }
@@ -4193,8 +4638,26 @@ function mamodoFilterPaused(filters) {
   return filters.ftypes.size === 1 && filters.ftypes.has("event");
 }
 
+// 卡池文字搜尋(deck-builder「卡池文字搜尋」):全形轉半形、不分大小寫
+function searchNormalize(text) {
+  return text.normalize("NFKC").toLowerCase();
+}
+
+// 每張卡的比對字串:卡號(含去掉連字號)、目前語言的卡名、日文原名、效果名、效果文;語言切換會重新載入,不必失效
+const SEARCH_TEXT = new Map();
+function searchText(num) {
+  if (!SEARCH_TEXT.has(num)) {
+    const z = TEXT[num] || {};
+    SEARCH_TEXT.set(num, searchNormalize([num, num.replace(/-/g, ""), z.name, z.name_ja, z.attr, z.effect]
+      .filter(Boolean).join("\n")));
+  }
+  return SEARCH_TEXT.get(num);
+}
+
 function poolCardMatches(def, filters) {
-  if (filters.ftypes.size && !filters.ftypes.has(def.type)) return false;
+  if (filters.fquery && !searchText(def.number).includes(searchNormalize(filters.fquery.trim()))) return false;
+  if (filters.ftypes.size && !filters.ftypes.has(poolType(def))) return false;
+  if (filters.ftags && POOL_TAGS.some((tag) => filters.ftags.has(tag.key) && !tag.has(def))) return false;   // 各組都要符合
   if (filters.fmamodo && !mamodoFilterPaused(filters)
       && filters.fmamodo !== (isCommandSpell(def) ? MAMODO_NONE : filterFamily(def.related_mamodo))) return false;   // 事件沒有對應魔物,不符合
   if (filters.fproduct && !productHas(def, filters.fproduct)) return false;
@@ -4205,7 +4668,7 @@ function poolCardMatches(def, filters) {
   return true;
 }
 
-function renderCardPoolFilters(holder, filters, onChange) {
+function renderCardPoolFilters(holder, filters, onChange, opts = {}) {
   holder.replaceChildren();
   holder.classList.add("pool-filters");
   const bar = el("div", "filter-bar");
@@ -4217,7 +4680,7 @@ function renderCardPoolFilters(holder, filters, onChange) {
     btn.dataset.type = ty;
     btn.title = btn.ariaLabel = t("builder.type." + ty);
     btn.append(artIcon(card, ART_BOXES.type.slice(1), mark, "type-icon"),   // 各類型卡的徽章與 M-001 同位置
-      el("span", "filter-label", t("builder.type." + ty)));
+      el("span", "filter-label", t("builder.type." + ty)), el("span", "filter-check", "✓"));   // 多選:勾選的打勾
     btn.onclick = () => {
       if (filters.ftypes.has(ty)) filters.ftypes.delete(ty); else filters.ftypes.add(ty);
       sync(); onChange();
@@ -4226,8 +4689,8 @@ function renderCardPoolFilters(holder, filters, onChange) {
     return btn;
   });
 
-  const mamodoItems = mamodoFilterItems();
-  const productRows = productFilterRows();
+  const mamodoItems = mamodoFilterItems(opts.pending);
+  const productRows = productFilterRows(opts.pending);
   const groups = {
     mamodo: { key: "fmamodo", label: t("builder.filter.mamodo"),
       items: [{ key: MAMODO_NONE, label: t("builder.filter.none"), title: t("builder.filter.none_title") },
@@ -4237,11 +4700,18 @@ function renderCardPoolFilters(holder, filters, onChange) {
     season: { key: "fseason", label: t("builder.filter.season"),
       items: SEASONS.selectable.map((n) => ({ key: String(n), label: t("ui.season.n", { n }),
         short: t("ui.season.short", { n }) })) },
+    tag: { key: "ftags", multi: true, label: t("builder.filter.tag"),
+      items: POOL_TAGS.map((tag) => ({ key: tag.key, label: tag.label() })) },
   };
   // 圖示 + 文字;「無」與賽季只有文字
   const itemFace = (group, item) => {
     const face = [];
     if (group === "season") return [el("span", "filter-caption", item.label)];
+    if (group === "tag") {   // 多選:前面一個方框,勾選時框內打勾
+      const box = el("span", "filter-box");
+      box.appendChild(el("span", "filter-check", "✓"));
+      return [box, el("span", "filter-caption", item.label)];
+    }
     if (group === "product") face.push(productIcon(item.key));
     else if (item.key !== MAMODO_NONE) face.push(artIcon(item.card, MAMODO_ART, null, "mamodo-icon"));
     face.push(el("span", "filter-caption", item.label));
@@ -4250,6 +4720,18 @@ function renderCardPoolFilters(holder, filters, onChange) {
   // 再點一次已選取的項目:取消選擇(與點「全部」相同)
   const choose = (group, key) => {
     const field = groups[group].key;
+    if (groups[group].multi) {   // 多選:切換勾選、網格保持展開;「全部」(key null)清除
+      if (!filters[field]) filters[field] = new Set();
+      if (key === null) filters[field].clear();
+      else if (filters[field].has(key)) filters[field].delete(key);
+      else {   // 同一組互斥:換掉同組已勾的標籤
+        const group = POOL_TAGS.find((tag) => tag.key === key)?.group;
+        for (const tag of POOL_TAGS) if (tag.group === group) filters[field].delete(tag.key);
+        filters[field].add(key);
+      }
+      sync(); onChange();
+      return;
+    }
     filters[field] = filters[field] === key ? null : key;
     filters.fopen = null;
     sync(); onChange();
@@ -4286,7 +4768,13 @@ function renderCardPoolFilters(holder, filters, onChange) {
       tiles[item.key] = tile;
       return tile;
     };
-    if (group === "product") {
+    if (group === "tag") {   // 分三列:干擾・石版(兩組,不互斥)/ 中級・上級 / 屬性
+      for (const rowGroups of [["jammer", "stone"], ["class"], ["attr"]]) {
+        const line = el("div", "filter-tag-row");
+        for (const tag of POOL_TAGS.filter((x) => rowGroups.includes(x.group))) line.appendChild(tileFor(g.items.find((it) => it.key === tag.key)));
+        panel.appendChild(line);
+      }
+    } else if (group === "product") {
       for (const row of productRows) {
         const line = el("div", "filter-row");
         for (const code of row) line.appendChild(tileFor(g.items.find((it) => it.key === code)));
@@ -4299,10 +4787,40 @@ function renderCardPoolFilters(holder, filters, onChange) {
     }
     menus[group] = { btn, panel, tiles, allBtn };
   }
-  holder.append(bar, ...FILTER_MENUS.map((group) => menus[group].panel));
+  // 重置:清除所有篩選與搜尋(沒有篩選時停用)
+  const resetBtn = el("button", "filter-reset", t("builder.filter.reset"));
+  resetBtn.type = "button";
+  resetBtn.onclick = () => {
+    filters.ftypes.clear();
+    filters.fmamodo = filters.fproduct = filters.fseason = null;
+    if (filters.ftags) filters.ftags.clear();
+    filters.fquery = "";
+    searchBox.value = "";
+    filters.fopen = null;
+    sync(); onChange();
+  };
+  bar.appendChild(resetBtn);
+  // 搜尋框:篩選列上方獨立一行(篩選列維持一行);輸入即篩選,Esc 清空(金手指視窗不關閉)
+  const searchBox = el("input", "pool-search");
+  searchBox.type = "search";
+  searchBox.placeholder = t("builder.search");
+  searchBox.setAttribute("aria-label", t("builder.search"));
+  searchBox.value = filters.fquery || "";
+  searchBox.addEventListener("input", () => { filters.fquery = searchBox.value; sync(); onChange(); });
+  searchBox.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || !searchBox.value) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    searchBox.value = "";
+    filters.fquery = "";
+    sync(); onChange();
+  });
+  holder.append(searchBox, bar, ...FILTER_MENUS.map((group) => menus[group].panel));
 
   function sync() {
     for (const btn of typeButtons) btn.setAttribute("aria-pressed", String(filters.ftypes.has(btn.dataset.type)));
+    resetBtn.disabled = !(filters.ftypes.size || filters.fmamodo || filters.fproduct || filters.fseason
+      || (filters.ftags && filters.ftags.size) || filters.fquery);
     const paused = mamodoFilterPaused(filters);
     if (paused && filters.fopen === "mamodo") filters.fopen = null;
     for (const group of FILTER_MENUS) {
@@ -4313,10 +4831,21 @@ function renderCardPoolFilters(holder, filters, onChange) {
       btn.disabled = group === "mamodo" && paused;
       btn.setAttribute("aria-expanded", String(open));
       panel.classList.toggle("hidden", !open);
+      const summary = btn.querySelector(".filter-summary");
+      if (g.multi) {   // 多選:勾選的 tile 打勾;摘要為「全部」、單一名稱或個數
+        const set = current || new Set();
+        allBtn.setAttribute("aria-pressed", String(!set.size));
+        for (const [key, tile] of Object.entries(tiles)) tile.setAttribute("aria-pressed", String(set.has(key)));
+        const picked = g.items.filter((item) => set.has(item.key));
+        const text = !picked.length ? t("builder.filter.all")
+          : picked.length === 1 ? picked[0].label : t("builder.filter.n_selected", { n: picked.length });
+        summary.replaceChildren(el("span", "filter-caption", text));
+        btn.ariaLabel = `${g.label}: ${picked.length ? picked.map((item) => item.label).join(t("ui.sep.list")) : t("builder.filter.all")}`;
+        continue;
+      }
       allBtn.setAttribute("aria-pressed", String(!current));
       for (const [key, tile] of Object.entries(tiles)) tile.setAttribute("aria-pressed", String(current === key));
       // 按鈕摘要:未選取為「全部」,否則為選取項目的圖示與名稱
-      const summary = btn.querySelector(".filter-summary");
       const picked = g.items.find((item) => item.key === current);
       // 賽季按鈕用短標示,窄螢幕的篩選列才放得下
       const face = !picked ? [t("builder.filter.all")]
@@ -4329,8 +4858,9 @@ function renderCardPoolFilters(holder, filters, onChange) {
 
   // 點網格外或 Esc 收起(每個 holder 只掛一組監聽)
   document.removeEventListener("pointerdown", holder._closeFilters, true);
-  holder._closeFilters = (ev) => {
-    if (filters.fopen && !holder.contains(ev.target)) { filters.fopen = null; sync(); }
+  holder._closeFilters = (ev) => {   // 點在展開的網格與它的按鈕以外(含篩選區內的空白處)就收起
+    const open = filters.fopen && menus[filters.fopen];
+    if (open && !open.panel.contains(ev.target) && !open.btn.contains(ev.target)) { filters.fopen = null; sync(); }
   };
   document.addEventListener("pointerdown", holder._closeFilters, true);
   holder.onkeydown = (ev) => {
@@ -4345,12 +4875,17 @@ function renderCardPoolFilters(holder, filters, onChange) {
 }
 
 function renderPool() {
-  renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true });
+  renderCardPool(document.getElementById("pool-grid"), B, placeCard, { detail: true, pending: true });
 }
 
-// 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件,同類型依卡號
+// 卡池排序(deck-builder「卡池排序」):依類型 魔物 → 搭檔 → 戰術 → 事件 → MJ12,同類型依卡號。
+// Ex- 與 PR- 整批排在最後、各自依編號(不分類型);魔物網格的代表卡與家族仍用 compareCardNumbers
+const POOL_SORT_TYPES = [...MAIN_POOL_TYPES, "mj12"];
 function comparePoolCards(a, b) {
-  return POOL_TYPES.indexOf(CARDS[a].type) - POOL_TYPES.indexOf(CARDS[b].type) || compareCardNumbers(a, b);
+  const rank = (n) => NUMBER_PREFIX_RANK[n.split("-")[0]] || 0;
+  return rank(a) - rank(b)
+    || (rank(a) ? 0 : POOL_SORT_TYPES.indexOf(CARDS[a].type) - POOL_SORT_TYPES.indexOf(CARDS[b].type))
+    || compareCardNumbers(a, b);
 }
 
 // 魔物篩選的「無」:只留指令戰術
@@ -4358,17 +4893,23 @@ const MAMODO_NONE = "__none__";
 
 function renderCardPool(grid, filters, onPick, opts = {}) {
   grid.innerHTML = "";
-  const numbers = openCards().map((c) => c.number).sort(comparePoolCards);
+  const numbers = poolCards(opts.pending).map((c) => c.number).sort(comparePoolCards);
   for (const num of numbers) {
     const def = CARDS[num];
     if (!poolCardMatches(def, filters)) continue;
     const el = cardEl(num, { small: true, detail: opts.detail });
-    el.onclick = () => onPick(num);
+    const pending = PENDING.has(num);   // 尚未開放:顯示但不可選,詳情按鈕照常放大檢視
+    const pickCard = () => (pending ? toast(t("builder.pending_blocked")) : onPick(num));
+    el.onclick = pickCard;
     el.setAttribute("role", "button");
     el.tabIndex = 0;
-    el.setAttribute("aria-label", `${num} ${cname(num)}`);
+    el.setAttribute("aria-label", `${num} ${cname(num)}` + (pending ? ` ${t("builder.pending")}` : ""));
+    if (pending) {
+      el.classList.add("pending");   // 不設 aria-disabled:它會連帶停用卡片內的詳情按鈕;狀態由名稱與點選提示表達
+      el.appendChild(Object.assign(document.createElement("span"), { className: "pending-badge", textContent: t("builder.pending") }));
+    }
     el.onkeydown = (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onPick(num); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pickCard(); }
     };
     grid.appendChild(el);
   }
@@ -4468,6 +5009,23 @@ function renderBookGrid(grid, renderSlot) {
   if (focused != null) grid.querySelector(`[data-page="${focused}"]`)?.focus({ preventScroll: true });
 }
 
+// 魔書組合的提醒:以魔書內容為鍵快取,只採用最後一次請求的結果
+let DECK_WARN = { key: null, list: [] };
+let deckWarnSeq = 0;
+
+function requestDeckWarnings(pages, key) {
+  const seq = ++deckWarnSeq;
+  api("/api/decks/warnings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pages }),
+  }).then((d) => {
+    if (seq !== deckWarnSeq) return;
+    DECK_WARN = { key, list: d.warnings || [] };
+    if (B) renderValidation();
+  }).catch(() => {});
+}
+
 function renderValidation() {
   // 魔書名稱旁的「第 N 賽季起」(deck-builder「魔書的賽季標示」):只是資訊,不影響合法性提示
   const tag = document.getElementById("builder-season");
@@ -4491,6 +5049,19 @@ function renderValidation() {
       el.textContent = t(e.key, e.params);
       bar.appendChild(el);
     }
+  }
+  // 組合的提醒(deck-builder「魔書組合的提醒」):伺服器以引擎判斷,不影響合法性;取得前不顯示
+  const pages = B.deck.pages.map((c) => c || null);
+  const warnKey = JSON.stringify(pages);
+  if (DECK_WARN.key === warnKey) {
+    for (const w of DECK_WARN.list) {
+      const el = document.createElement("span");
+      el.className = "warn";
+      el.textContent = t(`builder.warn.${w.kind}`, { card: cname(w.card), page: w.page });
+      bar.appendChild(el);
+    }
+  } else {
+    requestDeckWarnings(pages, warnKey);
   }
   const mamodo = B.deck.pages.filter((c) => c && CARDS[c].type === "mamodo").length;
   const stat = document.createElement("span");
@@ -5006,6 +5577,7 @@ document.addEventListener("visibilitychange", syncOnline);
 function renderLanding() {
   document.getElementById("landing-title").setAttribute("aria-label", t("app.title"));
   const entries = {
+    tutorial: () => startTutorial(),
     npc: () => openSetup("npc"),
     tables: () => openTables(),
     friend: () => openSetup("friend"),
@@ -5023,6 +5595,12 @@ function renderLanding() {
     entry.querySelector(".entry-desc").textContent = t(`ui.landing.${key}_desc`);
     entry.onclick = onclick;
   }
+  // 教學入口:未完成時醒目提示(發光、「第一次玩?」標籤),完成後改為一般樣式加「已完成」
+  const tutorialEntry = document.getElementById("entry-tutorial");
+  const done = tutorialDone();
+  tutorialEntry.classList.toggle("done", done);
+  tutorialEntry.classList.toggle("todo", !done);
+  tutorialEntry.querySelector(".entry-badge").textContent = t(done ? "tutorial.done_badge" : "tutorial.todo_badge");
   document.getElementById("disclaimer-fan").textContent = t("ui.landing.disclaimer_fan");
   document.getElementById("disclaimer-rights").textContent = t("ui.landing.disclaimer_rights", { feedback: t("ui.landing.feedback") });
   document.getElementById("landing-version").textContent = META.version ? t("ui.version", { v: META.version }) : "";
@@ -5117,7 +5695,7 @@ function renderLanding() {
       setTimeout(() => { btn.textContent = t("ui.copy"); }, 1500);
     };
   }
-  document.getElementById("leave-room").onclick = leaveRoom;
+  document.getElementById("leave-room").onclick = () => (isTutorial() ? leaveTutorial() : leaveRoom());
   document.getElementById("forfeit").onclick = () => showDialog(t("ui.forfeit.confirm"), [
     { label: t("ui.forfeit"), onpick: () => roomAction("forfeit") },
     { label: t("ui.cancel"), onpick: () => {} },
