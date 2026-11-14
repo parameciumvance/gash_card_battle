@@ -1,6 +1,38 @@
 {
   "releases": [
   {
+    "version": "v1.4.0",
+    "date": "2026-11-14",
+    "title": "LEVEL:4 Silver Spiral Flash (Part 1)",
+    "images": [
+      {"src": "/static/products/level-4.webp", "alt": "LEVEL:4 Silver Spiral Flash (Part 1)"},
+      {"src": "/static/products/ex-sheet-3.webp", "alt": "Spell Book Expansion Sheet LEVEL:3"},
+      {"src": "/static/products/festa-2004-spring.webp", "alt": "Dengeki Festa 2004 Spring"}
+    ],
+    "items": [
+      {"kind": "new", "text": "Season 4 cards are here. Products: \"LEVEL:4 Silver Spiral Flash (Part 1)\", \"Spell Book Expansion Sheet LEVEL:3\", \"Dengeki Festa 2004 Spring\". New rooms and tables now default to Season 4"},
+      {"kind": "new", "text": "New card type MJ12: not attached to a MAMODO, it goes to the independent card zone and can be played in either player's BATTLE PHASE"},
+      {"kind": "new", "text": "New tutorial: about 5 minutes, following the steps through three turns to learn turning pages and MP, attacking and defending, PROTECT, and using effects"},
+      {"kind": "new", "text": "New reference decks: the class champions of the 1st and 2nd Mamodo King Tournaments (played under the old rules; for reference only)"},
+      {"kind": "new", "text": "Auto-pass when you have no available action (can be turned off in the action bar); a hint shows when you have an effect or action you can use"},
+      {"kind": "new", "text": "Deck builder: text search, a \"Tags\" filter (CUT-IN, stone tablet, intermediate / superior, attributes) and \"Reset\"; cards not yet available are listed too; warnings for spells no MAMODO in the deck can use and partners without their MAMODO"},
+      {"kind": "new", "text": "You can close rooms you no longer need from \"Back to your games\" on the home page"},
+      {"kind": "new", "text": "Consequence warnings: MAMODO that would be discarded by protecting, and page turns that would make you lose at the end of the turn, are flagged in advance"},
+      {"kind": "change", "text": "\"X's spells\" now means spells belonging to X only: spells of other MAMODO used by X and Command spells no longer count. For example, after PR-009 Zatch Bell can still use Command spells"},
+      {"kind": "change", "text": "Defense spell effects now take effect at the end of the battle effects step, and not at all if the defense is negated (S-025, S-027, S-069, S-079, S-106, etc.)"},
+      {"kind": "change", "text": "Following the rules page, effects with the CUT-IN icon cannot be used during a battle"},
+      {"kind": "change", "text": "Terms follow the rules: \"Battle start check\" is now \"Battle-in check\", and \"Accept\" is now \"Allow battle-in\""},
+      {"kind": "change", "text": "Board cleanup: MP and the independent card zone moved to the side column, player names moved to the center line, and \"Review book\" moved to the bottom edge of the Spell Book"},
+      {"kind": "change", "text": "Better hints: zoomed cards have an \"×\" and close with Esc; cards show a CUT-IN tag; in the START PHASE the ‹ › buttons of your Spell Book glow toward directions you can turn; the open pages are marked in blue"},
+      {"kind": "change", "text": "Estimated total power now includes a spell's own fixed bonuses (e.g. S-092 +2000 when attacking)"},
+      {"kind": "change", "text": "Card names in the interface are now quoted with “ ”"},
+      {"kind": "fix", "text": "Fixed missing entry points for using cards from other pages (P-015, P-037, etc.) when defending, in the opponent's turn and during the battle-in check"},
+      {"kind": "fix", "text": "Fixed NO BATTLE spells not being usable as an inserted action during the battle-in check"},
+      {"kind": "fix", "text": "Fixed turning back from page 2 not returning to page 1"},
+      {"kind": "fix", "text": "Fixed top bar text being squeezed into a vertical column on narrow widths"}
+    ]
+  },
+  {
     "version": "v1.3.3",
     "date": "2026-11-04",
     "items": [
