@@ -23,4 +23,4 @@
 
 - [x] 4.1 快速測試組(2053)、相關瀏覽器測試(首頁、牌桌、自動 pass、棄權、返回清單、NPC、記錄,共 56 項,含走完全程的 slow 測試);桌面與手機寬度截圖確認(手機上目標被面板蓋住,已改為換步驟時捲到中央、面板可收合)。
 - [x] 4.2 新增 `openspec/specs/tutorial/`(spec 與 design),更新 `capability-map.md`(新 capability、與 online-room / npc-opponent / battle-ui 的關係);`battle-ui` design 補首頁入口。
-- [ ] 4.3 `openspec validate tutorial --strict`;使用者確認。
+- [x] 4.3 `openspec validate tutorial --strict`;使用者確認(2026-11-14)。
