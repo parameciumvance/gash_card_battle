@@ -219,7 +219,7 @@ NPC 房中,每當等待輸入的玩家是 NPC(開局後、玩家指令被接受�
 - **THEN** 回應只有 `count`,沒有房號、暱稱或其他房間資訊
 
 ### Requirement: 房間的賽季
-建房請求 SHALL 可指定賽季(1、2、3,見 `card-data`「賽季定義」);未指定時為第 3 賽季,其他值回 422 `room.bad_season` 且不建立房間。線上、NPC、本機房都適用。房間 meta SHALL 含賽季。
+建房請求 SHALL 可指定賽季(1、2、3、4,見 `card-data`「賽季定義」);未指定時為第 4 賽季,其他值回 422 `room.bad_season` 且不建立房間。線上、NPC、本機房都適用。房間 meta SHALL 含賽季。
 
 #### Scenario: 指定賽季建房
 - **WHEN** 客戶端 POST 建房(mode=online, season=1)
@@ -227,10 +227,10 @@ NPC 房中,每當等待輸入的玩家是 NPC(開局後、玩家指令被接受�
 
 #### Scenario: 未指定賽季
 - **WHEN** 客戶端 POST 建房且沒有指定賽季
-- **THEN** 房間 meta 的賽季為 3
+- **THEN** 房間 meta 的賽季為 4
 
 #### Scenario: 不存在的賽季
-- **WHEN** 客戶端 POST 建房(season=4)
+- **WHEN** 客戶端 POST 建房(season=5)
 - **THEN** 回應 422 `room.bad_season`,不建立房間
 
 ### Requirement: 魔書依房間賽季驗證
