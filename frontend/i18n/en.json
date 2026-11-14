@@ -545,6 +545,7 @@
   "ui.resume.forfeit_confirm": "Forfeit and remove",
   "ui.resume.cancel": "Cancel",
   "error.room.close_started": "The game has started, so the room can't be closed. Forfeit instead",
+  "error.room.not_tutorial": "This is not a tutorial game",
   "error.room.close_table": "Leave the table to close a table's room",
   "error.room.close_spectator": "Spectators can't close the room",
   "ui.hidden_page": "Page {n}",

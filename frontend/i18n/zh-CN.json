@@ -545,6 +545,7 @@
   "ui.resume.forfeit_confirm": "弃权并移除",
   "ui.resume.cancel": "取消",
   "error.room.close_started": "对局已开始,不能关闭房间;请改用弃权",
+  "error.room.not_tutorial": "这不是教学对局",
   "error.room.close_table": "牌桌的房间请离开牌桌",
   "error.room.close_spectator": "观战者不能关闭房间",
   "ui.hidden_page": "第 {n} 页",
