@@ -1365,12 +1365,8 @@ def _any_page_allows(game: Game, player: int, d: dict, card: CardDef, page: int,
         return False
     if not d.get("by_name"):
         return card.related_mamodo == name and page in d.get("pages", ())
-    if slot is not None:
-        return name in spell_names(game, card, slot)
-    # 使用的魔物未定(畫面列出可用的卡):戰術屬於 name,或場上名為 name 的魔物能使用它(含指令戰術)
-    return card.related_mamodo == name or any(
-        name in spell_names(game, card, s) and (card.is_command_spell or _spell_usable_by(game, player, s, card))
-        for s in game.state.players[player].slots)
+    # 「X の術」只看所屬(card-effects「『〇〇の術』的判定」):不論使用的魔物是否已定,都依戰術卡的對應魔物
+    return name in spell_names(game, card, slot)
 
 
 def _consume_any_page(game: Game, batch: list[dict], player: int, page: int,

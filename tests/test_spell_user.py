@@ -52,11 +52,12 @@ def code(g, command):
 
 # ---------------------------------------------------------------- 非戰鬥戰術的使用魔物
 
-def test_nonbattle_spell_paid_by_chosen_user():
-    # 指令戰術 S-026 的費用暫改為 2;P-005 讓スギナ使用的戰術費用為 0 → 兩隻使用時費用不同
+def test_nonbattle_command_spell_cost_not_by_user():
+    # 指令戰術 S-026 的費用暫改為 2;P-005「『スギナ』の術」只看所屬(spell-ownership-literal),
+    # 指令戰術不是スギナ的戰術 → 由誰使用都付 2
     db = dict(DB)
     db["S-026"] = dataclasses.replace(DB["S-026"], cost=2)
-    for chosen, paid in (("gash", 2), ("sugina", 0)):
+    for chosen, paid in (("gash", 2), ("sugina", 2)):
         g = mk(book("M-001", "S-026"), db=db)
         gash = g.state.players[0].slots[0]
         sugina = give(g, 0, "M-008")
@@ -117,7 +118,7 @@ def test_snapshot_users_follow_engine_compat():
     zakeru = _page(snap, 0, 2)["users"]
     assert [u["slot_uid"] for u in zakeru] == [gash.uid, zeon.uid]
     assert all(isinstance(u["cost"], int) for u in zakeru)
-    assert [u["locked"] for u in zakeru] == [False, True]
+    assert [u["locked"] for u in zakeru] == [False, False]   # 封鎖ゼオン的戰術;「ザケル」是ガッシュ的戰術(只看所屬)
     assert [u["slot_uid"] for u in _page(snap, 0, 3)["users"]] == [gash.uid]   # 「バオウ・ザケルガ」≠「ザケル」
     for viewer in (1, "spectator"):
         other = snapshot(g, viewer)
@@ -204,14 +205,15 @@ def test_book_card_used_records_chosen_user():
 
 
 def test_book_card_used_records_default_user():
-    # 未指定:能用且未被封鎖者中費用最低的第一隻(S-026 都是 0 費 → 依場上順序,略過被封鎖的賈修)
+    # 未指定:能用且未被封鎖者中費用最低的第一隻(S-026 都是 0 費 → 依場上順序)。
+    # 封鎖賈修的戰術不擋指令戰術(不屬於任何魔物,spell-ownership-literal),所以仍是賈修
     g = mk(book("M-001", "S-026"))
     gash = g.state.players[0].slots[0]
     give(g, 0, "M-008")
     to_battle(g)
     lock(g, 0, gash)
     events = submit(g, {"type": "use_book_card", "player": 0, "page": 2})
-    assert _used_event(events)["mamodo"] == "M-008"
+    assert _used_event(events)["mamodo"] == "M-001"
 
 
 def test_event_card_used_has_no_user():

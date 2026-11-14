@@ -154,14 +154,13 @@ def test_p037_not_other_mamodo_spell():
     assert code(g, {"type": "declare_attack", "player": 0, "page": 12}) == "page.not_open"
 
 
-def test_p037_command_spell_used_by_brago():
-    # 依「〇〇の術」的判定:ブラゴ使用的指令戰術也是「ブラゴ」の術
+def test_p037_command_spell_not_brago_spell():
+    # 「X の術」= 對應魔物為 X 的戰術(spell-ownership-literal):指令戰術不是「ブラゴ」の術,不能從其他頁使用
     g, brago = _p037()
     submit(g, ability(0, brago, zone="partner"))
     submit(g, {"type": "pass", "player": 1})
     g.rng = Rng(HEADS)
-    submit(g, {"type": "use_book_card", "player": 0, "page": 14, "slot_uid": brago.uid})
-    assert any(e["type"] == "book_card_used" and e["card"] == "S-057" for e in g.events)
+    assert code(g, {"type": "use_book_card", "player": 0, "page": 14, "slot_uid": brago.uid}) == "page.not_open"
 
 
 # ---------------------------------------------------------------- Ex-037
@@ -418,10 +417,10 @@ def test_npc_selfplay_with_batch_cards(levels, seed):
 
 
 def test_p037_any_page_list_only_brago_spells_and_events():
-    # 畫面列出的可用卡:ブラゴ能使用的「ブラゴ」の術(含指令戰術)與事件卡;ブラゴ用不了的其他魔物戰術不列
+    # 畫面列出的可用卡:「ブラゴ」の術(只看所屬,不含指令戰術)與事件卡;其他魔物的戰術不列
     from gash.api.views import _any_page_spells
     g, brago = _p037()
     submit(g, ability(0, brago, zone="partner"))
     listed = {e["card"] for e in _any_page_spells(g, 0)}
-    assert {"E-032", "S-008", "S-057", "E-038"} <= listed
-    assert "S-001" not in listed
+    assert {"E-032", "S-008", "E-038"} <= listed
+    assert "S-001" not in listed and "S-057" not in listed
